@@ -234,4 +234,5 @@ _Pvt_Extensions
 ClientApp/.angular/cache/
 appsettings.AWS_WEBI.json
 appsettings.Development.json
-appsettings.Development.json
+appsettings.json
+appsettings.KLASSDESKTOP.json
