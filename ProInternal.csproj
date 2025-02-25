@@ -1,0 +1,157 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <SpaRoot>ClientApp\</SpaRoot>
+    <SpaProxyServerUrl>http://localhost:4200</SpaProxyServerUrl>
+    <SpaProxyLaunchCommand>npm start</SpaProxyLaunchCommand>    
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="8.0.6" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="8.0.7" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.7.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Don't publish the SPA source files, but do show them in the project files list -->
+    <Compile Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
+    <Compile Remove="ClientApp\src\app\demo\components\auth\error2\**" />
+    <Compile Remove="ClientApp\src\app\demo\components\auth\login2\**" />
+    <Compile Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <Content Remove="$(SpaRoot)**" />
+    <Content Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
+    <Content Remove="ClientApp\src\app\demo\components\auth\error2\**" />
+    <Content Remove="ClientApp\src\app\demo\components\auth\login2\**" />
+    <Content Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <EmbeddedResource Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
+    <EmbeddedResource Remove="ClientApp\src\app\demo\components\auth\error2\**" />
+    <EmbeddedResource Remove="ClientApp\src\app\demo\components\auth\login2\**" />
+    <EmbeddedResource Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <None Remove="$(SpaRoot)**" />
+    <None Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
+    <None Remove="ClientApp\src\app\demo\components\auth\error2\**" />
+    <None Remove="ClientApp\src\app\demo\components\auth\login2\**" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Controllers\WeatherForecastController.cs" />
+    <Compile Remove="WeatherForecast.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="ClientApp\README.md" />
+    <None Remove="ClientApp\src\app\demo\components\apps\file\file.app-routing.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\apps\file\file.app.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\auth\accessdenied2\accessdenied2-routing.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\auth\accessdenied2\accessdenied2.component.html" />
+    <None Remove="ClientApp\src\app\demo\components\auth\accessdenied2\accessdenied2.component.ts" />
+    <None Remove="ClientApp\src\app\demo\components\auth\accessdenied2\accessdenied2.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\auth\error2\error2-routing.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\auth\error2\error2.component.html" />
+    <None Remove="ClientApp\src\app\demo\components\auth\error2\error2.component.ts" />
+    <None Remove="ClientApp\src\app\demo\components\auth\error2\error2.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\auth\login2\login2-routing.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\auth\login2\login2.component.html" />
+    <None Remove="ClientApp\src\app\demo\components\auth\login2\login2.component.ts" />
+    <None Remove="ClientApp\src\app\demo\components\auth\login2\login2.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\dashboards\banking\dashboardbanking-routing.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\dashboards\banking\dashboardbanking.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\dashboards\dashboards-routing.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\dashboards\dashboards.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\dashboards\e-commerce\dashboardecommerce-routing.module.ts" />
+    <None Remove="ClientApp\src\app\demo\components\dashboards\e-commerce\dashboardecommerce.module.ts" />
+    <None Remove="ClientApp\src\app\models\accounting\quarterly-rebates.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\EDIMetrics.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\IRMetrics.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\MapViolation.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\OrdersMetrics.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\Products.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\SARMetrics.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\ShippingErrorMetrics.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\SpecialOrdersSummary.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2-routing.module.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.component.html" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.component.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.module.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\landing\dashboardlanding-routing.module.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\landing\dashboardlanding.module.ts" />
+    <None Remove="ClientApp\src\app\services\auth.service.ts" />
+    <None Remove="ClientApp\src\app\services\csv.service.ts" />
+    <None Remove="ClientApp\src\app\services\data.service.ts" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <TypeScriptCompile Include="ClientApp\src\app\models\accounting\quarterly-rebates.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\Products.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\Account.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\EDIMetrics.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\MapViolation.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\SpecialOrdersSummary.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\ShippingErrorMetrics.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\SARMetrics.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\IRMetrics.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\OrdersMetrics.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\services\csv.service.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\services\auth.service.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\services\data.service.ts" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="ClientApp\src\assets\NewFolder\" />
+  </ItemGroup>
+
+    <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">
+    <!-- Ensure Node.js is installed -->
+    <Exec Command="node --version" ContinueOnError="true">
+      <Output TaskParameter="ExitCode" PropertyName="ErrorCode" />
+    </Exec>
+    <Error Condition="'$(ErrorCode)' != '0'" Text="Node.js is required to build and run this project. To continue, please install Node.js from https://nodejs.org/, and then restart your command prompt or IDE." />
+    <Message Importance="high" Text="Restoring dependencies using 'npm'. This may take several minutes..." />
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
+  </Target>
+  
+  <Target Name="PublishRunWebpack" AfterTargets="ComputeFilesToPublish">
+    <!-- As part of publishing, ensure the JS resources are freshly built in production mode -->
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build --prod" />
+
+    <!-- Include the newly-built files in the publish output -->
+    <ItemGroup>
+      <DistFiles Include="$(SpaRoot)dist\**; $(SpaRoot)dist-server\**" />
+      <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(FileName)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+</Project>

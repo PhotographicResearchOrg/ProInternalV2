@@ -1,0 +1,14 @@
+$primaryColor: #20c997 !default;
+$primaryLightColor: scale-color($primaryColor, $lightness: 60%) !default;
+$primaryDarkColor: scale-color($primaryColor, $lightness: -10%) !default;
+$primaryDarkerColor: scale-color($primaryColor, $lightness: -20%) !default;
+$primaryTextColor: #1b1b1c !default;
+
+$highlightBg: $primaryColor;
+$highlightTextColor: $primaryTextColor;
+$highlightFocusBg: darken($primaryColor, 8%) !default;
+
+@import '../_variables';
+@import '../../theme-base/_components';
+@import '../../extensions/_vendor_extensions';
+@import '../../extensions/_fullcalendar';

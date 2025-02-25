@@ -1,0 +1,184 @@
+<!--<p-button type="button" (click)="onConfigButtonClick()" icon="pi pi-cog" styleClass="layout-config-button"></p-button>
+
+<p-sidebar [(visible)]="visible" position="right" [transitionOptions]="'.3s cubic-bezier(0, 0, 0.2, 1)'">
+    <div class="p-3">
+        <h5>Layout/Theme Scale</h5>
+        <div class="flex align-items-center">
+            <button icon="pi pi-minus" type="button" pButton (click)="decrementScale()"
+                class="p-button-text p-button-rounded w-2rem h-2rem mr-2" [disabled]="scale === scales[0]"></button>
+            <div class="flex gap-2 align-items-center">
+                <i class="pi pi-circle-fill text-300" *ngFor="let s of scales"
+                    [ngClass]="{'text-primary-500': s === scale}"></i>
+            </div>
+            <button icon="pi pi-plus" type="button" pButton (click)="incrementScale()"
+                class="p-button-text p-button-rounded w-2rem h-2rem ml-2"
+                [disabled]="scale === scales[scales.length - 1]"></button>
+        </div>
+
+        <h5>Scenes</h5>
+        <div class="flex flex-wrap p-2 surface-100 gap-2 border-round-lg">
+            <button pButton (click)="changeScene(item)" class="bg-transparent border-none relative p-0"
+                *ngFor="let item of scenes" style="flex: 0 0 48%;" [pTooltip]="item.sceneName" tooltipPosition="top" >
+                <div *ngIf="selectedScene() === item.sceneName" class="absolute w-full h-full flex justify-content-center align-items-center"
+                    style="background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(3.56688px)">
+                    <svg width="25" height="26" viewBox="0 0 25 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="0.520691" y="0.770691" width="24.4586" height="24.4586" rx="12.2293" fill="var(--primary-color)" />
+                        <g clip-path="url(#clip0_1_16289)">
+                            <path
+                                d="M11.1158 16.5119C11.0587 16.51 11.0025 16.4964 10.9507 16.472C10.899 16.4476 10.8528 16.4129 10.8149 16.37L7.97597 13.531C7.92185 13.4959 7.8764 13.449 7.84306 13.3938C7.80973 13.3385 7.78938 13.2765 7.78354 13.2122C7.77771 13.148 7.78655 13.0832 7.8094 13.0229C7.83224 12.9626 7.8685 12.9082 7.91542 12.864C7.96234 12.8197 8.01871 12.7867 8.08027 12.7674C8.14183 12.7481 8.20696 12.743 8.27076 12.7526C8.33456 12.7621 8.39535 12.7861 8.44854 12.8226C8.50174 12.8591 8.54595 12.9072 8.57783 12.9632L11.1158 15.4842L17.0606 9.55651C17.1406 9.50462 17.2358 9.4811 17.3308 9.48972C17.4258 9.49834 17.5151 9.53861 17.5845 9.60406C17.6539 9.66952 17.6993 9.75637 17.7134 9.8507C17.7275 9.94503 17.7096 10.0414 17.6625 10.1243L11.4168 16.37C11.3789 16.4129 11.3327 16.4476 11.281 16.472C11.2292 16.4964 11.173 16.51 11.1158 16.5119Z"
+                                fill="white" />
+                        </g>
+                        <defs>
+                            <clipPath id="clip0_1_16289">
+                                <rect width="10.7006" height="10.7006" fill="white"
+                                    transform="translate(7.39966 7.64966)" />
+                            </clipPath>
+                        </defs>
+                    </svg>
+                </div>
+                <svg width="110" height="44.5" viewBox="0 0 110 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g clip-path="url(#clip0_1_23714)">
+                        <rect x="0.5" width="109.5" height="56" rx="6" [attr.fill]="item.colorSchemeColor" />
+                        <rect width="109.5" height="10.5" transform="translate(0.5)"
+                            [attr.fill]="item.topbarThemeColor" />
+                        <rect width="42" height="45.5" transform="translate(0.5 10.5)"
+                            [attr.fill]="item.menuThemeColor" />
+                        <rect x="11" y="24.5" width="21" height="3.5" rx="1.75"
+                            [attr.fill]="item.componentThemeColor" />
+                        <rect x="11" y="31.5" width="21" height="3.5" rx="1.75"
+                            [attr.fill]="item.componentThemeColor" />
+                        <rect x="11" y="38.5" width="21" height="3.5" rx="1.75"
+                            [attr.fill]="item.componentThemeColor" />
+                        <rect x="53" y="21" width="46.5" height="24.5" rx="3" [attr.fill]="item.cardColor" />
+                        <rect x="60" y="28" width="32.5" height="10.5" rx="3" [attr.fill]="item.componentThemeColor" />
+                    </g>
+                    <defs>
+                        <clipPath id="clip0_1_23714">
+                            <rect x="0.5" width="109.5" height="56" rx="6" fill="white" />
+                        </clipPath>
+                    </defs>
+                </svg>
+            </button>
+        </div>
+
+
+        <h5>Color Scheme</h5>
+        <div class="flex gap-4">
+            <div class="field-radiobutton flex-1">
+                <p-radioButton name="colorScheme" value="light" [(ngModel)]="colorScheme"
+                    inputId="light"></p-radioButton>
+                <label for="light">Light</label>
+            </div>
+            <div class="field-radiobutton flex-1">
+                <p-radioButton name="colorScheme" value="dark" [(ngModel)]="colorScheme" inputId="dark"></p-radioButton>
+                <label for="dark">Dark</label>
+            </div>
+        </div>
+
+        <ng-container *ngIf="!minimal">
+            <h5>Menu Mode</h5>
+            <div class="flex flex-wrap row-gap-3">
+                <div class="flex align-items-center gap-2 w-6">
+                    <p-radioButton name="menuMode" value="static" [(ngModel)]="menuMode" inputId="mode1"></p-radioButton>
+                    <label for="mode1">Static</label>
+                </div>
+                <div class="flex align-items-center gap-2 w-6 ">
+                    <p-radioButton name="menuMode" value="overlay" [(ngModel)]="menuMode" inputId="mode2"></p-radioButton>
+                    <label for="mode2">Overlay</label>
+                </div>
+                <div class="flex align-items-center gap-2 w-6">
+                    <p-radioButton name="menuMode" value="slim" [(ngModel)]="menuMode" inputId="mode3"></p-radioButton>
+                    <label for="mode3">Slim</label>
+                </div>
+                <div class="flex align-items-center gap-2 w-6 ">
+                    <p-radioButton name="menuMode" value="slim-plus" [(ngModel)]="menuMode" inputId="mode4"></p-radioButton>
+                    <label for="mode3">Slim +</label>
+                </div>
+                <div class="flex align-items-center gap-2 w-6 ">
+                    <p-radioButton name="menuMode" value="reveal" [(ngModel)]="menuMode" inputId="mode6"></p-radioButton>
+                    <label for="mode5">Reveal</label>
+                </div>
+                <div class="flex align-items-center gap-2 w-6">
+                    <p-radioButton name="menuMode" value="drawer" [(ngModel)]="menuMode" inputId="mode7"></p-radioButton>
+                    <label for="mode6">Drawer</label>
+                </div>
+                <div class="flex align-items-center gap-2 w-6">
+                    <p-radioButton name="menuMode" value="horizontal" [(ngModel)]="menuMode" inputId="mode5"></p-radioButton>
+                    <label for="mode4">Horizontal</label>
+                </div>
+            </div>
+
+            <h5>Menu Profile Position</h5>
+            <div class="flex gap-4">
+                <div class="field-radiobutton flex-1">
+                    <p-radioButton name="position" value="start" [(ngModel)]="menuProfilePosition"
+                        inputId="start"></p-radioButton>
+                    <label for="star">Start</label>
+                </div>
+                <div class="field-radiobutton flex-1">
+                    <p-radioButton name="position" value="end" [(ngModel)]="menuProfilePosition"
+                        inputId="end"></p-radioButton>
+                    <label for="end">End</label>
+                </div>
+            </div>
+        </ng-container>
+
+        <ng-container *ngIf="!minimal">
+            <h5>Input Style</h5>
+            <div class="flex gap-4">
+                <div class="field-radiobutton flex-1">
+                    <p-radioButton name="inputStyle" value="outlined" [(ngModel)]="inputStyle"
+                        inputId="outlined_input"></p-radioButton>
+                    <label for="outlined_input">Outlined</label>
+                </div>
+                <div class="field-radiobutton flex-1">
+                    <p-radioButton name="inputStyle" value="filled" [(ngModel)]="inputStyle"
+                        inputId="filled_input"></p-radioButton>
+                    <label for="filled_input">Filled</label>
+                </div>
+            </div>
+        </ng-container>
+
+        <h5>Ripple Effect</h5>
+        <p-inputSwitch [(ngModel)]="ripple" styleClass="mb-3"></p-inputSwitch>
+
+        <ng-container *ngIf="!minimal">
+            <h5>Menu Themes</h5>
+            <p *ngIf="colorScheme === 'dark';else menu_theme_selector">Menu themes are only available in light mode by
+                design as large surfaces can emit too much brightness in dark mode.</p>
+            <ng-template #menu_theme_selector>
+                <div class="flex flex-wrap row-gap-3 pb-3">
+                    <div class="w-3" *ngFor="let theme of menuThemes">
+                        <button type="button"
+                            class="cursor-pointer p-link w-2rem h-2rem border-round shadow-2 flex-shrink-0 flex justify-content-center align-items-center border-circle"
+                            (click)="changeMenuTheme(theme.name)" [ngStyle]="{'background-color': theme.color}"><i
+                                *ngIf="menuTheme === theme.name" class="pi pi-check text-lg"
+                                [ngClass]="{'text-white': menuTheme !== 'light'}"></i></button>
+                    </div>
+                </div>
+            </ng-template>
+
+            <h5>Topbar Themes</h5>
+            <div class="flex flex-wrap row-gap-3 pb-3">
+                <div class="w-3" *ngFor="let theme of topbarThemes">
+                    <button type="button"
+                        class="cursor-pointer p-link w-2rem h-2rem border-round shadow-2 flex-shrink-0 flex justify-content-center align-items-center border-circle"
+                        (click)="changeTopbarTheme(theme.name)" [ngStyle]="{'background-color': theme.color}"><i
+                            *ngIf="topbarTheme === theme.name" class="pi pi-check text-lg"
+                            [ngClass]="{'text-white': topbarTheme !== 'light'}"></i></button>
+                </div>
+            </div>
+        </ng-container>
+
+
+        <h5>Component Themes</h5>
+        <div class="flex flex-wrap row-gap-3">
+            <div class="w-3" *ngFor="let theme of componentThemes">
+                <button type="button" *ngIf="(layoutService.config().colorScheme === 'dark' && theme.name === 'black') === false"
+                    class="cursor-pointer p-link w-2rem h-2rem border-round shadow-2 flex-shrink-0 flex justify-content-center align-items-center border-circle"
+                    (click)="changeTheme(theme.name)" [ngStyle]="{'background-color': theme.color}"><i
+                        *ngIf="componentTheme === theme.name" [class]="theme.name=='white'?'pi pi-check text-gray-900 ':'pi pi-check text-white'"></i></button>
+            </div>
+        </div>
+    </div>
+</p-sidebar>-->

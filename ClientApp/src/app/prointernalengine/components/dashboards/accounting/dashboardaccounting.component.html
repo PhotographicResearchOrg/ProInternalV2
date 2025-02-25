@@ -1,0 +1,836 @@
+<div class="grid">
+  <div class="col-12 md:col-4 xl:col-2">
+    <p-button styleClass="w-full surface-card flex flex-wrap h-full surface-border text-primary p-3">
+      <div class="p-3 flex justify-content-center align-items-center border-circle bg-primary-50 text-primary mr-2"
+           [ngClass]="{'bg-primary-900': layoutService.config().colorScheme === 'dark'}">
+        <i class="pi pi-send text-xl"></i>
+      </div>
+      <div class="flex flex-column align-items-start text-900">
+        <span class="block h-auto font-bold">SAR</span>
+        <span class="block h-auto">Process SAR Credits</span>
+      </div>
+    </p-button>
+  </div>
+
+  <div class="col-12 md:col-4 xl:col-2">
+    <p-button styleClass="w-full surface-card flex flex-wrap h-full surface-border text-primary p-3">
+      <div class="p-3 flex justify-content-center align-items-center border-circle bg-primary-50 text-primary mr-2"
+           [ngClass]="{'bg-primary-900': layoutService.config().colorScheme === 'dark'}">
+        <i class="pi pi-money-bill text-xl"></i>
+      </div>
+
+      <div class="flex flex-column align-items-start text-900">
+        <span class="block h-auto font-bold">EDI</span>
+        <span class="block h-auto">Process EDI</span>
+      </div>
+    </p-button>
+  </div>
+
+  <div class="col-12 md:col-4 xl:col-2">
+    <p-button styleClass="w-full surface-card flex flex-wrap h-full surface-border text-primary p-3">
+      <div class="p-3 flex justify-content-center align-items-center border-circle bg-primary-50 text-primary mr-2"
+           [ngClass]="{'bg-primary-900': layoutService.config().colorScheme === 'dark'}">
+        <i class="pi pi-credit-card text-xl"></i>
+      </div>
+
+      <div class="flex flex-column align-items-start text-900">
+        <span class="block h-auto font-bold">EZ-Pay</span>
+        <span class="block h-auto">Process EZ Pay</span>
+      </div>
+    </p-button>
+  </div>
+
+  <div class="col-12 md:col-4 xl:col-2">
+    <p-button styleClass="w-full surface-card flex flex-wrap h-full surface-border text-primary p-3">
+      <div class="p-3 flex justify-content-center align-items-center border-circle bg-primary-50 text-primary mr-2"
+           [ngClass]="{'bg-primary-900': layoutService.config().colorScheme === 'dark'}">
+        <i class="pi pi-download text-xl"></i>
+      </div>
+
+      <div class="flex flex-column align-items-start text-900">
+        <span class="block h-auto font-bold">PromptPay</span>
+        <span class="block h-auto">Process Promtpay</span>
+      </div>
+    </p-button>
+  </div>
+
+  <div class="col-12 md:col-4 xl:col-2">
+    <p-button styleClass="w-full surface-card flex flex-wrap h-full surface-border text-primary p-3">
+      <div class="p-3 flex justify-content-center align-items-center border-circle bg-primary-50 text-primary mr-2"
+           [ngClass]="{'bg-primary-900': layoutService.config().colorScheme === 'dark'}">
+        <i class="pi pi-arrow-right-arrow-left text-xl"></i>
+      </div>
+
+      <div class="flex flex-column align-items-start text-900">
+        <span class="block h-auto font-bold">Apply Entry </span>
+        <span class="block h-auto">(DR) / (CR)</span>
+      </div>
+    </p-button>
+  </div>
+
+  <div class="col-12 md:col-4 xl:col-2">
+    <p-button styleClass="w-full surface-card flex flex-wrap h-full surface-border text-primary p-3">
+      <div class="p-3 flex justify-content-center align-items-center border-circle bg-primary-50 text-primary mr-2"
+           [ngClass]="{'bg-primary-900': layoutService.config().colorScheme === 'dark'}">
+        <i class="pi pi-prime text-xl"></i>
+      </div>
+
+      <div class="flex flex-column align-items-start text-900">
+        <span class="block h-auto font-bold">Memos</span>
+        <span class="block h-auto">Debit Memo</span>
+      </div>
+    </p-button>
+  </div>
+
+  <div class="col-12 md:col-6 xl:col-3">
+    Quick Credit Approve
+    <div class="py-4 px-2 border-round-md surface-card flex flex-wrap h-full align-items-center justify-content-between gap-3 border-1 surface-border">
+      <div class="flex gap-3 align-items-center">
+        <div class="p-2 flex justify-content-center align-items-center border-circle bg-primary text-0 mr-2"
+             [ngClass]="{'bg-primary-900 text-900': layoutService.config().colorScheme === 'dark'}">
+          <i class="pi pi-dollar text-2xl"></i>
+        </div>
+        <div>
+          <div class="text-xl font-medium text-left">5102</div>
+          <div class="text-base text-color-secondary">AVI Systems   &nbsp;&nbsp;  <p-tag value="PENDING" severity="warning"></p-tag></div>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">Limit</span>
+          <span class="text-base font-medium">$5,000</span>
+        </div>
+
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">Balance</span>
+          <p style="color:red"><span class="text-base font-medium">-2,383</span></p>
+        </div>
+
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">YTD Sales</span>
+          <span class="text-base font-medium">122,383</span>
+        </div>
+
+
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">
+            <a href="url">Override</a>
+            <br />
+            <a href="url">Inspect</a>
+          </span>
+          <!--<span class="text-base font-medium">Hold</span>-->
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 md:col-6 xl:col-3">
+
+    <br />
+    <div class="py-4 px-2 border-round-md surface-card flex flex-wrap h-full align-items-center justify-content-between gap-3 border-1 surface-border">
+      <div class="flex gap-3 align-items-center">
+        <div class="p-2 flex justify-content-center align-items-center border-circle bg-primary text-0 mr-2"
+             [ngClass]="{'bg-primary-900': layoutService.config().colorScheme === 'dark'}">
+          <!--<i class="pi pi-euro text-2xl"></i>-->
+          <i class="pi pi-user"></i>
+        </div>
+
+        <div>
+          <div class="text-xl font-medium text-left">1747</div>
+          <div class="text-base text-color-secondary">DODD   &nbsp;&nbsp;  <p-tag value="PENDING" severity="warning"></p-tag></div>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">Limit</span>
+          <span class="text-base font-medium">$1,000</span>
+        </div>
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">Balance</span>
+          <p style="color:red"><span class="text-base font-medium">-383</span></p>
+        </div>
+
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">YTD Sales</span>
+          <span class="text-base font-medium">11,383</span>
+        </div>
+
+
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">
+            <a href="url">Override</a>
+            <br />
+            <a href="url">Inspect</a>
+          </span>
+          <!--<span class="text-base font-medium">Hold</span>-->
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class=" col-12 md:col-6 xl:col-3">
+    <br />
+    <div class="py-4 px-2 border-round-md surface-card flex flex-wrap h-full align-items-center justify-content-between gap-3 border-1 surface-border">
+      <div class="flex gap-3 align-items-center">
+        <div class="p-2 flex justify-content-center align-items-center border-circle bg-primary text-0 mr-2"
+             [ngClass]="{'bg-primary-900': layoutService.config().colorScheme === 'dark'}">
+          <i class="pi pi-pound text-2xl"></i>
+        </div>
+
+        <div>
+          <div class="text-xl font-medium text-left">5105</div>
+          <div class="text-base text-color-secondary">ABC Systems   &nbsp;&nbsp;  <p-tag value="PENDING" severity="warning"></p-tag></div>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">Limit</span>
+          <span class="text-base font-medium">$5,000</span>
+        </div>
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">Balance</span>
+          <p style="color:red"><span class="text-base font-medium">-5,383</span></p>
+        </div>
+
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">YTD Sales</span>
+          <span class="text-base font-medium">222,383</span>
+        </div>
+
+
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">
+            <a href="url">Override</a>
+            <br />
+            <a href="url">Inspect</a>
+          </span>
+          <!--<span class="text-base font-medium">Hold</span>-->
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col-12 md:col-6 xl:col-3">
+    <br />
+    <div class="py-4 px-2 border-round-md surface-card flex flex-wrap h-full align-items-center justify-content-between gap-3 border-1 surface-border">
+      <div class="flex gap-3 align-items-center">
+        <div class="p-2 flex justify-content-center align-items-center border-circle bg-primary text-0 mr-2"
+             [ngClass]="{'bg-primary-900': layoutService.config().colorScheme === 'dark'}">
+          <i class="pi pi-bitcoin text-2xl"></i>
+        </div>
+
+        <div>
+          <div class="text-xl font-medium text-left">1204</div>
+          <div class="text-base text-color-secondary">Bedford   &nbsp;&nbsp;  <p-tag value="PENDING" severity="warning"></p-tag></div>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">Limit</span>
+          <span class="text-base font-medium">$1,000</span>
+        </div>
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">Balance</span>
+          <p style="color:red"><span class="text-base font-medium">-1,383</span></p>
+        </div>
+
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">YTD Sales</span>
+          <span class="text-base font-medium">2,383</span>
+        </div>
+
+
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-color-secondary">
+            <a href="url">Override</a>
+            <br />
+            <a href="url">Inspect</a>
+          </span>
+          <!--<span class="text-base font-medium">Hold</span>-->
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 lg:col-6">
+    <div class="card h-full">
+      <h5>Receivables</h5>Download  : <i class="pi pi-file-excel"> </i>
+      <div class="flex justify-content-between border-bottom-1 surface-border p-3">
+        <span class="font-semibold text-color-secondary text-xl">Grand Total</span>
+        <span class="text-green-500 text-2xl font-bold">$624,504.00</span>
+      </div>
+
+      <div class="p-3">
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-money-bill text-color-secondary"></i>
+            <span class="text-color-secondary">EZ-Pay Clients</span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            <span class="font-semibold text-base">$320,521.25</span>
+            <a href="#" class="text-color-secondary">
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-briefcase text-color-secondary"></i>
+            <span class="text-color-secondary">EZ-Pay Patrons</span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            <span class="font-semibold text-base">$94,305.00</span>
+            <a href="#" class="text-color-secondary">
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-globe text-color-secondary"></i>
+            <span class="text-color-secondary">Prompt-Pay</span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            <span class="font-semibold text-base">$5,000.00</span>
+            <a href="#" class="text-color-secondary">
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-dollar text-color-secondary"></i>
+            <span class="text-color-secondary">Unclaimed IRs</span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            <span class="font-semibold text-base">$2,324,00.43</span>
+            <a href="#" class="text-color-secondary">
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-globe text-color-secondary"></i>
+            <span class="text-color-secondary">Pay-Pal</span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            <span class="font-semibold text-base">$5,000.00</span>
+            <a href="#" class="text-color-secondary">
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <div class="col-12 lg:col-6">
+    <div class="card h-full">
+      <h5>Liability</h5>Download  : <i class="pi pi-file-excel"> </i>
+      <div class="flex justify-content-between border-bottom-1 surface-border p-3">
+        <span class="font-semibold text-color-secondary text-xl">Grand Total</span>
+        <span class="text-red-500 text-2xl font-bold">$-125,330.00</span>
+      </div>
+
+      <div class="p-3">
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-briefcase text-color-secondary"></i>
+            <span class="text-color-secondary">IR</span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            <span class="font-semibold text-base">$100,240.00</span>
+            <a href="#" class="text-color-secondary">
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-calendar text-color-secondary"></i>
+            <span class="text-color-secondary">SAR</span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            <span class="font-semibold text-base">$25,090.00</span>
+            <a href="#" class="text-color-secondary">
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-calendar text-color-secondary"></i>
+            <span class="text-color-secondary">Expense </span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            <span class="font-semibold text-base">$25,090.00</span>
+            <a href="#" class="text-color-secondary">
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-ticket text-color-secondary"></i>
+            <span class="text-color-secondary">Quarterly to Current</span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            <span class="font-semibold text-base">$854,000</span>
+            <a href="#" class="text-color-secondary">
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+  <div class="col-12 lg:col-6">
+    <div class="card h-full">
+      <h5>Payables</h5>
+      Download  : <i class="pi pi-file-excel"> </i>
+      <div class="flex justify-content-between border-bottom-1 surface-border p-3">
+        <!--<span class="font-semibold text-color-secondary text-xl">AP</span>
+    <span class="text-green-500 text-2xl font-bold">$624,504.00</span>-->
+      </div>
+
+      <div class="p-3">
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-money-bill text-color-secondary"></i>
+            <span class="text-color-secondary">Computyme AP </span>
+          </div>
+          <div class="flex align-items-center gap-2">
+
+            <span class="font-semibold text-base">$920,521.25</span>
+            <a href="#" class="text-color-secondary">
+              &nbsp; &nbsp; &nbsp;
+              <p-tag value="RECONSILED" severity="success"></p-tag>
+              &nbsp; &nbsp; &nbsp;
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+        <div class="flex align-items-center justify-content-between py-2">
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-briefcase text-color-secondary"></i>
+            <span class="text-color-secondary">Sage AP</span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            &nbsp; &nbsp; &nbsp;
+            <span class="font-semibold text-base">$920,521.25</span>
+            <a href="#" class="text-color-secondary">
+              &nbsp; &nbsp; &nbsp;
+              <p-tag value="RECONSILED" severity="success"></p-tag>
+              &nbsp; &nbsp; &nbsp;
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>
+        </div>
+
+        <h5>Receivables</h5>Download  : <i class="pi pi-file-excel"> </i>
+        <div class="flex justify-content-between border-bottom-1 surface-border p-3">
+          <!--<span class="font-semibold text-color-secondary text-xl">AP</span>
+      <span class="text-green-500 text-2xl font-bold">$624,504.00</span>-->
+        </div>
+        <div class="p-3">
+          <div class="flex align-items-center justify-content-between py-2">
+            <div class="flex gap-3 text-lg align-items-center">
+              <i class="pi pi-money-bill text-color-secondary"></i>
+              <span class="text-color-secondary">AR</span>
+            </div>
+            <div class="flex align-items-center gap-2">
+              <span class="font-semibold text-base">$920,521.25</span>
+              <a href="#" class="text-color-secondary">
+                <i class="pi pi-angle-double-right"></i>
+              </a>
+            </div>
+          </div>
+          <!--<div class="flex align-items-center justify-content-between py-2">
+      <div class="flex gap-3 text-lg align-items-center">
+        <i class="pi pi-briefcase text-color-secondary"></i>
+        <span class="text-color-secondary">AR</span>
+      </div>
+      <div class="flex align-items-center gap-2">
+        <span class="font-semibold text-base">$394,305.00</span>
+        <a href="#" class="text-color-secondary">
+          <i class="pi pi-angle-double-right"></i>
+        </a>
+      </div>-->
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+
+
+
+
+  <div class="col-12 lg:col-6">
+    <div class="card h-full">
+      <table>
+        <tr>
+          <td>
+
+            <img src="assets/demo/images/product/rev.png" alt="">
+            <br /><br /> Download  : <i class="pi pi-file-excel"></i>
+          </td>
+        </tr>
+      </table>
+
+      <!--<div *ngIf="layoutService.config().colorScheme==='light'"
+           class="w-full h-17rem bg-cover bg-center bg-no-repeat"
+           style="background:url(assets/layout/images/dashboard-banking/asset-japan.jpg);">
+
+      </div>
+      <div *ngIf="layoutService.config().colorScheme==='dark'"
+           class="w-full h-17rem bg-cover bg-center bg-no-repeat"
+           style="background:url(assets/layout/images/dashboard-banking/asset-japan-night.jpg);">
+
+      </div>-->
+      <div>
+        <h3 class="mt-3"><strong>Positive Pay</strong></h3>
+        <div>
+          <p-progressBar [value]="30" styleClass="border-round" [style]="{'height': '.5rem'}"
+                         [showValue]="false"></p-progressBar>
+        </div>
+
+        <div class="text-color-secondary my-3">
+          <p><span><b>$3,000.00</b></span> from $10,000.00</p>
+        </div>
+
+        <div class="flex align-items-center justify-content-between my-3">
+          <p-button label="Deposit"></p-button>
+          <a href="#" class="p-button-link">Withdraw</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+  <div class="col-12 lg:col-6">
+    <div class="card">
+      <div class="text-900 text-xl font-semibold mb-3">EZ-PAY Week Ending 02/09/24 </div> Download  : <i class="pi pi-file-excel"> </i> 
+      <p-table responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th class="white-space-nowrap w-4">EZ PAY: </th>
+            <th class="white-space-nowrap w-4">Amount</th>
+            <th class="white-space-nowrap w-4">Week Ending</th>
+            <th class="white-space-nowrap w-4">Status</th>
+          </tr>
+          <tr>
+            <td>Web Value</td>
+            <td>$1,200,452 </td>
+            <td> 02.09.24</td>
+            <td class="text-right">
+              <!--<p-tag value="COMPLETED" severity="success"></p-tag>-->
+              <p-tag value="WARNING" severity="warning"></p-tag>
+            </td>
+          </tr>
+          <tr>
+            <td>Computyme Value</td>
+            <td>$1,100,452 </td>
+            <td> 02.09.24</td>
+            <td class="text-right">
+              <!--<p-tag value="COMPLETED" severity="success"></p-tag>-->
+              <p-tag value="WARNING" severity="warning"></p-tag>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-payment>
+          <table>
+            <tr>
+              <td>Web Value</td>
+              <td></td>
+              <td></td>
+              <td class="text-right">
+                <p-tag value="COMPLETED" severity="success"></p-tag>
+                <p-tag value="PENDING" severity="warning"></p-tag>
+              </td>
+            </tr>
+          </table>
+        </ng-template>
+      </p-table>
+    </div>
+
+
+
+    <div class="card">
+      <div class="text-900 text-xl font-semibold mb-3">Prompt-Pay Week Ending 02/09/24 </div>Download  : <i class="pi pi-file-excel"> </i>
+      <p-table responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th class="white-space-nowrap w-4">Prompt-Pay: </th>
+            <th class="white-space-nowrap w-4">Amount</th>
+            <th class="white-space-nowrap w-4">Week Ending</th>
+            <th class="white-space-nowrap w-4">Status</th>
+          </tr>
+          <tr>
+            <td>Web Value</td>
+            <td>$200,452 </td>
+            <td> 02.09.24</td>
+            <td class="text-right">
+              <p-tag value="COMPLETED" severity="success"></p-tag>
+            </td>
+          </tr>
+          <tr>
+            <td>Computyme Value</td>
+            <td>$200,452 </td>
+            <td> 02.09.24</td>
+            <td class="text-right">
+              <p-tag value="COMPLETED" severity="success"></p-tag>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-payment>
+          <table>
+            <tr>
+              <td>Web Value</td>
+              <td></td>
+              <td></td>
+              <td class="text-right">
+                <p-tag value="COMPLETED" severity="success"></p-tag>
+                <p-tag value="PENDING" severity="warning"></p-tag>
+              </td>
+            </tr>
+          </table>
+        </ng-template>
+      </p-table>
+    </div>
+
+
+
+
+    <div class="card">
+      <div class="text-900 text-xl font-semibold mb-3">Aging</div>Download  : <i class="pi pi-file-excel"> </i>
+      <p-table responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th class="white-space-nowrap w-4">Account</th>
+            <th class="white-space-nowrap w-4">Name</th>
+            <th class="white-space-nowrap w-4">Amount</th>
+            <th class="white-space-nowrap w-4">Bucket</th>
+
+          </tr>
+          <tr>
+            <td>3125</td>
+            <td>Dodd</td>
+            <td>25,000 </td>
+            <td class="text-right">
+              <p-tag value="60 Day" severity="danger"></p-tag>
+            </td>
+          </tr>
+          <tr>
+            <td>2589</td>
+            <td>Calagaz</td>
+            <td>35,000</td>
+            <td class="text-right">
+              <p-tag value="30 Day" severity="danger"></p-tag>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-payment>
+          <table>
+            <tr>
+              <td>Web Value</td>
+              <td></td>
+              <td></td>
+              <td class="text-right">
+                <p-tag value="COMPLETED" severity="success"></p-tag>
+                <p-tag value="60 Day" severity="warning"></p-tag>
+              </td>
+            </tr>
+          </table>
+        </ng-template>
+      </p-table>
+    </div>
+
+
+
+
+
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+  <div class="col-12 lg:col-6">
+    <div class="card">
+      <div class="text-900 text-xl font-semibold mb-3">Expense Reports</div>Download  : <i class="pi pi-file-excel"> </i>
+      <p-table [value]="payments" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th class="white-space-nowrap w-4">Name</th>
+            <th class="white-space-nowrap w-4">Amount</th>
+            <th class="white-space-nowrap w-4">Date</th>
+            <th class="white-space-nowrap w-4">Status</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-payment>
+          <tr>
+            <td>{{payment.name}}</td>
+            <td>{{payment.amount | currency}}</td>
+            <td>{{payment.date}}</td>
+            <td class="text-right">
+              <p-tag *ngIf="payment.paid" value="COMPLETED" severity="success"></p-tag>
+              <p-tag *ngIf="!payment.paid" value="PENDING" severity="warning"></p-tag>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
+
+
+
+  <div class="col-12 lg:col-6">
+    <div class="card h-full">
+      <h5>Application Submissions</h5>Download  : <i class="pi pi-file-excel"> </i>
+
+      <div class="flex align-items-center justify-content-between">
+        <div class="flex w-7 align-items-center justify-content-between">
+          <img src="assets/layout/images/dashboard-banking/asset-visa.png" alt="avalon-layout" width="52" />
+          <div class="flex flex-column">
+            <span class="font-medium">01/05</span>
+            <span class="text-color-secondary">Client</span>
+          </div>
+          <div class="flex flex-column">
+            <span class="font-medium">Mark's Camera Shop</span>
+            <span class="text-color-secondary">Step 4 of 8</span>
+          </div>
+        </div>
+        <div class="w-5 flex justify-content-end">
+          <button pButton label="See Details"></button>
+        </div>
+      </div>
+
+      <div class="flex align-items-center justify-content-between">
+        <div class="flex w-7 align-items-center justify-content-between">
+          <img src="assets/layout/images/dashboard-banking/asset-netflix.png" alt="avalon-layout"
+               width="52" />
+          <div class="flex flex-column">
+            <span class="font-medium">09/04</span>
+            <span class="text-color-secondary">Patron</span>
+          </div>
+          <div class="flex flex-column">
+            <span class="font-medium">John's Camera Shop</span>
+            <span class="text-color-secondary">Complete</span>
+          </div>
+        </div>
+        <div class="w-5 flex justify-content-end">
+          <button pButton label="See Details"></button>
+        </div>
+      </div>
+
+      <div class="flex align-items-center justify-content-between">
+        <div class="flex w-7 align-items-center justify-content-between">
+          <img src="assets/layout/images/dashboard-banking/asset-spotify.png" alt="avalon-layout"
+               width="52" />
+          <div class="flex flex-column">
+            <span class="font-medium">01/05</span>
+            <span class="text-color-secondary">Client</span>
+          </div>
+          <div class="flex flex-column">
+            <span class="font-medium">Mark's Camera Shop</span>
+            <span class="text-color-secondary">Step 4 of 8</span>
+          </div>
+        </div>
+        <div class="w-5 flex justify-content-end">
+          <button pButton label="See Deatils"></button>
+        </div>
+      </div>
+
+
+      <div class="flex align-items-center justify-content-between">
+        <div class="flex w-7 align-items-center justify-content-between">
+          <img src="assets/layout/images/dashboard-banking/asset-newyorker.png" alt="avalon-layout"
+               width="52" />
+          <div class="flex flex-column">
+            <span class="font-medium">01/05</span>
+            <span class="text-color-secondary">Client</span>
+          </div>
+          <div class="flex flex-column">
+            <span class="font-medium">Mark's Camera Shop</span>
+            <span class="text-color-secondary">Step 4 of 8</span>
+          </div>
+        </div>
+        <div class="w-5 flex justify-content-end">
+          <button pButton label="See Details"></button>
+        </div>
+      </div>
+
+      <div class="flex align-items-center justify-content-between">
+        <div class="flex w-7 align-items-center justify-content-between">
+          <img src="assets/layout/images/dashboard-banking/asset-google.png" alt="avalon-layout" width="52" />
+          <div class="flex flex-column">
+            <span class="font-medium">01/05</span>
+            <span class="text-color-secondary">Client</span>
+          </div>
+          <div class="flex flex-column">
+            <span class="font-medium">Mark's Camera Shop</span>
+            <span class="text-color-secondary">Step 4 of 8</span>
+          </div>
+        </div>
+        <div class="w-5 flex justify-content-end">
+          <button pButton label="See Details"></button>
+        </div>
+      </div>
+
+      <div class="flex align-items-center justify-content-between">
+        <div class="flex w-7 align-items-center justify-content-between">
+          <img src="assets/layout/images/dashboard-banking/asset-soundcloud.png" alt="avalon-layout"
+               width="52" />
+          <div class="flex flex-column">
+            <span class="font-medium">01/05</span>
+            <span class="text-color-secondary">Client</span>
+          </div>
+          <div class="flex flex-column">
+            <span class="font-medium">Mark's Camera Shop</span>
+            <span class="text-color-secondary">Step 4 of 8</span>
+          </div>
+        </div>
+        <div class="w-5 flex justify-content-end">
+          <button pButton label="See Details"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 lg:col-6">
+    <div class="card h-full">
+      <h5>YTD Revenue</h5>Download  : <i class="pi pi-file-excel"> </i>
+      <p-chart type="bar" [data]="visitorChart" [options]="visitorChartOptions" id="visitor-chart"></p-chart>
+    </div>
+  </div>
+</div>

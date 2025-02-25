@@ -1,0 +1,16 @@
+<div class="layout-breadcrumb-container">
+    <nav class="layout-breadcrumb">
+        <ol>
+            <li><i class="pi pi-home"></i></li>
+            <ng-template ngFor let-item let-last="last" [ngForOf]="breadcrumbs$ | async">
+                <li><i class="pi pi-angle-right"></i></li>
+                <li><span>{{item.label}}</span></li>
+            </ng-template>
+        </ol>
+    </nav>
+    <div class="layout-breadcrumb-buttons">
+        <button pButton pRipple type="button" icon="pi pi-cloud-upload" class="p-button-rounded p-button-text p-button-plain"></button>
+        <button pButton pRipple type="button" icon="pi pi-bookmark" class="p-button-rounded p-button-text p-button-plain"></button>
+        <button pButton pRipple type="button" icon="pi pi-power-off" class="p-button-rounded p-button-text p-button-plain"></button>
+    </div>
+</div>

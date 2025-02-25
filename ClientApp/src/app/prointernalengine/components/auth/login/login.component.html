@@ -1,0 +1,37 @@
+<div class="overflow-hidden margin-0 relative h-screen">
+    <div class="bg-cover bg-center" style="background: url('assets/layout/images/login/bg-login.jpg'); height: calc(100% - 370px);"></div>
+    <div class="w-full absolute mb-0 bottom-0 text-center surface-900 border-noround p-fluid h-27rem">
+        <div class="px-6 md:p-0 w-29rem relative text-white" style="margin-left: -200px; top: 30px; left: 50%;">
+            <div class="grid">
+                <div class="col-3 text-left">
+                    <img src="assets/layout/images/login/icon-login.svg" alt="avalon-ng"/>
+                </div>
+                <div class="col-9 text-left">
+                    <h2 class="mb-0 text-0">Welcome </h2>
+                    <span class="text-500 text-sm">Sign in to PROMaster Network</span>
+                </div>
+                <div class="col-12 text-left">
+                    <label class="text-400 mb-1">Username</label>
+                    <div class="mt-1">
+                        <input type="text" placeholder="Username"  [(ngModel)]='username' pInputText/>
+                    </div>
+                </div>
+                <div class="col-12 text-left">
+                    <label class="text-400 mb-1">Password</label>
+                    <div class="mt-1">
+                        <input type="password" placeholder="Password"   [(ngModel)]='password' pInputText/>
+                    </div>
+                </div>
+
+                <div class="col-12 md:col-6">
+                    <button pButton pRipple  type="button" [routerLink]="['/']" label="Sign In" (click)="login()"></button>
+                </div>
+
+                <div class="col-12 md:col-6">
+                    <button pButton pRipple class="p-button-text text-gray-300 flex justify-content-center">Forgot Password?</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
