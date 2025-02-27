@@ -454,7 +454,7 @@
         </div>
 
     
-        <p-table #dt [value]="specialOrders" [columns]="cols" [paginator]="true" [rows]="4" responsiveLayout="scroll" [globalFilterFields]="['productCode','caT_NO','modelName','enterDate','accountNumber','status']">
+        <p-table #dt [value]="specialOrders" [paginator]="true" [rows]="4" responsiveLayout="scroll" [globalFilterFields]="['productCode','caT_NO','modelName','enterDate','accountNumber','status']">
           <ng-template pTemplate="header">
             <tr>
               <th pSortableColumn="productCode" class="white-space-nowrap">Prod #<p-sortIcon field="productCode">              </p-sortIcon></th>

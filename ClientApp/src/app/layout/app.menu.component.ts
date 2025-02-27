@@ -25,7 +25,8 @@ export class AppMenuComponent implements OnInit {
                           items:
                             [
                               { label: 'Accounting Dash', icon: 'pi pi-fw pi-sign-in', routerLink: ['/dashboard-accounting'] },
-                              { label: 'Quarterly Rebates', icon: 'pi pi-fw pi-times-circle', routerLink: ['/qtr-rebates'] },
+                              { label: 'Quarterly Rebates', icon: 'pi pi-fw pi-times-circle', routerLink: ['/qtr-rebates'] }
+                         
                            
                             /*{label: 'Fetch Data', icon: 'pi pi-fw pi-lock', routerLink: ['/fetch-data'] },*/
                             
@@ -41,22 +42,16 @@ export class AppMenuComponent implements OnInit {
             label: 'Rebate Management',
             icon: 'pi pi-wrench',
             items: [
+              { label: '(IR) Maintenance', icon: 'pi pi-wrench', routerLink: ['/rebatesupport'] },
+              { label: ' BRM - (IR) Support', icon: 'pi pi-wrench', routerLink: ['/rebatesupport'] }
 
-              //{ label: 'BRM - (IR) Support', icon: 'pi pi-wrench', routerLink: ['instantrebate', 'rebatesupport'] },
-              {
-                label: ' BRM - (IR) Support', icon: 'pi pi-wrench', routerLink: ['/instantrebate/rebatesupport']
-                //InstantrebateModule
-                //RebatesupportComponent
-
-              }
-
-              //{ label: 'Connection Comments', icon: 'pi pi-fw pi-comments', routerLink: ['/apps/chat'] },
+              //{label: 'Connection Comments', icon: 'pi pi-fw pi-comments', routerLink: ['/apps/chat'] },
               //{label: 'Product List',icon: 'pi pi-fw pi-list',routerLink: ['ecommerce/product-list']},
-              //{ label: 'New Products', icon: 'pi pi-fw pi-plus', routerLink: ['ecommerce/new-product'] },
+              //{label: 'New Products', icon: 'pi pi-fw pi-plus', routerLink: ['ecommerce/new-product'] },
               //{label: 'Shopping Cart',icon: 'pi pi-fw pi-shopping-cart',routerLink: ['ecommerce/shopping-cart']},
               //{label: 'Checkout Form',icon: 'pi pi-fw pi-check-square',routerLink: ['ecommerce/checkout-form']},
-              //{ label: 'Member Management', icon: 'pi pi-fw pi-list', routerLink: ['profile/list'] },
-              //{ label: 'Process Orders', icon: 'pi pi-fw pi-history', routerLink: ['ecommerce/order-history'] },
+              //{label: 'Member Management', icon: 'pi pi-fw pi-list', routerLink: ['profile/list'] },
+              //{label: 'Process Orders', icon: 'pi pi-fw pi-history', routerLink: ['ecommerce/order-history'] },
               //{label: 'Order Summary',icon: 'pi pi-fw pi-file',routerLink: ['ecommerce/order-summary']}
               //{label: 'Quarterly Rebates',icon: 'pi pi-fw pi-times-circle',routerLink: ['ecommerce/qtr-rebates']}
             ]

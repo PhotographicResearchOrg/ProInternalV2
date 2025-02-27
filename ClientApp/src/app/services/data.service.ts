@@ -7,6 +7,9 @@ import { OrdersMetrics } from "../models/Dashboard/OrdersMetrics";
 import { SARMetrics } from "../models/Dashboard/SARMetrics";
 import { EDIMetrics } from "../models/Dashboard/EDIMetrics";
 import { IRMetrics } from "../models/Dashboard/IRMetrics";
+import { InstantRebate } from "../models/Dashboard/InstantRebate";
+
+
 import { ShippingErrorMetrics } from "../models/Dashboard/ShippingErrorMetrics";
 
 import { Account } from "../models/Dashboard/Account";
@@ -41,6 +44,22 @@ export class DataService {
   }
 
 
+  GetInstantRebateBatches() {
+    return this.api.get<Array<InstantRebate>>('API/InstantRebates/GetInstantRebateBatches');
+  }
+
+  activateIRBatch(batchId: number) {
+      return this.api.put(`API/InstantRebates/activateIRBatch/${batchId}`, {});
+    }
+
+
+  pullIRBatchDetail(batchId: number) {
+    return this.api.get<Array<InstantRebate>>(`API/InstantRebates/getIRBatchDetail/${batchId}`);
+  }
+
+
+
+
 
   getRecentLoad() {
     return this.api.get <Array<QuarterlyRebates>>(`API/Accounting/getCurrentQuarterlyData`);
@@ -61,12 +80,14 @@ export class DataService {
     return this.api.put(`API/Accounting/activate/${batchId}`, {});
   }
 
-  
+ 
   
   pullQRBatchDetail(batchId: number) {
     console.log(batchId);
     return this.api.get<Array<qrDetail>>(`API/Accounting/getQRBatchDetail/${batchId}`);
   }
+
+
 
   pullQRBatchVendorDetail(batchId: string) {
     console.log(batchId);

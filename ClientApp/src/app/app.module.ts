@@ -26,19 +26,22 @@ import { DashboardAccountingComponent } from './prointernalengine/components/das
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { DashboardLandingComponent } from './prointernalengine/components/dashboards/landing/dashboardlanding.component';
 import { InputSwitchModule } from 'primeng/inputswitch';
+
+
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { FileAppService } from './prointernalengine/components/apps/file/service/file.app.service';
-
-
 import { QtrRebatesComponent } from './prointernalengine/components/dashboards/qtr-rebates/qtr-rebates.component';
+
+import { RebatesupportComponent } from './prointernalengine/components/instantrebate/rebatesupport/rebatesupport.component';
+
 
 @NgModule({
     declarations: [
     AppComponent,
     QtrRebatesComponent,
+    RebatesupportComponent,
     DashboardAccountingComponent,
     DashboardLandingComponent,
-
     UploaderComponent,
     FileAppComponent
     ],
@@ -62,8 +65,8 @@ import { QtrRebatesComponent } from './prointernalengine/components/dashboards/q
         InputTextModule,
         TagModule,
         OverlayPanelModule,
-    FileUploadModule,
-    InputSwitchModule
+        FileUploadModule,
+        InputSwitchModule
   ],
  
     providers: [

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using ProInternal.Models.Dashboard;
+using Microsoft.Data.SqlClient;
 
 namespace ProInternal.Services
 {
@@ -25,7 +26,7 @@ namespace ProInternal.Services
 
         public SARSMetrics GetSARSMetrics()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<SARSMetrics>("InternalSARSMetrics").FirstOrDefault();
 

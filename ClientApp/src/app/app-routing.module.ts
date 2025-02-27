@@ -26,7 +26,11 @@ const routes: Routes = [
                 { path: '', data: { breadcrumb: 'Landing Page Dash' }, component: DashboardLandingComponent },
                 { path: 'dashboard-accounting', data: { breadcrumb: 'Accounting Dashboard' }, component: DashboardAccountingComponent },
                 { path: 'Dashboard-landing', data: { breadcrumb: 'PRO Dashboard' }, component: DashboardLandingComponent },
-                { path: 'qtr-rebates', data: { breadcrumb: 'Quarterly Rebates' }, component: QtrRebatesComponent },      
+
+                { path: 'qtr-rebates', data: { breadcrumb: 'Quarterly Rebates' }, component: QtrRebatesComponent },
+
+                { path: 'rebatesupport', data: { breadcrumb: 'Quarterly Rebates' }, component: RebatesupportComponent },
+
                     /*   { path: '', loadChildren: () => import('./prointernalengine/components/auth/login/login.module').then(m => m.LoginModule) },*/
                 { path: 'apps/files', data: { breadcrumb: 'Files' }, component: FileAppComponent },
                 { path: 'uikit', data: { breadcrumb: 'UI Kit' }, loadChildren: () => import('./prointernalengine/components/uikit/uikit.module').then(m => m.UIkitModule) },
@@ -36,9 +40,7 @@ const routes: Routes = [
                 { path: 'documentation', data: { breadcrumb: 'Documentation' }, loadChildren: () => import('./prointernalengine/components/documentation/documentation.module').then(m => m.DocumentationModule) },
                 { path: 'blocks', data: { breadcrumb: 'Prime Blocks' }, loadChildren: () => import('./prointernalengine/components/primeblocks/primeblocks.module').then(m => m.PrimeBlocksModule) },
                 { path: 'ecommerce', data: { breadcrumb: 'E-Commerce' }, loadChildren: () => import('./prointernalengine/components/ecommerce/ecommerce.module').then(m => m.EcommerceModule) },
-
                 { path: 'apps', data: { breadcrumb: 'Apps' }, loadChildren: () => import('./prointernalengine/components/apps/apps.module').then(m => m.AppsModule) },
-
                 { path: 'instantrebate', component: RebatesupportComponent },
       ]
   },

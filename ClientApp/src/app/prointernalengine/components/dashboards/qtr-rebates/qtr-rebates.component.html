@@ -46,13 +46,17 @@
           <p-table responsiveLayout="scroll" #dt [value]="QRHistorical" [rows]="8" [paginator]="true">
             <ng-template pTemplate="header">
               <tr>
+
                 <th pSortableColumn="id" style="min-width:2rem" class="white-space-nowrap">Batch ID <p-sortIcon field="id"></p-sortIcon></th>
 
                 <th style="min-width:2rem" class="white-space-nowrap">Public </th>
 
                 <th pSortableColumn="issueDate" style="min-width:2rem" class="white-space-nowrap">Issue Date <p-sortIcon field="issueDate"></p-sortIcon></th>
+
                 <th pSortableColumn="totalAmount" style="min-width:2rem" class="white-space-nowrap">Gross Issued <p-sortIcon field="totalAmount"></p-sortIcon></th>
+
                 <th style="width:8rem"></th>
+
               </tr>
             </ng-template>
 

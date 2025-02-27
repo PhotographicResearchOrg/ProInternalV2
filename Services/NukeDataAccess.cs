@@ -6,6 +6,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using ProInternal.Models.Dashboard;
+using ProInternal.Models.InstantRebates;
+
 
 namespace ProInternal.Services
 {
@@ -20,11 +22,15 @@ namespace ProInternal.Services
         }
 
 
+
+
         #region Metrics 
 
         public IRMetrics GetIRMetrics()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+
+
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
             {
                 var output = connection.Query<IRMetrics>("InternalIRMetrics").FirstOrDefault();
 
@@ -35,7 +41,40 @@ namespace ProInternal.Services
 
         #endregion
 
+        public   List<IR> GetInstantRebateBatches()
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                var output = connection.Query<IR>("GetInstantRebateBatches").ToList();
+                return output;
+            }
+
+        }
 
 
+        public List<IR> getIRBatchDetail(int batchID)
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                var output = connection.Query<IR>("getIRBatchDetail @batchID", new { batchID = batchID }).ToList();
+                return output;
+            }
+        }
+
+
+        public bool activateIRBatch(int batchID)
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                bool status = true;
+                try
+                {
+                    connection.Execute("activateIRBatch @batchID", new { batchID = batchID });
+                }
+                catch { status = false; }
+                finally { }
+                return status;
+            }
+        }
     }
 }

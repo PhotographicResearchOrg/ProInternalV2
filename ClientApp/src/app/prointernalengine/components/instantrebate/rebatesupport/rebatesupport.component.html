@@ -1,1 +1,99 @@
-<p>rebatesupport works!</p>
+<div class="grid">
+  <!--<div *ngFor="let metric of QuarterlyRebates" class="col-12 md:col-6 lg:col-3">
+    <div class="card h-full">
+      <div class="flex align-items-center justify-content-between mb-3">
+        <span class="text-900 text-xl font-semibold">{{metric.programName}}</span>
+        <div>
+          <button pButton pRipple icon="pi pi-ellipsis-v" class="p-button-text p-button-sm p-button-rounded" (click)="menu.toggle($event); setValue(metric.batchID + ',' + metric.programID);"></button>
+          <p-menu #menu [popup]="true" appendTo="body" [model]="menuitems"></p-menu>
+        </div>
+      </div>
+      <div>
+        <div ngClass="bg-green-100" class="border-round" style="height: 6px">
+          <div ngClass="bg-green-500" class="h-full border-round" style="width:34%"></div>
+        </div>
+        <div class="flex align-item-center justify-content-between">
+          <span class="text-900 mt-3 text-md font-medium">{{metric.totalAmount | currency}}</span>
+          <span class="text-900 mt-3 text-md font-medium">{{metric.issueDate | date}}</span>
+        </div>
+      </div>
+    </div>
+  </div>-->
+
+
+  <div class="col-12 md:col-6 lg:col-12">
+    <div class="card h-full">
+      <!--<app-file-uploader (reload)="onReload()"></app-file-uploader>-->
+    </div>
+  </div>
+
+
+  <div class="col-14 md:col-9 xl:col-12">
+      <div class="card">
+          <div class="text-900 text-xl font-semibold mb-3">Instant Rebate Deployments</div>
+
+          <div class="inline-flex align-items-center">
+
+              <span class="p-input-icon-left flex-auto">
+                  <i class="pi pi-search"></i>
+                  <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
+              </span>
+
+              <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dt.exportCSV()"></button>
+
+          </div>
+
+      <p-table responsiveLayout="scroll" #dt  [columns]="cols" [value]="InstantRebateBatches" [rows]="8"  [paginator]="true" [globalFilterFields]="['batchID','vendorName','units','programStart','programEnd','irtypeName']">
+      
+          <ng-template pTemplate="header">
+              <tr>
+                  <th pSortableColumn="batchID" style="min-width:2rem" class="white-space-nowrap">Batch ID <p-sortIcon field="batchID"></p-sortIcon></th>
+                  <th style="min-width:2rem" class="white-space-nowrap">Public </th>
+                  <th pSortableColumn="vendorName" style="min-width:2rem" class="white-space-nowrap">Vendor<p-sortIcon field="vendorName"></p-sortIcon></th>
+                  <th pSortableColumn="units" style="min-width:2rem" class="white-space-nowrap"> Models Configured <p-sortIcon field="units"></p-sortIcon></th>
+                  <th pSortableColumn="programStart" style="min-width:2rem" class="white-space-nowrap"> Program Start Date <p-sortIcon field="programStart"></p-sortIcon></th>
+                  <th pSortableColumn="programEnd" style="min-width:2rem" class="white-space-nowrap"> Program End Date <p-sortIcon field="programEnd"></p-sortIcon></th>
+                  <th pSortableColumn="irtypeName" style="min-width:2rem" class="white-space-nowrap"> IR Type<p-sortIcon field="irtypeName"></p-sortIcon></th>
+                  <th style="width:8rem"></th>
+              </tr>
+          </ng-template>
+
+        <ng-template pTemplate="body" let-InstantRebateBatches>
+            <tr>
+                <td>
+                    <div class="flex align-items-center">
+                        <i [class]="'text-xl text-primary mr-2 ' + 'pi pi-key'"></i>
+                        <span>{{InstantRebateBatches.batchID}}</span>
+                    </div>
+                </td>
+                <td>
+                    <span> <p-inputSwitch (reload)="onReload()" (onChange)="Activate(InstantRebateBatches.batchID)" [(ngModel)]=InstantRebateBatches.expired>  </p-inputSwitch></span>
+                </td>
+                <td>
+                    <span>{{InstantRebateBatches.vendorName}}</span>
+                </td>
+                <td>
+                    <span>{{InstantRebateBatches.units}}</span>
+                </td>
+                <td>
+                    <span>{{InstantRebateBatches.programStart | date }}</span>
+                </td>
+                <td>
+                    <span>{{InstantRebateBatches.programEnd | date }}</span>
+                </td>
+
+                <td>
+                    <span>{{InstantRebateBatches.irtypeName }}</span>
+                </td>
+
+                <td class="text-center">
+                    <!--<button (click)="Delete(InstantRebateBatches)" pButton pRipple icon="pi pi-times" class="p-button-danger p-button-text p-button-rounded mr-2"></button>-->
+                    <button (click)="Download(InstantRebateBatches)" pButton pRipple icon="pi pi-file-excel" class="p-button-text p-button-rounded"></button>
+                </td>
+            </tr>
+
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+</div>

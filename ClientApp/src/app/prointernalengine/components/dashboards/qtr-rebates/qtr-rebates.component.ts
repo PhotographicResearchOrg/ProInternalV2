@@ -14,11 +14,13 @@ import { id } from '../../../../../../node_modules_HOLD/postcss-selector-parser/
 import * as XLSX from 'xlsx';
 
 
+
 @Component({
   templateUrl: './qtr-rebates.component.html'
 })
 
 export class QtrRebatesComponent implements OnInit {
+
 
   menuitems: MenuItem[] = [];
   subscription: Subscription;
@@ -42,10 +44,10 @@ export class QtrRebatesComponent implements OnInit {
 
 
   ngOnInit() {
+
     this.dataService.getRecentLoad().subscribe((data) => (this.QuarterlyRebates = data));
     this.dataService.getQRHistorical().subscribe((data) => (this.QRHistorical = data));
    
-
     this.menuitems = [
       { label: 'Download', icon: 'pi pi-file-excel', command: (event) => this.DownloadVendor(event) },
       { label: 'Search', icon: 'pi pi-search' },
@@ -69,7 +71,8 @@ export class QtrRebatesComponent implements OnInit {
   }
 
 
-  DownloadVendor(event: any) {
+  DownloadVendor(event: any)
+  {
    
     //batch id comma program id
     this.dataService.pullQRBatchVendorDetail(this.vendorDownload).subscribe((resp) => {
@@ -88,8 +91,6 @@ export class QtrRebatesComponent implements OnInit {
     });
   }
 
-
-
   Download(item: any) {
       this.dataService.pullQRBatchDetail(item.id).subscribe((resp) => {
       const data: any[] = resp;
@@ -100,9 +101,12 @@ export class QtrRebatesComponent implements OnInit {
 
     });
 
- 
 
-    }
+
+
+
+  }
+
   }
 
   

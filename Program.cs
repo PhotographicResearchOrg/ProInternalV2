@@ -14,7 +14,7 @@ using System.Net.Http;
 using System.Runtime.InteropServices;
 using ProInternal.Services;
 using Microsoft.AspNetCore.SpaServices.AngularCli;
-
+using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 

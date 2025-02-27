@@ -12,6 +12,9 @@ using ProInternal.Models.Accounts;
 using ProInternal.Models.Products;
 using Microsoft.AspNetCore.Identity;
 using ProInternal.Helpers;
+using Microsoft.Data.SqlClient;
+
+
 namespace ProInternal.Services
 {
     public class ProDataAccess : IProDataAccess
@@ -26,7 +29,7 @@ namespace ProInternal.Services
 
         public List<QuarterlyRebate> GetQuarterRebateSummary()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<QuarterlyRebate>("StolenGoods_Get_Flat").ToList();
                 return output;
@@ -37,7 +40,7 @@ namespace ProInternal.Services
 
         public List<QuarterlyDataSummary> getCurrentQuarterlyData()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<QuarterlyDataSummary>("QuarterlyGetRecentFileUpload").ToList();
                 return output;
@@ -47,7 +50,7 @@ namespace ProInternal.Services
 
         public List<QuarterlyDataHistorical> getHistoricalQRData()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<QuarterlyDataHistorical>("GetQRHistorical").ToList();
                 return output;
@@ -56,7 +59,7 @@ namespace ProInternal.Services
 
         public List<qrDetail> getQRBatchDetail(int batchID)
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<qrDetail>("PullQRBatch @batchID", new { batchID = batchID }).ToList();
                 return output;
@@ -72,7 +75,7 @@ namespace ProInternal.Services
             int IntprogramID = Convert.ToInt32(values[1]);
 
 
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<qrDetail>("PullQRVendorBatch @batchID, @programID", new { batchID = IntbatchID, programID = IntprogramID }).ToList();
                 return output;
@@ -83,7 +86,7 @@ namespace ProInternal.Services
 
         public bool deleteQRUpload(int batchID)
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 bool status = true;
                 try
@@ -99,7 +102,7 @@ namespace ProInternal.Services
 
         public bool activate(int batchID)
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 bool status = true;
                 try
@@ -152,7 +155,7 @@ namespace ProInternal.Services
             p.Add("@QuarterlyFileData", data.FileData.AsTableValuedParameter("QuarterlyFileData"));
             p.Add("@Programs", Headers.AsTableValuedParameter("Programs"));
 
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 try
                 {
@@ -167,12 +170,11 @@ namespace ProInternal.Services
 
 
 
-
         #region Metrics 
 
         public OrdersMetrics GetOrdersMetrics()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<OrdersMetrics>("InternalOrdersMetrics").FirstOrDefault(); 
 
@@ -182,7 +184,7 @@ namespace ProInternal.Services
 
         public EDIMetrics GetEDIMetrics()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<EDIMetrics>("InternalEDISMetrics").FirstOrDefault();
 
@@ -193,7 +195,7 @@ namespace ProInternal.Services
 
         public ShippingErrorMetrics getShippingErrorMetrics()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<ShippingErrorMetrics>("InternalShippingErrorMetrics").FirstOrDefault();
 
@@ -204,7 +206,7 @@ namespace ProInternal.Services
 
         public CommecntsMetrics getCommentsrMetrics()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<CommecntsMetrics>("InternalCommentsMetrics").FirstOrDefault();
                 return output;
@@ -222,7 +224,7 @@ namespace ProInternal.Services
 
         public List<Account> getAccounts()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<Account>("GetAccounts").ToList();
 
@@ -232,7 +234,7 @@ namespace ProInternal.Services
 
         public List<Products> getProducts(string searchCriteria)
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<Products>("InternalGetProducts", new {searchCriteria =  searchCriteria }).ToList();
 
@@ -244,7 +246,7 @@ namespace ProInternal.Services
 
         public List<SpecialOrdersSummary> getOrdersSnapshot()
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<SpecialOrdersSummary>("InternalOrdersSnapshot").ToList();
 
@@ -255,7 +257,7 @@ namespace ProInternal.Services
 
         public User login(string username, string password)
         {
-            using (IDbConnection connection = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.QueryMultiple("Auth_Login @username, @password", new { username = username, password = password });
                 User user = null;
