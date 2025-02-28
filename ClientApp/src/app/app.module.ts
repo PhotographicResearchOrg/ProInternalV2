@@ -32,7 +32,7 @@ import { QtrRebatesComponent } from './prointernalengine/components/dashboards/q
 import { RebatesupportComponent } from './prointernalengine/components/instantrebate/rebatesupport/rebatesupport.component';
 import { GatingComponent } from './prointernalengine/components/product/gating/gating.component';
 
-
+import { PickListModule } from 'primeng/picklist';
 import { ToggleButtonModule } from 'primeng/togglebutton';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { SliderModule } from 'primeng/slider';
@@ -53,6 +53,7 @@ import { RatingModule } from 'primeng/rating';
     FileAppComponent
     ],
   imports: [
+        PickListModule,
         ToggleButtonModule,
         MultiSelectModule,
         SliderModule,

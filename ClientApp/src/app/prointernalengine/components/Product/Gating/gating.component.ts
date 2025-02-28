@@ -59,6 +59,10 @@ export class GatingComponent implements OnInit {
 
   loading: boolean = true;
 
+  sourceCities: any[] = [];
+
+  targetCities: any[] = [];
+
 
   @ViewChild('filter') filter!: ElementRef;
 
@@ -75,7 +79,22 @@ export class GatingComponent implements OnInit {
       this.loading = false;
 
       // @ts-ignore
-      this.customers1.forEach(customer => customer.date = new Date(customer.date));
+        this.customers1.forEach(customer => customer.date = new Date(customer.date));
+
+
+
+        this.sourceCities = [
+          { name: 'San Francisco', code: 'SF' },
+          { name: 'London', code: 'LDN' },
+          { name: 'Paris', code: 'PRS' },
+          { name: 'Istanbul', code: 'IST' },
+          { name: 'Berlin', code: 'BRL' },
+          { name: 'Barcelona', code: 'BRC' },
+          { name: 'Rome', code: 'RM' },
+        ];
+
+        this.targetCities = [];
+
     });
 
     this.productService.getProductsWithOrdersSmall().then(data => this.products = data);

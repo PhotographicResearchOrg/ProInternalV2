@@ -139,4 +139,18 @@
       </p-table>
     </div>
   </div>
+
+  <div class="col-12 xl:col-8">
+    <div class="card">
+      <h5>PickList</h5>
+      <p-pickList [source]="sourceCities" [target]="targetCities" sourceHeader="From" targetHeader="To" [dragdrop]="true"
+                  [responsive]="true" [sourceStyle]="{'height':'250px'}" [targetStyle]="{'height':'250px'}">
+        <ng-template let-city pTemplate="item">
+          <div>{{city.name}}</div>
+        </ng-template>
+      </p-pickList>
+    </div>
+  </div>
+
+
 </div>

@@ -13,7 +13,6 @@ namespace ProInternal.Controllers
     [ApiController]
     public class ProductController : ControllerBase
     {
-
         private IProDataAccess _prodataAccess;
         private IDRADataAccess _dradataAccess;
         private INukeDataAccess _nukedataAccess;
