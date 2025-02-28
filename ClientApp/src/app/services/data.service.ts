@@ -16,7 +16,7 @@ import { Account } from "../models/Dashboard/Account";
 import { Products } from "../models/Dashboard/Products";
 
 import { SpecialOrdersSummary } from "../models/Dashboard/SpecialOrdersSummary";
-
+import { DeclinedIR } from "src/app/models/Dashboard/DeclinedIR";
 import { CommentsMetrics } from "../models/Dashboard/CommentsMetrics";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { options } from "@fullcalendar/core/preact";
@@ -58,7 +58,9 @@ export class DataService {
   }
 
 
-
+  GetDeclinedInstantRebates() {
+    return this.api.get<Array<DeclinedIR>>('API/InstantRebates/GetDeclinedInstantRebates');
+  }
 
 
   getRecentLoad() {

@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using ProInternal.Services;
 using ProInternal.Models.InstantRebates;
+
 using ProInternal.Models.Accounting;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace ProInternal.Controllers
@@ -32,8 +34,26 @@ namespace ProInternal.Controllers
         }
 
 
+      
+            [HttpGet]
+            [Route("GetDeclinedInstantRebates")]
+            public List<DeclinedIR> GetDeclinedInstantRebates()
+            {
+                List<DeclinedIR> Summary = this._nukedataAccess.GetDeclinedInstantRebates().ToList();
 
-        [HttpPut]
+                return Summary;
+            }
+
+
+
+
+
+
+
+
+
+
+            [HttpPut]
         [Route("activateIRBatch/{batchID}")]
         public bool activateIRBatch(int batchID)
         {

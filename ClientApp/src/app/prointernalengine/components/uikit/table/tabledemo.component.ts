@@ -3,8 +3,9 @@ import { Customer, Representative } from 'src/app/prointernalengine/api/customer
 import { CustomerService } from 'src/app/prointernalengine/service/customer.service';
 import { Product } from 'src/app/prointernalengine/api/product';
 import { ProductService } from 'src/app/prointernalengine/service/product.service';
-import { Table } from 'primeng/table';
+import { Table, TableModule } from 'primeng/table';
 import { MessageService, ConfirmationService } from 'primeng/api';
+
 
 interface expandedRows {
     [key: string]: boolean;

@@ -1,5 +1,8 @@
 <div class="grid">
-  <!--<div *ngFor="let metric of QuarterlyRebates" class="col-12 md:col-6 lg:col-3">
+
+
+  <!--
+    <div *ngFor="let metric of QuarterlyRebates" class="col-12 md:col-6 lg:col-3">
     <div class="card h-full">
       <div class="flex align-items-center justify-content-between mb-3">
         <span class="text-900 text-xl font-semibold">{{metric.programName}}</span>
@@ -18,82 +21,149 @@
         </div>
       </div>
     </div>
-  </div>-->
-
-
-  <div class="col-12 md:col-6 lg:col-12">
-    <div class="card h-full">
-      <!--<app-file-uploader (reload)="onReload()"></app-file-uploader>-->
-    </div>
   </div>
+  -->
 
 
-  <div class="col-14 md:col-9 xl:col-12">
-      <div class="card">
-          <div class="text-900 text-xl font-semibold mb-3">Instant Rebate Deployments</div>
+  <div class="col-12 md:col-9 xl:col-12">
+    <div class="card">
+      <div class="text-900 text-xl font-semibold mb-3">Instant Rebate Declines (Support Needed)</div>
+      <div class="inline-flex align-items-center">
+        <span class="p-input-icon-left flex-auto">
+          <i class="pi pi-search"></i>
+          <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
+        </span>
+        <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dt.exportCSV()"></button>
+      </div>
+      <p-table responsiveLayout="scroll" #dt [columns]="IRDeclinecols"  [value]="declinedIRs" [rows]="8" [paginator]="true" [globalFilterFields]="['orderID','processDate','rejectReason','memberID','model']">
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="orderID" style="min-width:2rem" class="white-space-nowrap">Rebate ID <p-sortIcon field="orderID"></p-sortIcon></th>
+            <th pSortableColumn="processDate" style="min-width:2rem" class="white-space-nowrap">Declined On<p-sortIcon field="processDate"></p-sortIcon></th>
+            <th pSortableColumn="total" style="min-width:2rem" class="white-space-nowrap"> Total <p-sortIcon field="total"></p-sortIcon></th>
+            <th pSortableColumn="rejectReason" style="min-width:2rem" class="white-space-nowrap"> Reject Reason <p-sortIcon field="rejectReason"></p-sortIcon></th>
+            <th pSortableColumn="memberID" style="min-width:2rem" class="white-space-nowrap"> Member # <p-sortIcon field="memberID"></p-sortIcon></th>
+            <th pSortableColumn="model" style="min-width:2rem" class="white-space-nowrap"> Model <p-sortIcon field="model"></p-sortIcon></th>
+            <th pSortableColumn="quantity" style="min-width:2rem" class="white-space-nowrap"> Units <p-sortIcon field="quantity"></p-sortIcon></th>
+            <th pSortableColumn="eMail" style="min-width:2rem" class="white-space-nowrap"> Email <p-sortIcon field="eMail"></p-sortIcon></th>
+            <th style="width:8rem"></th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-declinedIRs>
+          <tr>
+            <td>
+              <div class="flex align-items-center">
+                <i [class]="'text-xl text-primary mr-2 ' + 'pi pi-key'"></i>
+                <span> {{declinedIRs.orderID}}</span>
+              </div>
+            </td>
 
-          <div class="inline-flex align-items-center">
+            <td>
+              <span>{{declinedIRs.processDate | date}}</span>
+            </td>
+            <td>
+              <span>{{declinedIRs.total | currency}}</span>
+            </td>
+            <td>
+              <span>{{declinedIRs.rejectReason}}</span>
+            </td>
+            <td>
+              <span>{{declinedIRs.memberID}}</span>
+            </td>
 
-              <span class="p-input-icon-left flex-auto">
-                  <i class="pi pi-search"></i>
-                  <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
-              </span>
+            <td>
+              <span>{{declinedIRs.model}}</span>
+            </td>
 
-              <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dt.exportCSV()"></button>
+            <td>
+              <span>{{declinedIRs.quantity}}</span>
+            </td>
 
-          </div>
-
-      <p-table responsiveLayout="scroll" #dt  [columns]="cols" [value]="InstantRebateBatches" [rows]="8"  [paginator]="true" [globalFilterFields]="['batchID','vendorName','units','programStart','programEnd','irtypeName']">
-      
-          <ng-template pTemplate="header">
-              <tr>
-                  <th pSortableColumn="batchID" style="min-width:2rem" class="white-space-nowrap">Batch ID <p-sortIcon field="batchID"></p-sortIcon></th>
-                  <th style="min-width:2rem" class="white-space-nowrap">Public </th>
-                  <th pSortableColumn="vendorName" style="min-width:2rem" class="white-space-nowrap">Vendor<p-sortIcon field="vendorName"></p-sortIcon></th>
-                  <th pSortableColumn="units" style="min-width:2rem" class="white-space-nowrap"> Models Configured <p-sortIcon field="units"></p-sortIcon></th>
-                  <th pSortableColumn="programStart" style="min-width:2rem" class="white-space-nowrap"> Program Start Date <p-sortIcon field="programStart"></p-sortIcon></th>
-                  <th pSortableColumn="programEnd" style="min-width:2rem" class="white-space-nowrap"> Program End Date <p-sortIcon field="programEnd"></p-sortIcon></th>
-                  <th pSortableColumn="irtypeName" style="min-width:2rem" class="white-space-nowrap"> IR Type<p-sortIcon field="irtypeName"></p-sortIcon></th>
-                  <th style="width:8rem"></th>
-              </tr>
-          </ng-template>
-
-        <ng-template pTemplate="body" let-InstantRebateBatches>
-            <tr>
-                <td>
-                    <div class="flex align-items-center">
-                        <i [class]="'text-xl text-primary mr-2 ' + 'pi pi-key'"></i>
-                        <span>{{InstantRebateBatches.batchID}}</span>
-                    </div>
-                </td>
-                <td>
-                    <span> <p-inputSwitch (reload)="onReload()" (onChange)="Activate(InstantRebateBatches.batchID)" [(ngModel)]=InstantRebateBatches.expired>  </p-inputSwitch></span>
-                </td>
-                <td>
-                    <span>{{InstantRebateBatches.vendorName}}</span>
-                </td>
-                <td>
-                    <span>{{InstantRebateBatches.units}}</span>
-                </td>
-                <td>
-                    <span>{{InstantRebateBatches.programStart | date }}</span>
-                </td>
-                <td>
-                    <span>{{InstantRebateBatches.programEnd | date }}</span>
-                </td>
-
-                <td>
-                    <span>{{InstantRebateBatches.irtypeName }}</span>
-                </td>
-
-                <td class="text-center">
-                    <!--<button (click)="Delete(InstantRebateBatches)" pButton pRipple icon="pi pi-times" class="p-button-danger p-button-text p-button-rounded mr-2"></button>-->
-                    <button (click)="Download(InstantRebateBatches)" pButton pRipple icon="pi pi-file-excel" class="p-button-text p-button-rounded"></button>
-                </td>
-            </tr>
+            <td>
+              <span>{{declinedIRs.eMail}}</span>
+            </td>
+            <td class="text-center">
+              <!--<button (click)="Delete(InstantRebateBatches)" pButton pRipple icon="pi pi-times" class="p-button-danger p-button-text p-button-rounded mr-2"></button>-->
+              <button (click)="Download(InstantRebateBatches)" pButton pRipple icon="pi pi-file-excel" class="p-button-text p-button-rounded"></button>
+            </td>
+          </tr>
 
         </ng-template>
       </p-table>
     </div>
   </div>
+
+
+
+
+
+
+
+  <!--<div class="col-12 md:col-6 lg:col-12">
+    <div class="card h-full">-->
+      <!--<app-file-uploader (reload)="onReload()"></app-file-uploader>-->
+    <!--</div>
+  </div>-->
+  <div class="col-12 md:col-9 xl:col-12">
+    <div class="card">
+      <div class="text-900 text-xl font-semibold mb-3">Instant Rebate Deployments</div>
+      <div class="inline-flex align-items-center">
+        <span class="p-input-icon-left flex-auto">
+          <i class="pi pi-search"></i>
+          <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
+        </span>
+        <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dt.exportCSV()"></button>
+      </div>
+      <p-table responsiveLayout="scroll" #dt [columns]="cols" [value]="InstantRebateBatches" [rows]="8" [paginator]="true" [globalFilterFields]="['batchID','vendorName','units','programStart','programEnd','irtypeName']">
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="batchID" style="min-width:2rem" class="white-space-nowrap">Batch ID <p-sortIcon field="batchID"></p-sortIcon></th>
+            <th style="min-width:2rem" class="white-space-nowrap">Public </th>
+            <th pSortableColumn="vendorName" style="min-width:2rem" class="white-space-nowrap">Vendor<p-sortIcon field="vendorName"></p-sortIcon></th>
+            <th pSortableColumn="units" style="min-width:2rem" class="white-space-nowrap"> Models Configured <p-sortIcon field="units"></p-sortIcon></th>
+            <th pSortableColumn="programStart" style="min-width:2rem" class="white-space-nowrap"> Program Start Date <p-sortIcon field="programStart"></p-sortIcon></th>
+            <th pSortableColumn="programEnd" style="min-width:2rem" class="white-space-nowrap"> Program End Date <p-sortIcon field="programEnd"></p-sortIcon></th>
+            <th pSortableColumn="irtypeName" style="min-width:2rem" class="white-space-nowrap"> IR Type<p-sortIcon field="irtypeName"></p-sortIcon></th>
+            <th style="width:8rem"></th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-InstantRebateBatches>
+          <tr>
+            <td>
+              <div class="flex align-items-center">
+                <i [class]="'text-xl text-primary mr-2 ' + 'pi pi-key'"></i>
+                <span>{{InstantRebateBatches.batchID}}</span>
+              </div>
+            </td>
+            <td>
+              <span> <p-inputSwitch (reload)="onReload()" (onChange)="Activate(InstantRebateBatches.batchID)" [(ngModel)]=InstantRebateBatches.expired>  </p-inputSwitch></span>
+            </td>
+            <td>
+              <span>{{InstantRebateBatches.vendorName}}</span>
+            </td>
+            <td>
+              <span>{{InstantRebateBatches.units}}</span>
+            </td>
+            <td>
+              <span>{{InstantRebateBatches.programStart | date }}</span>
+            </td>
+            <td>
+              <span>{{InstantRebateBatches.programEnd | date }}</span>
+            </td>
+
+            <td>
+              <span>{{InstantRebateBatches.irtypeName }}</span>
+            </td>
+
+            <td class="text-center">
+              <!--<button (click)="Delete(InstantRebateBatches)" pButton pRipple icon="pi pi-times" class="p-button-danger p-button-text p-button-rounded mr-2"></button>-->
+              <button (click)="Download(InstantRebateBatches)" pButton pRipple icon="pi pi-file-excel" class="p-button-text p-button-rounded"></button>
+            </td>
+          </tr>
+
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+
 </div>

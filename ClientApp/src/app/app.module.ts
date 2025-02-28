@@ -26,19 +26,26 @@ import { DashboardAccountingComponent } from './prointernalengine/components/das
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { DashboardLandingComponent } from './prointernalengine/components/dashboards/landing/dashboardlanding.component';
 import { InputSwitchModule } from 'primeng/inputswitch';
-
-
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { FileAppService } from './prointernalengine/components/apps/file/service/file.app.service';
 import { QtrRebatesComponent } from './prointernalengine/components/dashboards/qtr-rebates/qtr-rebates.component';
-
 import { RebatesupportComponent } from './prointernalengine/components/instantrebate/rebatesupport/rebatesupport.component';
+import { GatingComponent } from './prointernalengine/components/product/gating/gating.component';
+
+
+import { ToggleButtonModule } from 'primeng/togglebutton';
+import { MultiSelectModule } from 'primeng/multiselect';
+import { SliderModule } from 'primeng/slider';
+import { RatingModule } from 'primeng/rating';
+
+
 
 
 @NgModule({
     declarations: [
     AppComponent,
     QtrRebatesComponent,
+    GatingComponent,
     RebatesupportComponent,
     DashboardAccountingComponent,
     DashboardLandingComponent,
@@ -46,6 +53,10 @@ import { RebatesupportComponent } from './prointernalengine/components/instantre
     FileAppComponent
     ],
   imports: [
+        ToggleButtonModule,
+        MultiSelectModule,
+        SliderModule,
+        RatingModule,
         HttpClientModule,
         AutoCompleteModule,
         SelectButtonModule,
@@ -69,8 +80,8 @@ import { RebatesupportComponent } from './prointernalengine/components/instantre
         InputSwitchModule
   ],
  
-    providers: [
-      /* { provide: LocationStrategy, useClass: HashLocationStrategy }*/
+  providers:
+    [
       FileAppService,
       DataService,
     ],

@@ -51,6 +51,16 @@ namespace ProInternal.Services
 
         }
 
+        public List<DeclinedIR> GetDeclinedInstantRebates()
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                var output = connection.Query<DeclinedIR>("GetIRDeclines").ToList();
+                return output;
+            }
+
+        }
+
 
         public List<IR> getIRBatchDetail(int batchID)
         {

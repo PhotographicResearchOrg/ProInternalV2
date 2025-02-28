@@ -16,14 +16,11 @@ export class AppMenuComponent implements OnInit {
             {
                 label: 'PRO-Internal',
                 icon: 'pi pi-home',
-                items: [
-                    {label: 'Dashboards', icon: 'pi pi-fw pi-home',
+                items: [{label: 'Dashboards', icon: 'pi pi-fw pi-home',
                     items:
                       [{ label: 'Home', icon: 'pi pi-fw pi-home', routerLink: ['/Dashboard-landing']  },
-                      /*{ label: 'Accounting', icon: 'pi pi-fw pi-money-bill', routerLink: ['/dashboard-banking'] },*/
                         {label: 'Accounting',icon: 'pi pi-fw pi-money-bill',
-                          items:
-                            [
+                          items:[
                               { label: 'Accounting Dash', icon: 'pi pi-fw pi-sign-in', routerLink: ['/dashboard-accounting'] },
                               { label: 'Quarterly Rebates', icon: 'pi pi-fw pi-times-circle', routerLink: ['/qtr-rebates'] }
                          
@@ -62,9 +59,24 @@ export class AppMenuComponent implements OnInit {
             label: 'Management',
             icon: 'pi pi-fw pi-wallet',
             items: [
-                    { label: 'Product Management', icon: 'pi pi-fw pi-image', routerLink: ['ecommerce/product-overview'] },
+              {
+                label: 'Product Management', icon: 'pi pi-fw pi-image', 
+
+                items: [
+
+                  { label: 'Product Configuration', icon: 'pi pi-fw pi-sign-in', routerLink: ['ecommerce/product-overview'] },
+                  { label: 'Product Gating', icon: 'pi pi-fw pi-building', routerLink: ['/gating'] }
+
+                  /*{label: 'Fetch Data', icon: 'pi pi-fw pi-lock', routerLink: ['/fetch-data'] },*/
+
+                ]
+
+              },
+
+              
+
                     {label: 'Connection Comments',icon: 'pi pi-fw pi-comments',routerLink: ['/apps/chat']},
-                  //{label: 'Product List',icon: 'pi pi-fw pi-list',routerLink: ['ecommerce/product-list']},
+                   //{label: 'Product List',icon: 'pi pi-fw pi-list',routerLink: ['ecommerce/product-list']},
                     {label: 'New Products',icon: 'pi pi-fw pi-plus',routerLink: ['ecommerce/new-product']},
                   //{label: 'Shopping Cart',icon: 'pi pi-fw pi-shopping-cart',routerLink: ['ecommerce/shopping-cart']},
                   //{label: 'Checkout Form',icon: 'pi pi-fw pi-check-square',routerLink: ['ecommerce/checkout-form']},

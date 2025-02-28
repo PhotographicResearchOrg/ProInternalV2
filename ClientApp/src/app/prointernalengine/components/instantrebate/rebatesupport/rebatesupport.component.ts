@@ -9,6 +9,7 @@ import { Subscription, debounceTime } from 'rxjs';
 import { DataService } from "src/app/services/data.service";
 import { HttpClient } from '@angular/common/http';
 import { InstantRebate } from "src/app/models/Dashboard/InstantRebate";
+import { DeclinedIR } from "src/app/models/Dashboard/DeclinedIR";
 import * as XLSX from 'xlsx';
 import { Table } from 'primeng/table';
 
@@ -20,7 +21,12 @@ export class RebatesupportComponent implements OnInit {
 
 
   public InstantRebateBatches: Array<InstantRebate> = [];
+  public declinedIRs: Array<DeclinedIR> = [];
+
+  
+
   public cols: any[] = [];
+  public IRDeclinecols: any[] = [];
 
 
   constructor(
@@ -32,7 +38,22 @@ export class RebatesupportComponent implements OnInit {
 
   ngOnInit()
   {
-      this.dataService.GetInstantRebateBatches().subscribe((data) => (this.InstantRebateBatches = data));
+
+    this.dataService.GetInstantRebateBatches().subscribe((data) => (this.InstantRebateBatches = data));
+    this.dataService.GetDeclinedInstantRebates().subscribe((data) => (this.declinedIRs = data));
+
+    this.IRDeclinecols =
+      [
+      { header: 'Order_ID', field: 'orderID' },
+      { header: 'Decline_Date', field: 'processDate' },
+      { header: 'IR_Total', field: 'total' },
+      { header: 'Reject_Reason', field: 'rejectReason' },
+      { header: 'Member', field: 'memberID' },
+      { header: 'Model', field: 'model' },
+      { header: 'Quantity', field: 'quantity' },
+      { header: 'EMail', field: 'eMail' },
+      ];
+
 
       this.cols =
           [

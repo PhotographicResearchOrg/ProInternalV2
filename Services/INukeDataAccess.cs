@@ -16,6 +16,9 @@ namespace ProInternal.Services
         bool activateIRBatch(int batchID);
         List<IR> getIRBatchDetail(int batchID);
 
+        List<DeclinedIR> GetDeclinedInstantRebates();
+        
+
     }
 
 }

@@ -77,6 +77,7 @@
     <None Remove="ClientApp\src\app\demo\components\dashboards\e-commerce\dashboardecommerce-routing.module.ts" />
     <None Remove="ClientApp\src\app\demo\components\dashboards\e-commerce\dashboardecommerce.module.ts" />
     <None Remove="ClientApp\src\app\models\accounting\quarterly-rebates.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\DeclinedIR.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\EDIMetrics.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\InstantRebate.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\IRMetrics.ts" />
@@ -99,6 +100,9 @@
 
   <ItemGroup>
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\quarterly-rebates.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\DeclinedIR.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
     <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\InstantRebate.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
