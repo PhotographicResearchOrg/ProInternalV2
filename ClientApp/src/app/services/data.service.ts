@@ -1,28 +1,23 @@
 import { Injectable } from "@angular/core";
 import { map } from "rxjs/operators";
 import { ApiService } from "./api.service";
-
 import { QuarterlyRebates, QuarterlyRebatesHistorical, qrDetail } from "../models/accounting/quarterly-rebates";
 import { OrdersMetrics } from "../models/Dashboard/OrdersMetrics";
 import { SARMetrics } from "../models/Dashboard/SARMetrics";
 import { EDIMetrics } from "../models/Dashboard/EDIMetrics";
 import { IRMetrics } from "../models/Dashboard/IRMetrics";
 import { InstantRebate } from "../models/Dashboard/InstantRebate";
-
-
 import { ShippingErrorMetrics } from "../models/Dashboard/ShippingErrorMetrics";
-
 import { Account } from "../models/Dashboard/Account";
 import { Products } from "../models/Dashboard/Products";
-
 import { SpecialOrdersSummary } from "../models/Dashboard/SpecialOrdersSummary";
-import { DeclinedIR } from "src/app/models/Dashboard/DeclinedIR";
+import { DeclinedIR } from "../models/Dashboard/DeclinedIR";
 import { CommentsMetrics } from "../models/Dashboard/CommentsMetrics";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { options } from "@fullcalendar/core/preact";
 import { Observable } from "rxjs";
 import { Product } from "../prointernalengine/api/product";
-
+import { ProductGating } from "../models/Dashboard/ProductGating";
 
 
 @Injectable()
@@ -33,8 +28,10 @@ export class DataService {
   getQuarterySummary()
   {
     return this.api.get<Array<QuarterlyRebates>>('/API/Accounting/CurrentQuarterLiability');
-    // return this.api.get("Http://accounting/GetQuarterRebateSummary/");
-    //   return this.http.get(this.getUrl('Accounting/CurrentQuarterLiability'));
+  }
+
+  getGatedRetailers() {
+    return this.api.get<Array<ProductGating>>('/API/Product/getGatedRetailers');
   }
 
   uploadQuarterlyFile(file: File) {

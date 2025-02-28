@@ -8,10 +8,11 @@ import { MenuItem } from 'primeng/api';
 import { Subscription, debounceTime } from 'rxjs';
 import { DataService } from "src/app/services/data.service";
 import { HttpClient } from '@angular/common/http';
-import { InstantRebate } from "src/app/models/Dashboard/InstantRebate";
+import { ProductGating } from "src/app/models/Dashboard/ProductGating";
 import { DeclinedIR } from "src/app/models/Dashboard/DeclinedIR";
 import * as XLSX from 'xlsx';
 import { Table } from 'primeng/table';
+
 
 
 import { TabledemoComponent } from 'src/app/prointernalengine/components/uikit/table/tabledemo.component';
@@ -36,6 +37,8 @@ interface expandedRows {
 
 export class GatingComponent implements OnInit {
 
+  public gatedRetailers: ProductGating[] = [];
+
 
 
   public customers1: Customer[] = [];
@@ -59,11 +62,13 @@ export class GatingComponent implements OnInit {
 
   @ViewChild('filter') filter!: ElementRef;
 
-  constructor(private customerService: CustomerService, private productService: ProductService) { }
+  constructor(private customerService: CustomerService,
+    private productService: ProductService,
+      private dataService: DataService,) { }
 
   ngOnInit() {
 
-    //alert("IN")
+  //  this.dataService.getGatedRetailers()
 
       this.customerService.getCustomersLarge().then(customers => {
       this.customers1 = customers;
