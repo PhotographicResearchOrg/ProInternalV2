@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using ProInternal.Services;
-using ProInternal.Models.InstantRebates;
-
 using ProInternal.Models.Accounting;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using ProInternal.Models.Dashboard;
 
 
 namespace ProInternal.Controllers
@@ -23,7 +22,17 @@ namespace ProInternal.Controllers
             _nukedataAccess = nukedataAccess;
         }
 
-        //getGatedRetailers
+
+        [HttpGet]
+        [Route("getGatedRetailers")]
+        public List<GatedProducts> getGatedRetailers()
+        {
+            List<GatedProducts> Summary = this._prodataAccess.getGatedRetailers().ToList();
+
+            return Summary;
+        }
+
+
 
     }
 }

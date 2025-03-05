@@ -8,9 +8,10 @@ using ProInternal.Models.Accounts;
 using ProInternal.Models.Auth;
 using ProInternal.Services;
 using System;
-using ProInternal.Models.Auth;
 using ProInternal.Models.Products;
 using System.Data;
+using Dapper;
+using Microsoft.Data.SqlClient;
 
 namespace ProInternal.Services
 {
@@ -26,6 +27,9 @@ namespace ProInternal.Services
         List<Account> getAccounts();
         List<Products> getProducts(string searchCriteria);
 
+        List<Brands> getBrands();
+
+
         QuarterlyRebates saveData(QuarterlyRebates saveData);
 
         List<QuarterlyDataSummary> getCurrentQuarterlyData();
@@ -39,10 +43,16 @@ namespace ProInternal.Services
         List<qrDetail> getQRBatchDetail(int batchID);
 
         List<qrDetail> getQRBatchVendorDetail(string batchID);
-     
+
+        List<GatedProducts> getGatedRetailers();
+
+
+        List<Products> QuickSearchProducts();
+
+
+ 
 
     }
-
 
 
 }

@@ -49,6 +49,21 @@ namespace ProInternal.Controllers
             return Accounts;
         }
 
+
+
+        [HttpGet]
+        [Route("getBrands")]
+        public List<Brands> Brands()
+        {
+            List<Brands> Brands = this._prodataAccess.getBrands().ToList();
+
+            return Brands;
+        }
+
+
+        
+
+
         [HttpGet]
         [Route("getProducts/{searchCriteria}")]
         public List<Products> Products(string searchCriteria)
@@ -57,7 +72,16 @@ namespace ProInternal.Controllers
 
             return Products;
         }
-    
+
+
+        [HttpGet]
+        [Route("QuickSearchProducts")]
+        public List<Products> QuickSearchProducts()
+        {
+            List<Products> Products = this._prodataAccess.QuickSearchProducts().ToList();
+            return Products;
+        }
+
 
 
     }

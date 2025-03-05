@@ -8,7 +8,7 @@ import { EDIMetrics } from "../models/Dashboard/EDIMetrics";
 import { IRMetrics } from "../models/Dashboard/IRMetrics";
 import { InstantRebate } from "../models/Dashboard/InstantRebate";
 import { ShippingErrorMetrics } from "../models/Dashboard/ShippingErrorMetrics";
-import { Account } from "../models/Dashboard/Account";
+import { Account, Brands } from "../models/Dashboard/Account";
 import { Products } from "../models/Dashboard/Products";
 import { SpecialOrdersSummary } from "../models/Dashboard/SpecialOrdersSummary";
 import { DeclinedIR } from "../models/Dashboard/DeclinedIR";
@@ -31,8 +31,9 @@ export class DataService {
   }
 
   getGatedRetailers() {
-    return this.api.get<Array<ProductGating>>('/API/Product/getGatedRetailers');
+    return this.api.get<Array<ProductGating>>('API/Product/getGatedRetailers');
   }
+
 
   uploadQuarterlyFile(file: File) {
     const formData: any = new FormData();
@@ -126,8 +127,14 @@ export class DataService {
   getAccounts() { return this.api.get<Array<Account>>(`API/Dashboard/getAccounts`); }
 
 
+  getBrands() { return this.api.get<Array<Brands>>(`API/Dashboard/getBrands`); }
+
+
   //
   getProducts(searchCriteria: string)    { return this.api.get<Array<Products>>(`API/Dashboard/getProducts/${searchCriteria}`); }
+
+
+  QuickSearchProducts() { return this.api.get<Array<Products>>(`API/Dashboard/QuickSearchProducts`); }
 
 
   downloadCSV(): Observable<any> { return this.api.getJSON('API/Dashboard/getAccounts')}

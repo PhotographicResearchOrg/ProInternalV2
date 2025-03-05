@@ -6,7 +6,9 @@ export class ProductGating {
   public rosterID: number;
   public DBA: string;
   public brandName: string;
-
+  public country: string;
+  public countryCode: string;
+  public retailerType: string;
 
   constructor()
   {
@@ -16,7 +18,8 @@ export class ProductGating {
     this.rosterID = 0;
     this.DBA = "";
     this.brandName = "";
-   
+    this.country = "";
+    this.countryCode = "";
   }
 
 }

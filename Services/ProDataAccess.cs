@@ -57,6 +57,19 @@ namespace ProInternal.Services
             }
         }
 
+
+        public List<GatedProducts> getGatedRetailers()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<GatedProducts>("getGatedRetailers").ToList();
+                return output;
+            }
+        }
+
+
+
+
         public List<qrDetail> getQRBatchDetail(int batchID)
         {
             using (IDbConnection connection = new SqlConnection(_connectionString))
@@ -241,7 +254,28 @@ namespace ProInternal.Services
                 return output;
             }
         }
+
         
+
+        public List<Products> QuickSearchProducts()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<Products>("GetProducts").ToList();
+                return output;
+            }
+        }
+
+
+        public List<Brands> getBrands()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<Brands>("GetBrands").ToList();
+                return output;
+            }
+        }
+
 
 
         public List<SpecialOrdersSummary> getOrdersSnapshot()

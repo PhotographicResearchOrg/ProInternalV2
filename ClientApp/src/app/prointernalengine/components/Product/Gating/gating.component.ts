@@ -9,22 +9,13 @@ import { Subscription, debounceTime } from 'rxjs';
 import { DataService } from "src/app/services/data.service";
 import { HttpClient } from '@angular/common/http';
 import { ProductGating } from "src/app/models/Dashboard/ProductGating";
-import { DeclinedIR } from "src/app/models/Dashboard/DeclinedIR";
 import * as XLSX from 'xlsx';
 import { Table } from 'primeng/table';
-
-
-
-import { TabledemoComponent } from 'src/app/prointernalengine/components/uikit/table/tabledemo.component';
-import { TabledemoRoutingModule } from 'src/app/prointernalengine/components/uikit/table//tabledemo-routing.module';
 import { ViewChild, ElementRef } from '@angular/core';
-import { Customer, Representative } from 'src/app/prointernalengine/api/customer';
-import { CustomerService } from 'src/app/prointernalengine/service/customer.service';
-import { Product } from 'src/app/prointernalengine/api/product';
-import { ProductService } from 'src/app/prointernalengine/service/product.service';
 import { MessageService, ConfirmationService } from 'primeng/api';
-
-
+import { Account, Brands } from "src/app/models/Dashboard/Account";
+import { Product } from '../../../api/product';
+import { Products } from "src/app/models/Dashboard/Products";
 
 interface expandedRows {
   [key: string]: boolean;
@@ -37,131 +28,214 @@ interface expandedRows {
 
 export class GatingComponent implements OnInit {
 
-  public gatedRetailers: ProductGating[] = [];
-
-
-
-  public customers1: Customer[] = [];
-
-  selectedCustomers1: Customer[] = [];
-  selectedCustomer: Customer = {};
-  representatives: Representative[] = [];
-  statuses: any[] = [];
-
-  products: Product[] = [];
+  public gatedProducts: ProductGating[] = [];
   rowGroupMetadata: any;
-  expandedRows: expandedRows = {};
-  activityValues: number[] = [0, 100];
+  loadingMainGrid: boolean = true;
+  loadingMembers: boolean = true;
+  loadingBrands: boolean = true;
+  loadingProducts: boolean = true;
 
-  isExpanded: boolean = false;
 
-  idFrozen: boolean = false;
+  sourceItems: any[] = [];
+  targetItems: any[] = [];
 
-  loading: boolean = true;
 
-  sourceCities: any[] = [];
 
-  targetCities: any[] = [];
+
+  members: any[] = [];
+  selectedMembers: any[] = [];
+  memberFilter: string = '';
+
+
+
+  accounts: Account[] = [];
+  brandModel: Brands[] = [];
+
+
+  brands: any[] = [];
+  selectedBrands: any[] = [];
+  brandFilter: string = '';
+
+
+  products: any[] =[];
+  selectedProducts: any[] = [];
+  productFilter: string = '';
+
+  productList: Products[] = [];
+
 
 
   @ViewChild('filter') filter!: ElementRef;
 
-  constructor(private customerService: CustomerService,
-    private productService: ProductService,
-      private dataService: DataService,) { }
+  constructor(private dataService: DataService,) { }
 
   ngOnInit() {
-
-  //  this.dataService.getGatedRetailers()
-
-      this.customerService.getCustomersLarge().then(customers => {
-      this.customers1 = customers;
-      this.loading = false;
-
-      // @ts-ignore
-        this.customers1.forEach(customer => customer.date = new Date(customer.date));
+      this.dataService.getGatedRetailers().subscribe((data) => {
+        this.loadingMainGrid = false;
+        this.gatedProducts = data;
+    
 
 
+      for (let Account of this.gatedProducts)
+      {
+      if (Account.accountNumber < 5000) { Account.retailerType = 'Member' }
+      if (Account.accountNumber >= 5000 && Account.accountNumber <= 7000) { Account.retailerType = 'Client' }
+      if (Account.accountNumber > 7000) { Account.retailerType = 'Affiliate' }
+      }
 
-        this.sourceCities = [
-          { name: 'San Francisco', code: 'SF' },
-          { name: 'London', code: 'LDN' },
-          { name: 'Paris', code: 'PRS' },
-          { name: 'Istanbul', code: 'IST' },
-          { name: 'Berlin', code: 'BRL' },
-          { name: 'Barcelona', code: 'BRC' },
-          { name: 'Rome', code: 'RM' },
-        ];
 
-        this.targetCities = [];
+        this.dataService.getAccounts().subscribe((data) => {
+          this.accounts = data;
+          for (let Accounts of this.accounts) {
+            this.members.push({ name: Accounts.accountName, accountNumber: Accounts.accountNumber.toString() });
+          }
+        
+          setTimeout(() => {
+            this.loadingMembers = false;
+          }, 0); // Ensures it's executed after all iterations
+        });
 
-    });
+        });
 
-    this.productService.getProductsWithOrdersSmall().then(data => this.products = data);
 
-    this.representatives = [
-      { name: 'Amy Elsner', image: 'amyelsner.png' },
-      { name: 'Anna Fali', image: 'annafali.png' },
-      { name: 'Asiya Javayant', image: 'asiyajavayant.png' },
-      { name: 'Bernardo Dominic', image: 'bernardodominic.png' },
-      { name: 'Elwin Sharvill', image: 'elwinsharvill.png' },
-      { name: 'Ioni Bowcher', image: 'ionibowcher.png' },
-      { name: 'Ivan Magalhaes', image: 'ivanmagalhaes.png' },
-      { name: 'Onyama Limba', image: 'onyamalimba.png' },
-      { name: 'Stephen Shaw', image: 'stephenshaw.png' },
-      { name: 'XuXue Feng', image: 'xuxuefeng.png' }
-    ];
 
-    this.statuses = [
-      { label: 'Unqualified', value: 'unqualified' },
-      { label: 'Qualified', value: 'qualified' },
-      { label: 'New', value: 'new' },
-      { label: 'Negotiation', value: 'negotiation' },
-      { label: 'Renewal', value: 'renewal' },
-      { label: 'Proposal', value: 'proposal' }
-    ];
+
+        this.dataService.getBrands().subscribe((data) => {       
+          this.brandModel = data;
+
+          for (let Brands of this.brandModel) {          
+            this.brands.push({ name: Brands.brandName, brandNumber: Brands.brandID.toString() });
+          }
+
+          setTimeout(() => {
+            this.loadingBrands = false;
+          }, 0); // Ensures it's executed after all iterations
+        });
+
+   
+
+    
+        this.dataService.QuickSearchProducts().subscribe((data) => {
+          this.productList = data;
+
+         for (let prod of this.productList) {
+            this.products.push({ name: prod.productCode.toString() + " -  " + prod.modelName, ID: prod.productCode }) 
+         //  // this.brands.push({ name: Brands.brandName, brandNumber: Brands.brandID.toString() });
+          }
+
+          // Ensure `loadingProducts` is set to false AFTER the loop is done
+          setTimeout(() => {
+            this.loadingProducts = false;
+          }, 0); // Ensures it's executed after all iterations
+      
+        });
+
+  }
+
+  filteredMembers = [...this.members];
+  filteredBrands = [...this.brands];
+  filteredProducts =  [...this.products];
+
+  // Filter function for members
+  filterMembers() {
+    this.filteredMembers = this.members.filter(member =>
+      member.name.toLowerCase().includes(this.memberFilter.toLowerCase()) ||
+      member.accountNumber.toLowerCase().includes(this.memberFilter.toLowerCase())
+    );
+  }
+
+
+
+  // Filter function for products
+  filterProducts() {
+    this.filteredProducts = this.products.filter(product =>
+      product.name.toLowerCase().includes(this.productFilter.toLowerCase())
+    );
+  }
+
+
+
+  // Filter function for brands
+  filterBrands() {
+    this.filteredBrands = this.brands.filter(brand =>
+      brand.name.toLowerCase().includes(this.brandFilter.toLowerCase())
+    );
+  }
+
+
+  onBrandSelected() {
+
+    setTimeout(() => {
+
+      this.filteredBrands = [];
+    }, 300); // Small delay to ensure UI update
+
+
+
+  }
+
+  onProductSelected() {
+
+    setTimeout(() => {
+      this.filteredProducts = [];
+    }, 300); // Small delay to ensure UI update
+
+    
+  }
+
+  onMemberSelected() {
+    if (this.selectedMembers.length > 0) {
+      // Get the first selected member
+      const selectedMember = this.selectedMembers[0];
+
+
+
+      //Need to get specific barnds. 
+      const  memberBrands: any[] = [];
+      memberBrands.push({ name: 'Brands.brandName', brandNumber: 'Brands.brandID.toString()' });
+
+
+
+      // Populate the product list based on the selected member
+      //this.filteredProducts = selectedMember.products?.map(productName => ({ name: productName })) || [];
+
+
+      // Populate the brand list based on the selected member
+      this.selectedBrands = memberBrands;
+
+      // Clear selected members after assigning brands
+      setTimeout(() => {
+        this.filteredMembers = [];
+      }, 300); // Small delay to ensure UI update
+
+    }
+  }
+
+
+
+  Process() { }
+
+  Download(item: Table) {
+      const filteredData = item.filteredValue || item.value;
+      const data: any[] = filteredData;
+      const ws: XLSX.WorkSheet = XLSX.utils.json_to_sheet(data);
+      const wb: XLSX.WorkBook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Gating_Export');
+      XLSX.writeFile(wb, 'Gating_Export.xlsx');
   }
 
   onSort() {
     this.updateRowGroupMetaData();
   }
-
   updateRowGroupMetaData() {
     this.rowGroupMetadata = {};
-
-    
   }
-
-  expandAll() {
-    if (!this.isExpanded) {
-      this.products.forEach(product => product && product.name ? this.expandedRows[product.name] = true : '');
-
-    } else {
-      this.expandedRows = {};
-    }
-    this.isExpanded = !this.isExpanded;
-  }
-
-  formatCurrency(value: number) {
-    return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-  }
-
   onGlobalFilter(table: Table, event: Event) {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
-
   clear(table: Table) {
     table.clear();
     this.filter.nativeElement.value = '';
   }
-
-  calculateCustomerTotal(name: string) {
-    let total = 0;
-
-
-
-    return total;
-  }
-
 
 }

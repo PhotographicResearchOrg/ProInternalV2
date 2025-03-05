@@ -83,6 +83,7 @@
     <None Remove="ClientApp\src\app\models\Dashboard\IRMetrics.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\MapViolation.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\OrdersMetrics.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\ProductGating.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\Products.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\SARMetrics.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\ShippingErrorMetrics.ts" />
@@ -100,6 +101,9 @@
 
   <ItemGroup>
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\quarterly-rebates.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\ProductGating.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
     <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\DeclinedIR.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
