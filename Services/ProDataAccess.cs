@@ -255,7 +255,16 @@ namespace ProInternal.Services
             }
         }
 
-        
+        public List<MemberGateSummary> GetMemberGateSummary(string searchCriteria)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<MemberGateSummary>("GetMemberGateSummarys", new { searchCriteria = searchCriteria }).ToList();
+
+                return output;
+            }
+        }
+     
 
         public List<Products> QuickSearchProducts()
         {
@@ -275,7 +284,6 @@ namespace ProInternal.Services
                 return output;
             }
         }
-
 
 
         public List<SpecialOrdersSummary> getOrdersSnapshot()

@@ -18,6 +18,9 @@ import { options } from "@fullcalendar/core/preact";
 import { Observable } from "rxjs";
 import { Product } from "../prointernalengine/api/product";
 import { ProductGating } from "../models/Dashboard/ProductGating";
+import { MemberGateSummary } from "../models/Dashboard/MemberGateSummary";
+
+
 
 
 @Injectable()
@@ -130,8 +133,14 @@ export class DataService {
   getBrands() { return this.api.get<Array<Brands>>(`API/Dashboard/getBrands`); }
 
 
-  //
   getProducts(searchCriteria: string)    { return this.api.get<Array<Products>>(`API/Dashboard/getProducts/${searchCriteria}`); }
+
+
+  GetMemberGateSummary(memberNumber: string) {
+
+
+    return this.api.get<Array<MemberGateSummary>>(`API/Dashboard/GetMemberGateSummary/${memberNumber}`);
+  }
 
 
   QuickSearchProducts() { return this.api.get<Array<Products>>(`API/Dashboard/QuickSearchProducts`); }

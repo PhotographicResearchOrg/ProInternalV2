@@ -66,4 +66,18 @@
 
     }
 
+    public class MemberGateSummary
+    {
+        public string ProductCode { get; set; }
+        public int BrandId { get; set; }
+        public string ProductName { get; set; }
+        public string BrandName { get; set; }
+        public string AccountNumber { get; set; }
+        public string AccountName { get; set; }
+        public string ModelName { get; set; }
+
+
+    }
+
+
 }

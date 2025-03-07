@@ -45,11 +45,8 @@ namespace ProInternal.Controllers
         public List<Account> Accounts()
         {
             List<Account> Accounts = this._prodataAccess.getAccounts().ToList();
-
             return Accounts;
         }
-
-
 
         [HttpGet]
         [Route("getBrands")]
@@ -57,11 +54,9 @@ namespace ProInternal.Controllers
         {
             List<Brands> Brands = this._prodataAccess.getBrands().ToList();
 
-            return Brands;
+           return Brands;
         }
 
-
-        
 
 
         [HttpGet]
@@ -72,6 +67,17 @@ namespace ProInternal.Controllers
 
             return Products;
         }
+
+
+        [HttpGet]
+        [Route("GetMemberGateSummary/{memberNumber}")]
+        public List<MemberGateSummary> GetMemberGateSummary(string memberNumber)
+        {
+            List<MemberGateSummary> MemberGateSummary = this._prodataAccess.GetMemberGateSummary(memberNumber).ToList();
+            return MemberGateSummary;
+        }
+        
+
 
 
         [HttpGet]

@@ -16,6 +16,8 @@ import { MessageService, ConfirmationService } from 'primeng/api';
 import { Account, Brands } from "src/app/models/Dashboard/Account";
 import { Product } from '../../../api/product';
 import { Products } from "src/app/models/Dashboard/Products";
+import { MemberGateSummary } from "src/app/models/Dashboard/MemberGateSummary";
+
 
 interface expandedRows {
   [key: string]: boolean;
@@ -28,6 +30,7 @@ interface expandedRows {
 
 export class GatingComponent implements OnInit {
 
+  public MemberGateSummary: MemberGateSummary[] = [];
   public gatedProducts: ProductGating[] = [];
   rowGroupMetadata: any;
   loadingMainGrid: boolean = true;
@@ -70,18 +73,17 @@ export class GatingComponent implements OnInit {
   constructor(private dataService: DataService,) { }
 
   ngOnInit() {
+
       this.dataService.getGatedRetailers().subscribe((data) => {
         this.loadingMainGrid = false;
         this.gatedProducts = data;
-    
 
-
-      for (let Account of this.gatedProducts)
-      {
-      if (Account.accountNumber < 5000) { Account.retailerType = 'Member' }
-      if (Account.accountNumber >= 5000 && Account.accountNumber <= 7000) { Account.retailerType = 'Client' }
-      if (Account.accountNumber > 7000) { Account.retailerType = 'Affiliate' }
-      }
+        for (let Account of this.gatedProducts)
+        {
+        if (Account.accountNumber < 5000) { Account.retailerType = 'Member' }
+        if (Account.accountNumber >= 5000 && Account.accountNumber <= 7000) { Account.retailerType = 'Client' }
+        if (Account.accountNumber > 7000) { Account.retailerType = 'Affiliate' }
+        }
 
 
         this.dataService.getAccounts().subscribe((data) => {
@@ -97,9 +99,6 @@ export class GatingComponent implements OnInit {
 
         });
 
-
-
-
         this.dataService.getBrands().subscribe((data) => {       
           this.brandModel = data;
 
@@ -112,18 +111,13 @@ export class GatingComponent implements OnInit {
           }, 0); // Ensures it's executed after all iterations
         });
 
-   
-
-    
         this.dataService.QuickSearchProducts().subscribe((data) => {
           this.productList = data;
 
          for (let prod of this.productList) {
             this.products.push({ name: prod.productCode.toString() + " -  " + prod.modelName, ID: prod.productCode }) 
-         //  // this.brands.push({ name: Brands.brandName, brandNumber: Brands.brandID.toString() });
           }
 
-          // Ensure `loadingProducts` is set to false AFTER the loop is done
           setTimeout(() => {
             this.loadingProducts = false;
           }, 0); // Ensures it's executed after all iterations
@@ -144,16 +138,12 @@ export class GatingComponent implements OnInit {
     );
   }
 
-
-
   // Filter function for products
   filterProducts() {
     this.filteredProducts = this.products.filter(product =>
       product.name.toLowerCase().includes(this.productFilter.toLowerCase())
     );
   }
-
-
 
   // Filter function for brands
   filterBrands() {
@@ -166,51 +156,47 @@ export class GatingComponent implements OnInit {
   onBrandSelected() {
 
     setTimeout(() => {
-
       this.filteredBrands = [];
     }, 300); // Small delay to ensure UI update
-
-
-
   }
 
   onProductSelected() {
 
     setTimeout(() => {
       this.filteredProducts = [];
-    }, 300); // Small delay to ensure UI update
-
-    
+    }, 300); // Small delay to ensure UI update  
   }
 
   onMemberSelected() {
-    if (this.selectedMembers.length > 0) {
-      // Get the first selected member
-      const selectedMember = this.selectedMembers[0];
+    if (this.selectedMembers.length > 0)
+    {
+      // Get the first selected member    
+      const selectedMember = this.selectedMembers[this.selectedMembers.length - 1];  
+      this.selectedMembers = [];
+      this.selectedMembers[0] = selectedMember;
+  
 
+      this.dataService.GetMemberGateSummary(selectedMember.accountNumber).subscribe((data) =>
+      {
+        this.MemberGateSummary = data;
+        //Need to get specific barnds. 
+        const memberBrands: any[] = [];
+        for (let data of this.MemberGateSummary) {
+            memberBrands.push({ name: data.brandName, brandNumber: data.brandId.toString() });
+        }
+            this.selectedBrands = memberBrands;
+        });
 
-
-      //Need to get specific barnds. 
-      const  memberBrands: any[] = [];
-      memberBrands.push({ name: 'Brands.brandName', brandNumber: 'Brands.brandID.toString()' });
-
-
-
-      // Populate the product list based on the selected member
-      //this.filteredProducts = selectedMember.products?.map(productName => ({ name: productName })) || [];
-
-
-      // Populate the brand list based on the selected member
-      this.selectedBrands = memberBrands;
 
       // Clear selected members after assigning brands
-      setTimeout(() => {
+      setTimeout(() =>
+      {
         this.filteredMembers = [];
       }, 300); // Small delay to ensure UI update
 
     }
-  }
 
+  }
 
 
   Process() { }

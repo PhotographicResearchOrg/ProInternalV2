@@ -27,8 +27,9 @@ namespace ProInternal.Services
         List<Account> getAccounts();
         List<Products> getProducts(string searchCriteria);
 
+        List<MemberGateSummary> GetMemberGateSummary(string searchCriteria);
+        
         List<Brands> getBrands();
-
 
         QuarterlyRebates saveData(QuarterlyRebates saveData);
 
@@ -39,18 +40,17 @@ namespace ProInternal.Services
         bool deleteQRUpload(int batchID);
         bool activate(int batchID);
       
-
         List<qrDetail> getQRBatchDetail(int batchID);
 
         List<qrDetail> getQRBatchVendorDetail(string batchID);
 
         List<GatedProducts> getGatedRetailers();
 
-
         List<Products> QuickSearchProducts();
 
 
  
+
 
     }
 
