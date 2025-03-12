@@ -12,6 +12,7 @@ using ProInternal.Models.Products;
 using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
+using ProInternal.Models.Exclusions;
 
 namespace ProInternal.Services
 {
@@ -48,11 +49,17 @@ namespace ProInternal.Services
 
         List<Products> QuickSearchProducts();
 
+        int Exclusion_CreateGroup(string groupName);
+		void Exclusion_AddProductsToGroup(int productExclusionGroupID, List<string> productCodes);
+        void Exclusion_ExcludeCompanyGroup(int companyID, int productExclusionGroupID);
+        void Exclusions_ExcludeCompanyBrand(int companyID, int brandID);
+        List<CompanyBrandExclusion> Exclusions_GetCompanyBrandExclusions(int companyID);
+        List<ProductExclusionGroup> Exclusions_GetExclusionGroups();
+        List<ProductExclusionGroupProduct> Exclusions_GetExclusionGroupProducts(int productExclusionGroupID);
+        List<CompanyGroupExclusion> Exclusions_GetCompanyGroupExclusions(int companyID);
 
- 
 
-
-    }
+	}
 
 
 }

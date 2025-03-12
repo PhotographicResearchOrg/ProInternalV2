@@ -13,6 +13,9 @@ using ProInternal.Models.Products;
 using Microsoft.AspNetCore.Identity;
 using ProInternal.Helpers;
 using Microsoft.Data.SqlClient;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using ProInternal.Models.Exclusions;
+using System.ComponentModel.Design;
 
 
 namespace ProInternal.Services
@@ -309,6 +312,75 @@ namespace ProInternal.Services
             }
         }
 
+		#region Exclusions
+        public int Exclusion_CreateGroup(string groupName) {
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				var output = connection.Query<int>("Exclusions_CreateGroup").FirstOrDefault();
+				return output;
+			}
+		}
 
-    }
+        public void Exclusion_AddProductsToGroup(int productExclusionGroupID, List<string> productCodes) {
+
+			DataTable productCodeTable = new DataTable();
+
+			productCodeTable.Columns.Add(new DataColumn("ProductCode", typeof(string)));
+			foreach (var code in productCodes) {
+				DataRow row = productCodeTable.NewRow();
+				row["ProductCode"] = code;
+				productCodeTable.Rows.Add(row);
+			}
+
+			var p = new DynamicParameters();
+			p.Add("@ProductExclusionGroupID", productExclusionGroupID);
+			p.Add("@ProductCodes", productCodeTable.AsTableValuedParameter("ProductCodeList"));
+
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				connection.Execute("Exclusions_AddProductsToGroup", p, commandType: CommandType.StoredProcedure);
+			}
+		}
+
+        public void Exclusion_ExcludeCompanyGroup(int companyID, int productExclusionGroupID) {
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				connection.Execute("Exclusion_ExcludeCompanyGroup @CompanyID, @ProductExclusionGroupID", new { CompanyID = companyID, ProductExclusionGroupID = productExclusionGroupID });
+			}
+		}
+
+       public void Exclusions_ExcludeCompanyBrand(int companyID, int brandID) {
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				connection.Execute("Exclusions_ExcludeCompanyBrand @CompanyID, @BrandID", new { CompanyID = companyID, BbrandID = brandID });
+			}
+		}
+
+        public List<CompanyBrandExclusion> Exclusions_GetCompanyBrandExclusions(int companyID) {
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				var output = connection.Query<CompanyBrandExclusion>("Exclusions_GetCompanyBrandExclusions @CompanyID", new { CompanyID = companyID}).ToList();
+				return output;
+			}
+		}
+
+        public List<ProductExclusionGroup> Exclusions_GetExclusionGroups() {
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				var output = connection.Query<ProductExclusionGroup>("Exclusions_GetExclusionGroups").ToList();
+				return output;
+			}
+        }
+
+        public List<ProductExclusionGroupProduct> Exclusions_GetExclusionGroupProducts(int productExclusionGroupID) { 
+ 			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				var output = connection.Query<ProductExclusionGroupProduct>("Exclusions_GetExclusionGroupProducts @ProductExclusionGroupID", new { ProductExclusionGroupID = productExclusionGroupID }).ToList();
+				return output;
+			}
+       }
+
+        public List<CompanyGroupExclusion> Exclusions_GetCompanyGroupExclusions(int companyID) {
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				var output = connection.Query<CompanyGroupExclusion>("Exclusions_GetCompanyGroupExclusions @CompanyID", new { CompanyID = companyID }).ToList();
+				return output;
+			}
+
+        }
+		#endregion
+
+	}
 }
