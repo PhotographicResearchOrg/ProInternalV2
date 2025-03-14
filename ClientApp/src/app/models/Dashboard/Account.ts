@@ -1,15 +1,14 @@
 export class Account {
 
-  public accountNumber: number;
-  public accountName: string;
-  public label : string;
+	public companyID: number
+  public accountNumber: number = 0;
+  public accountName: string = '';
+  public label : string = '';
 
 
 
-  constructor() {
-    this.accountNumber = 0; // Initializing in the constructor
-    this.accountName = "";
-    this.label = "";
+  constructor(o?: any) {
+    Object.assign(this,o);
   }
 
 }
@@ -24,4 +23,12 @@ export class Brands {
     this.brandName = "";
   }
 
+}
+
+export class Brand {
+	public brandID: number;
+	public brandName: string;
+	constructor(o?:any) {
+		Object.assign(this, o);
+	}
 }

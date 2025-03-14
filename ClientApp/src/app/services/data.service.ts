@@ -19,6 +19,8 @@ import { Observable } from "rxjs";
 import { Product } from "../prointernalengine/api/product";
 import { ProductGating } from "../models/Dashboard/ProductGating";
 import { MemberGateSummary } from "../models/Dashboard/MemberGateSummary";
+import { CompanyBrandExclusion } from "../models/exclusions/brand-exclusions";
+import { CompanyGroupExclusion, ProductExclusionGroup, ProductExclusionGroupProduct } from "../models/exclusions/group-exclusions";
 
 
 
@@ -148,6 +150,35 @@ export class DataService {
 
   downloadCSV(): Observable<any> { return this.api.getJSON('API/Dashboard/getAccounts')}
 
+  //region Exclusions
+	getBrandExclusions(companyID: number) { 
+		return this.api.get<Array<CompanyBrandExclusion>>(`API/Product/exclusion/brands/${companyID}`); 
+	}
+
+	getExclusionGroups() {
+		return this.api.get<Array<ProductExclusionGroup>>(`API/Product/exclusion/groups`);
+	}
+	getExclusionGroupProducts(groupID: number) {
+		return this.api.get<Array<ProductExclusionGroupProduct>>(`API/Product/exclusion/group/${groupID}`);
+	}
+	getCompanyGroupExclusions(companyID: number) {
+		return this.api.get<Array<CompanyGroupExclusion>>(`API/Product/exclusion/groups/${companyID}`);
+	}
+
+	createExclusionGroup(groupName: string) {
+		return this.api.post<ProductExclusionGroup>(`API/Product/exclusion/group`, groupName);
+	}
+	addProductToExclusionGroup(groupID: number, productCode: Array<string>) {
+		return this.api.post(`API/Product/exclusion/group/${groupID}`, productCode);	
+	}
+	addExclustionGroupToCompany(companyID: number, groupIDs: Array<number>) {
+		return this.api.post(`API/Product/exclusion/group/add/${companyID}`, groupIDs);
+	}
+	addBrandExclusionToCompany(companyID: number, brandIDs: Array<number>) {
+		return this.api.post(`API/Product/exclusion/brand/add/${companyID}`, brandIDs );
+	}
+
+  //end region Exclusions
 
 }
 

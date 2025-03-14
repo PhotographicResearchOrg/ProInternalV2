@@ -315,7 +315,7 @@ namespace ProInternal.Services
 		#region Exclusions
         public int Exclusion_CreateGroup(string groupName) {
 			using (IDbConnection connection = new SqlConnection(_connectionString)) {
-				var output = connection.Query<int>("Exclusions_CreateGroup").FirstOrDefault();
+				var output = connection.Query<int>("Exclusions_CreateGroup @groupName", new { groupName = groupName}).FirstOrDefault();
 				return output;
 			}
 		}
@@ -340,15 +340,35 @@ namespace ProInternal.Services
 			}
 		}
 
-        public void Exclusion_ExcludeCompanyGroup(int companyID, int productExclusionGroupID) {
+        public void Exclusion_ExcludeCompanyGroups(int companyID, List<int> productExclusionGroupIDs) {
+            DataTable groupIds = new DataTable();
+            groupIds.Columns.Add(new DataColumn("Id", typeof(int)));
+            foreach (int id in productExclusionGroupIDs) {
+                DataRow row = groupIds.NewRow();
+                row["Id"] = id;
+                groupIds.Rows.Add(row);
+            }
+            var p = new DynamicParameters();
+            p.Add("@CompanyId", companyID);
+            p.Add("@ProductExclusionGroupIDs", groupIds.AsTableValuedParameter("IdList"));
 			using (IDbConnection connection = new SqlConnection(_connectionString)) {
-				connection.Execute("Exclusion_ExcludeCompanyGroup @CompanyID, @ProductExclusionGroupID", new { CompanyID = companyID, ProductExclusionGroupID = productExclusionGroupID });
+				connection.Execute("Exclusions_ExcludeCompanyGroups", p, commandType: CommandType.StoredProcedure);
 			}
 		}
 
-       public void Exclusions_ExcludeCompanyBrand(int companyID, int brandID) {
+       public void Exclusions_ExcludeCompanyBrands(int companyID, List<int> brandIDs) {
+			DataTable brandIds = new DataTable();
+			brandIds.Columns.Add(new DataColumn("BrandId", typeof(int)));
+			foreach (int id in brandIDs) {
+				DataRow row = brandIds.NewRow();
+				row["BrandId"] = id;
+				brandIds.Rows.Add(row);
+			}
+			var p = new DynamicParameters();
+			p.Add("@CompanyId", companyID);
+			p.Add("@BrandIds", brandIds.AsTableValuedParameter("BrandIdList"));
 			using (IDbConnection connection = new SqlConnection(_connectionString)) {
-				connection.Execute("Exclusions_ExcludeCompanyBrand @CompanyID, @BrandID", new { CompanyID = companyID, BbrandID = brandID });
+				connection.Execute("Exclusions_ExcludeCompanyBrands", p, commandType: CommandType.StoredProcedure);
 			}
 		}
 

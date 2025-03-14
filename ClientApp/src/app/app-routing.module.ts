@@ -8,7 +8,10 @@ import { DashboardLandingComponent } from "src/app/prointernalengine/components/
 import { LoginComponent } from "src/app/prointernalengine/components/auth/login/login.component"; 
 import { FileAppComponent } from './prointernalengine/components/apps/file/file.app.component';
 import { AuthModule } from './prointernalengine/components/auth/auth.module';
-import { GatingComponent } from  './prointernalengine/components/product/gating/gating.component';
+import { GatingComponent } from  './prointernalengine/components/Product/Gating/gating.component';
+import { BrandExclusionsComponent } from './prointernalengine/components/Product/exclusions/brand-exclusions/brand-exclusions.component';
+import { ExclusionGroupsComponent } from './prointernalengine/components/Product/exclusions/exclusion-groups/exclusion-groups.component';
+import { ExclusionGroupCompanyComponent } from './prointernalengine/components/Product/exclusions/exclusion-group-company/exclusion-group-company.component';
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -39,7 +42,9 @@ const routes: Routes = [
                 { path: 'apps', data: { breadcrumb: 'Apps' }, loadChildren: () => import('./prointernalengine/components/apps/apps.module').then(m => m.AppsModule) },
                 { path: 'instantrebate', component: RebatesupportComponent },
                 { path: 'gating', data: { breadcrumb: 'Product Gating' }, component: GatingComponent },
-      
+				{ path: 'exclusions/brand', data: { breadcrumb: 'Brand Exclusions' }, component: BrandExclusionsComponent },
+				{ path: 'exclusions/group', data: { breadcrumb: 'Exclusion Groups' }, component: ExclusionGroupsComponent },
+				{ path: 'exclusion/group/company', data: { breadcrumb: 'Company Exclusion Groups' }, component: ExclusionGroupCompanyComponent },
       ]
   },
 

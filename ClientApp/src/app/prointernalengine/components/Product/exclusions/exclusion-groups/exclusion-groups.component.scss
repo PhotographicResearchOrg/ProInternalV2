@@ -1,0 +1,55 @@
+
+
+.sections {
+	display: flex;
+	gap: 4rem;
+}
+
+.products {
+	display: flex;
+	gap: 2rem;
+	margin-top: 2rem;
+	.product-list {
+		height: 50vh;
+		width: 350px;
+		overflow-y: auto;
+		background-color: #fff;
+		border-radius: 5px;
+		border: solid 1px #ddd;
+		padding: 1rem;
+
+		ul {
+			height: calc(100% - 2rem);
+			list-style-type: none;
+			margin: 0;
+			padding: 0;
+
+			li {
+				padding: 0.25em;
+				cursor: move; /* Add cursor style for draggable items */
+			}
+		}
+		&.included {
+			ul {
+				li {
+					cursor: default;
+					display: flex;
+					justify-content: space-between;
+
+					button {
+						flex: 26px 0 0;
+					}
+				}
+			}			
+		}
+
+	}
+}
+
+.actions {
+	margin-top: 1rem;
+	button {
+		width: 150px;
+	}
+}
+

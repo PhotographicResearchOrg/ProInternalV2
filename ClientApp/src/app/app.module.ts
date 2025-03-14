@@ -30,7 +30,7 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { FileAppService } from './prointernalengine/components/apps/file/service/file.app.service';
 import { QtrRebatesComponent } from './prointernalengine/components/dashboards/qtr-rebates/qtr-rebates.component';
 import { RebatesupportComponent } from './prointernalengine/components/instantrebate/rebatesupport/rebatesupport.component';
-import { GatingComponent } from './prointernalengine/components/product/gating/gating.component';
+import { GatingComponent } from './prointernalengine/components/Product/Gating/gating.component';
 
 import { PickListModule } from 'primeng/picklist';
 import { ToggleButtonModule } from 'primeng/togglebutton';

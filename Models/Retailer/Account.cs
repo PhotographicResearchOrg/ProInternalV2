@@ -2,6 +2,7 @@
 {
     public class Account
     {
+        public int CompanyID { get; set; }
         public int AccountNumber       { get; set; }
         public string AccountName     { get; set; }
 

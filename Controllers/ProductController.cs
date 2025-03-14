@@ -45,7 +45,7 @@ namespace ProInternal.Controllers
             return this._prodataAccess.Exclusions_GetExclusionGroupProducts(groupID);
         }
         [HttpGet]
-        [Route("exclusion/groups/{accountNumber}")]
+        [Route("exclusion/groups/{companyID}")]
         public List<CompanyGroupExclusion> getCompanyExclusionGroups(int companyID) {
             return this._prodataAccess.Exclusions_GetCompanyGroupExclusions(companyID);
         }
@@ -69,15 +69,15 @@ namespace ProInternal.Controllers
         }
 
         [HttpPost]
-        [Route("exclusions/group/{productExclusionGroupID}/{companyID")]
-        public void AddCompanyExclusionGroup(int productExclusionGroupID, int companyID) {
-            this._prodataAccess.Exclusion_ExcludeCompanyGroup(companyID, productExclusionGroupID);
+        [Route("exclusion/group/add/{companyID}")]
+        public void AddCompanyExclusionGroups(int companyID, [FromBody] List<int> productExclusionGroupIds) {
+            this._prodataAccess.Exclusion_ExcludeCompanyGroups(companyID, productExclusionGroupIds);
         }
 
         [HttpPost]
-        [Route("exclusion/brand/{brandID}/{companyID}")]
-        public void AddCompanyBrandExclusion(int brandID, int companyID) {
-            this._prodataAccess.Exclusions_ExcludeCompanyBrand(companyID, brandID);
+        [Route("exclusion/brand/add/{companyID}")]
+        public void AddCompanyBrandExclusion(int companyID, [FromBody] List<int> brandIds) {
+            this._prodataAccess.Exclusions_ExcludeCompanyBrands(companyID, brandIds);
         }
 
 
