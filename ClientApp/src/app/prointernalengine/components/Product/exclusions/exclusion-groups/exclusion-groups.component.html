@@ -17,7 +17,7 @@
 		<section>
 			<p>Edit Existing Group</p>
 			<p-dropdown [(ngModel)]="selectedGroupId" [options]="groups" [optionLabel]="'groupName'" [optionValue]="'productExclusionGroupID'" (onChange)="onGroupChange($event)"></p-dropdown>
-			<div *ngIf="selectedGroupId"><input pInputText [(ngModel)]="searchTerm" [formControl]="searchBox" placeholder="Search Products" /></div>
+			<div class="search-input" *ngIf="selectedGroupId"><input pInputText [(ngModel)]="searchTerm" [formControl]="searchBox" placeholder="Search Products" /></div>
 			<div class="products" *ngIf="selectedGroupId">
 				<div>
 					<p>All Products</p>
