@@ -315,17 +315,17 @@ namespace ProInternal.Services
         }
 
 
-        public User login(string username, string password)
-        {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
-            {
-                var output = connection.QueryMultiple("Auth_Login @username, @password", new { username = username, password = password });
-                User user = null;
-                try { user = output.Read<User>().FirstOrDefault(); }
-                catch { }  
-                return user;
-            }
-        }
+        //public User login(string username, string password)
+        //{
+        //    using (IDbConnection connection = new SqlConnection(_connectionString))
+        //    {
+        //        var output = connection.QueryMultiple("Auth_Login @username, @password", new { username = username, password = password });
+        //        User user = null;
+        //        try { user = output.Read<User>().FirstOrDefault(); }
+        //        catch { }  
+        //        return user;
+        //    }
+        //}
 
 		#region Exclusions
         public int Exclusion_CreateGroup(string groupName) {

@@ -138,10 +138,10 @@ export class DataService {
     return this.api.get<Array<MemberGateSummary>>(`API/Dashboard/GetMemberGateSummary/${memberNumber}`);
   }
 
-  login(username: string, password: string)
-  {
-    return this.api.post(`/api/auth`, { username, password },'application/json');
-  }
+  //login(username: string, password: string)
+  //{
+  //  return this.api.post(`/api/auth`, { username, password },'application/json');
+  //}
 
 
 

@@ -29,7 +29,7 @@ export class AuthService {
   login(username: string, password: string)
   {
     alert("HERE")
-    this.dataService.login(username, password);
+   // this.dataService.login(username, password);
 
     //  this.store.dispatch(new Login(username, password));
       //this.actions$.pipe(

@@ -68,15 +68,6 @@ export class ApiService {
   }
 
 
-  post<T>(url: string, objectToPost: any, headers: HttpHeaders = null): Observable<T> {
-    let options = {};
-    if (!!headers) {
-      options = { headers: headers };
-    } else {
-      options = { headers: this.defaultHeaders };
-    }
-    return this.http.post<T>(this.getUrl(url), JSON.stringify(objectToPost), options);
-  }
 
   postGetBlob(url: string, objectToPost: any): Observable<any> {
     const headers = new HttpHeaders({
