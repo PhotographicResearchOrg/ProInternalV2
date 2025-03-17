@@ -13,7 +13,6 @@ export class ApiService {
   private defaultHeaders: HttpHeaders;
   constructor(private http: HttpClient)
   {
-
     console.log(isDevMode());
     //console.log(environment.production);
 
@@ -21,7 +20,6 @@ export class ApiService {
       this._apiUrl = "http://localhost:5248";
     else
       this._apiUrl = "";
-
 
       this.defaultHeaders = new HttpHeaders().set("Content-Type", "application/json; charset=utf-8");
   }
@@ -60,6 +58,17 @@ export class ApiService {
 
 
   post<T>(url: string, objectToPost: any, headers: HttpHeaders): Observable<T> {
+    let options = {};
+    if (!!headers) {
+      options = { headers: headers };
+    } else {
+      options = { headers: this.defaultHeaders };
+    }
+    return this.http.post<T>(this.getUrl(url), JSON.stringify(objectToPost), options);
+  }
+
+
+  post<T>(url: string, objectToPost: any, headers: HttpHeaders = null): Observable<T> {
     let options = {};
     if (!!headers) {
       options = { headers: headers };

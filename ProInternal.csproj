@@ -94,6 +94,7 @@
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\landing\dashboardlanding-routing.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\landing\dashboardlanding.module.ts" />
+    <None Remove="ClientApp\src\app\services\auth.guard.ts" />
     <None Remove="ClientApp\src\app\services\auth.service.ts" />
     <None Remove="ClientApp\src\app\services\csv.service.ts" />
     <None Remove="ClientApp\src\app\services\data.service.ts" />
@@ -133,6 +134,9 @@
       <SubType>Code</SubType>
     </TypeScriptCompile>
     <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\OrdersMetrics.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\services\auth.guard.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
     <TypeScriptCompile Include="ClientApp\src\app\services\csv.service.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>

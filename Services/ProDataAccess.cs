@@ -48,6 +48,21 @@ namespace ProInternal.Services
         }
 
 
+        #region Authentication
+        public User login(string username, string password)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.QueryMultiple("Auth_Login @username, @password", new { username = username, password = password });
+
+                User user = null;
+                try { user = output.Read<User>().FirstOrDefault(); }
+                catch { }
+
+                return user;
+            }
+        }
+
         public List<QuarterlyDataHistorical> getHistoricalQRData()
         {
             using (IDbConnection connection = new SqlConnection(_connectionString))
@@ -297,18 +312,8 @@ namespace ProInternal.Services
         }
 
 
-        public User login(string username, string password)
-        {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
-            {
-                var output = connection.QueryMultiple("Auth_Login @username, @password", new { username = username, password = password });
-                User user = null;
-                try { user = output.Read<User>().FirstOrDefault(); }
-                catch { }  
-                return user;
-            }
-        }
-
+       
 
     }
 }
+#endregion

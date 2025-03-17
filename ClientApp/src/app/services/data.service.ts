@@ -83,14 +83,10 @@ export class DataService {
     return this.api.put(`API/Accounting/activate/${batchId}`, {});
   }
 
- 
-  
   pullQRBatchDetail(batchId: number) {
     console.log(batchId);
     return this.api.get<Array<qrDetail>>(`API/Accounting/getQRBatchDetail/${batchId}`);
   }
-
-
 
   pullQRBatchVendorDetail(batchId: string) {
     console.log(batchId);
@@ -137,10 +133,14 @@ export class DataService {
 
 
   GetMemberGateSummary(memberNumber: string) {
-
-
     return this.api.get<Array<MemberGateSummary>>(`API/Dashboard/GetMemberGateSummary/${memberNumber}`);
   }
+
+  login(username: string, password: string)
+  {
+    return this.api.post(`/api/auth`, { username, password },'application/json');
+  }
+
 
 
   QuickSearchProducts() { return this.api.get<Array<Products>>(`API/Dashboard/QuickSearchProducts`); }

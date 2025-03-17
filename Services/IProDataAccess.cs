@@ -24,6 +24,7 @@ namespace ProInternal.Services
         CommecntsMetrics getCommentsrMetrics();
         List<SpecialOrdersSummary> getOrdersSnapshot();
         User login(string username, string password);
+        
         List<Account> getAccounts();
         List<Products> getProducts(string searchCriteria);
 
@@ -41,6 +42,8 @@ namespace ProInternal.Services
         bool activate(int batchID);
       
         List<qrDetail> getQRBatchDetail(int batchID);
+
+    
 
         List<qrDetail> getQRBatchVendorDetail(string batchID);
 
