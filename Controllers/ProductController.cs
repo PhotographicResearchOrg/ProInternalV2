@@ -3,6 +3,7 @@ using ProInternal.Services;
 using ProInternal.Models.Accounting;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using ProInternal.Models.Dashboard;
+using ProInternal.Models.Exclusions;
 
 
 namespace ProInternal.Controllers
@@ -32,7 +33,53 @@ namespace ProInternal.Controllers
             return Summary;
         }
 
+        [HttpGet]
+        [Route("exclusion/groups")]
+        public List<ProductExclusionGroup> getExclusionGroups() {
+            return this._prodataAccess.Exclusions_GetExclusionGroups();
+        }
+
+        [HttpGet]
+        [Route("exclusion/group/{groupID}")]
+        public List<ProductExclusionGroupProduct> getExclusionGroupProducts(int groupID) {
+            return this._prodataAccess.Exclusions_GetExclusionGroupProducts(groupID);
+        }
+        [HttpGet]
+        [Route("exclusion/groups/{companyID}")]
+        public List<CompanyGroupExclusion> getCompanyExclusionGroups(int companyID) {
+            return this._prodataAccess.Exclusions_GetCompanyGroupExclusions(companyID);
+        }
+
+        [HttpGet]
+        [Route("exclusion/brands/{companyID}")]
+        public List<CompanyBrandExclusion> GetCompanyBrandExclusions(int companyID) {
+            return this._prodataAccess.Exclusions_GetCompanyBrandExclusions(companyID);
+        }
+
+        [HttpPost]
+        [Route("exclusion/group")]
+        public int CreateExclusionGroup([FromBody] string groupName) {
+            return this._prodataAccess.Exclusion_CreateGroup(groupName);
+        }
+
+        [HttpPost]
+        [Route("exclusion/group/{productExclusionGroupID}")]
+        public void AddProductsToExclusionGroup(int productExclusionGroupID, List<string> productCodes) {
+            this._prodataAccess.Exclusion_AddProductsToGroup(productExclusionGroupID, productCodes);
+        }
+
+        [HttpPost]
+        [Route("exclusion/group/add/{companyID}")]
+        public void AddCompanyExclusionGroups(int companyID, [FromBody] List<int> productExclusionGroupIds) {
+            this._prodataAccess.Exclusion_ExcludeCompanyGroups(companyID, productExclusionGroupIds);
+        }
+
+        [HttpPost]
+        [Route("exclusion/brand/add/{companyID}")]
+        public void AddCompanyBrandExclusion(int companyID, [FromBody] List<int> brandIds) {
+            this._prodataAccess.Exclusions_ExcludeCompanyBrands(companyID, brandIds);
+        }
 
 
-    }
+	}
 }

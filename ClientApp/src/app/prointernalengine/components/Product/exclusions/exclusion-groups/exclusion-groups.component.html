@@ -1,0 +1,53 @@
+<div class="exclusion-groups">
+	<h2>Exclusion Groups</h2>
+	<p>Manage the exclusion groups here.</p>
+
+	<div class="sections">
+		<section>
+			<p>Create New Group</p>
+			<div class="field">
+				<label for="groupName">Group Name</label><br />
+				<input pInputText id="groupName" type="text" pInputText [(ngModel)]="newGroupName" />
+			</div>
+			<div class="actions">
+				<button pButton pRipple class="p-button-primary flex-1 border-round" label="Save" icon="pi pi-fw pi-check" (click)="addNew()"></button>
+			</div>
+		</section>
+
+		<section>
+			<p>Edit Existing Group</p>
+			<p-dropdown [(ngModel)]="selectedGroupId" [options]="groups" [optionLabel]="'groupName'" [optionValue]="'productExclusionGroupID'" (onChange)="onGroupChange($event)"></p-dropdown>
+			<div class="search-input" *ngIf="selectedGroupId"><input pInputText [(ngModel)]="searchTerm" [formControl]="searchBox" placeholder="Search Products" /></div>
+			<div class="products" *ngIf="selectedGroupId">
+				<div>
+					<p>All Products</p>
+					<div class="product-list">
+						<ul>
+							<li *ngFor="let product of products" pDraggable (onDragStart)="dragStart(product)">
+								<span>{{product.productCode}} - {{product.modelName}}</span>
+							</li>
+						</ul>
+					</div>
+				</div>
+				<div>
+					<p>Products in Group</p>
+					<div class="product-list included">
+						<ul pDroppable class="target" (onDrop)="drop()">
+							<li *ngFor="let product of includedProducts">
+								<span>{{product.productCode}} - {{product.modelName}}</span>
+								<button pButton pRipple class="p-button-danger" icon="pi pi-fw pi-times" (click)="removeProduct(product.productCode)"></button>
+							</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+			<div class="actions" *ngIf="selectedGroupId">
+				<button pButton pRipple class="p-button-primary flex-1 border-round" label="Save" icon="pi pi-fw pi-check" (click)="save()"></button>
+			</div>		
+		</section>		
+	</div>
+
+
+</div>
+
+<p-toast [life]="3000" [position]="'bottom-center'"></p-toast>

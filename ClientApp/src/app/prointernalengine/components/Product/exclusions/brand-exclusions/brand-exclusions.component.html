@@ -1,0 +1,33 @@
+
+
+<div class="brand-exclusions">
+	<h2>Brand Exclusions</h2>
+	<p>Manage the brand exclusions for specific companies here.</p>
+
+	<p>Select a company</p>
+	<p-dropdown [(ngModel)]="selectedCompanyId" [options]="companies" [optionLabel]="'accountName'" [optionValue]="'companyID'" (onChange)="onCompanyChange($event)"></p-dropdown>
+	
+	<div class="brand-selection" *ngIf="selectedCompanyId">
+		<div>
+			<p>All Brands</p>
+			<div class="source" pDroppable (onDrop)="drop(false)">
+				<ul>
+					<li *ngFor="let brand of unselectedBrands" pDraggable  (onDragStart)="dragStart(brand)">{{brand.brandName}}</li>
+				</ul>
+			</div>
+		</div>
+		<div>
+			<p>Excluded Brands</p>
+			<div class="target" pDroppable (onDrop)="drop(true)">
+				<ul>
+					<li *ngFor="let brand of selectedBrands" pDraggable (onDragStart)="dragStart(brand)">{{brand.brandName}}</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<div class="actions" *ngIf="selectedCompanyId">
+		<button pButton pRipple class="p-button-primary flex-1 border-round" label="Save" icon="pi pi-fw pi-check" (click)="save()"></button>
+	</div>
+</div>
+
+<p-toast [life]="3000" [position]="'bottom-center'"></p-toast>

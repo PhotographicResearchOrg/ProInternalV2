@@ -1,0 +1,33 @@
+
+
+<div class="group-exclusions">
+	<h2>Exclusion Groups</h2>
+	<p>Manage the group exclusions for specific companies here.</p>
+
+	<p>Select a company</p>
+	<p-dropdown [(ngModel)]="selectedCompanyId" [options]="companies" [optionLabel]="'accountName'" [optionValue]="'companyID'" (onChange)="onCompanyChange($event)"></p-dropdown>
+	
+	<div class="group-selection" *ngIf="selectedCompanyId">
+		<div>
+			<p>All Groups</p>
+			<div class="source" pDroppable (onDrop)="drop(false)">
+				<ul>
+					<li *ngFor="let group of unselectedGroups" pDraggable  (onDragStart)="dragStart(group)">{{group.groupName}}</li>
+				</ul>
+			</div>
+		</div>
+		<div>
+			<p>Excluded Groups</p>
+			<div class="target" pDroppable (onDrop)="drop(true)">
+				<ul>
+					<li *ngFor="let group of selectedGroups" pDraggable (onDragStart)="dragStart(group)">{{group.groupName}}</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<div class="actions" *ngIf="selectedCompanyId">
+		<button pButton pRipple class="p-button-primary flex-1 border-round" label="Save" icon="pi pi-fw pi-check" (click)="save()"></button>
+	</div>
+</div>
+
+<p-toast [life]="3000" [position]="'bottom-center'"></p-toast>

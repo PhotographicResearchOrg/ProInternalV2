@@ -10,7 +10,6 @@ import { DataService } from "src/app/services/data.service";
 import { Router } from "@angular/router";
 import { QuarterlyRebates, QuarterlyRebatesHistorical, qrDetail } from "src/app/models/accounting/quarterly-rebates";
 import { HttpClient } from '@angular/common/http';
-import { id } from '../../../../../../node_modules_HOLD/postcss-selector-parser/postcss-selector-parser';
 import * as XLSX from 'xlsx';
 
 

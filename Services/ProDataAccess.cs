@@ -13,6 +13,9 @@ using ProInternal.Models.Products;
 using Microsoft.AspNetCore.Identity;
 using ProInternal.Helpers;
 using Microsoft.Data.SqlClient;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using ProInternal.Models.Exclusions;
+using System.ComponentModel.Design;
 
 
 namespace ProInternal.Services
@@ -312,8 +315,108 @@ namespace ProInternal.Services
         }
 
 
-       
+        public User login(string username, string password)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.QueryMultiple("Auth_Login @username, @password", new { username = username, password = password });
+                User user = null;
+                try { user = output.Read<User>().FirstOrDefault(); }
+                catch { }  
+                return user;
+            }
+        }
 
-    }
+		#region Exclusions
+        public int Exclusion_CreateGroup(string groupName) {
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				var output = connection.Query<int>("Exclusions_CreateGroup @groupName", new { groupName = groupName}).FirstOrDefault();
+				return output;
+			}
+		}
+
+        public void Exclusion_AddProductsToGroup(int productExclusionGroupID, List<string> productCodes) {
+
+			DataTable productCodeTable = new DataTable();
+
+			productCodeTable.Columns.Add(new DataColumn("ProductCode", typeof(string)));
+			foreach (var code in productCodes) {
+				DataRow row = productCodeTable.NewRow();
+				row["ProductCode"] = code;
+				productCodeTable.Rows.Add(row);
+			}
+
+			var p = new DynamicParameters();
+			p.Add("@ProductExclusionGroupID", productExclusionGroupID);
+			p.Add("@ProductCodes", productCodeTable.AsTableValuedParameter("ProductCodeList"));
+
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				connection.Execute("Exclusions_AddProductsToGroup", p, commandType: CommandType.StoredProcedure);
+			}
+		}
+
+        public void Exclusion_ExcludeCompanyGroups(int companyID, List<int> productExclusionGroupIDs) {
+            DataTable groupIds = new DataTable();
+            groupIds.Columns.Add(new DataColumn("Id", typeof(int)));
+            foreach (int id in productExclusionGroupIDs) {
+                DataRow row = groupIds.NewRow();
+                row["Id"] = id;
+                groupIds.Rows.Add(row);
+            }
+            var p = new DynamicParameters();
+            p.Add("@CompanyId", companyID);
+            p.Add("@ProductExclusionGroupIDs", groupIds.AsTableValuedParameter("IdList"));
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				connection.Execute("Exclusions_ExcludeCompanyGroups", p, commandType: CommandType.StoredProcedure);
+			}
+		}
+
+       public void Exclusions_ExcludeCompanyBrands(int companyID, List<int> brandIDs) {
+			DataTable brandIds = new DataTable();
+			brandIds.Columns.Add(new DataColumn("BrandId", typeof(int)));
+			foreach (int id in brandIDs) {
+				DataRow row = brandIds.NewRow();
+				row["BrandId"] = id;
+				brandIds.Rows.Add(row);
+			}
+			var p = new DynamicParameters();
+			p.Add("@CompanyId", companyID);
+			p.Add("@BrandIds", brandIds.AsTableValuedParameter("BrandIdList"));
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				connection.Execute("Exclusions_ExcludeCompanyBrands", p, commandType: CommandType.StoredProcedure);
+			}
+		}
+
+        public List<CompanyBrandExclusion> Exclusions_GetCompanyBrandExclusions(int companyID) {
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				var output = connection.Query<CompanyBrandExclusion>("Exclusions_GetCompanyBrandExclusions @CompanyID", new { CompanyID = companyID}).ToList();
+				return output;
+			}
+		}
+
+        public List<ProductExclusionGroup> Exclusions_GetExclusionGroups() {
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				var output = connection.Query<ProductExclusionGroup>("Exclusions_GetExclusionGroups").ToList();
+				return output;
+			}
+        }
+
+        public List<ProductExclusionGroupProduct> Exclusions_GetExclusionGroupProducts(int productExclusionGroupID) { 
+ 			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				var output = connection.Query<ProductExclusionGroupProduct>("Exclusions_GetExclusionGroupProducts @ProductExclusionGroupID", new { ProductExclusionGroupID = productExclusionGroupID }).ToList();
+				return output;
+			}
+       }
+
+        public List<CompanyGroupExclusion> Exclusions_GetCompanyGroupExclusions(int companyID) {
+			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+				var output = connection.Query<CompanyGroupExclusion>("Exclusions_GetCompanyGroupExclusions @CompanyID", new { CompanyID = companyID }).ToList();
+				return output;
+			}
+
+        }
+		#endregion
+
+	}
 }
 #endregion
