@@ -21,7 +21,7 @@ import { ProductGating } from "../models/Dashboard/ProductGating";
 import { MemberGateSummary } from "../models/Dashboard/MemberGateSummary";
 import { CompanyBrandExclusion } from "../models/exclusions/brand-exclusions";
 import { CompanyGroupExclusion, ProductExclusionGroup, ProductExclusionGroupProduct } from "../models/exclusions/group-exclusions";
-
+import { LoginResponse } from '../models/LoginResponse'; // <- make sure path is correct
 
 
 
@@ -138,13 +138,17 @@ export class DataService {
     return this.api.get<Array<MemberGateSummary>>(`API/Dashboard/GetMemberGateSummary/${memberNumber}`);
   }
 
-  //login(username: string, password: string)
-  //{
-  //  return this.api.post(`/api/auth`, { username, password },'application/json');
-  //}
+
+
+  login(username: string, password: string): Observable<LoginResponse>
+  {
+    return this.api.post(`API/Auth/Login`, { username, password });
+    //return this.api.post(`API/Product/exclusion/brand/add/${companyID}`, brandIDs);
+  }
 
 
 
+ 
   QuickSearchProducts() { return this.api.get<Array<Products>>(`API/Dashboard/QuickSearchProducts`); }
 
 

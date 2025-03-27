@@ -16,6 +16,7 @@ using Microsoft.Data.SqlClient;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using ProInternal.Models.Exclusions;
 using System.ComponentModel.Design;
+using System.Security;
 
 
 namespace ProInternal.Services
@@ -52,17 +53,33 @@ namespace ProInternal.Services
 
 
         #region Authentication
-        public User login(string username, string password)
+        public LoginResponse login(string username, string password)
         {
             using (IDbConnection connection = new SqlConnection(_connectionString))
             {
-                var output = connection.QueryMultiple("Auth_Login @username, @password", new { username = username, password = password });
+                var output = connection.QueryMultiple("Auth_Login_Internal @username, @password", new { username = username, password = password });
 
                 User user = null;
-                try { user = output.Read<User>().FirstOrDefault(); }
+
+                List<Permission> permissionset = new List<Permission>();
+
+                try {                     
+                    user = output.Read<User>().FirstOrDefault();
+                    permissionset = output.Read<Permission>().ToList();
+                  }
+
                 catch { }
 
-                return user;
+                var Response = new LoginResponse
+                {
+                    User = user,
+                    Permissions = permissionset
+                };
+
+                return (Response);
+
+
+
             }
         }
 

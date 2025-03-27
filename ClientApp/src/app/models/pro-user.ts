@@ -12,8 +12,13 @@ export class ProUser {
   public permissions: number;
   public value: Array<number>;
   public isLogInAs: boolean;
-
-
+  public id: number;
+  public title: string;
+  public imageUrl: string;
+  public phone: string;
+  public department:string;
+ 
+  public photoUrl: string;
 
   constructor(o?: any) {
     if (o) {
@@ -26,6 +31,11 @@ export class ProUser {
       this.name = o.Name;
       this.permissions = o.Permissions;
       this.isLogInAs = o.IsLogInAs == 'True';
+      this.id = 0;
+      this.title = "";
+      this.imageUrl = "";
+ 
+     
     }
   }
   get initials() {
@@ -34,4 +44,9 @@ export class ProUser {
 
 return 'MK'
   }
+
+
+
+
+
 }

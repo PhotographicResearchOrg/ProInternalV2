@@ -31,7 +31,6 @@ import { FileAppService } from './prointernalengine/components/apps/file/service
 import { QtrRebatesComponent } from './prointernalengine/components/dashboards/qtr-rebates/qtr-rebates.component';
 import { RebatesupportComponent } from './prointernalengine/components/instantrebate/rebatesupport/rebatesupport.component';
 import { GatingComponent } from './prointernalengine/components/Product/Gating/gating.component';
-
 import { PickListModule } from 'primeng/picklist';
 import { ToggleButtonModule } from 'primeng/togglebutton';
 import { MultiSelectModule } from 'primeng/multiselect';
@@ -39,6 +38,7 @@ import { SliderModule } from 'primeng/slider';
 import { RatingModule } from 'primeng/rating';
 
 
+//ProInternal\ClientApp\src\app\layout\app.topbar.component.ts
 
 
 @NgModule({
@@ -51,6 +51,7 @@ import { RatingModule } from 'primeng/rating';
     DashboardLandingComponent,
     UploaderComponent,
     FileAppComponent
+
     ],
   imports: [
         PickListModule,

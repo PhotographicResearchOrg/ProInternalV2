@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using ProInternal.Services;
 using Microsoft.AspNetCore.SpaServices.AngularCli;
 using Microsoft.Data.SqlClient;
+using ProInternal;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,11 +37,19 @@ builder.Services.AddScoped<INukeDataAccess>(provider => new NukeDataAccess(build
 builder.Services.AddCors();
 
 
+
+//  App configuration
+// Register AppConfigurations
+builder.Services.Configure<AppConfigurations>(builder.Configuration.GetSection(nameof(AppConfigurations)));
+
+
 // In production, the Angular files will be served from this directory
 builder.Services.AddSpaStaticFiles(configuration =>
 {
     configuration.RootPath = "ClientApp/dist/avalon-ng";
 });
+
+
 
 
 var app = builder.Build();

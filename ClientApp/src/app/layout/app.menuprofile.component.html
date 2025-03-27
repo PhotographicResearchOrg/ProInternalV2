@@ -1,12 +1,14 @@
 <div class="layout-menu-profile">
     <button class="p-link border-noround" (click)="toggleMenu()" pTooltip="Profile" [tooltipDisabled]="isTooltipDisabled">
 
-      <img src="assets/demo/images/avatar/MsK.png" alt="avatar" style="width: 32px; height: 32px;">
+      <img [src]="currentUser?.imageUrl" alt="avatar" style="width: 52px; height: 52px;">
 
       <span>
-            <strong>Mark Klass</strong>
-            <small>Technology</small>
-        </span>
+        <strong>{{ currentUser?.name }}</strong>
+        <small>{{  currentUser?.title	 }}</small>
+        <small>{{  currentUser?.department	 }}</small>
+
+      </span>
         <i class="layout-menu-profile-toggler pi pi-fw" [ngClass]="{'pi-angle-down': menuProfilePosition === 'start' || isHorizontal, 'pi-angle-up': menuProfilePosition === 'end' && !isHorizontal}"></i>
     </button>
 
@@ -29,7 +31,7 @@
                 <span>Support</span>
             </button>
         </li>
-        <li pTooltip="Logout" [tooltipDisabled]="isTooltipDisabled" [routerLink]="['/auth/login2']">
+        <li pTooltip="Logout" [tooltipDisabled]="isTooltipDisabled"   (click)="onLogoutClick()"  [routerLink]="['/auth/login']">
             <button class="p-link">
                 <i class="pi pi-power-off pi-fw"></i>
                 <span>Logout</span>

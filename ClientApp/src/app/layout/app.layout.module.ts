@@ -25,6 +25,7 @@ import { MegaMenuModule } from 'primeng/megamenu';
 import { ButtonModule } from 'primeng/button';
 import { MenuModule } from 'primeng/menu';
 import { StyleClassModule } from 'primeng/styleclass';
+import { DropdownModule } from 'primeng/dropdown';
 
 @NgModule({
     declarations: [
@@ -38,7 +39,8 @@ import { StyleClassModule } from 'primeng/styleclass';
         AppMenuitemComponent,
         AppFooterComponent
     ],
-    imports: [
+  imports: [
+    DropdownModule ,
         BrowserModule,
         FormsModule,
         HttpClientModule,

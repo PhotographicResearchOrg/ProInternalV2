@@ -24,7 +24,7 @@ namespace ProInternal.Services
         ShippingErrorMetrics getShippingErrorMetrics();
         CommecntsMetrics getCommentsrMetrics();
         List<SpecialOrdersSummary> getOrdersSnapshot();
-        User login(string username, string password);
+        LoginResponse login(string username, string password);
         
         List<Account> getAccounts();
         List<Products> getProducts(string searchCriteria);

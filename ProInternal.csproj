@@ -33,27 +33,39 @@
     <Compile Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
     <Compile Remove="ClientApp\src\app\demo\components\auth\error2\**" />
     <Compile Remove="ClientApp\src\app\demo\components\auth\login2\**" />
+    <Compile Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\**" />
     <Compile Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <Compile Remove="ClientApp\src\app\prointernalengine\components\notfound2\**" />
     <Content Remove="$(SpaRoot)**" />
     <Content Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
     <Content Remove="ClientApp\src\app\demo\components\auth\error2\**" />
     <Content Remove="ClientApp\src\app\demo\components\auth\login2\**" />
+    <Content Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\**" />
     <Content Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <Content Remove="ClientApp\src\app\prointernalengine\components\notfound2\**" />
     <EmbeddedResource Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
     <EmbeddedResource Remove="ClientApp\src\app\demo\components\auth\error2\**" />
     <EmbeddedResource Remove="ClientApp\src\app\demo\components\auth\login2\**" />
+    <EmbeddedResource Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\**" />
     <EmbeddedResource Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <EmbeddedResource Remove="ClientApp\src\app\prointernalengine\components\notfound2\**" />
     <None Remove="$(SpaRoot)**" />
     <None Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
     <None Remove="ClientApp\src\app\demo\components\auth\error2\**" />
     <None Remove="ClientApp\src\app\demo\components\auth\login2\**" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\**" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\**" />
     <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="Controllers\WeatherForecastController.cs" />
     <Compile Remove="WeatherForecast.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="appsettings.KLASSDESKTOP.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -90,16 +102,27 @@
     <None Remove="ClientApp\src\app\models\Dashboard\SARMetrics.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\ShippingErrorMetrics.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\SpecialOrdersSummary.ts" />
+    <None Remove="ClientApp\src\app\models\LoginResponse.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\accessdenied2-routing.module.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\accessdenied2.component.html" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\accessdenied2.component.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\accessdenied2.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2-routing.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.component.html" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.component.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\landing\dashboardlanding-routing.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\landing\dashboardlanding.module.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\notfound2-routing.module.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\notfound2.component.html" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\notfound2.component.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\notfound2.module.ts" />
     <None Remove="ClientApp\src\app\services\auth.guard.ts" />
     <None Remove="ClientApp\src\app\services\auth.service.ts" />
     <None Remove="ClientApp\src\app\services\csv.service.ts" />
     <None Remove="ClientApp\src\app\services\data.service.ts" />
+    <None Remove="ClientApp\src\app\services\strapi.service.ts" />
+    <None Remove="ClientApp\src\app\services\theme.service.ts" />
   </ItemGroup>
 
   <ItemGroup>
@@ -136,6 +159,13 @@
       <SubType>Code</SubType>
     </TypeScriptCompile>
     <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\OrdersMetrics.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\models\LoginResponse.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\services\strapi.service.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\services\theme.service.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
     <TypeScriptCompile Include="ClientApp\src\app\services\auth.guard.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>

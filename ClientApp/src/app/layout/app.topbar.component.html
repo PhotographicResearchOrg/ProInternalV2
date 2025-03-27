@@ -108,12 +108,14 @@
                     </a>
                     <div class="ng-hidden">
                         <ul class="list-none p-0 m-0">
-                            <li>
-                                <a class="py-2 px-3 flex gap-2 cursor-pointer text-color hover:text-primary">
-                                    <i class="pi pi-fw pi-palette text-lg"></i>
-                                    <span>Change Theme</span>
-                                </a>
-                            </li>
+                          <li class="px-3 py-2">
+                            <p-dropdown [options]="themeOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        [(ngModel)]="selectedTheme"
+                                        (onChange)="onThemeChange($event.value)">
+                            </p-dropdown>
+                          </li>
                             <li>
                                 <a class="py-2 px-3 flex gap-2 cursor-pointer text-color hover:text-primary ">
                                     <i class="pi pi-fw pi-star text-lg"></i>

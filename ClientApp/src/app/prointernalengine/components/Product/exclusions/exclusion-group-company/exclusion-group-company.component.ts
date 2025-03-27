@@ -46,7 +46,9 @@ export class ExclusionGroupCompanyComponent {
 
 	onCompanyChange(e:any) {
 		this.selectedCompanyId = this.companies.find((company: Account) => company.companyID === e.value)?.companyID;
-		if(this.selectedCompanyId) {
+    console.log(e)
+    if (this.selectedCompanyId) {
+  
 			this.dataService.getCompanyGroupExclusions(this.selectedCompanyId).subscribe((data: Array<CompanyGroupExclusion>) => {
 				this.selectedGroups = this.allGroups.filter(group => data.map(g => g.productExclusionGroupID).indexOf(group.productExclusionGroupID) !== -1);
 				this.unselectedGroups = this.allGroups.filter(group => this.selectedGroups.map(s => s.productExclusionGroupID).indexOf(group.productExclusionGroupID) === -1);

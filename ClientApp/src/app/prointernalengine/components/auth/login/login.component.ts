@@ -23,9 +23,23 @@ export class LoginComponent {
   }
 
   login() {
-
-    this.authService.login(this.username, this.password)
-
+   // this.authService.login(this.username, this.password)
+    this.authService.login(this.username, this.password).subscribe(success => {
+      if (success)
+      {
+    
+ 
+        this.router.navigate(['/dashboard-accounting']); // or home, or use a returnUrl     
+      }
+      else
+      {
+   
+        this.router.navigate(['/auth/access']);
+      }
+    });
   }
+
+
+
 
 }

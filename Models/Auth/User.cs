@@ -35,6 +35,19 @@ namespace ProInternal.Models.Auth
 
 
     }
+    public class Permission
+    {
+        public string Permissions { get; set; }
+    }
+
+    public class LoginResponse
+    {
+        public string Token { get; set; }
+        public User User { get; set; }
+        public List<Permission> Permissions { get; set; }
+    }
+
+
 
     public class UserShort
     {
@@ -42,6 +55,9 @@ namespace ProInternal.Models.Auth
         public string FirstName { get; set; }
         public string LastName { get; set; }
     }
+
+
+
 
 
 }

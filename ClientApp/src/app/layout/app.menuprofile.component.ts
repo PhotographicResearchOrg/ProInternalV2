@@ -1,6 +1,9 @@
 import { Component, ElementRef } from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { LayoutService } from './service/app.layout.service';
+import { AuthService } from "src/app/services/auth.service";
+import { StrapiService } from 'src/app/services/strapi.service'
+import { ProUser } from '../models/pro-user'
 
 @Component({
     selector: 'app-menu-profile',
@@ -31,7 +34,30 @@ import { LayoutService } from './service/app.layout.service';
     ],
 })
 export class AppMenuProfileComponent {
-    constructor(public layoutService: LayoutService, public el: ElementRef) {}
+  constructor(public layoutService: LayoutService, public el: ElementRef, public authService: AuthService, private strapiService: StrapiService) {}
+
+  currentUser: ProUser | null = null;
+  lastName: string= "";
+
+  ngOnInit() {
+    this.strapiService.getStaffMember().subscribe(data => {
+
+      const storedName = (localStorage.getItem('userData') || '').replace(/['"]/g, '')  // Remove single/double quotes
+        .trim();; // fallback to empty string
+      this.lastName = storedName;
+      console.log('-----------------------get user data ---------------------');
+      console.log(this.lastName);
+      console.log(data);
+
+
+    this.currentUser =
+      data.find((staff: any) =>
+        staff.name.toLowerCase().includes(this.lastName.toLowerCase())
+      ) || null;
+    });
+
+    console.log(this.currentUser)
+}
 
     toggleMenu() {
         this.layoutService.onMenuProfileToggle();
@@ -53,5 +79,11 @@ export class AppMenuProfileComponent {
 
     get isTooltipDisabled(): boolean {
         return !this.layoutService.isSlim();
-    }
+  }
+
+
+  onLogoutClick() {
+    this.authService.logout();
+  }
+
 }
