@@ -50,7 +50,7 @@ builder.Services.AddCors();
 // In production, the Angular files will be served from this directory
 builder.Services.AddSpaStaticFiles(configuration =>
 {
-    configuration.RootPath = "ClientApp/dist";
+    configuration.RootPath = "dist";
 });
 
 
