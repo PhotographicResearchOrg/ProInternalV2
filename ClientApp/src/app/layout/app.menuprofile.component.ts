@@ -42,8 +42,8 @@ export class AppMenuProfileComponent {
   ngOnInit() {
     this.strapiService.getStaffMember().subscribe(data => {
 
-      const storedName = (localStorage.getItem('userData') || '').replace(/['"]/g, '')  // Remove single/double quotes
-        .trim();; // fallback to empty string
+      const storedName = (localStorage.getItem('userData') || '') .replace(/['"]/g, '')  // Remove single/double quotes
+  .trim();          ; // fallback to empty string
       this.lastName = storedName;
       console.log('-----------------------get user data ---------------------');
       console.log(this.lastName);

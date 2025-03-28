@@ -14,6 +14,7 @@ namespace ProInternal.Models.Auth
         public static string GetToken(LoginResponse user,  AppConfigurations appConfig)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(appConfig.Jwt.Secret));
+
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new List<Claim>

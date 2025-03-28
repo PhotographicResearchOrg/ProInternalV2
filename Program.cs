@@ -28,6 +28,14 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient();
 
 
+builder.Services.Configure<AppConfigurations>(
+    builder.Configuration.GetSection("AppConfigurations")
+);
+
+
+var configuration = builder.Configuration;
+
+
 builder.Services.AddScoped<IProDataAccess>(provider => new ProDataAccess(builder.Configuration.GetConnectionString("ProConnectionString")));
 builder.Services.AddScoped<IDRADataAccess>(provider => new DRADataAccess(builder.Configuration.GetConnectionString("DRAConnectionString")));
 builder.Services.AddScoped<INukeDataAccess>(provider => new NukeDataAccess(builder.Configuration.GetConnectionString("NukeConnectionString")));
@@ -38,15 +46,11 @@ builder.Services.AddCors();
 
 
 
-//  App configuration
-// Register AppConfigurations
-builder.Services.Configure<AppConfigurations>(builder.Configuration.GetSection(nameof(AppConfigurations)));
-
 
 // In production, the Angular files will be served from this directory
 builder.Services.AddSpaStaticFiles(configuration =>
 {
-    configuration.RootPath = "ClientApp/dist/avalon-ng";
+    configuration.RootPath = "ClientApp/dist";
 });
 
 
@@ -100,6 +104,7 @@ app.UseSpa(spa =>
 
 });
 
-//app.MapFallbackToFile("index.html"); ;
+// Enable Angular routing fallback
+app.MapFallbackToFile("index.html");
 
 app.Run();
