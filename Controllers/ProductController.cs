@@ -8,9 +8,9 @@ using ProInternal.Models.Exclusions;
 
 namespace ProInternal.Controllers
 {
-  
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
+ 
     public class ProductController : ControllerBase
     {
         private IProDataAccess _prodataAccess;

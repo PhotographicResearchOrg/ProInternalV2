@@ -32,13 +32,16 @@ export class DataService {
 
   getQuarterySummary()
   {
-    return this.api.get<Array<QuarterlyRebates>>('/API/Accounting/CurrentQuarterLiability');
+    return this.api.get<Array<QuarterlyRebates>>('API/Accounting/CurrentQuarterLiability');
   }
 
   getGatedRetailers() {
     return this.api.get<Array<ProductGating>>('API/Product/getGatedRetailers');
   }
 
+  getEmbedConfig() {
+    return this.api.get<{ token: string; embedUrl: string; reportId: string }>('API/PowerBI/token');
+  }
 
   uploadQuarterlyFile(file: File) {
     const formData: any = new FormData();

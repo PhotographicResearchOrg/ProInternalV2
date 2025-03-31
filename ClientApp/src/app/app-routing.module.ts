@@ -12,8 +12,8 @@ import { GatingComponent } from  './prointernalengine/components/Product/Gating/
 import { BrandExclusionsComponent } from './prointernalengine/components/Product/exclusions/brand-exclusions/brand-exclusions.component';
 import { ExclusionGroupsComponent } from './prointernalengine/components/Product/exclusions/exclusion-groups/exclusion-groups.component';
 import { ExclusionGroupCompanyComponent } from './prointernalengine/components/Product/exclusions/exclusion-group-company/exclusion-group-company.component';
-import {  AuthGuard } from "src/app/services/auth.guard";
-
+import { AuthGuard } from "src/app/services/auth.guard";
+import { PowerbiComponent } from "src/app/prointernalengine/components/Reporting/powerbi/powerbi.component";
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -43,6 +43,18 @@ const routes: Routes = [
                   }
                 },
 
+                {
+                  path: 'powerbi',
+                      
+                  data: {
+                    breadcrumb: 'Reporting'
+                  },
+                    component: PowerbiComponent
+                  },
+                
+
+                { path: 'rebatesupport', data: { breadcrumb: 'Quarterly Rebates' }, component: RebatesupportComponent },
+
                 { path: 'rebatesupport', data: { breadcrumb: 'Quarterly Rebates' }, component: RebatesupportComponent },
                 { path: 'apps/files', data: { breadcrumb: 'Files' }, component: FileAppComponent },
                 { path: 'uikit', data: { breadcrumb: 'UI Kit' }, loadChildren: () => import('./prointernalengine/components/uikit/uikit.module').then(m => m.UIkitModule) },
@@ -50,13 +62,13 @@ const routes: Routes = [
                 { path: 'pages', data: { breadcrumb: 'Pages' }, loadChildren: () => import('./prointernalengine/components/pages/pages.module').then(m => m.PagesModule) },
                 { path: 'profile', data: { breadcrumb: 'User Management' }, loadChildren: () => import('./prointernalengine/components/profile/profile.module').then(m => m.ProfileModule) },
 
-      { path: 'documentation', data: { breadcrumb: 'Documentation' }, loadChildren: () => import('./prointernalengine/components/documentation/documentation.module').then(m => m.DocumentationModule) },
+                { path: 'documentation', data: { breadcrumb: 'Documentation' }, loadChildren: () => import('./prointernalengine/components/documentation/documentation.module').then(m => m.DocumentationModule) },
 
-      { path: 'blocks', data: { breadcrumb: 'Prime Blocks' }, loadChildren: () => import('./prointernalengine/components/primeblocks/primeblocks.module').then(m => m.PrimeBlocksModule) },
+                { path: 'blocks', data: { breadcrumb: 'Prime Blocks' }, loadChildren: () => import('./prointernalengine/components/primeblocks/primeblocks.module').then(m => m.PrimeBlocksModule) },
 
-      { path: 'ecommerce', data: { breadcrumb: 'E-Commerce' }, loadChildren: () => import('./prointernalengine/components/ecommerce/ecommerce.module').then(m => m.EcommerceModule) },
+                { path: 'ecommerce', data: { breadcrumb: 'E-Commerce' }, loadChildren: () => import('./prointernalengine/components/ecommerce/ecommerce.module').then(m => m.EcommerceModule) },
 
-      { path: 'apps', data: { breadcrumb: 'Apps' }, loadChildren: () => import('./prointernalengine/components/apps/apps.module').then(m => m.AppsModule) },
+                { path: 'apps', data: { breadcrumb: 'Apps' }, loadChildren: () => import('./prointernalengine/components/apps/apps.module').then(m => m.AppsModule) },
 
 
                 {

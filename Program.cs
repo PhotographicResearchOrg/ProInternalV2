@@ -35,6 +35,8 @@ builder.Services.Configure<AppConfigurations>(
 
 var configuration = builder.Configuration;
 
+//New
+builder.Services.AddSingleton<PowerBIService>();
 
 builder.Services.AddScoped<IProDataAccess>(provider => new ProDataAccess(builder.Configuration.GetConnectionString("ProConnectionString")));
 builder.Services.AddScoped<IDRADataAccess>(provider => new DRADataAccess(builder.Configuration.GetConnectionString("DRAConnectionString")));
@@ -43,7 +45,6 @@ builder.Services.AddScoped<INukeDataAccess>(provider => new NukeDataAccess(build
 
 //EDAConnectionString
 builder.Services.AddCors();
-
 
 
 
