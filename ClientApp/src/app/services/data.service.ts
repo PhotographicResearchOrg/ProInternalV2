@@ -17,11 +17,16 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { options } from "@fullcalendar/core/preact";
 import { Observable } from "rxjs";
 import { Product } from "../prointernalengine/api/product";
-import { ProductGating } from "../models/Dashboard/ProductGating";
+import { ProductGating, GatingAssignment } from "../models/Dashboard/ProductGating";
 import { MemberGateSummary } from "../models/Dashboard/MemberGateSummary";
 import { CompanyBrandExclusion } from "../models/exclusions/brand-exclusions";
 import { CompanyGroupExclusion, ProductExclusionGroup, ProductExclusionGroupProduct } from "../models/exclusions/group-exclusions";
 import { LoginResponse } from '../models/LoginResponse'; // <- make sure path is correct
+import { comments } from 'src/app/models/Dashboard/comments'
+import { ApiResponse } from "src/app/models/ApiResponse";
+
+
+
 
 
 
@@ -29,6 +34,15 @@ import { LoginResponse } from '../models/LoginResponse'; // <- make sure path is
 export class DataService {
 
   constructor(private api: ApiService) { }
+
+
+  getComments(): Observable<comments[]> {
+    return this.api.get<comments[]>('API/comments/monitor');
+  }
+
+  assignBrandsToMember(payload: GatingAssignment) {
+    return this.api.post<ApiResponse>('API/Product/assignbrands', payload);
+  }
 
   getQuarterySummary()
   {

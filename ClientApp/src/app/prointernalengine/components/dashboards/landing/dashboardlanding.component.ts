@@ -18,15 +18,18 @@ import { ShippingErrorMetrics } from 'src/app/models/Dashboard/ShippingErrorMetr
 import { CommentsMetrics } from 'src/app/models/Dashboard/CommentsMetrics'
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { SpecialOrdersSummary } from 'src/app/models/Dashboard/SpecialOrdersSummary'
-
+import { comments } from 'src/app/models/Dashboard/comments'
 
 @Component({
   templateUrl: './dashboardlanding.component.html',
+
 })
 export class DashboardLandingComponent implements OnInit {
 
   accounts: Account[] = [];
   products: Products[] = [];
+
+  comments: comments[] = [];
 
   filteredAccounts: Account[] = [];
   filteredProducts: Products[] = [];
@@ -68,6 +71,8 @@ export class DashboardLandingComponent implements OnInit {
             });
     }
 
+
+
       ngOnInit()
       {
       this.penaltyOptions = [
@@ -79,6 +84,12 @@ export class DashboardLandingComponent implements OnInit {
 
 
 
+
+        this.dataService.getComments().subscribe((data) => {
+        
+          this.comments = data;
+       
+        });
 
 
       this.dataService.getAccounts().subscribe((resp: any) => {
@@ -199,6 +210,17 @@ export class DashboardLandingComponent implements OnInit {
     )
 };
 
+  onAvatarError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    img.src = 'assets/layout/images/avatar.png'; // fallback avatar
+  }
+
+  getAvatarUrl(email: string): string {
+    const sanitized = email.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    return `/content/uploads/${sanitized}/avatar.jpg`;
+  }
+
+
 
   onSelectedAccount(event: any) {
     this.SelectedAccount = event.value.accountNumber;
@@ -221,6 +243,9 @@ export class DashboardLandingComponent implements OnInit {
   }
 
 
+  toggleExcerpt(comment: any): void {
+    comment.showFullExcerpt = !comment.showFullExcerpt;
+  }
  
 
     chartInit() {

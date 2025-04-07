@@ -17,6 +17,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 using ProInternal.Models.Exclusions;
 using System.ComponentModel.Design;
 using System.Security;
+using Microsoft.AspNetCore.Mvc;
 
 
 namespace ProInternal.Services
@@ -63,10 +64,10 @@ namespace ProInternal.Services
 
                 List<Permission> permissionset = new List<Permission>();
 
-                try {                     
+                try {
                     user = output.Read<User>().FirstOrDefault();
                     permissionset = output.Read<Permission>().ToList();
-                  }
+                }
 
                 catch { }
 
@@ -129,7 +130,7 @@ namespace ProInternal.Services
                 return output;
             }
         }
-        
+
 
 
         public bool deleteQRUpload(int batchID)
@@ -139,7 +140,7 @@ namespace ProInternal.Services
                 bool status = true;
                 try
                 {
-                    connection.Execute("deleteBatch @batchID", new { batchID = batchID });                    
+                    connection.Execute("deleteBatch @batchID", new { batchID = batchID });
                 }
                 catch { status = false; }
                 finally { }
@@ -163,10 +164,10 @@ namespace ProInternal.Services
             }
         }
 
-       
 
 
-        public QuarterlyRebates saveData(QuarterlyRebates data )
+
+        public QuarterlyRebates saveData(QuarterlyRebates data)
         {
             //ListtoDataTableConverter converter = new ListtoDataTableConverter();
             //DataTable Headers = converter.ToDataTable(data.ProgramList);
@@ -174,7 +175,7 @@ namespace ProInternal.Services
 
             DataTable Headers = new DataTable();
 
-            Headers.Columns.Add(new DataColumn("ProgramName", typeof(string)));        
+            Headers.Columns.Add(new DataColumn("ProgramName", typeof(string)));
             foreach (var program in data.ProgramList)
             {
                 DataRow row = Headers.NewRow();
@@ -192,7 +193,7 @@ namespace ProInternal.Services
 
             for (int i = 1; i <= remainingCols; i++)
             {
-                dt.Columns.Add("Holder" + i.ToString() );            
+                dt.Columns.Add("Holder" + i.ToString());
             }
 
 
@@ -209,11 +210,11 @@ namespace ProInternal.Services
                 {
                     var output = connection.Query<string>("QuarterlyLoadFile", p, commandType: CommandType.StoredProcedure).FirstOrDefault();
                 }
-                catch(Exception e) { }
+                catch (Exception e) { }
                 finally { }
                 QuarterlyRebates c = new QuarterlyRebates();
-                return c;               
-            }     
+                return c;
+            }
         }
 
 
@@ -224,7 +225,7 @@ namespace ProInternal.Services
         {
             using (IDbConnection connection = new SqlConnection(_connectionString))
             {
-                var output = connection.Query<OrdersMetrics>("InternalOrdersMetrics").FirstOrDefault(); 
+                var output = connection.Query<OrdersMetrics>("InternalOrdersMetrics").FirstOrDefault();
 
                 return output;
             }
@@ -279,6 +280,33 @@ namespace ProInternal.Services
                 return output;
             }
         }
+
+
+        public void AssignBrandsToMember([FromBody] GatingAssignment assignment)
+        {
+
+            // Build the DataTable matching the user-defined table type
+            DataTable brandTable = new DataTable();
+            brandTable.Columns.Add(new DataColumn("BrandID", typeof(string)));
+
+            foreach (var brandId in assignment.BrandIds)
+            {
+                DataRow row = brandTable.NewRow();
+                row["BrandID"] = brandId;
+                brandTable.Rows.Add(row);
+            }
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@AccountNumber", assignment.AccountNumber);
+            parameters.Add("@Brands", brandTable.AsTableValuedParameter("BrandIdListType"));
+
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                connection.Execute("InsertMemberBrandGating", parameters, commandType: CommandType.StoredProcedure);
+            }
+        }
+
+
 
         public List<Products> getProducts(string searchCriteria)
         {

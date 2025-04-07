@@ -14,4 +14,13 @@
 
     }
 
+    public class GatingAssignment
+    {
+        public string AccountNumber { get; set; }
+        public List<string> BrandIds { get; set; }
+
+    }
+
+    
+
 }

@@ -29,7 +29,7 @@ export class LoginComponent {
       {
     
  
-        this.router.navigate(['/dashboard-accounting']); // or home, or use a returnUrl     
+        this.router.navigate(['/Dashboard-landing']); // or home, or use a returnUrl     
       }
       else
       {

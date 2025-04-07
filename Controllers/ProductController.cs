@@ -4,6 +4,9 @@ using ProInternal.Models.Accounting;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using ProInternal.Models.Dashboard;
 using ProInternal.Models.Exclusions;
+using ProInternal.Models.Products;
+using System.ComponentModel.Design;
+using ProInternal.Models;
 
 
 namespace ProInternal.Controllers
@@ -81,5 +84,37 @@ namespace ProInternal.Controllers
         }
 
 
-	}
+
+
+
+        [HttpPost("assignbrands")]
+        public IActionResult AssignBrandsToMember([FromBody] GatingAssignment assignment)
+        {
+            try
+            {
+                _prodataAccess.AssignBrandsToMember(assignment);
+
+                var response = new ApiResponse
+                {
+                    Success = true,
+                    Message = $"Brands successfully modifed to account {assignment.AccountNumber}."
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                var response = new ApiResponse
+                {
+                    Success = false,
+                    Message = $"An error occurred while modifying brands: {ex.Message}"
+                };
+
+                return StatusCode(500, response);
+            }
+        }
+
+
+
+    }
 }

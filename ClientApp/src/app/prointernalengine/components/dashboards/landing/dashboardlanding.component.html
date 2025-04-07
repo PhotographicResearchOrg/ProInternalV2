@@ -1,142 +1,182 @@
 <div class="grid">
-  <div class="col-12 md:col-6 lg:col-3">
-    <div class="p-3 text-balck h-6rem border-round m-0 bg-center bg-cover bg-no-repeat bg-white">
-      <div class="font-semibold w-full mb-3">
-        <span class="font-medium text-color">
-          <i class="pi pi-book"></i>
-          &nbsp;
-          <a href="/ecommerce/order-history">ORDERS  <i class="pi pi-forward ml-2"></i> </a><br />
-          Open:{{ OrderMetrics.openOrders}}   <i class="pi pi-angle-double-up"></i>    Hold:  {{ OrderMetrics.onHoldOrders}}  <i class="pi pi-angle-double-up"></i>
-          Specials:{{ OrderMetrics.specialsOrders}}  <i class="pi pi-angle-double-up"></i>   Drop Ship:  {{ OrderMetrics.dropShipOrders}}
-          <i class="pi pi-cog"></i>    Last Run:  {{OrderMetrics.lastRunTime  | date : "EEEE MM-dd-YYYY hh:mm"}}
-        </span>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 md:col-6 lg:col-3">
-    <div class="p-3 text-black h-6rem border-round m-0 bg-center bg-cover  bg-no-repeat bg-white">
-      <div class="font-semibold w-full mb-3">
-        <span class="font-medium text-color">
-          <i class="pi pi-box"></i>
-          &nbsp;
-          <a href="">SARS  <i class="pi pi-forward ml-2"></i> </a>
-          <br />Open: {{SARMetrics.totalInQueue}}  <i class="pi pi-angle-double-up"></i>   Memory Hold: {{SARMetrics.memCreditsInQueue}}  <i class="pi pi-angle-double-up"></i>   Office Hold: {{SARMetrics.proHoldInQueue}}
-          <br />
-          <i class="pi pi-calendar"></i>     Oldest In Queue: {{SARMetrics.oldestInQueue| date : "MM-dd-YYYY"}}
-        </span>
-      </div>
-    </div>
-  </div>
 
   <div class="col-12 md:col-6 lg:col-3">
-    <div class="p-3 text-white h-6rem border-round m-0 bg-center bg-cover bg-no-repeat  bg-no-repeat bg-white">
-      <div class="font-semibold w-full mb-3">
-        <span class="font-medium text-color">
-          <i class="pi pi-arrow-right-arrow-left"></i>  &nbsp;
-          <a href="">EDI  <i class="pi pi-forward ml-2"></i> </a>
-          <br />Open:  {{EDIMetrics.openEDIOrders}}   <i class="pi pi-angle-double-up"></i>     Over 10K: {{EDIMetrics.ediAlertThreshold}}
-          <br />
-          <i class="pi pi-calendar"></i>     Oldest In Queue: {{EDIMetrics.oldestInQueue| date : "MM-dd-YYYY"}}
+    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">
+      <div class="flex align-items-center justify-content-between mb-2">
+        <span class="text-lg font-semibold text-900">
+          <i class="pi pi-box mr-2 text-primary"></i>
+          <a href="/ecommerce/order-history" class="text-primary no-underline hover:underline">Orders</a>
         </span>
+        <i class="pi pi-forward text-color-secondary"></i>
       </div>
-    </div>
-  </div>
-
-  <div class="col-12 md:col-6 lg:col-3">
-    <div class="p-3 text-white h-6rem border-round m-0 bg-center bg-cover bg-no-repeat bg-no-repeat bg-white">
-      <div class="font-semibold w-full mb-3">
-        <span class="font-medium text-color">
-          <i class="pi pi-ticket"></i>  &nbsp;
-          <a href="">IR  <i class="pi pi-forward ml-2"></i> </a>
-          <br />
-          Open: {{IRMetrics.irsInQueue}}  <i class="pi pi-angle-double-up"></i>  Over 15 Days: {{IRMetrics.threshold}}
-          <ng-container *ngIf="IRMetrics.threshold > 1">
-            <p-tag icon="pi pi-credit-card" value="Warning" severity="warning"></p-tag>
-          </ng-container>
-          <br />
-          <i class="pi pi-calendar"></i>     Oldest In Queue: {{IRMetrics.oldestInQueue| date : "YYYY-MM-dd"}}
-        </span>
+      <div class="text-sm text-color-secondary">
+        <div>Open: {{ OrderMetrics.openOrders }} </div>
+        <div>Hold: {{ OrderMetrics.onHoldOrders }} </div>
+        <div>Specials: {{ OrderMetrics.specialsOrders }} </div>
+        <div>Drop Ship: {{ OrderMetrics.dropShipOrders }}</div>
+        <div class="mt-2"><i class="pi pi-clock mr-1"></i>Last Run: {{ OrderMetrics.lastRunTime | date : "EEEE MM-dd-yyyy hh:mm" }}</div>
       </div>
     </div>
   </div>
 
 
+
+  <!-- SARS -->
   <div class="col-12 md:col-6 lg:col-3">
-    <div class="p-3 text-black h-6rem border-round m-0 bg-center bg-cover bg-no-repeat bg-white"
-         style="background-image: url('assets/layout/images/dashboard/effect-4.svg')">
-      <div class="font-semibold w-full mb-3">
-        <span class="font-medium text-color">
-          <i class="pi pi-flag"></i>  &nbsp;
-          <a href="">Shipping Errors<i class="pi pi-forward ml-2"></i> </a>
-          <br />
-          Open: {{ShippingErrorMetrics.openShippingErrors}} <i class="pi pi-angle-double-up"></i>  Over 15 Days: {{ShippingErrorMetrics.threshold}}
-
-
-          <ng-container *ngIf="ShippingErrorMetrics.threshold > 1">
-            <p-tag icon="pi pi-credit-card" value="Warning" severity="warning"></p-tag>
-          </ng-container>
-
-
-          <BR>
-          <i class="pi pi-calendar"></i>     Oldest In Queue: {{ShippingErrorMetrics.oldestInQueue| date : "YYYY-MM-dd"}}
-          <!--Nudge WH: 12 <i class="pi pi-send ml-2 font-bold"></i>-->
+    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">
+      <div class="flex align-items-center justify-content-between mb-2">
+        <span class="text-lg font-semibold text-900">
+          <i class="pi pi-box mr-2 text-primary"></i>
+          <a href="#" class="text-primary no-underline hover:underline">SARS</a>
         </span>
+        <i class="pi pi-forward text-color-secondary"></i>
+      </div>
+      <div class="text-sm text-color-secondary">
+        <div>Open: {{ SARMetrics.totalInQueue }}</div>
+        <div>Memory Hold: {{ SARMetrics.memCreditsInQueue }}</div>
+        <div>Office Hold: {{ SARMetrics.proHoldInQueue }}</div>
+        <div class="mt-2"><i class="pi pi-clock mr-1"></i>Oldest In Queue: {{ SARMetrics.oldestInQueue | date : "MM-dd-yyyy" }}</div>
       </div>
     </div>
   </div>
 
 
-  <div class="col-12 md:col-6 lg:col-3">
-    <div class="p-3 text-white h-6rem border-round m-0 bg-center bg-cover bg-no-repeat bg-white"
-         style="background-image: url('assets/layout/images/dashboard/effect-4.svg')">
-      <div class="font-semibold w-full mb-3">
-        <span class="font-medium text-color">
-          <i class="pi pi-comments"></i>  &nbsp;
-          <a href="apps/chat">Connection Comments<i class="pi pi-forward ml-2"></i> </a>
-          <br />
-          Non Responded: {{CommecntsMetric.unresponded}}
-          <ng-container *ngIf="CommecntsMetric.unresponded > 0">
-            <p-tag icon="pi pi-credit-card" value="Warning" severity="warning"></p-tag>
-          </ng-container>
-          <br />
-          Recent Post:  {{CommecntsMetric.recentCommentDate| date : "YYYY-MM-dd"}}
-          <!--&nbsp;&nbsp;&nbsp;&nbsp; <br /><a href="http://localhost:4200/#/apps/chat">Review</a>  <i class="pi pi-ticket ml-2 font-bold"></i>-->
-        </span>
-      </div>
-    </div>
-  </div>
 
+  <!-- EDI -->
   <div class="col-12 md:col-6 lg:col-3">
-    <div class="p-3 text-white h-6rem border-round m-0 bg-center bg-cover bg-no-repeat bg-white"
-         style="background-image: url('assets/layout/images/dashboard/effect-4.svg')">
-      <div class=" font-semibold w-full mb-3">
-        <span class="font-medium text-color">
-          <i class="pi pi-money-bill"></i>  &nbsp;
-          <a href="">Credit Approval<i class="pi pi-forward ml-2"></i> </a>
-          <br />
-          Open: {{ OrderMetrics.onHoldOrders}} <i class="pi pi-angle-double-up"></i>   Over 15 Days: {{ OrderMetrics.threshold}}
-          &nbsp;   <p-tag icon="pi pi-credit-card" value="Warning" severity="warning"></p-tag>
-          <br />
-          Oldest:  {{OrderMetrics.oldestOnHold  | date : "MM-dd-YYYY"}}
+    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">
+      <div class="flex align-items-center justify-content-between mb-2">
+        <span class="text-lg font-semibold text-900">
+          <i class="pi pi-arrow-right-arrow-left mr-2 text-primary"></i>
+          <a href="#" class="text-primary no-underline hover:underline">EDI</a>
         </span>
+        <i class="pi pi-forward text-color-secondary"></i>
+      </div>
+      <div class="text-sm text-color-secondary">
+        <div>Open: {{ EDIMetrics.openEDIOrders }} </div>
+        <div>Over 10K: {{ EDIMetrics.ediAlertThreshold }}</div>
+        <div class="mt-2"><i class="pi pi-clock mr-1"></i>Oldest In Queue: {{ EDIMetrics.oldestInQueue | date : "MM-dd-yyyy" }}</div>
       </div>
     </div>
   </div>
 
 
-  <div class="col-12 md:col-6 lg:col-3">
-    <div class="p-3 text-white h-6rem border-round m-0 bg-center bg-cover bg-no-repeat bg-white">
-      <div class="font-semibold w-full mb-3">
 
-        <span class="font-medium text-color">
-          <i class="pi pi-sliders-h "></i>  &nbsp; System <br />
-          <i class="pi pi-cog"></i>   850 PO:           {{OrderMetrics.lastRunTime  | date : " MM-dd-YYYY hh:mm"}}          <a href="">Run<i class="pi pi-forward ml-2"></i> </a><br />
-          <i class="pi pi-cog"></i>   Images:           {{OrderMetrics.oldestOnHold   | date : " MM-dd-YYYY hh:mm"}}        <a href="">Run<i class="pi pi-forward ml-2"></i></a><br />
+
+  <!-- IR -->
+  <div class="col-12 md:col-6 lg:col-3">
+    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">
+      <div class="flex align-items-center justify-content-between mb-2">
+        <span class="text-lg font-semibold text-900">
+          <i class="pi pi-gift mr-2 text-primary"></i>
+          <a href="#" class="text-primary no-underline hover:underline">IR</a>
         </span>
+        <i class="pi pi-forward text-color-secondary"></i>
+      </div>
+      <div class="text-sm text-color-secondary">
+        <div>Open: {{ IRMetrics.irsInQueue }} </div>
+        <div>Over 15 Days: {{ IRMetrics.threshold }}</div>
+        <div *ngIf="IRMetrics.threshold > 1">
+          <p-tag icon="pi pi-exclamation-triangle" value="Warning" severity="warning"></p-tag>
+        </div>
+        <div class="mt-2"><i class="pi pi-clock mr-1"></i>Oldest In Queue: {{ IRMetrics.oldestInQueue | date : "MM-dd-yyyy" }}</div>
       </div>
     </div>
   </div>
 
+
+
+  <div class="col-12 md:col-6 lg:col-3">
+    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">
+      <div class="flex align-items-center justify-content-between mb-2">
+        <span class="text-lg font-semibold text-900">
+          <i class="pi pi-exclamation-circle mr-2 text-primary"></i>
+          <a href="#" class="text-primary no-underline hover:underline">Shipping Errors</a>
+        </span>
+        <i class="pi pi-forward text-color-secondary"></i>
+      </div>
+      <div class="text-sm text-color-secondary">
+        <div>Open: {{ ShippingErrorMetrics.openShippingErrors }} </div>
+        <div>Over 15 Days: {{ ShippingErrorMetrics.threshold }}</div>
+        <div *ngIf="ShippingErrorMetrics.threshold > 1" class="mt-2">
+          <p-tag icon="pi pi-exclamation-triangle" value="Warning" severity="warning"></p-tag>
+        </div>
+        <div class="mt-2">
+          <i class="pi pi-calendar mr-1"></i>Oldest In Queue: {{ ShippingErrorMetrics.oldestInQueue | date : "MM-dd-yyyy" }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div class="col-12 md:col-6 lg:col-3">
+    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">
+      <div class="flex align-items-center justify-content-between mb-2">
+        <span class="text-lg font-semibold text-900">
+          <i class="pi pi-comments mr-2 text-primary"></i>
+          <a href="/apps/chat" class="text-primary no-underline hover:underline">Connection Comments</a>
+        </span>
+        <i class="pi pi-forward text-color-secondary"></i>
+      </div>
+      <div class="text-sm text-color-secondary">
+        <div>Non Responded: {{ CommecntsMetric.unresponded }}</div>
+        <div *ngIf="CommecntsMetric.unresponded > 0" class="mt-2">
+          <p-tag icon="pi pi-exclamation-triangle" value="Warning" severity="warning"></p-tag>
+        </div>
+        <div class="mt-2">
+          <i class="pi pi-calendar mr-1"></i>Recent Post: {{ CommecntsMetric.recentCommentDate | date : "MM-dd-yyyy" }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+  <div class="col-12 md:col-6 lg:col-3">
+    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">
+      <div class="flex align-items-center justify-content-between mb-2">
+        <span class="text-lg font-semibold text-900">
+          <i class="pi pi-check-circle mr-2 text-primary"></i>
+          <a href="#" class="text-primary no-underline hover:underline">Credit Approval</a>
+        </span>
+        <i class="pi pi-forward text-color-secondary"></i>
+      </div>
+      <div class="text-sm text-color-secondary">
+        <div>Open: {{ OrderMetrics.onHoldOrders }} </div>
+        <div>Over 15 Days: {{ OrderMetrics.threshold }}</div>
+        <div class="mt-2">
+          <p-tag icon="pi pi-exclamation-triangle" value="Warning" severity="warning"></p-tag>
+        </div>
+        <div class="mt-2">
+          <i class="pi pi-calendar mr-1"></i>Oldest: {{ OrderMetrics.oldestOnHold | date : "MM-dd-yyyy" }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+  <div class="col-12 md:col-6 lg:col-3">
+    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">
+      <div class="flex align-items-center justify-content-between mb-2">
+        <span class="text-lg font-semibold text-900">
+          <i class="pi pi-sliders-h mr-2 text-primary"></i>
+          System
+        </span>
+        <i class="pi pi-cog text-color-secondary"></i>
+      </div>
+      <div class="text-sm text-color-secondary">
+        <div><i class="pi pi-cog mr-1"></i>850 PO: {{ OrderMetrics.lastRunTime | date : "MM-dd-yyyy hh:mm" }}</div>
+        <div class="mt-1"><i class="pi pi-cog mr-1"></i>Images: {{ OrderMetrics.oldestOnHold | date : "MM-dd-yyyy hh:mm" }}</div>
+        <div class="mt-2">
+          <a href="#" class="text-primary no-underline hover:underline">Run <i class="pi pi-forward ml-1"></i></a>
+        </div>
+      </div>
+    </div>
+  </div>
 
 
 
@@ -306,7 +346,7 @@
       <div class="card p-4">
         <div class="flex align-items-center justify-content-between mb-4">
           <h5>MAP Violations</h5>
-          <button pButton pRipple icon="pi pi-refresh" class="p-button-rounded p-button-outlined"     (click)="downloadFile()"> </button>
+          <button pButton pRipple icon="pi pi-refresh" class="p-button-rounded p-button-outlined" (click)="downloadFile()"> </button>
 
         </div>
 
@@ -336,7 +376,7 @@
                             [required]="true">
             </p-autoComplete>
           </div>
-     
+
           <div class="col-12">
             <br /><br />
             <p-selectButton [options]="penaltyOptions" [(ngModel)]="penalty" (onChange)="onSelectedPenalty($event)" optionLabel="name"></p-selectButton>
@@ -346,470 +386,518 @@
 
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!--<div class="col-6 lg:col-6">
+  <div class="card">
+
+    <div class="card p-4">
+      <div class="flex align-items-center justify-content-between mb-4">
+        <h5>MAP Violations</h5>
+        <button pButton pRipple icon="pi pi-refresh" class="p-button-rounded p-button-outlined"></button>
+      </div>
+      <div class="grid mr-0">
+        <div class="col-6 md:col-4 lg:col-4 p-3">
+          <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section">
+            <p-autoComplete [(ngModel)]="selectedAccountsAdvanced" [suggestions]="filteredAccounts"
+                            (completeMethod)="filterAccount($event)" field="accountName" [dropdown]="false" [placeholder]="'Member Number'">
+            </p-autoComplete>
+          </div>
+        </div>
+
+        <div class="col-6 md:col-4 lg:col-4 p-3">
+          <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section">
+            <p-autoComplete [(ngModel)]="selectedProductsAdvanced" [suggestions]="filteredProducts"
+                            (completeMethod)="filterProduct($event)" field="name" [dropdown]="false" [placeholder]="'Product'">
+            </p-autoComplete>
+          </div>
+        </div>
+      </div>
+      <p-selectButton [options]="paymentOptions" [(ngModel)]="valSelect1" optionLabel="name"></p-selectButton>
+    </div>
+
+
+    <div class="pt-3 flex justify-content-between">
+      <span>30 Days Ago</span>
+      <span>Today</span>
+    </div>
+  </div>-->
+<!--<div class="col-6 lg:col-6">
+  <div class="card">
+    <h4> Computyme SQL Sync Status</h4>
+    <p class="m-0">NOTES: All services are operational.</p>
+    <div class="mt-3 flex">
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-1400 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-red-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+  <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
+</div>
+    <div class="pt-3 flex justify-content-between">
+      <span>30 Days Ago</span>
+      <span>Today</span>
+    </div>
+  </div>-->
+<!--<div class="card">
+    <h5>Product Health</h5>
+    <p-chart type="line" [data]="chartData" [options]="chartOptions" id="nasdaq-chart" [responsive]="true"></p-chart>
+
+  </div>
+</div>-->
+
+
+
+
+
+<div class="col-12 lg:col-12">
+  <div class="card">
+    <div class="flex flex-column md:flex-row md:align-items-start md:justify-content-between mb-4">
+      <div class="text-xl font-semibold text-900 mb-3 md:mb-0">
+        <i class="pi pi-angle-double-up text-primary mr-2"></i>
+        Special Orders
+        <i class="pi pi-angle-double-up text-primary mx-2"></i>
+        Oversold & Discontinued
+      </div>
+      <div class="inline-flex align-items-center gap-3">
+        <span class="p-input-icon-left">
+          <i class="pi pi-search"></i>
+          <input pInputText
+                 type="text"
+                 (input)="onGlobalFilter(dt, $event)"
+                 placeholder="Search"
+                 class="w-full"
+                 style="border-radius: 2rem" />
+        </span>
+        <button pButton
+                pRipple
+                icon="pi pi-cloud-download"
+                class="p-button-rounded p-button-outlined"
+                (click)="dt.exportCSV()"></button>
       </div>
     </div>
- </div>
 
+    <p-table #dt
+             [value]="specialOrders"
+             [paginator]="true"
+             [rows]="4"
+             responsiveLayout="scroll"
+             [globalFilterFields]="['productCode','caT_NO','modelName','enterDate','accountNumber','status']"
+             class="p-datatable-gridlines">
+      <ng-template pTemplate="header">
+        <tr>
+          <th pSortableColumn="productCode">Prod # <p-sortIcon field="productCode"></p-sortIcon></th>
+          <th pSortableColumn="caT_NO">Cat # <p-sortIcon field="caT_NO"></p-sortIcon></th>
+          <th pSortableColumn="modelName">Model <p-sortIcon field="modelName"></p-sortIcon></th>
+          <th pSortableColumn="enterDate">Enter Date <p-sortIcon field="enterDate"></p-sortIcon></th>
+          <th pSortableColumn="quantity">Quantity <p-sortIcon field="quantity"></p-sortIcon></th>
+          <th pSortableColumn="inventory">Inventory <p-sortIcon field="inventory"></p-sortIcon></th>
+          <th pSortableColumn="accountNumber">Account # <p-sortIcon field="accountNumber"></p-sortIcon></th>
+          <th pSortableColumn="status">Status <p-sortIcon field="status"></p-sortIcon></th>
+          <th class="text-center">Action</th>
+        </tr>
+      </ng-template>
 
-
-    <!--<div class="col-6 lg:col-6">
-      <div class="card">
-
-        <div class="card p-4">
-          <div class="flex align-items-center justify-content-between mb-4">
-            <h5>MAP Violations</h5>
-            <button pButton pRipple icon="pi pi-refresh" class="p-button-rounded p-button-outlined"></button>
-          </div>
-          <div class="grid mr-0">
-            <div class="col-6 md:col-4 lg:col-4 p-3">
-              <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section">
-                <p-autoComplete [(ngModel)]="selectedAccountsAdvanced" [suggestions]="filteredAccounts"
-                                (completeMethod)="filterAccount($event)" field="accountName" [dropdown]="false" [placeholder]="'Member Number'">
-                </p-autoComplete>
-              </div>
-            </div>
-
-            <div class="col-6 md:col-4 lg:col-4 p-3">
-              <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section">
-                <p-autoComplete [(ngModel)]="selectedProductsAdvanced" [suggestions]="filteredProducts"
-                                (completeMethod)="filterProduct($event)" field="name" [dropdown]="false" [placeholder]="'Product'">
-                </p-autoComplete>
-              </div>
-            </div>
-          </div>
-          <p-selectButton [options]="paymentOptions" [(ngModel)]="valSelect1" optionLabel="name"></p-selectButton>
-        </div>
-
-
-        <div class="pt-3 flex justify-content-between">
-          <span>30 Days Ago</span>
-          <span>Today</span>
-        </div>
-      </div>-->
-    <!--<div class="col-6 lg:col-6">
-      <div class="card">
-        <h4> Computyme SQL Sync Status</h4>
-        <p class="m-0">NOTES: All services are operational.</p>
-        <div class="mt-3 flex">
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-1400 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-red-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-      <div class="flex-1 bg-green-400 mr-1 transition-duration-100 h-4rem"></div>
-    </div>
-        <div class="pt-3 flex justify-content-between">
-          <span>30 Days Ago</span>
-          <span>Today</span>
-        </div>
-      </div>-->
-    <!--<div class="card">
-        <h5>Product Health</h5>
-        <p-chart type="line" [data]="chartData" [options]="chartOptions" id="nasdaq-chart" [responsive]="true"></p-chart>
-
-      </div>
-    </div>-->
-
-
-
-
-
-
-
-    <div class="col-12 lg:col-12">
-      <div class="card">
-        <div class="flex flex-column md:flex-row md:align-items-start md:justify-content-between mb-3">
-          <div class="text-900 text-xl font-semibold mb-3 md:mb-0">Special Orders  <i class="pi pi-angle-double-up"></i>  Oversold  <i class="pi pi-angle-double-up"></i>  Over sold and Discontinued</div>
-          <div class="inline-flex align-items-center">
-            <span class="p-input-icon-left flex-auto">
-              <i class="pi pi-search"></i>
-              <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
+      <ng-template pTemplate="body" let-product>
+        <tr>
+          <td>{{ product.productCode }}</td>
+          <td>{{ product.caT_NO }}</td>
+          <td>{{ product.modelName }}</td>
+          <td>{{ product.enterDate | date: 'MM-dd-yyyy' }}</td>
+          <td>{{ product.quantity }}</td>
+          <td>{{ product.inventory }}</td>
+          <td>{{ product.accountNumber }}</td>
+          <td>
+            <span class="product-badge status-{{ product.status.toLowerCase() }}">
+              {{ product.status }}
             </span>
-            <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dt.exportCSV()"></button>
-          </div>
-        </div>
-
-    
-        <p-table #dt [value]="specialOrders" [paginator]="true" [rows]="4" responsiveLayout="scroll" [globalFilterFields]="['productCode','caT_NO','modelName','enterDate','accountNumber','status']">
-          <ng-template pTemplate="header">
-            <tr>
-              <th pSortableColumn="productCode" class="white-space-nowrap">Prod #<p-sortIcon field="productCode">              </p-sortIcon></th>
-              <th pSortableColumn="caT_NO"  class="white-space-nowrap">Cat #<p-sortIcon field="caT_NO">                         </p-sortIcon></th>
-              <th pSortableColumn="modelName" class="white-space-nowrap">Model<p-sortIcon field="modelName">                   </p-sortIcon></th>
-              <th pSortableColumn="enterDate"  class="white-space-nowrap">Enter Date<p-sortIcon field="enterDate">               </p-sortIcon></th>
-              <th pSortableColumn="quantity"  class="white-space-nowrap">Quantity<p-sortIcon field="quantity">                  </p-sortIcon></th>
-              <th pSortableColumn="inventory"  class="white-space-nowrap">Inventory<p-sortIcon field="inventory">               </p-sortIcon></th>
-              <th pSortableColumn="accountNumber"  class="white-space-nowrap">Account #<p-sortIcon field="accountNumber">       </p-sortIcon></th>
-              <th pSortableColumn="status"  class="white-space-nowrap">Status<p-sortIcon field="status">                        </p-sortIcon></th>
-            </tr>
-          </ng-template>
-
-          <ng-template pTemplate="body" let-product>
-            <tr>
-              <td>{{product.productCode}}</td>
-              <td>{{product.caT_NO}}</td>
-              <td>{{product.modelName}}</td>
-              <td>{{product.enterDate  | date : "MM-dd-YYYY"}}</td>
-              <td>{{product.quantity}}</td>
-              <td>{{product.inventory}}</td>
-              <td>{{product.accountNumber}}</td>
-              <td><span class="p-column-title">Status</span><span [class]="'product-badge status-' + product.status.toLowerCase()">{{product.status}}</span></td>
-              <td style="text-align: center">
-                <button pButton type="button" icon="pi pi-search" class="p-button-outlined p-button-rounded"></button>
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </div>
-    </div>
+          </td>
+          <td class="text-center">
+            <button pButton
+                    type="button"
+                    icon="pi pi-search"
+                    class="p-button-outlined p-button-rounded"
+                    tooltip="View Details"
+                    tooltipPosition="top"></button>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
 
 
+<div class="col-12">
+  <div class="card">
+    <div class="text-900 text-xl font-semibold mb-3">Connection Messages</div>
 
-
-
-    <div class="col-12 lg:col-6">
-      <div class="card">
-        <h4>Staff Messages</h4>
-        <div>
-          <div class="h-11rem border-round-md my-6 mx-5 relative shadow-2 bg-cover bg-center" style="background: url(assets/layout/images/help/blog1.jpg);">
-            <div class="absolute" style="left: 20px; top: 5px;">
-              <h1 class="text-xl text-white mb-3 font-bold">&nbsp; &nbsp;&nbsp;Bathroom Gift</h1>
-              <span class="text-white text-semibold">
-                Our new office is so so much better than the old place. That said, we have had a few items break already which is a bit disappointing but it happens.
-                Yesterday I was in our bathroom and something was clearly not right. Come to find out the handicapped stall toilet flush handle is not working.
-                Unfortunately, someone else knows this too but decided to leave a gift for someone else to find. Really?
-                I'll work to fix it. The short term remedy is very easy. If you use that stall just lift the lid from the tank and push the big circular piece in the middle and everything will flush away.
-              </span>
-            </div>
-            <div class="absolute" style="left: -25px; top: -25px;">
-              <img class="w-4rem h-4rem border-circle" src="assets/layout/images/avatar.png" alt="apollo" />
+    <div class="grid">
+      <div class="col-12 md:col-6" *ngFor="let comment of comments">
+        <div class="p-4 surface-card border-round shadow-2 relative h-full">
+          <div class="flex align-items-center mb-3">
+            <img class="w-4rem h-4rem border-circle mr-3"
+                 [src]="getAvatarUrl(comment.authoremail)"
+                 alt="{{ comment.authorname }}"
+                 onerror="this.src='assets/layout/images/avatar.png'" />
+            <div>
+              <div class="font-bold text-lg text-900">{{ comment.authorname }}</div>
+              <div class="text-sm text-color-secondary">{{ comment.authoremail }}</div>
             </div>
           </div>
 
-          <div class="h-11rem border-round-md my-6 mx-5 relative shadow-2 bg-cover bg-center" style="background: url(assets/layout/images/help/blog2.jpg);">
-            <div class="absolute" style="left: 20px; top: 30px;">
-              <h1 class="text-xl text-white mb-3 font-bold">&nbsp; &nbsp;&nbsp;Tuesday January 16, 2024</h1>
-              <span class="text-white text-semibold">
-                We will be gathering at https://marketplacekitchenbar.com/shelton just down Bridgeport Ave from the office.
-                We have a private room starting at 6:30. We have a Party menu so not everything on the restaurant menu is available.
-              </span>
-            </div>
-            <div class="absolute" style="left: -25px; top: -25px;">
-              <img class="w-4rem h-4rem border-circle" src="assets/layout/images/avatar1.png" alt="apollo" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div>
-          <table>
-            <tr>
-              <td>
-                <p class="mt-2 mb-0  text-color-secondary">Payment Processor</p>
-              </td>
-              <p class="mt-2 mb-0  text-color-secondary">Shopify</p>
-              <td> <p class="mt-2 mb-0  text-color-secondary">Amazon</p></td>
-            </tr>
-            <tr>
-              <td>  <img src="assets/layout/images/dashboard/stats-illustration-3.svg" /></td>
-              <td> <img src="assets/layout/images/dashboard/stats-illustration-3.svg" /></td>
-              <td>       <img src="assets/layout/images/dashboard/stats-illustration-3.svg" /></td>
-            </tr>
-          </table>
-        </div>
-        <div>
-        </div>
-
-        <br />
-        <div *ngIf="layoutService.config().colorScheme==='light'" class="w-full h-10rem bg-cover bg-center bg-no-repeat" style="background:url(assets/layout/images/dashboard-banking/asset-japan.jpg);"></div>
-        <div *ngIf="layoutService.config().colorScheme==='dark'" class="w-full h-17rem bg-cover bg-center bg-no-repeat" style="background:url(assets/layout/images/dashboard-banking/asset-japan-night.jpg);"></div>
-
-        <div>
-          <h3 class="mt-3"><strong>Upload Expense Report</strong></h3>
-          <div>
-          </div>
-          <div class="text-color-secondary my-3">
-            <p><span><b>$3,000.00 processed </b></span> of $10,000.00</p>
+          <div class="text-sm text-color-secondary mb-2">
+            <strong>Comment:</strong> {{ comment.comment }}
           </div>
 
-          <div class="flex align-items-center justify-content-between my-3">
-            <p-button label="Submit"></p-button>
-            <a href="#" class="p-button-link">Upload</a>
+          <div class="text-sm text-color-secondary mb-2">
+            <strong>Article:</strong> {{ comment.articleName }}
           </div>
-        </div>
-      </div>
 
-
-
-
-
-      <!--<div class="col-12 lg:col-6">
-        <div class="card">
-          <div class="flex align-items-center justify-content-between mb-4">
-            <h5>Quarter Goals</h5>
-            <div class="ml-auto">
-              <button pButton pRipple icon="pi pi-ellipsis-v"
-                      class="p-button-text p-button-plain p-button-rounded" (click)="menu.toggle($event)"></button>
-              <p-menu #menu [popup]="true" [model]="items"></p-menu>
-            </div>
+          <div class="text-sm text-color-secondary mb-2">
+            <strong>Created:</strong> {{ comment.created | date: 'MM-dd-yyyy' }} &nbsp;
+            <strong>Updated:</strong> {{ comment.updated | date: 'MM-dd-yyyy' }}
           </div>
-          <div class="border-1 surface-border p-3 mb-4">
-            <span class="font-medium text-3xl text-color">
-              85% <span class="text-color-secondary">(2125/2500)</span>
+
+          <div class="text-sm text-color-secondary mb-2">
+            <strong>Published:</strong> {{ comment.articlePublishedAt | date: 'MM-dd-yyyy' }}
+          </div>
+
+          <div class="text-sm text-color-secondary">
+            <strong>Excerpt:</strong>
+            <span *ngIf="!comment.expanded">
+              {{ comment.excerpt | slice:0:100 }}...
+              <a href="#" (click)="comment.expanded = true; $event.preventDefault()">Read more</a>
             </span>
-            <ul class="m-0 p-0 list-none mt-3 flex">
-              <li class="bg-cyan-500 h-1rem flex-1 border-round-left"></li>
-              <li class="bg-orange-500 h-1rem flex-1"></li>
-              <li class="bg-pink-500 h-1rem flex-1"></li>
-              <li class="bg-purple-500 h-1rem flex-1"></li>
-              <li class="bg-blue-500 h-1rem flex-1"></li>
-              <li class="bg-gray-500 h-1rem flex-1 border-round-right"></li>
-            </ul>
-          </div>
-
-          <ul class="mt-4 p-0 mx-0">
-            <li class="flex align-items-center py-3">
-              <span class="border-round bg-cyan-500 mr-3 w-1rem h-1rem"></span>
-              <span class="text-xl font-medium text-color">T-Shirt</span>
-              <span class="text-xl font-medium text-color-secondary ml-auto">89</span>
-            </li>
-            <li class="flex align-items-center py-3">
-              <span class="border-round-md bg-orange-500 mr-3 w-1rem h-1rem"></span>
-              <span class="text-xl font-medium text-color">Controller</span>
-              <span class="text-xl font-medium text-color-secondary ml-auto">23</span>
-            </li>
-            <li class="flex align-items-center py-3">
-              <span class="border-round-md bg-pink-500 mr-3 w-1rem h-1rem"></span>
-              <span class="text-xl font-medium text-color">Phone Case</span>
-              <span class="text-xl font-medium text-color-secondary ml-auto">134</span>
-            </li>
-            <li class="flex align-items-center py-3">
-              <span class="border-round-md bg-purple-500 mr-3 w-1rem h-1rem"></span>
-              <span class="text-xl font-medium text-color">Purple Band</span>
-              <span class="text-xl font-medium text-color-secondary ml-auto">42</span>
-            </li>
-            <li class="flex align-items-center py-3">
-              <span class="border-round-md bg-blue-500 mr-3 w-1rem h-1rem"></span>
-              <span class="text-xl font-medium text-color">Blue Band</span>
-              <span class="text-xl font-medium text-color-secondary ml-auto">63</span>
-            </li>
-          </ul>
-        </div>
-      </div>-->
-      <!--<div class="col-12 lg:col-4 p-3">
-        <div class="card">
-          <div class="flex align-items-center justify-content-between">
-            <div>
-              <span class="font-bold text-3xl text-color">450</span>
-              <p class="mt-2 mb-0 text-2xl text-color-secondary">Reviews Received</p>
-            </div>
-            <div>
-              <img src="assets/layout/images/dashboard/stats-illustration-1.svg" />
-            </div>
+            <span *ngIf="comment.expanded">
+              {{ comment.excerpt }}
+              <a href="#" (click)="comment.expanded = false; $event.preventDefault()">Show less</a>
+            </span>
           </div>
         </div>
-      </div>-->
-      <!--<div class="col-12 lg:col-4 p-3">
-        <div class="card">
-          <div class="flex align-items-center justify-content-between">
-            <div>
-              <span class="font-bold text-3xl text-color">71K</span>
-              <p class="mt-2 mb-0 text-2xl text-color-secondary">Unique Visitors</p>
-            </div>
-            <div>
-              <img src="assets/layout/images/dashboard/stats-illustration-2.svg" />
-            </div>
-          </div>
-        </div>
-      </div>-->
-      <!--<div class="col-12 lg:col-4 p-3">
-        <div class="card">
-          <div class="flex align-items-center justify-content-between">
-            <div>
-              <span class="font-bold text-3xl text-color">757</span>
-              <p class="mt-2 mb-0 text-2xl text-color-secondary">Payments Processed</p>
-            </div>
-            <div>
-              <img src="assets/layout/images/dashboard/stats-illustration-3.svg" />
-            </div>
-          </div>
-        </div>
-      </div>-->
-      <!--<div class="col-12 xl:col-6">
-        <div class="card p-4">
-          <div class="flex align-items-center justify-content-between mb-4">
-            <h5>Product Data Issues</h5>
-            <button pButton pRipple icon="pi pi-refresh" class="p-button-rounded p-button-outlined"></button>
-          </div>
-
-          <div class="grid mr-0">
-            <div class="col-6 md:col-4 lg:col-3 p-3">
-              <div class="text-center">
-                <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
-                     style="width:90px; height:90px">
-                  <img src="assets/layout/images/dashboard/headphone.png" style="width: 48px;height: 48px" />
-                </div>
-                <span class="font-medium text-color">Headphone</span>
-                <div class="text-sm text-color-secondary mt-2">Missing Client Cost</div>
-              </div>
-            </div>
-            <div class="col-6 md:col-4 lg:col-3 p-3">
-              <div class="text-center">
-                <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
-                     style="width:90px; height:90px">
-                  <img src="assets/layout/images/dashboard/laptop.png" style="width: 48px;height: 48px" />
-                </div>
-                <span class="font-medium text-color">Laptop</span>
-                <div class="text-sm text-color-secondary mt-2">Missing Map</div>
-              </div>
-            </div>
-            <div class="col-6 md:col-4 lg:col-3 p-3">
-              <div class="text-center">
-                <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
-                     style="width:90px; height:90px">
-                  <img src="assets/layout/images/dashboard/phone.png" style="width: 48px;height: 48px" />
-                </div>
-                <span class="font-medium text-color">Phone</span>
-                <div class="text-sm text-color-secondary mt-2">90 Sales</div>
-              </div>
-            </div>
-            <div class="col-6 md:col-4 lg:col-3 p-3">
-              <div class="text-center">
-                <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
-                     style="width:90px; height:90px">
-                  <img src="assets/layout/images/dashboard/shoes.png" style="width: 48px;height: 48px" />
-                </div>
-                <span class="font-medium text-color">Shoes</span>
-                <div class="text-sm text-color-secondary mt-2">77 Sales</div>
-              </div>
-            </div>
-            <div class="col-6 md:col-4 lg:col-3 p-3">
-              <div class="text-center">
-                <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
-                     style="width:90px; height:90px">
-                  <img src="assets/layout/images/dashboard/tshirt.png" style="width: 48px;height: 48px" />
-                </div>
-                <span class="font-medium text-color">Tshirt</span>
-                <div class="text-sm text-color-secondary mt-2">454 Sales</div>
-              </div>
-            </div>
-            <div class="col-6 md:col-4 lg:col-3 p-3">
-              <div class="text-center">
-                <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
-                     style="width:90px; height:90px">
-                  <img src="assets/layout/images/dashboard/vacuum.png" style="width: 48px;height: 48px" />
-                </div>
-                <span class="font-medium text-color">Vacuum</span>
-                <div class="text-sm text-color-secondary mt-2">330 Sales</div>
-              </div>
-            </div>
-            <div class="col-6 md:col-4 lg:col-3 p-3">
-              <div class="text-center">
-                <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
-                     style="width:90px; height:90px">
-                  <img src="assets/layout/images/dashboard/wallet.png" style="width: 48px;height: 48px" />
-                </div>
-                <span class="font-medium text-color">Wallet</span>
-                <div class="text-sm text-color-secondary mt-2">42 Sales</div>
-              </div>
-            </div>
-            <div class="col-6 md:col-4 lg:col-3 p-3">
-              <div class="text-center">
-                <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
-                     style="width:90px; height:90px">
-                  <img src="assets/layout/images/dashboard/watch.png" style="width: 48px;height: 48px" />
-                </div>
-                <span class="font-medium text-color">Watch</span>
-                <div class="text-sm text-color-secondary mt-2">112 Sales</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>-->
-      <!--<div class="col-12 xl:col-6">
-        <div class="card">
-          <div class="flex flex-column md:flex-row md:align-items-start md:justify-content-between mb-3">
-            <div class="text-900 text-xl font-semibold mb-3 md:mb-0">Special Orders</div>
-            <div class="inline-flex align-items-center">
-              <span class="p-input-icon-left flex-auto">
-                <i class="pi pi-search"></i>
-                <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search"
-                       class="w-full" style="border-radius: 2rem" />
-              </span>
-              <button pButton pRipple icon="pi pi-upload" class="p-button-rounded mx-3"
-                      (click)="dt.exportCSV()"></button>
-            </div>
-          </div>
-          <p-table #dt [value]="products" [columns]="cols" [paginator]="true" [rows]="4" responsiveLayout="scroll"
-                   [globalFilterFields]="['name','category','inventoryStatus']">
-            <ng-template pTemplate="header">
-              <tr>
-                <th pSortableColumn="name" style="min-width:12rem" class="white-space-nowrap">
-                  Name
-                  <p-sortIcon field="name"></p-sortIcon>
-                </th>
-                <th pSortableColumn="category" style="min-width:10rem" class="white-space-nowrap">
-                  Category
-                  <p-sortIcon field="category"></p-sortIcon>
-                </th>
-                <th pSortableColumn="price" style="min-width:10rem" class="white-space-nowrap">
-                  Price
-                  <p-sortIcon field="price"></p-sortIcon>
-                </th>
-                <th pSortableColumn="inventoryStatus" style="min-width:10rem" class="white-space-nowrap">
-                  Status
-                  <p-sortIcon field="inventoryStatus"></p-sortIcon>
-                </th>
-                <th></th>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-product>
-              <tr>
-                <td>{{product.name}}</td>
-                <td>
-                  <span class="p-column-title">Category</span>
-                  {{product.category}}
-                </td>
-                <td>
-                  <span class="p-column-title">Price</span>
-                  {{product.price | currency:'USD'}}
-                </td>
-                <td>
-                  <span class="p-column-title">Status</span>
-                  <span [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">{{product.inventoryStatus}}</span>
-                </td>
-                <td style="text-align: center">
-                  <button pButton type="button" icon="pi pi-search"
-                          class="p-button-outlined p-button-rounded"></button>
-                </td>
-              </tr>
-            </ng-template>
-          </p-table>
-        </div>
-      </div>-->
+      </div>
     </div>
+  </div>
+
+
+
+
+
+
+
+
+  <div class="card">
+    <div>
+      <table>
+        <tr>
+          <td>
+            <p class="mt-2 mb-0  text-color-secondary">Payment Processor</p>
+          </td>
+          <p class="mt-2 mb-0  text-color-secondary">Shopify</p>
+          <td> <p class="mt-2 mb-0  text-color-secondary">Amazon</p></td>
+        </tr>
+        <tr>
+          <td>  <img src="assets/layout/images/dashboard/stats-illustration-3.svg" /></td>
+          <td> <img src="assets/layout/images/dashboard/stats-illustration-3.svg" /></td>
+          <td>       <img src="assets/layout/images/dashboard/stats-illustration-3.svg" /></td>
+        </tr>
+      </table>
+    </div>
+    <div>
+    </div>
+
+    <br />
+    <div *ngIf="layoutService.config().colorScheme==='light'" class="w-full h-10rem bg-cover bg-center bg-no-repeat" style="background:url(assets/layout/images/dashboard-banking/asset-japan.jpg);"></div>
+    <div *ngIf="layoutService.config().colorScheme==='dark'" class="w-full h-17rem bg-cover bg-center bg-no-repeat" style="background:url(assets/layout/images/dashboard-banking/asset-japan-night.jpg);"></div>
+
+    <div>
+      <h3 class="mt-3"><strong>Upload Expense Report</strong></h3>
+      <div>
+      </div>
+      <div class="text-color-secondary my-3">
+        <p><span><b>$3,000.00 processed </b></span> of $10,000.00</p>
+      </div>
+
+      <div class="flex align-items-center justify-content-between my-3">
+        <p-button label="Submit"></p-button>
+        <a href="#" class="p-button-link">Upload</a>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+  <!--<div class="col-12 lg:col-6">
+    <div class="card">
+      <div class="flex align-items-center justify-content-between mb-4">
+        <h5>Quarter Goals</h5>
+        <div class="ml-auto">
+          <button pButton pRipple icon="pi pi-ellipsis-v"
+                  class="p-button-text p-button-plain p-button-rounded" (click)="menu.toggle($event)"></button>
+          <p-menu #menu [popup]="true" [model]="items"></p-menu>
+        </div>
+      </div>
+      <div class="border-1 surface-border p-3 mb-4">
+        <span class="font-medium text-3xl text-color">
+          85% <span class="text-color-secondary">(2125/2500)</span>
+        </span>
+        <ul class="m-0 p-0 list-none mt-3 flex">
+          <li class="bg-cyan-500 h-1rem flex-1 border-round-left"></li>
+          <li class="bg-orange-500 h-1rem flex-1"></li>
+          <li class="bg-pink-500 h-1rem flex-1"></li>
+          <li class="bg-purple-500 h-1rem flex-1"></li>
+          <li class="bg-blue-500 h-1rem flex-1"></li>
+          <li class="bg-gray-500 h-1rem flex-1 border-round-right"></li>
+        </ul>
+      </div>
+
+      <ul class="mt-4 p-0 mx-0">
+        <li class="flex align-items-center py-3">
+          <span class="border-round bg-cyan-500 mr-3 w-1rem h-1rem"></span>
+          <span class="text-xl font-medium text-color">T-Shirt</span>
+          <span class="text-xl font-medium text-color-secondary ml-auto">89</span>
+        </li>
+        <li class="flex align-items-center py-3">
+          <span class="border-round-md bg-orange-500 mr-3 w-1rem h-1rem"></span>
+          <span class="text-xl font-medium text-color">Controller</span>
+          <span class="text-xl font-medium text-color-secondary ml-auto">23</span>
+        </li>
+        <li class="flex align-items-center py-3">
+          <span class="border-round-md bg-pink-500 mr-3 w-1rem h-1rem"></span>
+          <span class="text-xl font-medium text-color">Phone Case</span>
+          <span class="text-xl font-medium text-color-secondary ml-auto">134</span>
+        </li>
+        <li class="flex align-items-center py-3">
+          <span class="border-round-md bg-purple-500 mr-3 w-1rem h-1rem"></span>
+          <span class="text-xl font-medium text-color">Purple Band</span>
+          <span class="text-xl font-medium text-color-secondary ml-auto">42</span>
+        </li>
+        <li class="flex align-items-center py-3">
+          <span class="border-round-md bg-blue-500 mr-3 w-1rem h-1rem"></span>
+          <span class="text-xl font-medium text-color">Blue Band</span>
+          <span class="text-xl font-medium text-color-secondary ml-auto">63</span>
+        </li>
+      </ul>
+    </div>
+  </div>-->
+  <!--<div class="col-12 lg:col-4 p-3">
+    <div class="card">
+      <div class="flex align-items-center justify-content-between">
+        <div>
+          <span class="font-bold text-3xl text-color">450</span>
+          <p class="mt-2 mb-0 text-2xl text-color-secondary">Reviews Received</p>
+        </div>
+        <div>
+          <img src="assets/layout/images/dashboard/stats-illustration-1.svg" />
+        </div>
+      </div>
+    </div>
+  </div>-->
+  <!--<div class="col-12 lg:col-4 p-3">
+    <div class="card">
+      <div class="flex align-items-center justify-content-between">
+        <div>
+          <span class="font-bold text-3xl text-color">71K</span>
+          <p class="mt-2 mb-0 text-2xl text-color-secondary">Unique Visitors</p>
+        </div>
+        <div>
+          <img src="assets/layout/images/dashboard/stats-illustration-2.svg" />
+        </div>
+      </div>
+    </div>
+  </div>-->
+  <!--<div class="col-12 lg:col-4 p-3">
+    <div class="card">
+      <div class="flex align-items-center justify-content-between">
+        <div>
+          <span class="font-bold text-3xl text-color">757</span>
+          <p class="mt-2 mb-0 text-2xl text-color-secondary">Payments Processed</p>
+        </div>
+        <div>
+          <img src="assets/layout/images/dashboard/stats-illustration-3.svg" />
+        </div>
+      </div>
+    </div>
+  </div>-->
+  <!--<div class="col-12 xl:col-6">
+    <div class="card p-4">
+      <div class="flex align-items-center justify-content-between mb-4">
+        <h5>Product Data Issues</h5>
+        <button pButton pRipple icon="pi pi-refresh" class="p-button-rounded p-button-outlined"></button>
+      </div>
+
+      <div class="grid mr-0">
+        <div class="col-6 md:col-4 lg:col-3 p-3">
+          <div class="text-center">
+            <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
+                 style="width:90px; height:90px">
+              <img src="assets/layout/images/dashboard/headphone.png" style="width: 48px;height: 48px" />
+            </div>
+            <span class="font-medium text-color">Headphone</span>
+            <div class="text-sm text-color-secondary mt-2">Missing Client Cost</div>
+          </div>
+        </div>
+        <div class="col-6 md:col-4 lg:col-3 p-3">
+          <div class="text-center">
+            <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
+                 style="width:90px; height:90px">
+              <img src="assets/layout/images/dashboard/laptop.png" style="width: 48px;height: 48px" />
+            </div>
+            <span class="font-medium text-color">Laptop</span>
+            <div class="text-sm text-color-secondary mt-2">Missing Map</div>
+          </div>
+        </div>
+        <div class="col-6 md:col-4 lg:col-3 p-3">
+          <div class="text-center">
+            <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
+                 style="width:90px; height:90px">
+              <img src="assets/layout/images/dashboard/phone.png" style="width: 48px;height: 48px" />
+            </div>
+            <span class="font-medium text-color">Phone</span>
+            <div class="text-sm text-color-secondary mt-2">90 Sales</div>
+          </div>
+        </div>
+        <div class="col-6 md:col-4 lg:col-3 p-3">
+          <div class="text-center">
+            <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
+                 style="width:90px; height:90px">
+              <img src="assets/layout/images/dashboard/shoes.png" style="width: 48px;height: 48px" />
+            </div>
+            <span class="font-medium text-color">Shoes</span>
+            <div class="text-sm text-color-secondary mt-2">77 Sales</div>
+          </div>
+        </div>
+        <div class="col-6 md:col-4 lg:col-3 p-3">
+          <div class="text-center">
+            <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
+                 style="width:90px; height:90px">
+              <img src="assets/layout/images/dashboard/tshirt.png" style="width: 48px;height: 48px" />
+            </div>
+            <span class="font-medium text-color">Tshirt</span>
+            <div class="text-sm text-color-secondary mt-2">454 Sales</div>
+          </div>
+        </div>
+        <div class="col-6 md:col-4 lg:col-3 p-3">
+          <div class="text-center">
+            <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
+                 style="width:90px; height:90px">
+              <img src="assets/layout/images/dashboard/vacuum.png" style="width: 48px;height: 48px" />
+            </div>
+            <span class="font-medium text-color">Vacuum</span>
+            <div class="text-sm text-color-secondary mt-2">330 Sales</div>
+          </div>
+        </div>
+        <div class="col-6 md:col-4 lg:col-3 p-3">
+          <div class="text-center">
+            <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
+                 style="width:90px; height:90px">
+              <img src="assets/layout/images/dashboard/wallet.png" style="width: 48px;height: 48px" />
+            </div>
+            <span class="font-medium text-color">Wallet</span>
+            <div class="text-sm text-color-secondary mt-2">42 Sales</div>
+          </div>
+        </div>
+        <div class="col-6 md:col-4 lg:col-3 p-3">
+          <div class="text-center">
+            <div class="flex align-items-center justify-content-center mb-3 mx-auto surface-section border-1 surface-border border-round"
+                 style="width:90px; height:90px">
+              <img src="assets/layout/images/dashboard/watch.png" style="width: 48px;height: 48px" />
+            </div>
+            <span class="font-medium text-color">Watch</span>
+            <div class="text-sm text-color-secondary mt-2">112 Sales</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>-->
+  <!--<div class="col-12 xl:col-6">
+    <div class="card">
+      <div class="flex flex-column md:flex-row md:align-items-start md:justify-content-between mb-3">
+        <div class="text-900 text-xl font-semibold mb-3 md:mb-0">Special Orders</div>
+        <div class="inline-flex align-items-center">
+          <span class="p-input-icon-left flex-auto">
+            <i class="pi pi-search"></i>
+            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search"
+                   class="w-full" style="border-radius: 2rem" />
+          </span>
+          <button pButton pRipple icon="pi pi-upload" class="p-button-rounded mx-3"
+                  (click)="dt.exportCSV()"></button>
+        </div>
+      </div>
+      <p-table #dt [value]="products" [columns]="cols" [paginator]="true" [rows]="4" responsiveLayout="scroll"
+               [globalFilterFields]="['name','category','inventoryStatus']">
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="name" style="min-width:12rem" class="white-space-nowrap">
+              Name
+              <p-sortIcon field="name"></p-sortIcon>
+            </th>
+            <th pSortableColumn="category" style="min-width:10rem" class="white-space-nowrap">
+              Category
+              <p-sortIcon field="category"></p-sortIcon>
+            </th>
+            <th pSortableColumn="price" style="min-width:10rem" class="white-space-nowrap">
+              Price
+              <p-sortIcon field="price"></p-sortIcon>
+            </th>
+            <th pSortableColumn="inventoryStatus" style="min-width:10rem" class="white-space-nowrap">
+              Status
+              <p-sortIcon field="inventoryStatus"></p-sortIcon>
+            </th>
+            <th></th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-product>
+          <tr>
+            <td>{{product.name}}</td>
+            <td>
+              <span class="p-column-title">Category</span>
+              {{product.category}}
+            </td>
+            <td>
+              <span class="p-column-title">Price</span>
+              {{product.price | currency:'USD'}}
+            </td>
+            <td>
+              <span class="p-column-title">Status</span>
+              <span [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">{{product.inventoryStatus}}</span>
+            </td>
+            <td style="text-align: center">
+              <button pButton type="button" icon="pi pi-search"
+                      class="p-button-outlined p-button-rounded"></button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>-->
+</div>

@@ -8,7 +8,7 @@ import { MenuItem } from 'primeng/api';
 import { Subscription, debounceTime } from 'rxjs';
 import { DataService } from "src/app/services/data.service";
 import { HttpClient } from '@angular/common/http';
-import { ProductGating } from "src/app/models/Dashboard/ProductGating";
+import { ProductGating, GatingAssignment } from "src/app/models/Dashboard/ProductGating";
 import * as XLSX from 'xlsx';
 import { Table } from 'primeng/table';
 import { ViewChild, ElementRef } from '@angular/core';
@@ -17,7 +17,7 @@ import { Account, Brands } from "src/app/models/Dashboard/Account";
 import { Product } from '../../../api/product';
 import { Products } from "src/app/models/Dashboard/Products";
 import { MemberGateSummary } from "src/app/models/Dashboard/MemberGateSummary";
-
+import { ApiResponse } from "src/app/models/ApiResponse";
 
 interface expandedRows {
   [key: string]: boolean;
@@ -42,6 +42,7 @@ export class GatingComponent implements OnInit {
   sourceItems: any[] = [];
   targetItems: any[] = [];
 
+  submissionResult: { memberName: string; accountNumber: string; brands: string[]; timestamp: Date } | null = null;
 
 
 
@@ -70,7 +71,7 @@ export class GatingComponent implements OnInit {
 
   @ViewChild('filter') filter!: ElementRef;
 
-  constructor(private dataService: DataService,) { }
+  constructor(private dataService: DataService, private messageService: MessageService) { }
 
   ngOnInit() {
 
@@ -199,7 +200,44 @@ export class GatingComponent implements OnInit {
   }
 
 
-  Process() { }
+
+  Process() {
+    if (this.selectedMembers.length === 0) return;
+
+    const selectedMember = this.selectedMembers[0];
+    const brandIds = this.selectedBrands.map(b => b.brandNumber);
+
+    this.dataService.assignBrandsToMember({
+      accountNumber: selectedMember.accountNumber,
+      brandIds: brandIds
+    }).subscribe({
+      next: (res: ApiResponse) => {
+        if (res.success) {
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: res.message });
+
+   
+          this.submissionResult = {
+            memberName: selectedMember.name,
+            accountNumber: selectedMember.accountNumber,
+            brands: this.selectedBrands.map(b => b.name),
+            timestamp: new Date()
+          };
+
+
+          this.selectedMembers = [];
+          this.selectedBrands = [];
+        } else {
+          this.messageService.add({ severity: 'warn', summary: 'Warning', detail: res.message });
+        }
+      },
+      error: (err) => {
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: err.error?.message || 'Unexpected error.' });
+      }
+    });
+  }
+
+
+
 
   Download(item: Table) {
       const filteredData = item.filteredValue || item.value;

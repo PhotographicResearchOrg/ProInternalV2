@@ -1,3 +1,4 @@
+<p-toast></p-toast>
 <div class="grid">
   <div class="col-12">
     <div class="card">
@@ -95,21 +96,33 @@
     </div>
   </div>
 
+  <div class="col-12">
+    <div class="card shadow-2">
+      <h5 class="text-primary mb-4">
+        <i class="pi pi-sliders-h mr-2"></i> Gating Assignment
+      </h5>
 
-  <div class="flex flex-column xl:flex-row gap-4">
-    <div class="col-12">
-      <div class="card">
-        <h5>Gating</h5>
-        <div class="picklist-container">
-          <!-- Member Selection PickList with Filtering -->
-          <div>
-            <h3>Select Members</h3>
+      <div class="grid">
+        <!-- Member Selection -->
+        <div class="col-12 md:col-6">
+          <div class="field">
+            <h6 class="mb-3 text-900 font-medium">
+              <i class="pi pi-users mr-2 text-primary"></i> Select Member
+            </h6>
+
             <div *ngIf="loadingMembers" class="loading-container">
-              <p-progressBar mode="indeterminate">  </p-progressBar>
-              <p>Loading members...</p>
+              <p-progressBar mode="indeterminate"></p-progressBar>
+              <p class="mt-2">Loading members...</p>
             </div>
+
             <div *ngIf="!loadingMembers">
-              <input pInputText type="text" [(ngModel)]="memberFilter" (input)="filterMembers()" placeholder="Search Members">
+              <input pInputText
+                     type="text"
+                     [(ngModel)]="memberFilter"
+                     (input)="filterMembers()"
+                     placeholder="Search Members"
+                     class="w-full mb-2" />
+
               <p-pickList [source]="filteredMembers"
                           [target]="selectedMembers"
                           [dragdrop]="true"
@@ -117,23 +130,37 @@
                           targetHeader="Selected Members"
                           [showSourceControls]="false"
                           [showTargetControls]="false"
-                          (onMoveToTarget)="onMemberSelected()">
+                          (onMoveToTarget)="onMemberSelected()"
+                          class="shadow-1 border-1 surface-border border-round">
                 <ng-template let-member pTemplate="item">
+                  <i class="pi pi-user text-primary mr-2"></i>
                   {{ member.name }} - {{ member.accountNumber }}
                 </ng-template>
               </p-pickList>
             </div>
           </div>
-          <!-- Brand Assignment PickList with Filtering -->
-          <div>
-            <br />
-            <h3>Select Brands</h3>
+        </div>
+
+        <!-- Brand Selection -->
+        <div class="col-12 md:col-6">
+          <div class="field">
+            <h6 class="mb-3 text-900 font-medium">
+              <i class="pi pi-tags mr-2 text-primary"></i> Assign Brands
+            </h6>
+
             <div *ngIf="loadingBrands" class="loading-container">
-              <p-progressBar mode="indeterminate">  </p-progressBar>
-              <p>Loading Brands...</p>
+              <p-progressBar mode="indeterminate"></p-progressBar>
+              <p class="mt-2">Loading brands...</p>
             </div>
+
             <div *ngIf="!loadingBrands">
-              <input pInputText type="text" [(ngModel)]="brandFilter" (input)="filterBrands()" placeholder="Search Brands">
+              <input pInputText
+                     type="text"
+                     [(ngModel)]="brandFilter"
+                     (input)="filterBrands()"
+                     placeholder="Search Brands"
+                     class="w-full mb-2" />
+
               <p-pickList [source]="filteredBrands"
                           [target]="selectedBrands"
                           [dragdrop]="true"
@@ -141,76 +168,76 @@
                           targetHeader="Assigned Brands"
                           [showSourceControls]="false"
                           [showTargetControls]="false"
-                          (onMoveToTarget)="onBrandSelected()">
-
+                          (onMoveToTarget)="onBrandSelected()"
+                          class="shadow-1 border-1 surface-border border-round">
                 <ng-template let-brand pTemplate="item">
+                  <i class="pi pi-check-square text-primary mr-2"></i>
                   {{ brand.name }}
                 </ng-template>
               </p-pickList>
             </div>
           </div>
-
-          <!--<div class="mt-4">
-            <h3>Assign Products</h3>
-            <div *ngIf="loadingProducts" class="loading-container">
-              <p-progressBar mode="indeterminate">  </p-progressBar>
-              <p>Loading Products...</p>
-            </div>
-
-            <div *ngIf="!loadingProducts">
-              <input pInputText type="text" [(ngModel)]="productFilter" (input)="filterProducts()" placeholder="Search Products">
-              <p-pickList [source]="filteredProducts"
-                          [target]="selectedProducts"
-                          [dragdrop]="true"
-                          sourceHeader="Available Products"
-                          targetHeader="Assigned Products"
-                          [showSourceControls]="false"
-                          [showTargetControls]="false"
-                          (onMoveToTarget)="onProductSelected()">
-                <ng-template let-product pTemplate="item">
-                  {{ product.name }}
-                </ng-template>
-              </p-pickList>
-            </div>
-          </div>-->
         </div>
-        <br />
       </div>
     </div>
+  </div>
 
 
-    <div class="col-12 xl:col-6">
+  <div class="col-12 xl:col-6">
+    <div class="card p-4 mt-4">
+      <div class="flex align-items-center mb-3">
+        <i class="pi pi-cog text-2xl text-primary mr-2"></i>
+        <h5 class="m-0">Process Summary</h5>
+      </div>
 
-      <!--<div class="card bg-light">
-        <h5>Summary</h5>
-        <div class="results">
-          Gated.
-          <ul>
-            <li *ngFor="let member of selectedMembers">
-              <strong>
-                {{ member.name }} - {{ member.accountNumber }} | Brand:
-                <span *ngIf="selectedBrands.length > 0">{{ selectedBrands[0].name }}</span>
-                <span *ngIf="selectedBrands.length === 0">None</span>
-              </strong>
+      <div class="mb-3">
+        <p class="text-sm font-semibold mb-1 text-color">Selected Member:</p>
+        <div *ngIf="selectedMembers.length > 0; else noMember" class="text-900">
+          {{ selectedMembers[0].name }} (Account #: {{ selectedMembers[0].accountNumber }})
+        </div>
+        <ng-template #noMember>
+          <span class="text-sm text-color-secondary">No member selected.</span>
+        </ng-template>
+      </div>
+
+      <div class="mb-3">
+        <p class="text-sm font-semibold mb-1 text-color">Assigned Brands:</p>
+        <ul *ngIf="selectedBrands.length > 0; else noBrands" class="pl-3">
+          <li *ngFor="let brand of selectedBrands" class="mb-1">
+            <i class="pi pi-tag text-primary mr-2"></i>{{ brand.name }}
+          </li>
+        </ul>
+        <ng-template #noBrands>
+          <span class="text-sm text-color-secondary">No brands selected.</span>
+        </ng-template>
+      </div>
+
+      <div class="mt-3">
+        <button pButton label="Process" icon="pi pi-check" class="p-button-outlined w-full" (click)="Process()"></button>
+      </div>
+
+      <div *ngIf="submissionResult" class="card mt-4 p-4 border-round shadow-2 bg-green-50">
+        <div class="flex align-items-center mb-2">
+          <i class="pi pi-check-circle text-green-600 text-2xl mr-2"></i>
+          <h6 class="m-0 text-green-700 font-semibold">Submission Successful</h6>
+        </div>
+
+        <div class="text-sm text-color">
+          <p><strong>Member:</strong> {{ submissionResult.memberName }} ({{ submissionResult.accountNumber }})</p>
+          <p><strong>Brands Assigned:</strong></p>
+          <ul *ngIf="submissionResult.brands.length > 0; else noSubmittedBrands" class="pl-3">
+            <li *ngFor="let brand of submissionResult.brands" class="mb-1">
+              <i class="pi pi-check-circle text-green-500 mr-2"></i>{{ brand }}
             </li>
           </ul>
+          <ng-template #noSubmittedBrands>
+            <span class="text-sm text-color-secondary">No brands assigned — existing brand gating removed.</span>
+          </ng-template>
+
+          <p class="mt-3 text-xs text-color-secondary">
+            <i class="pi pi-clock mr-1"></i>Submitted: {{ submissionResult.timestamp | date:'short' }}
+          </p>
         </div>
-      </div>-->
-
-      <!-- New Card Below: Additional Insights -->
-      <div class="card p-4 mt-4">
-        <h5>Process</h5>
-
-        <ul>
-          <li><strong>Pending Submission Count:</strong> {{ selectedBrands.length }} </li>
-        </ul>
-        <!-- Buttons for Actions -->
-        <div class="mt-3">
-          <button pButton label="Process" class="p-button-outlined mb-2" icon="pi-building-columns" (click)="Process()"></button>
-        </div>
-
-
       </div>
     </div>
-
   </div>

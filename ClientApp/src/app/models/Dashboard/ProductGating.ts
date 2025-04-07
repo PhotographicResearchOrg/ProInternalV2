@@ -26,3 +26,9 @@ export class ProductGating {
 
 
 
+export class GatingAssignment {
+
+  public  accountNumber: string;
+  public  brandIds: string[];
+
+}

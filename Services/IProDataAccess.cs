@@ -13,6 +13,7 @@ using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using ProInternal.Models.Exclusions;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ProInternal.Services
 {
@@ -62,7 +63,11 @@ namespace ProInternal.Services
         List<CompanyGroupExclusion> Exclusions_GetCompanyGroupExclusions(int companyID);
 
 
-	}
+        void AssignBrandsToMember([FromBody] GatingAssignment assignment);
+
+
+
+    }
 
 
 }
