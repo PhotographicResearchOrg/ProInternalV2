@@ -24,8 +24,8 @@ import { CompanyGroupExclusion, ProductExclusionGroup, ProductExclusionGroupProd
 import { LoginResponse } from '../models/LoginResponse'; // <- make sure path is correct
 import { comments } from 'src/app/models/Dashboard/comments'
 import { ApiResponse } from "src/app/models/ApiResponse";
-
-
+import { MapViolationResponse } from 'src/app/models/Dashboard/MapViolationResponse';
+import { MapViolation } from 'src/app/models/Dashboard/MapViolation';
 
 
 
@@ -34,6 +34,12 @@ import { ApiResponse } from "src/app/models/ApiResponse";
 export class DataService {
 
   constructor(private api: ApiService) { }
+
+
+  // data.service.ts
+  submitMapViolation(violation: MapViolation): Observable<MapViolation[]> {
+    return this.api.post<MapViolation[]>(`API/Product/submitMapViolation`, violation);
+  }
 
 
   getComments(): Observable<comments[]> {

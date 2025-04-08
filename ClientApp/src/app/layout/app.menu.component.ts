@@ -98,13 +98,14 @@ export class AppMenuComponent implements OnInit {
               items:
                 [
                   { label: 'Product Configuration', icon: 'pi pi-fw pi-sign-in', routerLink: ['ecommerce/product-overview'] },
-                  { label: 'Product Gating', icon: 'pi pi-fw pi-building', routerLink: ['/gating'] },
+                 
                   {
                     label: 'Exclusions', icon: 'pi pi-fw pi-building',
                     items: [
-                      { label: 'Brand Exclusions', icon: 'pi pi-fw pi-building', routerLink: ['/exclusions/brand'] },
+                      /*       { label: 'Brand Exclusions', icon: 'pi pi-fw pi-building', routerLink: ['/exclusions/brand'] },*/
+                      { label: 'Brand Gating', icon: 'pi pi-fw pi-building', routerLink: ['/gating'] },
                       { label: 'Exclusion Groups', icon: 'pi pi-fw pi-building', routerLink: ['/exclusions/group'] },
-                      { label: 'Company Exclusion Groups', icon: 'pi pi-fw pi-building', routerLink: ['/exclusion/group/company'] }
+                     /* { label: 'Company Exclusion Groups', icon: 'pi pi-fw pi-building', routerLink: ['/exclusion/group/company'] }*/
                     ]
                   }
                 ]

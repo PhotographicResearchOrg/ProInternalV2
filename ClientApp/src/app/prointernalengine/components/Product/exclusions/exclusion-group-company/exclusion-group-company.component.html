@@ -1,33 +1,119 @@
+<div class="card p-4 mt-4 border-round shadow-1">
+	<div class="flex align-items-center mb-3">
+		<i class="pi pi-sitemap text-2xl text-cyan-600 mr-2"></i>
+		<h5 class="m-0">Group Exclusions by Company</h5>
+	</div>
 
+	<p class="text-sm text-color-secondary mb-4">
+		Assign exclusion groups to companies by dragging and dropping between lists.
+	</p>
 
-<div class="group-exclusions">
-	<h2>Exclusion Groups</h2>
-	<p>Manage the group exclusions for specific companies here.</p>
+	<!-- Company Dropdown -->
+	<div class="mb-4">
+		<label class="text-sm font-medium text-color">Select Company</label>
+		<p-dropdown [(ngModel)]="selectedCompanyId"
+								[options]="companies"
+								[optionLabel]="'accountName'"
+								[optionValue]="'companyID'"
+								placeholder="Select a company"
+								(onChange)="onCompanyChange($event)">
+		</p-dropdown>
+	</div>
 
-	<p>Select a company</p>
-	<p-dropdown [(ngModel)]="selectedCompanyId" [options]="companies" [optionLabel]="'accountName'" [optionValue]="'companyID'" (onChange)="onCompanyChange($event)"></p-dropdown>
-	
-	<div class="group-selection" *ngIf="selectedCompanyId">
-		<div>
-			<p>All Groups</p>
-			<div class="source" pDroppable (onDrop)="drop(false)">
-				<ul>
-					<li *ngFor="let group of unselectedGroups" pDraggable  (onDragStart)="dragStart(group)">{{group.groupName}}</li>
-				</ul>
+	<!-- Drag and Drop Lists -->
+	<div class="grid" *ngIf="selectedCompanyId">
+		<!-- All Groups -->
+		<div class="col-12 lg:col-6">
+			<div class="border-round p-3 h-full" pDroppable (onDrop)="drop(false)">
+				<h6 class="mb-3 flex align-items-center text-sm font-medium text-color">
+					<i class="pi pi-list text-primary mr-2"></i> All Groups
+				</h6>
+
+				<div *ngIf="unselectedGroups.length === 0" class="text-sm text-color-secondary">
+					No available groups to assign.
+				</div>
+
+				<div class="flex flex-column gap-2">
+					<div *ngFor="let group of unselectedGroups"
+							 pDraggable
+							 (onDragStart)="dragStart(group)"
+							 class="border-1 surface-border p-2 border-round flex justify-content-between align-items-center cursor-move">
+						<span>{{ group.groupName }}</span>
+						<i class="pi pi-bars text-secondary"></i>
+					</div>
+				</div>
 			</div>
 		</div>
-		<div>
-			<p>Excluded Groups</p>
-			<div class="target" pDroppable (onDrop)="drop(true)">
-				<ul>
-					<li *ngFor="let group of selectedGroups" pDraggable (onDragStart)="dragStart(group)">{{group.groupName}}</li>
-				</ul>
+
+		<!-- Assigned Groups -->
+		<div class="col-12 lg:col-6">
+			<div class="border-round p-3 h-full" pDroppable (onDrop)="drop(true)">
+				<h6 class="mb-3 flex align-items-center text-sm font-medium text-color">
+					<i class="pi pi-lock text-primary mr-2"></i> Excluded Groups
+				</h6>
+
+				<div *ngIf="selectedGroups.length === 0" class="text-sm text-color-secondary">
+					No groups currently assigned to this company.
+				</div>
+
+				<div class="flex flex-column gap-2">
+					<div *ngFor="let group of selectedGroups"
+							 pDraggable
+							 (onDragStart)="dragStart(group)"
+							 class="border-1 surface-border p-2 border-round flex justify-content-between align-items-center cursor-move">
+						<span>{{ group.groupName }}</span>
+						<i class="pi pi-bars text-secondary"></i>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
-	<div class="actions" *ngIf="selectedCompanyId">
-		<button pButton pRipple class="p-button-primary flex-1 border-round" label="Save" icon="pi pi-fw pi-check" (click)="save()"></button>
+
+	<!-- Save Button -->
+	<div class="mt-4" *ngIf="selectedCompanyId">
+		<button pButton
+						pRipple
+						label="Save Changes"
+						icon="pi pi-check"
+						class="p-button-outlined w-full"
+						(click)="save()">
+		</button>
+		<!-- Save Summary Card -->
+		<div class="card mt-4 p-4 surface-100 border-round shadow-1" *ngIf="saveTimestamp">
+			<div class="flex align-items-center mb-3">
+				<i class="pi pi-check-circle text-green-600 text-2xl mr-2"></i>
+				<h5 class="m-0 text-green-700 font-bold">Group Exclusions by Company</h5>
+			</div>
+
+			<div>
+				<p class="mb-2">
+					<strong>Company:</strong> {{ saveCompanyName }}
+				</p>
+
+				<p class="mb-2"><strong>Assigned Groups:</strong></p>
+
+				<ng-container *ngIf="groupSaveSummary.length > 0; else noGroupsAssigned">
+					<ul class="pl-3">
+						<li *ngFor="let group of groupSaveSummary">
+							<i class="pi pi-folder text-primary mr-1"></i>
+							{{ group.groupName }}
+						</li>
+					</ul>
+				</ng-container>
+
+				<ng-template #noGroupsAssigned>
+					<p class="text-sm text-color-secondary">
+						No groups are currently assigned to this company. Groups may have been removed during the update.
+					</p>
+				</ng-template>
+
+				<p class="text-sm text-color-secondary mt-3">
+					<i class="pi pi-clock mr-1"></i> {{ saveTimestamp | date:'short' }}
+				</p>
+			</div>
+		</div>
+
+
+
 	</div>
 </div>
-
-<p-toast [life]="3000" [position]="'bottom-center'"></p-toast>

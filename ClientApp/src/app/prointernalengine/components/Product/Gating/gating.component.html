@@ -241,3 +241,110 @@
       </div>
     </div>
   </div>
+
+
+
+  <!-- Country-Based Brand Restriction Card -->
+<div class="col-12 mt-5">
+  <div class="card p-4 border-round shadow-2">
+    <div class="flex align-items-center mb-3">
+      <i class="pi pi-globe text-2xl text-orange-500 mr-2"></i>
+      <h5 class="m-0 text-orange-700">Country-Level Brand Restrictions</h5>
+    </div>
+    <p class="text-sm text-color-secondary mb-4">
+      Manage brand access restrictions by country. Drag and drop brands to apply exclusions for the selected country.
+    </p>
+
+    <!-- Country Dropdown -->
+    <div class="mb-4">
+      <label for="countrySelect" class="text-sm font-medium text-color">Select Country</label>
+      <p-dropdown id="countrySelect"
+                  [(ngModel)]="selectedCountry"
+                  [options]="countryOptions"
+                  [placeholder]="'Select Country'"
+                  [filter]="true"
+                  optionLabel="name"
+                  optionValue="code"
+                  (onChange)="onCountryChange($event)">
+      </p-dropdown>
+    </div>
+
+    <!-- Drag-Drop Lists -->
+    <div class="grid" *ngIf="selectedCountry">
+      <!-- All Brands -->
+      <div class="col-12 md:col-6">
+        <div class="surface-100 border-round p-3 h-full">
+          <h6 class="mb-3 text-color font-medium flex align-items-center">
+            <i class="pi pi-tags text-primary mr-2"></i> All Brands
+          </h6>
+
+          <div class="text-sm text-color-secondary mb-2" *ngIf="unrestrictedBrands.length === 0">
+            No available brands for restriction.
+          </div>
+
+          <div *ngFor="let brand of unrestrictedBrands"
+               pDraggable
+               (onDragStart)="onBrandDragStart(brand)"
+               class="border-1 surface-border p-2 border-round mb-2 cursor-move flex align-items-center justify-content-between">
+            {{ brand.name }}
+            <i class="pi pi-bars text-secondary"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Restricted Brands -->
+      <div class="col-12 md:col-6">
+        <div class="surface-100 border-round p-3 h-full"
+             pDroppable
+             (onDrop)="onBrandDropToRestricted()">
+          <h6 class="mb-3 text-color font-medium flex align-items-center">
+            <i class="pi pi-ban text-danger mr-2"></i> Restricted Brands
+          </h6>
+
+          <div class="text-sm text-color-secondary mb-2" *ngIf="restrictedBrands.length === 0">
+            No brands restricted for this country.
+          </div>
+
+          <div *ngFor="let brand of restrictedBrands"
+               class="border-1 surface-border p-2 border-round mb-2 flex align-items-center justify-content-between">
+            {{ brand.name }}
+            <button pButton icon="pi pi-times"
+                    class="p-button-rounded p-button-sm p-button-text text-red-500"
+                    (click)="removeBrandRestriction(brand)">
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="mt-4">
+      <button pButton label="Apply Restrictions"
+              icon="pi pi-save"
+              class="p-button-outlined w-full"
+              (click)="applyCountryRestrictions()">
+      </button>
+    </div>
+
+    <!-- Acknowledgment Summary -->
+    <div *ngIf="restrictionSummaryVisible" class="card mt-4 p-4 border-round surface-200 shadow-1">
+      <div class="flex align-items-center mb-3">
+        <i class="pi pi-check-circle text-green-600 text-2xl mr-2"></i>
+        <h6 class="m-0 text-green-700 font-semibold">Country Restrictions Saved</h6>
+      </div>
+      <p><strong>Country:</strong> {{ selectedCountry }}</p>
+      <p><strong>Restricted Brands:</strong></p>
+      <ul *ngIf="restrictionSummary.length > 0; else noRestricted">
+        <li *ngFor="let brand of restrictionSummary">
+          <i class="pi pi-ban text-red-500 mr-2"></i>{{ brand.name }}
+        </li>
+      </ul>
+      <ng-template #noRestricted>
+        <p class="text-sm text-color-secondary">No brands currently restricted for this country.</p>
+      </ng-template>
+      <p class="text-sm text-color-secondary mt-2">
+        <i class="pi pi-clock mr-1"></i> {{ restrictionTimestamp | date:'short' }}
+      </p>
+    </div>
+  </div>
+</div>

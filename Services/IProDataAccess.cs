@@ -19,6 +19,9 @@ namespace ProInternal.Services
 {
     public interface IProDataAccess
     {
+
+
+
         List<QuarterlyRebate> GetQuarterRebateSummary();
         OrdersMetrics GetOrdersMetrics();
         EDIMetrics GetEDIMetrics();
@@ -61,11 +64,8 @@ namespace ProInternal.Services
         List<ProductExclusionGroup> Exclusions_GetExclusionGroups();
         List<ProductExclusionGroupProduct> Exclusions_GetExclusionGroupProducts(int productExclusionGroupID);
         List<CompanyGroupExclusion> Exclusions_GetCompanyGroupExclusions(int companyID);
-
-
         void AssignBrandsToMember([FromBody] GatingAssignment assignment);
-
-
+        List<MapViolation> GetExistingViolations(MapViolation violation);
 
     }
 

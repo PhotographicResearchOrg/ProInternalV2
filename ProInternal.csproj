@@ -99,6 +99,7 @@
     <None Remove="ClientApp\src\app\models\Dashboard\InstantRebate.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\IRMetrics.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\MapViolation.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\MapViolationResponse.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\OrdersMetrics.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\ProductGating.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\Products.ts" />
@@ -133,6 +134,7 @@
     <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\comments.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
+    <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\MapViolationResponse.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\ProductGating.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>

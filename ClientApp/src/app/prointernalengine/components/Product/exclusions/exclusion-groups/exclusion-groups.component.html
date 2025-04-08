@@ -1,53 +1,181 @@
-<div class="exclusion-groups">
-	<h2>Exclusion Groups</h2>
-	<p>Manage the exclusion groups here.</p>
-
-	<div class="sections">
-		<section>
-			<p>Create New Group</p>
-			<div class="field">
-				<label for="groupName">Group Name</label><br />
-				<input pInputText id="groupName" type="text" pInputText [(ngModel)]="newGroupName" />
+<div class="grid exclusion-groups">
+	<!-- Create New Group Card (Left) -->
+	<!-- Create New Group Card -->
+	<div class="col-12 lg:col-4">
+		<div class="card p-4 shadow-1 border-round" style="max-width: 400px;">
+			<div class="flex align-items-center mb-3">
+				<i class="pi pi-plus-circle text-2xl text-primary mr-2"></i>
+				<h5 class="m-0">Create New Group</h5>
 			</div>
-			<div class="actions">
-				<button pButton pRipple class="p-button-primary flex-1 border-round" label="Save" icon="pi pi-fw pi-check" (click)="addNew()"></button>
-			</div>
-		</section>
 
-		<section>
-			<p>Edit Existing Group</p>
-			<p-dropdown [(ngModel)]="selectedGroupId" [options]="groups" [optionLabel]="'groupName'" [optionValue]="'productExclusionGroupID'" (onChange)="onGroupChange($event)"></p-dropdown>
-			<div class="search-input" *ngIf="selectedGroupId"><input pInputText [(ngModel)]="searchTerm" [formControl]="searchBox" placeholder="Search Products" /></div>
-			<div class="products" *ngIf="selectedGroupId">
-				<div>
-					<p>All Products</p>
-					<div class="product-list">
-						<ul>
-							<li *ngFor="let product of products" pDraggable (onDragStart)="dragStart(product)">
-								<span>{{product.productCode}} - {{product.modelName}}</span>
-							</li>
-						</ul>
+			<p class="text-sm text-color-secondary mb-3">
+				Enter a name below to create a new exclusion group.
+			</p>
+
+			<label for="groupName" class="text-sm font-medium text-color">Group Name</label>
+			<div class="mt-2 flex gap-2">
+				<input pInputText id="groupName"
+							 [(ngModel)]="newGroupName"
+							 placeholder="Group Name"
+							 class="flex-1"
+							 style="min-width: 180px;" />
+				<button pButton label="Save" icon="pi pi-check" class="p-button-sm" (click)="addNew()"></button>
+			</div>
+
+			<!-- Optional creation summary -->
+			<div *ngIf="newlyCreatedGroupName" class="mt-4 p-3 surface-200 border-round text-sm">
+				<i class="pi pi-check-circle text-green-600 mr-2"></i>
+				Group <strong>{{ newlyCreatedGroupName }}</strong> created.
+			</div>
+		</div>
+	</div>
+
+	<!-- Edit Existing Group + Products (Right) -->
+	<div class="col-12 lg:col-8">
+		<div class="card p-4">
+			<div class="flex align-items-center mb-3">
+				<i class="pi pi-ban text-2xl text-yellow-600 mr-2"></i>
+				<h5 class="m-0">Exclusion Groups</h5>
+			</div>
+
+			<p class="text-sm text-color-secondary mb-4">
+				Manage exclusion groups by editing existing ones and assigning products.
+			</p>
+
+			<!-- Select Existing Group -->
+			<div class="mb-4">
+				<div class="pl-2">
+					<label for="groupSelect" class="text-sm font-medium text-color">Edit Existing Group</label>
+					<div class="mt-2">
+						<p-dropdown id="groupSelect"
+												[(ngModel)]="selectedGroupId"
+												[options]="groups"
+												[optionLabel]="'groupName'"
+												[optionValue]="'productExclusionGroupID'"
+												placeholder="Select Group"
+												(onChange)="onGroupChange($event)">
+						</p-dropdown>
 					</div>
 				</div>
-				<div>
-					<p>Products in Group</p>
-					<div class="product-list included">
-						<ul pDroppable class="target" (onDrop)="drop()">
-							<li *ngFor="let product of includedProducts">
-								<span>{{product.productCode}} - {{product.modelName}}</span>
-								<button pButton pRipple class="p-button-danger" icon="pi pi-fw pi-times" (click)="removeProduct(product.productCode)"></button>
-							</li>
-						</ul>
+				<!-- Search Box -->
+				<div class="mb-3 pt-3" *ngIf="selectedGroupId">
+					<label class="text-sm font-medium text-color">Search Products</label>
+					<div class="mt-2">
+						<input pInputText [(ngModel)]="searchTerm" [formControl]="searchBox" placeholder="Type to search..." />
+					</div>
+				</div>
+
+				<!-- Product Lists -->
+				<div class="grid" *ngIf="selectedGroupId">
+					<!-- All Products -->
+					<div class="col-12 lg:col-6">
+						<div class="surface-card border-round shadow-1 p-3 h-full">
+							<h5 class="mb-3 flex align-items-center">
+								<i class="pi pi-database text-primary mr-2"></i>
+								All Products
+							</h5>
+
+							<div *ngIf="searchResults.length === 0" class="text-sm text-color-secondary">
+								Use the search box above to find products.
+							</div>
+
+							<div class="flex flex-column gap-2">
+								<div *ngFor="let product of searchResults"
+										 pDraggable
+										 (onDragStart)="dragStart(product)"
+										 class="border-1 surface-border p-2 border-round flex justify-content-between align-items-center cursor-move">
+									<span>{{ product.productCode }} - {{ product.modelName }}</span>
+									<i class="pi pi-bars text-secondary"></i>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Included Products -->
+					<div class="col-12 lg:col-6">
+						<div class="surface-card border-round shadow-1 p-3 h-full"
+								 pDroppable
+								 (onDrop)="handleProductDrop(true)">
+							<h5 class="mb-3 flex align-items-center">
+								<i class="pi pi-folder-open text-primary mr-2"></i>
+								Products in Group
+							</h5>
+
+							<button pButton icon="pi pi-file-excel"
+											class="p-button-sm p-button-text"
+											label="Export"
+											(click)="exportToExcel()"
+											tooltip="Export to Excel">
+							</button>
+
+							<div *ngIf="includedProducts.length === 0" class="text-sm text-color-secondary">
+								No products assigned to this group yet.
+							</div>
+
+							<div class="flex flex-column gap-2">
+								<div *ngFor="let product of includedProducts"
+										 class="border-1 surface-border p-2 border-round flex justify-content-between align-items-center">
+									<span>{{ product.productCode }} - {{ product.modelName }}</span>
+
+									<button pButton pRipple
+													icon="pi pi-times"
+													class="p-button-text p-button-sm p-button-rounded text-color-secondary"
+													(click)="removeProduct(product.productCode)"
+													aria-label="Remove">
+									</button>
+
+
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Save Button -->
+				<div class="mt-4" *ngIf="selectedGroupId">
+					<button pButton label="Save Changes" icon="pi pi-save" class="p-button-outlined w-full" (click)="save()"></button>
+
+					<!-- Submission Summary -->
+					<div class="card mt-4 p-4 surface-100 border-round shadow-1" *ngIf="saveSummaryVisible">
+						<div class="flex align-items-center mb-3">
+							<i class="pi pi-check-circle text-green-600 text-2xl mr-2"></i>
+							<h5 class="m-0 text-green-700 font-bold">Changes Saved</h5>
+						</div>
+
+						<div>
+							<p><strong>Group:</strong> {{ selectedGroupName }}</p>
+
+							<p class="mt-2"><strong>Updated Products:</strong></p>
+							<ul *ngIf="savedProductSummary.length > 0; else noProducts">
+								<li *ngFor="let product of savedProductSummary">
+									<i class="pi pi-box text-primary mr-1"></i>
+									{{ product.productCode }} - {{ product.modelName }}
+								</li>
+							</ul>
+							<ng-template #noProducts>
+								<p class="text-sm text-color-secondary">No products in this group.</p>
+							</ng-template>
+
+							<p class="text-sm text-color-secondary mt-2">
+								<i class="pi pi-clock mr-1"></i> {{ saveTimestamp | date:'short' }}
+							</p>
+						</div>
 					</div>
 				</div>
 			</div>
-			<div class="actions" *ngIf="selectedGroupId">
-				<button pButton pRipple class="p-button-primary flex-1 border-round" label="Save" icon="pi pi-fw pi-check" (click)="save()"></button>
-			</div>		
-		</section>		
+		</div>
 	</div>
 
 
-</div>
+	<!-- Company Group Assignment Card -->
+	<!-- Company Group Assignment Card -->
+	<!-- Company Group Assignment Card -->
+	<div class="col-12 mt-5">
+		<div class="card p-4 border-round shadow-1">
 
-<p-toast [life]="3000" [position]="'bottom-center'"></p-toast>
+			<!-- Embedded Component Only (handles its own header) -->
+			<app-exclusion-group-company></app-exclusion-group-company>
+
+		</div>
+	</div>
+

@@ -7,6 +7,8 @@ using ProInternal.Models.Exclusions;
 using ProInternal.Models.Products;
 using System.ComponentModel.Design;
 using ProInternal.Models;
+using Microsoft.Data.SqlClient;
+using System.Data;
 
 
 namespace ProInternal.Controllers
@@ -111,6 +113,38 @@ namespace ProInternal.Controllers
                 };
 
                 return StatusCode(500, response);
+            }
+        }
+
+
+        [HttpPost("submitMapViolation")]
+        public IActionResult SubmitMapViolation([FromBody] MapViolation violation)
+        {
+            try
+            {
+                if (violation == null || string.IsNullOrWhiteSpace(violation.AccountNumber) || string.IsNullOrWhiteSpace(violation.ProductCode))
+                {
+                    return BadRequest("Invalid request. Account number and product code are required.");
+                }
+
+                var result = _prodataAccess.GetExistingViolations(violation);
+
+                if (result == null || result.Count == 0)
+                {
+                    return NotFound("No existing MAP violations found after submission.");
+                }
+
+                return Ok(result);
+            }
+            catch (SqlException sqlEx)
+            {
+                // Log sqlEx as needed
+                return StatusCode(500, "A database error occurred while processing the request.");
+            }
+            catch (Exception ex)
+            {
+                // Log ex as needed
+                return StatusCode(500, "An unexpected error occurred.");
             }
         }
 

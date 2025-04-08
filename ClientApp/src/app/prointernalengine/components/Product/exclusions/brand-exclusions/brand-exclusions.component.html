@@ -1,33 +1,126 @@
-
-
-<div class="brand-exclusions">
-	<h2>Brand Exclusions</h2>
-	<p>Manage the brand exclusions for specific companies here.</p>
-
-	<p>Select a company</p>
-	<p-dropdown [(ngModel)]="selectedCompanyId" [options]="companies" [optionLabel]="'accountName'" [optionValue]="'companyID'" (onChange)="onCompanyChange($event)"></p-dropdown>
-	
-	<div class="brand-selection" *ngIf="selectedCompanyId">
-		<div>
-			<p>All Brands</p>
-			<div class="source" pDroppable (onDrop)="drop(false)">
-				<ul>
-					<li *ngFor="let brand of unselectedBrands" pDraggable  (onDragStart)="dragStart(brand)">{{brand.brandName}}</li>
-				</ul>
+<div class="col-12 lg:col-8 mx-auto">
+	<div class="card p-4">
+		<!-- Header -->
+		<div class="flex align-items-center justify-content-between mb-3">
+			<div class="flex align-items-center">
+				<i class="pi pi-ban text-2xl text-red-500 mr-2"></i>
+				<h5 class="m-0">Brand Exclusions</h5>
 			</div>
 		</div>
-		<div>
-			<p>Excluded Brands</p>
-			<div class="target" pDroppable (onDrop)="drop(true)">
-				<ul>
-					<li *ngFor="let brand of selectedBrands" pDraggable (onDragStart)="dragStart(brand)">{{brand.brandName}}</li>
-				</ul>
+
+		<p class="text-sm text-color-secondary mb-3">
+			Manage excluded brands for selected companies using drag-and-drop.
+		</p>
+
+		<!-- Company Selector -->
+		<div class="mb-4">
+			<label class="text-sm font-medium text-color mb-2 block">
+				<i class="pi pi-building mr-1"></i> Select Company
+			</label>
+			<p-dropdown [(ngModel)]="selectedCompanyId"
+									[options]="companies"
+									[optionLabel]="'accountName'"
+									[optionValue]="'companyID'"
+									[placeholder]="'Choose a company...'"
+									(onChange)="onCompanyChange($event)"
+									class="w-full">
+			</p-dropdown>
+		</div>
+
+
+		<!-- Brand Picklists -->
+		<div class="grid" *ngIf="selectedCompanyId">
+			<!-- All Brands -->
+			<div class="col-12 md:col-6">
+				<label class="text-sm font-medium text-color mb-2 block">
+					<i class="pi pi-tags mr-1"></i> All Brands
+				</label>
+				<div class="surface-100 p-3 border-round shadow-1" pDroppable (onDrop)="drop(false)">
+					<ul class="m-0 p-0 list-none">
+						<li *ngFor="let brand of unselectedBrands"
+								pDraggable
+								(onDragStart)="dragStart(brand)"
+								class="mb-2 p-2 border-round surface-200 cursor-move">
+							<i class="pi pi-tag text-primary mr-2"></i> {{ brand.brandName }}
+						</li>
+					</ul>
+				</div>
+			</div>
+
+
+			<!-- Excluded Brands -->
+			<div class="col-12 md:col-6">
+				<label class="text-sm font-medium text-color mb-2 block">
+					<i class="pi pi-times-circle mr-1 text-red-500"></i> Excluded Brands
+				</label>
+				<div class="surface-100 p-3 border-round shadow-1" pDroppable (onDrop)="drop(true)">
+					<ul class="m-0 p-0 list-none">
+						<li *ngFor="let brand of selectedBrands"
+								pDraggable
+								(onDragStart)="dragStart(brand)"
+								class="mb-2 p-2 border-round surface-200 cursor-move">
+							<i class="pi pi-ban mr-2 text-red-600"></i> {{ brand.brandName }}
+						</li>
+					</ul>
+				</div>
 			</div>
 		</div>
-	</div>
-	<div class="actions" *ngIf="selectedCompanyId">
-		<button pButton pRipple class="p-button-primary flex-1 border-round" label="Save" icon="pi pi-fw pi-check" (click)="save()"></button>
-	</div>
-</div>
 
+
+		<div class="card p-4 mt-4">
+			<!-- Save Button -->
+			<div class="mb-4">
+				<button pButton pRipple
+								type="button"
+								label="Save Changes"
+								icon="pi pi-check"
+								class="p-button-outlined w-full"
+								(click)="save()">
+				</button>
+			</div>
+
+			<!-- Summary Section -->
+			<div *ngIf="showSummary" class="card p-4 border-round shadow-2 surface-100">
+				<div class="flex align-items-center mb-3">
+					<i class="pi pi-check-circle text-green-600 text-2xl mr-2"></i>
+					<h5 class="m-0 text-green-700 font-bold">Exclusion Changes Saved</h5>
+				</div>
+
+				<p class="mb-2">
+					<strong>Company:</strong>
+					{{ selectedCompany?.accountName }} (ID: {{ selectedCompany?.companyID }})
+				</p>
+
+				<p class="mb-2"><strong>Excluded Brands:</strong></p>
+
+				<ng-container *ngIf="selectedBrands.length > 0; else removedAll">
+					<ul class="ml-3 mb-3">
+						<li *ngFor="let brand of selectedBrands">
+							<i class="pi pi-ban mr-1 text-orange-500"></i> {{ brand.brandName }}
+						</li>
+					</ul>
+				</ng-container>
+
+				<!-- If all brands were removed -->
+				<ng-template #removedAll>
+					<p class="text-sm text-color-secondary ml-2 flex align-items-center">
+						<i class="pi pi-info-circle text-orange-500 mr-2"></i>
+						All previous brand exclusions were removed for this company.
+					</p>
+				</ng-template>
+
+				<p class="text-sm text-color-secondary mt-3">
+					<i class="pi pi-calendar-clock mr-1"></i>
+					Submitted: {{ summaryTimestamp | date: 'short' }}
+				</p>
+			</div>
+
+		</div>
+
+
+	</div>
+		</div>
+
+
+<!-- Toast for Save -->
 <p-toast [life]="3000" [position]="'bottom-center'"></p-toast>

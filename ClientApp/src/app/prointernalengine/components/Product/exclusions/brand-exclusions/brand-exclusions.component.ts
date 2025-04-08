@@ -25,6 +25,9 @@ export class BrandExclusionsComponent {
 	public companies: Array<Account> = [];
 	public selectedCompanyId: number | undefined;
 	private activeBrand: Brand | undefined;
+  showSummary: boolean = false;
+  summaryTimestamp: Date = new Date();
+  selectedCompany: any = null;
 
 	constructor(private dataService: DataService, private messageService: MessageService) { }
 	ngOnInit() {
@@ -70,7 +73,12 @@ export class BrandExclusionsComponent {
 
 	save() {
 		this.dataService.addBrandExclusionToCompany(this.selectedCompanyId!, this.selectedBrands.map(b => b.brandID)).subscribe(() => {
-			this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Brand exclusions saved successfully!' });
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Brand exclusions saved successfully!' });
+
+      this.showSummary = true;
+      this.summaryTimestamp = new Date();
+      this.selectedCompany = this.companies.find(c => c.companyID === this.selectedCompanyId);
+
 		});
 	}
 }

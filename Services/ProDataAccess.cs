@@ -18,6 +18,7 @@ using ProInternal.Models.Exclusions;
 using System.ComponentModel.Design;
 using System.Security;
 using Microsoft.AspNetCore.Mvc;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 
 namespace ProInternal.Services
@@ -100,6 +101,27 @@ namespace ProInternal.Services
             {
                 var output = connection.Query<GatedProducts>("getGatedRetailers").ToList();
                 return output;
+            }
+        }
+
+
+
+        public List<MapViolation> GetExistingViolations(MapViolation violation)
+        {
+            using (IDbConnection db = new SqlConnection(_connectionString))
+            {
+                var parameters = new DynamicParameters();
+                parameters.Add("@AccountNumber", violation.AccountNumber);
+                parameters.Add("@ProductCode", violation.ProductCode);
+                parameters.Add("@DayPenalty", violation.PenaltyDays);
+
+                var results = db.Query<MapViolation>(
+                    "InsertAndGetMapViolations",
+                    parameters,
+                    commandType: CommandType.StoredProcedure
+                ).ToList();
+
+                return results;
             }
         }
 

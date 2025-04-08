@@ -50,11 +50,11 @@ export class PowerbiComponent implements OnInit {
     });
   }
 
-  @HostListener('window:resize', ['$event'])
-  onResize() {
-    if (this.report) {
-      (this.report as any).resize();
-    }
-  }
+  //@HostListener('window:resize', ['$event'])
+  //onResize() {
+  //  if (this.report) {
+  //    (this.report as any).resize();
+  //  }
+  //}
 
 }

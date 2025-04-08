@@ -28,6 +28,12 @@ export class ExclusionGroupCompanyComponent {
 	public selectedCompanyId: number | undefined;
 	private activeGroup: ProductExclusionGroup | undefined;
 
+  public groupSaveSummary: ProductExclusionGroup[] = [];
+  public saveCompanyName: string = '';
+  public saveTimestamp: Date | null = null;
+
+
+
 	constructor(private dataService: DataService, private messageService: MessageService) { }
 	ngOnInit() {
 		this.getBrands();
@@ -72,9 +78,17 @@ export class ExclusionGroupCompanyComponent {
 		}
 	}
 
-	save() {
-		this.dataService.addExclustionGroupToCompany(this.selectedCompanyId!, this.selectedGroups.map(g => g.productExclusionGroupID)).subscribe(() => {
-			this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Exclusion Groups saved successfully!' });
-		});
-	}
+  save() {
+    const selectedCompany = this.companies.find(c => c.companyID === this.selectedCompanyId);
+
+    this.dataService.addExclustionGroupToCompany(
+      this.selectedCompanyId!,
+      this.selectedGroups.map(g => g.productExclusionGroupID)
+    ).subscribe(() => {
+      this.groupSaveSummary = [...this.selectedGroups];
+      this.saveCompanyName = selectedCompany?.accountName || 'Unknown Company';
+      this.saveTimestamp = new Date();
+    });
+  }
+
 }

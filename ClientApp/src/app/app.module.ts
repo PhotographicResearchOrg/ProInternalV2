@@ -52,6 +52,7 @@ import { RatingModule } from 'primeng/rating';
     UploaderComponent,
     FileAppComponent
 
+
     ],
   imports: [
         PickListModule,
@@ -80,6 +81,7 @@ import { RatingModule } from 'primeng/rating';
         OverlayPanelModule,
         FileUploadModule,
         InputSwitchModule
+
   ],
  
   providers:

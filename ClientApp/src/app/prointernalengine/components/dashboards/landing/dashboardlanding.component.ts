@@ -9,7 +9,6 @@ import { ProductService } from '../../../service/product.service';
 import { Table } from 'primeng/table';
 import { DataService } from 'src/app/services/data.service';
 import { Account } from "src/app/models/Dashboard/Account";
-import { MapViolation } from "src/app/models/Dashboard/MapViolation";
 import { OrdersMetrics } from 'src/app/models/Dashboard/OrdersMetrics'
 import { SARMetrics } from 'src/app/models/Dashboard/SARMetrics'
 import { EDIMetrics } from 'src/app/models/Dashboard/EDIMetrics'
@@ -19,6 +18,8 @@ import { CommentsMetrics } from 'src/app/models/Dashboard/CommentsMetrics'
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { SpecialOrdersSummary } from 'src/app/models/Dashboard/SpecialOrdersSummary'
 import { comments } from 'src/app/models/Dashboard/comments'
+import { MapViolationResponse } from 'src/app/models/Dashboard/MapViolationResponse';
+import { MapViolation } from 'src/app/models/Dashboard/MapViolation';
 
 @Component({
   templateUrl: './dashboardlanding.component.html',
@@ -31,14 +32,21 @@ export class DashboardLandingComponent implements OnInit {
 
   comments: comments[] = [];
 
+  mapViolationSubmitted = false;
+  mapSubmittedAt: Date = new Date();
+
   filteredAccounts: Account[] = [];
   filteredProducts: Products[] = [];
 
+  public submittedAccountSummary: Account[] = [];
+  public submittedProductSummary: Products[] = [];
+
   selectedAccountsAdvanced: Account[] = [];
   selectedProductsAdvanced: Products[] = [];
+  public existingViolations: MapViolation[] = [];
 
   penaltyOptions: any[] = [];
-  penalty: string = '';
+  penalty: number = 0;
 
   chartData: any;
   chartOptions: any;
@@ -51,10 +59,10 @@ export class DashboardLandingComponent implements OnInit {
   public IRMetrics: IRMetrics = new IRMetrics();
   public ShippingErrorMetrics: ShippingErrorMetrics = new ShippingErrorMetrics();
   public CommecntsMetric: CommentsMetrics = new CommentsMetrics();
-  public mapViolation: MapViolation = new MapViolation();
+
 
   public SelectedAccount: Account = new Account();
-  public SelectedProduct: Account = new Account();
+  public SelectedProduct: Products = new Products();
 
 
 
@@ -63,7 +71,12 @@ export class DashboardLandingComponent implements OnInit {
     subscription!: Subscription;
     @ViewChild('chatcontainer') chatContainerViewChild!: ElementRef;
 
-    constructor(private productService: ProductService,public layoutService: LayoutService,private dataService: DataService) {
+  constructor(
+    private productService: ProductService,
+    public layoutService: LayoutService,
+    private dataService: DataService,
+   // private messageService: MessageService
+  ) {
         this.subscription = this.layoutService.configUpdate$
           .pipe(debounceTime(25))
           .subscribe((config) => {
@@ -170,21 +183,20 @@ export class DashboardLandingComponent implements OnInit {
   }
 
   filterProduct(event: any) {
-    const filtered: Products[] = [];
-    const query = event.query;
-    this.dataService.getProducts(query).subscribe((resp: any) => {
-    this.products = resp;
+    const query = event.query.toLowerCase();
+
+    this.dataService.getProducts(query).subscribe((resp: Products[]) => {
+      this.products = resp;
+
+      this.filteredProducts = this.products.filter(product =>
+        product.productCode.toLowerCase().includes(query) ||
+        product.modelName.toLowerCase().includes(query)  
+      ).map(product => ({
+        ...product,
+        modelName: `${product.productCode} - ${product.modelName}`  // 👈 update for display only
+      }));
+        
     });
-
-
-    for (let i = 0; i < this.products.length; i++)
-    {
-      const product = this.products[i];
-      if (product.productCode.indexOf(query.toLowerCase()) == 0 || product.modelName.toLowerCase().indexOf(query.toLowerCase()) == 0) {
-        filtered.push(product);
-      }
-    }
-    this.filteredProducts = filtered;
   }
 
 
@@ -223,23 +235,81 @@ export class DashboardLandingComponent implements OnInit {
 
 
   onSelectedAccount(event: any) {
+
+   
     this.SelectedAccount = event.value.accountNumber;
+
+   // this.SelectedAccount = event; // assign the full object
   }
 
   onSelectedProduct(event: any) {
+   
     this.SelectedProduct = event.value.productCode;
+
+  //  this.SelectedProduct = event; // assign the full object
   }
 
   onSelectedPenalty(event: any) {
-    this.penalty = event.value.value;
+    this.penalty = event.value;
   }
 
-  MapViolationSubmit() {
+  MapViolationSubmit(): void {
 
-    console.log(this.SelectedAccount);
-    console.log(this.SelectedProduct);
-    console.log(this.penalty);
 
+    if (!this.SelectedAccount || !this.SelectedProduct || !this.penalty) {
+      //this.messageService.add({
+      //  severity: 'warn',
+      //  summary: 'Validation',
+      //  detail: 'Please ensure all fields are selected.'
+      //});
+      return;
+    }
+
+
+
+    this.selectedAccountsAdvanced = [this.SelectedAccount];
+    this.selectedProductsAdvanced = [this.SelectedProduct];
+
+    this.selectedAccountsAdvanced = [];
+    this.selectedProductsAdvanced = [];
+
+    const payload = {
+      accountNumber: this.SelectedAccount.toString(),
+      productCode: this.SelectedProduct.toString(),
+      penaltyDays: this.penalty
+    };
+
+
+
+    this.dataService.submitMapViolation(payload).subscribe({
+      next: (res: MapViolation[]) => {
+
+        const accountMatch = this.accounts.find(acc => acc.accountNumber.toString() === res[0].accountNumber);
+        const productMatch = this.products.find(prod => prod.productCode === res[0].productCode);
+
+
+        this.submittedAccountSummary = accountMatch ? [accountMatch] : [];
+        this.submittedProductSummary = productMatch ? [productMatch] : [];
+
+
+        this.mapViolationSubmitted = true;
+        this.mapSubmittedAt = new Date();
+        this.existingViolations = res;
+
+
+
+
+
+
+      },
+      error: (err) => {
+        //this.messageService.add({
+        //  severity: 'error',
+        //  summary: 'Error',
+        //  detail: err?.error?.message || 'Submission failed'
+        //});
+      }
+    });
   }
 
 
