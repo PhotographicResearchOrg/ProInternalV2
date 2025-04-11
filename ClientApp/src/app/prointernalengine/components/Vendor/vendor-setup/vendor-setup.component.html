@@ -3,25 +3,26 @@
     <i class="pi pi-user-plus text-primary mr-2"></i>
     Create User
   </div>
+  <p-message *ngIf="submissionError" severity="error" text="{{ submissionError }}"></p-message>
 
   <form #form="ngForm" (ngSubmit)="onSubmit()" class="grid formgrid p-fluid" *ngIf="!userCreated">
-    <!-- Company Search -->
     <p-message *ngIf="formInvalid" severity="error" text="Please complete all required fields." class="mb-3"></p-message>
+
+    <!-- Company Search -->
     <div class="field mb-3 col-12">
       <label class="text-sm font-medium text-color mb-1 block">
         <i class="pi pi-briefcase mr-1 text-primary"></i>Company
       </label>
-      <p-autoComplete [(ngModel)]="vendorUser.company"
-                      name="company"
-                      [suggestions]="filteredVendors"
+      <p-autoComplete [suggestions]="filteredVendors"
                       (completeMethod)="filterVendors($event)"
-                      (onSelect)="onVendorSelect($event)" 
-  field="name"
-  [forceSelection]="true"
-  placeholder="Search company..."
-  class="w-full">
-</p-autoComplete>
-
+                      (onSelect)="onVendorSelect($event)"
+                      field="name"
+                      [forceSelection]="true"
+                      placeholder="Search company..."
+                      [(ngModel)]="vendorUser.companyName"
+                      name="companyName"
+                      class="w-full">
+      </p-autoComplete>
     </div>
 
     <!-- Email -->
@@ -58,10 +59,7 @@
 
     <!-- Auto-generate password toggle -->
     <div class="field mb-2 col-12">
-      <p-checkbox [(ngModel)]="autoGeneratePassword"
-                  [binary]="true"
-                  name="autoGeneratePassword"
-                  inputId="autoGenPass">
+      <p-checkbox [(ngModel)]="autoGeneratePassword" [binary]="true" name="autoGeneratePassword" inputId="autoGenPass">
       </p-checkbox>
       <label for="autoGenPass" class="ml-2">Auto-generate password</label>
     </div>
@@ -96,7 +94,7 @@
     <div class="grid mt-2 text-sm text-color">
       <div class="col-12 md:col-6 mb-2 flex align-items-center">
         <i class="pi pi-briefcase text-primary mr-2"></i>
-        <strong>Company:</strong> {{ vendorUser.company.name }}
+        <strong>Company:</strong> {{ vendorUser.companyName }}
       </div>
       <div class="col-12 md:col-6 mb-2 flex align-items-center">
         <i class="pi pi-envelope text-primary mr-2"></i>
@@ -126,6 +124,4 @@
               class="p-button-outlined p-button-sm text-sm"></button>
     </div>
   </div>
-
-
 </div>

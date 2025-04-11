@@ -64,7 +64,7 @@ namespace ProInternal.Services
         List<string> GetUniqueCountries();
         List<Brands> GetExcludedBrandsByCountry(string country);
         void ApplyCountryBrandExclusion(CountryBrandRequest data);
-        void saveVendorUser(VendorUser user);        
+        VendorUserResponse saveVendorUser(VendorUser user);        
         List<VendorStock> GetVendorStock();
         List<VendorSearch> getAllVendors();
 

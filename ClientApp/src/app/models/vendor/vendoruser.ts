@@ -1,5 +1,7 @@
 export interface VendorUser {
-  company: { id: number; name: string }; // updated
+  ID: number;
+  companyId: number;
+  companyName: string;
   email: string;
   firstName: string;
   lastName: string;

@@ -13,4 +13,12 @@
         public string Slug { get; set; }
     }
 
+    public class VendorUserResponse
+    {
+        public int UserId { get; set; } // Assuming this is the primary key
+ 
+        public string Status { get; set; }
+    }
+
+
 }

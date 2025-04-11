@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Mvc;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using Microsoft.EntityFrameworkCore;
 using System.Numerics;
+using Microsoft.AspNetCore.OutputCaching;
 
 
 namespace ProInternal.Services
@@ -68,9 +69,9 @@ namespace ProInternal.Services
         }
 
 
-        public void saveVendorUser(VendorUser user)
+        public VendorUserResponse saveVendorUser(VendorUser user)
         {
-            using (IDbConnection db = new SqlConnection(_connectionString))
+            using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@CompanyID", user.CompanyId);
@@ -78,8 +79,24 @@ namespace ProInternal.Services
                 parameters.Add("@FirstName", user.FirstName);
                 parameters.Add("@LastName", user.LastName);
                 parameters.Add("@Username", user.Username);
-                parameters.Add("@Password", user.Password);        
-                var results = db.Execute("InsertVendorUser",parameters,commandType: CommandType.StoredProcedure);
+                parameters.Add("@Password", user.Password);
+
+
+                try
+                {
+                    var output = connection.Query<VendorUserResponse>(
+                        "InsertVendorUser",
+                        parameters,
+                        commandType: CommandType.StoredProcedure
+                    ).FirstOrDefault();
+
+                    return output ?? new VendorUserResponse(); // Return default if null
+                }
+                catch (Exception e)
+                {
+    
+                    return new VendorUserResponse(); // Return empty response object on error
+                }
             }
         }
 
@@ -88,7 +105,7 @@ namespace ProInternal.Services
             using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<VendorSearch>("getAllVendors").ToList();
-
+                
                 return output;
             }
         }

@@ -10,18 +10,22 @@ import { DataService } from 'src/app/services/data.service';
 export class VendorSetupComponent implements OnInit {
 
   vendorUser: VendorUser = {
-    company: { id: 0, name: '' }, 
+    ID: 0,
+    companyId: 0,
+    companyName: '',
     email: '',
     firstName: '',
     lastName: '',
     username: '',
     password: '',
-    slug:''
+    slug: ''
   };
 
   userCreated = false;
   autoGeneratePassword = true;
   formInvalid = false;
+  userID: number;
+  submissionError: string | null = null;
 
   allVendors: { id: number; name: string }[] = [];
   filteredVendors: { id: number; name: string }[] = [];
@@ -30,19 +34,13 @@ export class VendorSetupComponent implements OnInit {
 
   ngOnInit(): void {
     this.dataService.getAllVendors().subscribe((vendors) => {
-      console.log('All Vendors:', vendors);
       this.allVendors = vendors;
       this.filteredVendors = vendors;
     });
   }
 
   sendSetupDetails(): void {
-    // Placeholder for sending user setup info (email, notification, etc.)
-    // In a real app, you would call a backend service here.
     console.log(this.vendorUser);
-
-    // Optionally show a toast or message
-    // this.messageService.add({ severity: 'success', summary: 'Email Sent', detail: 'User setup details were sent successfully.' });
   }
 
   filterVendors(event: any): void {
@@ -53,14 +51,10 @@ export class VendorSetupComponent implements OnInit {
   }
 
   onVendorSelect(event: any): void {
-    // Extract the actual vendor object
     const selectedVendor = event.value;
-
-    // Ensure you're only storing the vendor object with id and name
     if (selectedVendor && selectedVendor.id && selectedVendor.name) {
-      this.vendorUser.company = selectedVendor;
-    } else {
-      console.warn('Selected vendor does not have expected structure');
+      this.vendorUser.companyId = selectedVendor.id;
+      this.vendorUser.companyName = selectedVendor.name;
     }
   }
 
@@ -77,14 +71,6 @@ export class VendorSetupComponent implements OnInit {
       return;
     }
 
-
-    // Make sure company is stored as object with id and name
-    const selectedCompany = this.vendorUser.company;
-    if (typeof selectedCompany === 'object' && selectedCompany !== null) {
-      this.vendorUser.company = { ...selectedCompany }; // Ensure a clean object clone
-    }
-
-
     if (this.autoGeneratePassword) {
       this.vendorUser.password = this.generateRandomPassword();
     }
@@ -92,21 +78,29 @@ export class VendorSetupComponent implements OnInit {
     this.userCreated = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    this.dataService.saveVendor(this.vendorUser).subscribe(
-      (response) => {
+    console.log('User Created:', this.vendorUser);
+
+    // Uncomment to wire in backend
+    
+    this.dataService.saveVendor(this.vendorUser).subscribe({
+      next: (response: any) => {
         this.userCreated = true;
+        this.vendorUser.ID = response.UserId;
+        this.submissionError = null;
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        console.log('Vendor saved successfully:', response);
+        console.log('User created:', response);
       },
-      (error) => {
-        console.error('Error saving vendor:', error);
+      error: (err) => {
+        this.submissionError = err.error || 'An error occurred while creating the user.';
+        this.userCreated = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    );
+    });
+    
   }
 
-
   isFormInvalid(): boolean {
-    return !this.vendorUser.company ||
+    return !this.vendorUser.companyName ||
       !this.vendorUser.email ||
       !this.vendorUser.firstName ||
       !this.vendorUser.lastName ||
@@ -116,13 +110,15 @@ export class VendorSetupComponent implements OnInit {
 
   resetForm(): void {
     this.vendorUser = {
-      company: { id: 0, name: '' }, 
+      ID: 0,
+      companyId: 0,
+      companyName: '',
       email: '',
       firstName: '',
       lastName: '',
       username: '',
       password: '',
-      slug:''
+      slug: ''
     };
     this.userCreated = false;
     this.autoGeneratePassword = true;

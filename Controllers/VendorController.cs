@@ -62,8 +62,10 @@ namespace ProInternal.Controllers
             // Ensure that the 'company' is not null and has a valid ID
             if (vendorUser.CompanyId > 0 )
             {
-                this._prodataAccess.saveVendorUser(vendorUser);    
-                return Ok(new { message = "Vendor saved successfully." });
+                var data =  this._prodataAccess.saveVendorUser(vendorUser);
+                // Return the result with the UserId
+                return Ok(new { Status = data.Status, UserId = data.UserId });
+          
             }
             else
             {
