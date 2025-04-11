@@ -1,15 +1,18 @@
 import { Component, ElementRef, ViewChild } from '@angular/core';
 import { LayoutService } from './service/app.layout.service';
 import { PrimeNGConfig } from 'primeng/api';
-
+import { Router } from '@angular/router';
 
 
 @Component({
     selector: 'app-topbar',
     templateUrl: './app.topbar.component.html'
 })
+
+
 export class AppTopbarComponent {
 
+  isRefreshing = true;
 
   themeOptions =
     [
@@ -96,14 +99,34 @@ export class AppTopbarComponent {
 
     @ViewChild('mobileMenuButton') mobileMenuButton!: ElementRef;
     
-  constructor(private primengConfig: PrimeNGConfig,public layoutService: LayoutService, public el: ElementRef) {}
+  constructor(private primengConfig: PrimeNGConfig, public layoutService: LayoutService, public el: ElementRef, private router: Router) {}
 
     activeItem!: number;
 
 
     get mobileTopbarActive(): boolean {
         return this.layoutService.state.topbarMenuActive;
-    }
+  }
+
+
+  refreshPage(): void {
+    // Option 1: Full page reload
+    // location.reload();
+    this.isRefreshing = true;
+    setTimeout(() => {
+      // do your work
+      this.isRefreshing = false;
+    }, 1000);
+    // Option 2: Re-run your core logic (e.g., API calls)
+    // If this is in your layout component and you want to target a child,
+    // you can use a shared service with an observable or call a specific method if routed.
+    const currentUrl = this.router.url;
+    // Example if you’re refreshing a dashboard
+    this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+      this.router.navigateByUrl(currentUrl);
+    });
+  }
+
 
 
     onMenuButtonClick() {

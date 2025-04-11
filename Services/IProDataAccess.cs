@@ -6,6 +6,7 @@ using ProInternal.Models.Accounting;
 using ProInternal.Models.Dashboard;
 using ProInternal.Models.Accounts;
 using ProInternal.Models.Auth;
+using ProInternal.Models.Vendor;
 using ProInternal.Services;
 using System;
 using ProInternal.Models.Products;
@@ -47,15 +48,9 @@ namespace ProInternal.Services
         bool activate(int batchID);
       
         List<qrDetail> getQRBatchDetail(int batchID);
-
-    
-
         List<qrDetail> getQRBatchVendorDetail(string batchID);
-
         List<GatedProducts> getGatedRetailers();
-
         List<Products> QuickSearchProducts();
-
         int Exclusion_CreateGroup(string groupName);
 		void Exclusion_AddProductsToGroup(int productExclusionGroupID, List<string> productCodes);
         void Exclusion_ExcludeCompanyGroups(int companyID, List<int> productExclusionGroupID);
@@ -66,6 +61,12 @@ namespace ProInternal.Services
         List<CompanyGroupExclusion> Exclusions_GetCompanyGroupExclusions(int companyID);
         void AssignBrandsToMember([FromBody] GatingAssignment assignment);
         List<MapViolation> GetExistingViolations(MapViolation violation);
+        List<string> GetUniqueCountries();
+        List<Brands> GetExcludedBrandsByCountry(string country);
+        void ApplyCountryBrandExclusion(CountryBrandRequest data);
+        void saveVendorUser(VendorUser user);        
+        List<VendorStock> GetVendorStock();
+        List<VendorSearch> getAllVendors();
 
     }
 

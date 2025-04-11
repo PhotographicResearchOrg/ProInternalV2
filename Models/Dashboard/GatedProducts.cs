@@ -21,6 +21,13 @@
 
     }
 
-    
+
+    public class CountryBrandBulkRequest
+    {
+        public string Country { get; set; }
+        public List<int> BrandIds { get; set; }
+    }
+
+
 
 }

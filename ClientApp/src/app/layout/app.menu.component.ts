@@ -21,7 +21,7 @@ export class AppMenuComponent implements OnInit {
         label: 'PRO-Internal',
         icon: 'pi pi-home',
         items: [{
-          label: 'Dashboards', icon: 'pi pi-fw pi-home',
+          label: 'Dashboards', icon: 'pi pi-chart-line',
           items:
             [{ label: 'Home', icon: 'pi pi-fw pi-home', routerLink: ['/Dashboard-landing'] },
             {
@@ -66,7 +66,7 @@ export class AppMenuComponent implements OnInit {
         label: 'Rebate Management',
         icon: 'pi pi-wrench',
         items: [
-          { label: '(IR) Maintenance', icon: 'pi pi-wrench', routerLink: ['/rebatesupport'] },
+          { label: '(IR) Maintenance', icon: 'pi pi-dollar', routerLink: ['/rebatesupport'] },
           /*       { label: ' BRM - (IR) Support', icon: 'pi pi-wrench', routerLink: ['/rebatesupport'] }*/
           //{label: 'Connection Comments', icon: 'pi pi-fw pi-comments', routerLink: ['/apps/chat'] },
           //{label: 'Product List',icon: 'pi pi-fw pi-list',routerLink: ['ecommerce/product-list']},
@@ -94,21 +94,37 @@ export class AppMenuComponent implements OnInit {
         items:
           [
             {
-              label: 'Product Management', icon: 'pi pi-fw pi-image',
+              label: 'Product Management', icon: 'pi pi-box',
               items:
                 [
-                  { label: 'Product Configuration', icon: 'pi pi-fw pi-sign-in', routerLink: ['ecommerce/product-overview'] },
+                  { label: 'Product Configuration', icon: 'pi pi-sliders-h', routerLink: ['ecommerce/product-overview'] },
                  
                   {
-                    label: 'Exclusions', icon: 'pi pi-fw pi-building',
+                    label: 'Exclusions', icon: 'pi pi-ban',
                     items: [
                       /*       { label: 'Brand Exclusions', icon: 'pi pi-fw pi-building', routerLink: ['/exclusions/brand'] },*/
-                      { label: 'Brand Gating', icon: 'pi pi-fw pi-building', routerLink: ['/gating'] },
-                      { label: 'Exclusion Groups', icon: 'pi pi-fw pi-building', routerLink: ['/exclusions/group'] },
+                      { label: 'Brand Gating', icon: 'pi pi-lock', routerLink: ['/gating'] },
+                      { label: 'Exclusion Groups', icon: 'pi pi-ban', routerLink: ['/exclusions/group'] },
                      /* { label: 'Company Exclusion Groups', icon: 'pi pi-fw pi-building', routerLink: ['/exclusion/group/company'] }*/
                     ]
                   }
                 ]
+            },
+            {
+              label: 'Vendor Management', icon: 'pi pi-briefcase',
+              items:
+               [
+                  { label: 'Vendor SetUp', icon: 'pi pi-cog', routerLink: ['/setup'] },
+                  {
+                    label: 'Stock Submissions', icon: 'pi pi-cloud-upload',routerLink: ['/stock']
+                    //items: [
+                    //  /*       { label: 'Brand Exclusions', icon: 'pi pi-fw pi-building', routerLink: ['/exclusions/brand'] },*/
+                    //  { label: 'Brand Gating', icon: 'pi pi-fw pi-building', routerLink: ['/gating'] },
+                    //  { label: 'Exclusion Groups', icon: 'pi pi-fw pi-building', routerLink: ['/exclusions/group'] },
+                    //  /* { label: 'Company Exclusion Groups', icon: 'pi pi-fw pi-building', routerLink: ['/exclusion/group/company'] }*/
+                    //]
+                  }
+               ]
             }
           ]
       });

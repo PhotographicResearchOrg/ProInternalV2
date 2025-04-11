@@ -23,4 +23,11 @@
 		public int BrandID { get; set; }
 		public string? BrandName { get; set; }
 	}
+
+
+    public class CountryBrandRequest
+    {
+        public string Country { get; set; }
+        public List<int> BrandIds { get; set; }
+    }
 }

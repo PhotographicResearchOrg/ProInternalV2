@@ -30,31 +30,50 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { FileAppService } from './prointernalengine/components/apps/file/service/file.app.service';
 import { QtrRebatesComponent } from './prointernalengine/components/dashboards/qtr-rebates/qtr-rebates.component';
 import { RebatesupportComponent } from './prointernalengine/components/instantrebate/rebatesupport/rebatesupport.component';
-import { GatingComponent } from './prointernalengine/components/Product/Gating/gating.component';
+import { InputGroupModule } from 'primeng/inputgroup';
+import { MessageModule } from 'primeng/message';
+import { MessagesModule } from 'primeng/messages';
 import { PickListModule } from 'primeng/picklist';
 import { ToggleButtonModule } from 'primeng/togglebutton';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { SliderModule } from 'primeng/slider';
 import { RatingModule } from 'primeng/rating';
+import { VendorStockComponent } from './prointernalengine/components/Vendor/vendor-stock/vendor-stock.component';
 
+import { VendorSetupComponent } from './prointernalengine/components/Vendor/vendor-setup/vendor-setup.component';
 
-//ProInternal\ClientApp\src\app\layout\app.topbar.component.ts
+import { GatingComponent } from './prointernalengine/components/Product/Gating/gating.component';
+
+import { DialogModule } from 'primeng/dialog';
+import { BadgeModule } from 'primeng/badge';
+import { CheckboxModule } from 'primeng/checkbox';
+import { ToolbarModule } from 'primeng/toolbar';
+
 
 
 @NgModule({
-    declarations: [
+  declarations:
+    [
     AppComponent,
     QtrRebatesComponent,
     GatingComponent,
+    VendorStockComponent,
+    VendorSetupComponent,
     RebatesupportComponent,
     DashboardAccountingComponent,
     DashboardLandingComponent,
     UploaderComponent,
     FileAppComponent
+  ],
 
-
-    ],
   imports: [
+    MessageModule,
+    MessagesModule,
+    InputGroupModule,
+        DialogModule,
+        BadgeModule,
+        CheckboxModule,
+        ToolbarModule,
         PickListModule,
         ToggleButtonModule,
         MultiSelectModule,
@@ -81,7 +100,6 @@ import { RatingModule } from 'primeng/rating';
         OverlayPanelModule,
         FileUploadModule,
         InputSwitchModule
-
   ],
  
   providers:

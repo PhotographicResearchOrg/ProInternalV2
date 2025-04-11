@@ -26,9 +26,11 @@ import { comments } from 'src/app/models/Dashboard/comments'
 import { ApiResponse } from "src/app/models/ApiResponse";
 import { MapViolationResponse } from 'src/app/models/Dashboard/MapViolationResponse';
 import { MapViolation } from 'src/app/models/Dashboard/MapViolation';
-
-
-
+import { CountryBrandRequest } from 'src/app/models/Dashboard/CountryBrandRequest';
+import { VendorStock } from 'src/app/models/vendor/vendorstock';
+import { tap, catchError } from 'rxjs/operators';
+import { throwError } from 'rxjs';
+import { VendorUser } from 'src/app/models/vendor/vendoruser';
 
 @Injectable()
 export class DataService {
@@ -40,14 +42,37 @@ export class DataService {
   submitMapViolation(violation: MapViolation): Observable<MapViolation[]> {
     return this.api.post<MapViolation[]>(`API/Product/submitMapViolation`, violation);
   }
-
-
+  getCountryExcludedBrands(country: string): Observable<Brands[]> {
+    return this.api.get<Brands[]>(`API/Product/getCountryExcludedBrands?country=${encodeURIComponent(country)}`);
+  }
+  getUniqueCountries(): Observable<string[]> {
+    return this.api.get<string[]>(`API/Product/getUniqueCountries`);
+  }
   getComments(): Observable<comments[]> {
     return this.api.get<comments[]>('API/comments/monitor');
   }
-
   assignBrandsToMember(payload: GatingAssignment) {
     return this.api.post<ApiResponse>('API/Product/assignbrands', payload);
+  }
+  applyCountryBrandExclusion(payload: CountryBrandRequest): Observable<any> {
+    return this.api.post<any>('API/Product/apply-country-exclusion', payload);
+  }
+
+  getVendorStock() {
+    console.log('Initiating getVendorStock call');
+    return this.api.get<Array<VendorStock>>(`API/Vendor/vendorstock`).pipe(
+      tap((data) => {
+        console.log('Data received from API:', data);
+      }),
+      catchError((error) => {
+        console.error('Error occurred while fetching vendor stock:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  getGatedRetailers() {
+    return this.api.get<Array<ProductGating>>('API/Product/getGatedRetailers');
   }
 
   getQuarterySummary()
@@ -55,14 +80,9 @@ export class DataService {
     return this.api.get<Array<QuarterlyRebates>>('API/Accounting/CurrentQuarterLiability');
   }
 
-  getGatedRetailers() {
-    return this.api.get<Array<ProductGating>>('API/Product/getGatedRetailers');
-  }
-
   getEmbedConfig() {
     return this.api.get<{ token: string; embedUrl: string; reportId: string }>('API/PowerBI/token');
   }
-
   uploadQuarterlyFile(file: File) {
     const formData: any = new FormData();
     formData.append(`file`, file, file.name);
@@ -176,6 +196,14 @@ export class DataService {
 
 
   downloadCSV(): Observable<any> { return this.api.getJSON('API/Dashboard/getAccounts')}
+
+  getAllVendors() {
+    return this.api.get<Array<{ id: number; name: string }>>("API/Vendor/getAllVendors");
+  }
+
+  saveVendor(vendorUser: VendorUser): Observable<any> {
+    return this.api.post('API/Vendor/saveVendorUser', vendorUser);
+  }
 
   //region Exclusions
 	getBrandExclusions(companyID: number) { 

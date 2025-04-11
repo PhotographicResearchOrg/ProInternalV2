@@ -9,6 +9,7 @@ using System.ComponentModel.Design;
 using ProInternal.Models;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using Dapper;
 
 
 namespace ProInternal.Controllers
@@ -42,6 +43,55 @@ namespace ProInternal.Controllers
         [Route("exclusion/groups")]
         public List<ProductExclusionGroup> getExclusionGroups() {
             return this._prodataAccess.Exclusions_GetExclusionGroups();
+        }
+
+
+        [HttpGet("getCountryExcludedBrands")]
+        public IActionResult GetCountryExcludedBrands([FromQuery] string country)
+        {
+            try
+            {
+                var restrictedBrands = _prodataAccess.GetExcludedBrandsByCountry(country);
+                return Ok(restrictedBrands);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to retrieve excluded brands.");
+            }
+        }
+
+
+        [HttpGet("getUniqueCountries")]
+        public IActionResult GetUniqueCountries()
+        {
+            try
+            {
+                var countries = _prodataAccess.GetUniqueCountries();
+
+                return Ok(countries);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to retrieve countries.");
+            }
+        }
+
+        [HttpPost("apply-country-exclusion")]
+        public IActionResult ApplyCountryBrandExclusion([FromBody] CountryBrandRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Country) )
+                {
+                    return BadRequest(new ApiResponse { Success = false });
+                }
+                 _prodataAccess.ApplyCountryBrandExclusion(request);
+                return Ok(new ApiResponse { Success = true });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse { Success = false });
+            }
         }
 
         [HttpGet]

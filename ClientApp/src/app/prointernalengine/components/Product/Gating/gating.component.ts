@@ -18,6 +18,8 @@ import { Product } from '../../../api/product';
 import { Products } from "src/app/models/Dashboard/Products";
 import { MemberGateSummary } from "src/app/models/Dashboard/MemberGateSummary";
 import { ApiResponse } from "src/app/models/ApiResponse";
+import { CountryBrandRequest } from 'src/app/models/Dashboard/CountryBrandRequest';
+
 
 interface expandedRows {
   [key: string]: boolean;
@@ -30,8 +32,13 @@ interface expandedRows {
 
 export class GatingComponent implements OnInit {
 
+
+
+
   public MemberGateSummary: MemberGateSummary[] = [];
+
   public gatedProducts: ProductGating[] = [];
+
   rowGroupMetadata: any;
   loadingMainGrid: boolean = true;
   loadingMembers: boolean = true;
@@ -44,22 +51,38 @@ export class GatingComponent implements OnInit {
 
   submissionResult: { memberName: string; accountNumber: string; brands: string[]; timestamp: Date } | null = null;
 
+  public selectedCountry: string | null = null;
+  public selectedBrandId: number | null = null;
+
+  public restrictionSummaryVisible: boolean = false;
+  public restrictionSummary: Brands[] = [];
+  public restrictionTimestamp: Date | null = null;
+
+
+  public allBrands: Brands[] = [];
+  public excludedBrands: Brands[] = [];
+  public countries: string[] = []; 
+
+
+  // Separate state for country restriction
+
+  // PickList data for country-level restriction
+  public countryAvailableBrands: any[] = [];
+  public countryRestrictedBrands: any[] = [];
+  public filteredCountryAvailableBrands: any[] = [];
+  public countryBrandFilter: string = '';
 
 
   members: any[] = [];
   selectedMembers: any[] = [];
   memberFilter: string = '';
 
-
-
   accounts: Account[] = [];
   brandModel: Brands[] = [];
-
 
   brands: any[] = [];
   selectedBrands: any[] = [];
   brandFilter: string = '';
-
 
   products: any[] =[];
   selectedProducts: any[] = [];
@@ -73,7 +96,12 @@ export class GatingComponent implements OnInit {
 
   constructor(private dataService: DataService, private messageService: MessageService) { }
 
-  ngOnInit() {
+  ngOnInit()
+  {
+
+        this.dataService.getUniqueCountries().subscribe(countries => {
+          this.countries = countries;
+        });
 
       this.dataService.getGatedRetailers().subscribe((data) => {
         this.loadingMainGrid = false;
@@ -85,7 +113,7 @@ export class GatingComponent implements OnInit {
         if (Account.accountNumber >= 5000 && Account.accountNumber <= 7000) { Account.retailerType = 'Client' }
         if (Account.accountNumber > 7000) { Account.retailerType = 'Affiliate' }
         }
-
+        console.log('END -------------------------------------------------------------');
 
         this.dataService.getAccounts().subscribe((data) => {
           this.accounts = data;
@@ -100,12 +128,15 @@ export class GatingComponent implements OnInit {
 
         });
 
-        this.dataService.getBrands().subscribe((data) => {       
+
+          this.dataService.getBrands().subscribe((data) => {       
           this.brandModel = data;
 
           for (let Brands of this.brandModel) {          
             this.brands.push({ name: Brands.brandName, brandNumber: Brands.brandID.toString() });
           }
+
+            this.countryAvailableBrands = [...this.brands]; // clone
 
           setTimeout(() => {
             this.loadingBrands = false;
@@ -124,7 +155,6 @@ export class GatingComponent implements OnInit {
           }, 0); // Ensures it's executed after all iterations
       
         });
-
   }
 
   filteredMembers = [...this.members];
@@ -146,12 +176,106 @@ export class GatingComponent implements OnInit {
     );
   }
 
+
+
+
+
+
   // Filter function for brands
   filterBrands() {
     this.filteredBrands = this.brands.filter(brand =>
       brand.name.toLowerCase().includes(this.brandFilter.toLowerCase())
     );
   }
+
+  refreshExcludedBrandsForCountry(country: string) {
+    if (!country) return;
+
+    // Inside refreshExcludedBrandsForCountry
+    this.dataService.getCountryExcludedBrands(country).subscribe((excluded: Brands[]) => {
+      this.countryRestrictedBrands = excluded.map(b => ({
+        name: b.brandName,
+        brandNumber: b.brandID.toString()
+      }));
+
+
+      const allFormattedBrands = this.brandModel.map(b => ({
+        name: b.brandName,
+        brandNumber: b.brandID.toString()
+      }));
+
+      this.countryAvailableBrands = allFormattedBrands.filter(brand =>
+        !this.countryRestrictedBrands.some(rb => rb.brandNumber === brand.brandNumber)
+      );
+
+   
+      this.countryBrandFilter = '';
+      this.filteredCountryAvailableBrands = [...this.countryAvailableBrands];
+    });
+  }
+
+
+  filterCountryAvailableBrands() {
+    this.filteredCountryAvailableBrands = this.countryAvailableBrands.filter(brand =>
+      brand.name.toLowerCase().includes(this.countryBrandFilter.toLowerCase())
+    );
+  }
+
+
+  onApplyCountryExclusion() {
+
+    if (!this.selectedCountry) {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Please select a country.' });
+      return;
+    }
+
+    const brandIds = this.countryRestrictedBrands.map(b => parseInt(b.brandNumber));
+
+
+    //const payload: CountryBrandRequest = {
+    //  country: this.selectedCountry!,
+    //  brandIds: this.countryRestrictedBrands.map(b => parseInt(b.brandNumber) )
+    //};
+    const payload: CountryBrandRequest = {
+      country: this.selectedCountry,
+      brandIds: brandIds
+    };
+
+
+    this.dataService.applyCountryBrandExclusion(payload).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: `Brands restricted for ${this.selectedCountry}`
+        });
+
+
+        this.restrictionSummary = this.countryRestrictedBrands.map(b => ({
+          brandName: b.name,
+          brandID: parseInt(b.brandNumber)
+        }));
+
+
+        this.restrictionTimestamp = new Date();
+        this.restrictionSummaryVisible = true;
+
+  
+      //    this.refreshExcludedBrandsForCountry(this.selectedCountry!);
+
+      },
+      error: (err) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: err.message || 'Unable to apply restriction'
+        });
+      }
+    });
+  }
+
+
+
 
 
   onBrandSelected() {
@@ -235,7 +359,6 @@ export class GatingComponent implements OnInit {
       }
     });
   }
-
 
 
 

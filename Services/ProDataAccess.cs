@@ -10,6 +10,7 @@ using ProInternal.Models.Dashboard;
 using ProInternal.Models.Auth;
 using ProInternal.Models.Accounts;
 using ProInternal.Models.Products;
+using ProInternal.Models.Vendor;
 using Microsoft.AspNetCore.Identity;
 using ProInternal.Helpers;
 using Microsoft.Data.SqlClient;
@@ -19,6 +20,8 @@ using System.ComponentModel.Design;
 using System.Security;
 using Microsoft.AspNetCore.Mvc;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using Microsoft.EntityFrameworkCore;
+using System.Numerics;
 
 
 namespace ProInternal.Services
@@ -49,6 +52,43 @@ namespace ProInternal.Services
             using (IDbConnection connection = new SqlConnection(_connectionString))
             {
                 var output = connection.Query<QuarterlyDataSummary>("QuarterlyGetRecentFileUpload").ToList();
+                return output;
+            }
+        }
+
+
+        public List<VendorStock> GetVendorStock()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<VendorStock>("GetAllVendorStock").ToList();
+               
+                return output;
+            }
+        }
+
+
+        public void saveVendorUser(VendorUser user)
+        {
+            using (IDbConnection db = new SqlConnection(_connectionString))
+            {
+                var parameters = new DynamicParameters();
+                parameters.Add("@CompanyID", user.CompanyId);
+                parameters.Add("@Email", user.Email);
+                parameters.Add("@FirstName", user.FirstName);
+                parameters.Add("@LastName", user.LastName);
+                parameters.Add("@Username", user.Username);
+                parameters.Add("@Password", user.Password);        
+                var results = db.Execute("InsertVendorUser",parameters,commandType: CommandType.StoredProcedure);
+            }
+        }
+
+        public List<VendorSearch> getAllVendors()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<VendorSearch>("getAllVendors").ToList();
+
                 return output;
             }
         }
@@ -302,6 +342,51 @@ namespace ProInternal.Services
                 return output;
             }
         }
+
+        public void ApplyCountryBrandExclusion(CountryBrandRequest data)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+
+                var table = new DataTable();
+                table.Columns.Add("BrandId", typeof(int));
+
+                foreach (var id in data.BrandIds)
+                {
+                    table.Rows.Add(id);
+                }
+
+                var parameters = new DynamicParameters();
+                parameters.Add("@Country", data.Country);
+                parameters.Add("@BrandIds", table.AsTableValuedParameter("BrandIdTableType"));
+
+                connection.Execute("ApplyBrandExclusionByCountry", parameters, commandType: CommandType.StoredProcedure);
+            }
+        }
+
+
+        public List<Brands> GetExcludedBrandsByCountry(string country)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {         
+                var output = connection.Query<Brands>("GetExcludedBrandsByCountry", new { country = country }).ToList();
+                
+                return output;
+            }
+        }
+
+
+        public List<string> GetUniqueCountries()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<string>("GetUniqueCountries").ToList();
+
+                return output;
+            }
+
+        }
+            
 
 
         public void AssignBrandsToMember([FromBody] GatingAssignment assignment)

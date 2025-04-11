@@ -1,0 +1,131 @@
+<div class="card surface-card border-round shadow-2 p-4">
+  <div class="text-xl font-semibold text-900 mb-4 flex align-items-center">
+    <i class="pi pi-user-plus text-primary mr-2"></i>
+    Create User
+  </div>
+
+  <form #form="ngForm" (ngSubmit)="onSubmit()" class="grid formgrid p-fluid" *ngIf="!userCreated">
+    <!-- Company Search -->
+    <p-message *ngIf="formInvalid" severity="error" text="Please complete all required fields." class="mb-3"></p-message>
+    <div class="field mb-3 col-12">
+      <label class="text-sm font-medium text-color mb-1 block">
+        <i class="pi pi-briefcase mr-1 text-primary"></i>Company
+      </label>
+      <p-autoComplete [(ngModel)]="vendorUser.company"
+                      name="company"
+                      [suggestions]="filteredVendors"
+                      (completeMethod)="filterVendors($event)"
+                      (onSelect)="onVendorSelect($event)" 
+  field="name"
+  [forceSelection]="true"
+  placeholder="Search company..."
+  class="w-full">
+</p-autoComplete>
+
+    </div>
+
+    <!-- Email -->
+    <div class="field mb-3 col-12 md:col-6">
+      <label class="text-sm font-medium text-color mb-1 block">
+        <i class="pi pi-envelope mr-1 text-primary"></i>Email
+      </label>
+      <input type="email" pInputText [(ngModel)]="vendorUser.email" name="email" required class="w-full" />
+    </div>
+
+    <!-- First Name -->
+    <div class="field mb-3 col-12 md:col-6">
+      <label class="text-sm font-medium text-color mb-1 block">
+        <i class="pi pi-user mr-1 text-primary"></i>First Name
+      </label>
+      <input type="text" pInputText [(ngModel)]="vendorUser.firstName" name="firstName" required class="w-full" />
+    </div>
+
+    <!-- Last Name -->
+    <div class="field mb-3 col-12 md:col-6">
+      <label class="text-sm font-medium text-color mb-1 block">
+        <i class="pi pi-user mr-1 text-primary"></i>Last Name
+      </label>
+      <input type="text" pInputText [(ngModel)]="vendorUser.lastName" name="lastName" required class="w-full" />
+    </div>
+
+    <!-- Username -->
+    <div class="field mb-3 col-12 md:col-6">
+      <label class="text-sm font-medium text-color mb-1 block">
+        <i class="pi pi-at mr-1 text-primary"></i>Username
+      </label>
+      <input type="text" pInputText [(ngModel)]="vendorUser.username" name="username" required class="w-full" />
+    </div>
+
+    <!-- Auto-generate password toggle -->
+    <div class="field mb-2 col-12">
+      <p-checkbox [(ngModel)]="autoGeneratePassword"
+                  [binary]="true"
+                  name="autoGeneratePassword"
+                  inputId="autoGenPass">
+      </p-checkbox>
+      <label for="autoGenPass" class="ml-2">Auto-generate password</label>
+    </div>
+
+    <!-- Password input (only shown if auto-generation is off) -->
+    <div class="field mb-4 col-12" *ngIf="!autoGeneratePassword">
+      <label class="text-sm font-medium text-color mb-1 block">
+        <i class="pi pi-lock mr-1 text-primary"></i>Password
+      </label>
+      <input type="text" pInputText [(ngModel)]="vendorUser.password" name="password" required class="w-full" />
+    </div>
+
+    <!-- Submit Button -->
+    <div class="col-12">
+      <button type="submit"
+              pButton
+              pRipple
+              label="Create User"
+              icon="pi pi-user-plus"
+              class="p-button-outlined w-auto mt-3">
+      </button>
+    </div>
+  </form>
+
+  <!-- Acknowledgment Summary -->
+  <div *ngIf="userCreated" class="card mt-4 p-4 border-round shadow-2 surface-100">
+    <div class="flex align-items-center mb-3">
+      <i class="pi pi-check-circle text-green-600 text-2xl mr-2"></i>
+      <h5 class="m-0 text-green-700 font-bold">User Created Successfully</h5>
+    </div>
+
+    <div class="grid mt-2 text-sm text-color">
+      <div class="col-12 md:col-6 mb-2 flex align-items-center">
+        <i class="pi pi-briefcase text-primary mr-2"></i>
+        <strong>Company:</strong> {{ vendorUser.company.name }}
+      </div>
+      <div class="col-12 md:col-6 mb-2 flex align-items-center">
+        <i class="pi pi-envelope text-primary mr-2"></i>
+        <strong class="mr-1">Email:</strong> {{ vendorUser.email }}
+      </div>
+      <div class="col-12 md:col-6 mb-2 flex align-items-center">
+        <i class="pi pi-user text-primary mr-2"></i>
+        <strong class="mr-1">Name:</strong> {{ vendorUser.firstName }} {{ vendorUser.lastName }}
+      </div>
+      <div class="col-12 md:col-6 mb-2 flex align-items-center">
+        <i class="pi pi-at text-primary mr-2"></i>
+        <strong class="mr-1">Username:</strong> {{ vendorUser.username }}
+      </div>
+      <div class="col-12 md:col-6 mb-2 flex align-items-center">
+        <i class="pi pi-lock text-primary mr-2"></i>
+        <strong class="mr-1">Password:</strong> {{ vendorUser.password }}
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mt-4">
+      <button pButton pRipple label="Create Another User" icon="pi pi-user-plus"
+              (click)="resetForm()"
+              class="p-button-outlined p-button-sm text-sm"></button>
+
+      <button pButton pRipple label="Send Setup Details" icon="pi pi-send"
+              (click)="sendSetupDetails()"
+              class="p-button-outlined p-button-sm text-sm"></button>
+    </div>
+  </div>
+
+
+</div>
