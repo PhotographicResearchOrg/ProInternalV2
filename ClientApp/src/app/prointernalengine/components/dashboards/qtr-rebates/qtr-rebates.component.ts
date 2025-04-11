@@ -61,7 +61,15 @@ export class QtrRebatesComponent implements OnInit {
     window.location.reload();
   }
 
-
+  getTotalRebateAmount(): number {
+    return this.QuarterlyRebates.reduce((sum, m) => sum + m.totalAmount, 0);
+  }
+  getMetricPercentage(metric: any): string {
+    const validMetrics = this.QuarterlyRebates.filter(m => m.programName?.toLowerCase() !== 'gross');
+    const total = validMetrics.reduce((sum, m) => sum + m.totalAmount, 0);
+    const percent = total > 0 ? (metric.totalAmount / total) * 100 : 0;
+    return percent.toFixed(0) + '%';
+  }
 
   Activate(item: any) {
    

@@ -10,8 +10,10 @@
       </div>
       <div>
         <div ngClass="bg-green-100" class="border-round" style="height: 6px">
-          <div ngClass="bg-green-500" class="h-full border-round" style="width:34%"></div>
+          <div ngClass="bg-green-500" class="h-full border-round" [style.width]="getMetricPercentage(metric)"></div>
         </div>
+        <span class="text-sm text-color-secondary mt-1 d-block">{{ getMetricPercentage(metric) }} of total</span>
+
         <div class="flex align-item-center justify-content-between">
           <span class="text-900 mt-3 text-md font-medium">{{metric.totalAmount | currency}}</span>
           <span class="text-900 mt-3 text-md font-medium">{{metric.issueDate | date}}</span>
