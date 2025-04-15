@@ -17,6 +17,8 @@ import { PowerbiComponent } from "src/app/prointernalengine/components/Reporting
 import { VendorStockComponent } from 'src/app/prointernalengine/components/Vendor/vendor-stock/vendor-stock.component';
 import { GatingComponent } from './prointernalengine/components/Product/Gating/gating.component';
 import { VendorSetupComponent } from 'src/app/prointernalengine/components/Vendor/vendor-setup/vendor-setup.component';
+import { ForecastComponent } from './prointernalengine/components/dashboards/accounting/forecast/forecast.component';
+
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -94,7 +96,13 @@ const routes: Routes = [
         },
         component: VendorStockComponent
       },
-
+         {
+        path: 'forecast',
+        data: {
+          breadcrumb: 'Forcasting'
+        },
+           component: ForecastComponent
+      },
       {
         path: 'setup',
         data: {

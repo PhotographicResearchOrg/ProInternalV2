@@ -42,13 +42,15 @@ import { VendorStockComponent } from './prointernalengine/components/Vendor/vend
 
 import { VendorSetupComponent } from './prointernalengine/components/Vendor/vendor-setup/vendor-setup.component';
 
+import { ForecastComponent } from './prointernalengine/components/dashboards/accounting/forecast/forecast.component';
+
 import { GatingComponent } from './prointernalengine/components/Product/Gating/gating.component';
 
 import { DialogModule } from 'primeng/dialog';
 import { BadgeModule } from 'primeng/badge';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ToolbarModule } from 'primeng/toolbar';
-
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 
 @NgModule({
@@ -61,12 +63,14 @@ import { ToolbarModule } from 'primeng/toolbar';
     VendorSetupComponent,
     RebatesupportComponent,
     DashboardAccountingComponent,
-    DashboardLandingComponent,
+      DashboardLandingComponent,
+      ForecastComponent,
     UploaderComponent,
     FileAppComponent
   ],
 
   imports: [
+    ProgressSpinnerModule,
     MessageModule,
     MessagesModule,
     InputGroupModule,

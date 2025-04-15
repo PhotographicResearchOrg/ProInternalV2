@@ -31,6 +31,7 @@ import { VendorStock } from 'src/app/models/vendor/vendorstock';
 import { tap, catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { VendorUser } from 'src/app/models/vendor/vendoruser';
+import { InvoiceRecord } from 'src/app/models/accounting/InvoiceRecord';
 
 @Injectable()
 export class DataService {
@@ -56,6 +57,10 @@ export class DataService {
   }
   applyCountryBrandExclusion(payload: CountryBrandRequest): Observable<any> {
     return this.api.post<any>('API/Product/apply-country-exclusion', payload);
+  }
+
+  getForecastInvoices(): Observable<InvoiceRecord[]> {
+    return this.api.get<InvoiceRecord[]>('api/Accounting/forecast');
   }
 
   getVendorStock() {

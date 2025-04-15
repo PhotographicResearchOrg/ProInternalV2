@@ -15,6 +15,7 @@ using System.Text.Json;
 using Newtonsoft.Json.Linq;
 using System.Data;
 using ProInternal.Models.Dashboard;
+using ProInternal.Models.InvoiceRecord;
 
 
 namespace ProInternal.Controllers
@@ -54,6 +55,22 @@ namespace ProInternal.Controllers
             return null;
 
         }
+
+
+
+        [HttpGet]
+        [Route("forecast")]
+        public IActionResult GetInvoices()
+        {
+            List<InvoiceRecord> result = this._proDataAccess.GetInvoices(); // Filter & map to DTO
+            return Ok(result);
+        }
+
+
+   
+
+
+
 
         //DataTable tbl
         private async Task<QuarterlyRebates> LoadQuarterlyData(IFormFile file)
