@@ -15,6 +15,8 @@ using Dapper;
 using Microsoft.Data.SqlClient;
 using ProInternal.Models.Exclusions;
 using Microsoft.AspNetCore.Mvc;
+using ProInternal.Models.InvoiceRecord;
+using ProInternal.Models.Patronage;
 
 namespace ProInternal.Services
 {
@@ -67,6 +69,8 @@ namespace ProInternal.Services
         VendorUserResponse saveVendorUser(VendorUser user);        
         List<VendorStock> GetVendorStock();
         List<VendorSearch> getAllVendors();
+        List<InvoiceRecord> GetInvoices();
+        void savePatronageData(List<PatronageUpload> data);
 
     }
 

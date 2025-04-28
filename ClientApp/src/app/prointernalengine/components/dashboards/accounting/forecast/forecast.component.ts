@@ -17,7 +17,19 @@ interface AggregatedForecast {
   historicalWeeksIncluded?: number;
   totalCycles?: number;
   paidCycles?: number;
+  expectedPaymentDate?: Date;
+  modalLag?: number;
+  confidencePercent: number | null;
 }
+interface ForecastHistory {
+  probability: number;
+  weeks: number;
+  paidCycles: number;
+  totalCycles: number;
+  modalLag?: number;
+  confidencePercent: number;
+}
+
 
 @Component({
   selector: 'app-forecast-visual',
@@ -38,6 +50,8 @@ export class ForecastComponent implements OnInit {
   selectedPresetWeights: number[] = [];
   useWeightedProbability = false;
   recencyWeights = [5, 4, 3, 2, 1];
+  showBehavioralForecast = false;
+  useBehavioralForecast = false;
 
 
   presetWeightOptions = [
@@ -72,6 +86,8 @@ export class ForecastComponent implements OnInit {
     });
   }
 
+
+
   updateForecasts(): void {
     if (!this.selectedWeekEnding) return;
 
@@ -88,17 +104,35 @@ export class ForecastComponent implements OnInit {
 
     this.selectedWeekRange = `${collectionStart.toLocaleDateString()} - ${collectionEnd.toLocaleDateString()}`;
 
-    const history = this.calculateHistoricalProbabilities(billFriday);
-    const invoices = this.invoiceData.filter(inv => inv.billDate >= collectionStart && inv.billDate <= collectionEnd);
+    const history = this.showBehavioralForecast
+      ? this.calculateBehavioralLagForecast(billFriday)
+      : this.calculateHistoricalProbabilities(billFriday);
+
+    //const invoices = this.showBehavioralForecast
+    //  ? this.invoiceData.filter(inv => inv.billDate <= collectionEnd)
+    //  : this.invoiceData.filter(inv => inv.billDate >= collectionStart && inv.billDate <= collectionEnd);
+
+    const invoices = this.showBehavioralForecast
+      ? this.invoiceData.filter(inv =>
+        inv.paidDate === undefined && inv.billDate <= collectionEnd
+      )
+      : this.invoiceData.filter(inv => inv.billDate >= collectionStart && inv.billDate <= collectionEnd);
+
+
 
     const map: { [key: number]: AggregatedForecast } = {};
+
     for (const inv of invoices) {
-      const p = history[inv.account]?.probability || 0;
-      if (p < thresholdDecimal) continue;
+      const p = history[inv.account]?.probability;
+      if (p === undefined) continue;
+
+      const adjustedThreshold = this.showBehavioralForecast ? 0.01 : thresholdDecimal;
+      if (p < adjustedThreshold) continue;
+
       if (!map[inv.account]) {
         map[inv.account] = {
           memberId: inv.account,
-          memberName: `#${inv.AccountName} (#${inv.account})`,
+          memberName: `${inv.accountName} (${inv.account})`,
           totalOutstanding: 0,
           paymentProbability: p,
           forecastedAmount: 0,
@@ -107,43 +141,96 @@ export class ForecastComponent implements OnInit {
           accuracyPercent: null,
           historicalWeeksIncluded: history[inv.account]?.weeks,
           paidCycles: history[inv.account]?.paidCycles,
-          totalCycles: history[inv.account]?.totalCycles
+          totalCycles: history[inv.account]?.totalCycles,
+          confidencePercent: history[inv.account]?.confidencePercent ?? null
         };
-      }
-      map[inv.account].totalOutstanding += inv.amount;
-      map[inv.account].forecastedAmount += inv.amount * p;
 
-      const expectedPaymentDate = new Date(billFriday);
-      expectedPaymentDate.setDate(billFriday.getDate() + 7);
+
+        const forecastHistory = history[inv.account] as ForecastHistory;
+
+           //if (this.showBehavioralForecast && forecastHistory?.modalLag !== undefined) {
+           //    const modalLag = (history[inv.account] as any).modalLag;
+           //    map[inv.account].modalLag = modalLag;
+           //   const forecastDate = new Date(inv.billDate);
+           //   forecastDate.setDate(forecastDate.getDate() + modalLag * 7);
+           //   map[inv.account].expectedPaymentDate = forecastDate;
+           //   }
+
+         
+
+         const modalLagRaw = history[inv.account]?.modalLag;
+
+        if (this.showBehavioralForecast && typeof modalLagRaw === 'number') {
+          const modalLag = Math.max(0, Math.min(12, modalLagRaw));
+          const forecastDate = new Date(inv.billDate);
+          forecastDate.setDate(forecastDate.getDate() + modalLag * 7);
+          forecastDate.setHours(0, 0, 0, 0);
+
+          map[inv.account].modalLag = modalLag;
+          map[inv.account].expectedPaymentDate = forecastDate;
+          map[inv.account].confidencePercent = history[inv.account]?.confidencePercent ?? null;
+        }
+
+
+
+      }
+      if (this.showBehavioralForecast && !inv.paidDate) {
+        map[inv.account].totalOutstanding += inv.amount;
+      } else if (!this.showBehavioralForecast) {
+        map[inv.account].totalOutstanding += inv.amount;
+      }
+
+        map[inv.account].forecastedAmount += inv.amount * p;
+
+
+        // For actuals comparison
+      const expectedPaymentDate = this.showBehavioralForecast
+        ? new Date(inv.billDate.getTime() + ((history[inv.account] as any)?.modalLag ?? 0) * 7 * 24 * 60 * 60 * 1000)
+        : new Date(billFriday.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+
+      expectedPaymentDate.setHours(0, 0, 0, 0);
 
       if (inv.paidDate?.toDateString() === expectedPaymentDate.toDateString()) {
         map[inv.account].actualAmount += inv.amount;
       }
     }
-
     const list = Object.values(map);
     for (const f of list) {
       f.variance = f.actualAmount - f.forecastedAmount;
-      f.accuracyPercent = f.actualAmount !== 0 ? Math.max(0, 100 - Math.abs(f.variance / f.actualAmount) * 100) : null;
+      f.accuracyPercent = f.actualAmount !== 0
+        ? Math.max(0, 100 - Math.abs(f.variance / f.actualAmount) * 100)
+        : null;
     }
 
     const total = list.reduce((sum, f) => sum + f.forecastedAmount, 0);
     const prev = this.grossForecast;
     this.grossForecast = total;
     this.filteredForecastData = list;
+
     if (prev !== 0) {
       this.changeFromLastWeek = ((total - prev) / prev) * 100;
     }
+
     const prevAcc = this.getAverageAccuracyRaw(this.filteredForecastData);
     setTimeout(() => {
       this.accuracyChange = this.getAverageAccuracyRaw(this.filteredForecastData) - prevAcc;
     });
   }
 
-  calculateHistoricalProbabilities(validationFriday: Date): {
-    [account: number]: { probability: number, weeks: number, paidCycles: number, totalCycles: number }
-  } {
-    const result: { [account: number]: { probability: number, weeks: number, paidCycles: number, totalCycles: number } } = {};
+  getTooltipText(row: any): string {
+    if (this.showBehavioralForecast) {
+      return `This client pays with a lag of ${row.modalLag ?? '?'} week${(row.modalLag ?? 0) !== 1 ? 's' : ''} in ${(row.confidencePercent * 100).toFixed(0)}% of cases (±1 week band).`;
+    } else {
+      return `Probability based on ${row.paidCycles}/${row.totalCycles} historical payment events.`;
+    }
+  }
+
+
+
+  calculateHistoricalProbabilities(validationFriday: Date): {[account: number]: ForecastHistory } {
+    const result: { [account: number]: { probability: number, weeks: number, paidCycles: number, totalCycles: number, confidencePercent: 0} } = {};
+
     const forecastWindow = new Date(validationFriday);
     forecastWindow.setDate(forecastWindow.getDate() - 14); // 2 weeks before forecast
 
@@ -155,7 +242,7 @@ export class ForecastComponent implements OnInit {
       if (billDate > forecastWindow) continue;
 
       if (!result[acc]) {
-        result[acc] = { probability: 0, weeks: 0, paidCycles: 0, totalCycles: 0 };
+        result[acc] = { probability: 0, weeks: 0, paidCycles: 0, totalCycles: 0, confidencePercent: 0 };
       }
 
       // Always count invoice
@@ -189,12 +276,114 @@ export class ForecastComponent implements OnInit {
       result[+acc].probability = totalCycles > 0 ? paidCycles / totalCycles : 0;
     }
 
+
+
     return result;
   }
+
 
   getTotalActual(): number {
     return this.filteredForecastData.reduce((sum, f) => sum + f.actualAmount, 0);
   }
+
+  calculateBehavioralLagForecast(validationFriday: Date): {
+    [account: number]: ForecastHistory
+  } {
+    const lagMap: { [account: number]: number[] } = {};
+    const result: { [account: number]: ForecastHistory } = {};
+
+    // Step 1: Capture lag in weeks
+    for (const inv of this.invoiceData) {
+      if (!inv.paidDate) continue;
+
+      const billDate = new Date(inv.billDate);
+      const paidDate = new Date(inv.paidDate);
+      const lagInDays = (paidDate.getTime() - billDate.getTime()) / (1000 * 60 * 60 * 24);
+      const lagInWeeks = Math.round(lagInDays / 7);
+
+      if (lagInWeeks < 0 || lagInWeeks > 12) continue;
+
+      if (!lagMap[inv.account]) {
+        lagMap[inv.account] = [];
+      }
+      lagMap[inv.account].push(lagInWeeks);
+    }
+
+    // Step 2: Modal lag per account
+    const modalLagMap: { [account: number]: number } = {};
+    for (const acc in lagMap) {
+      const lags = lagMap[acc];
+      const counts: { [lag: number]: number } = {};
+      for (const lag of lags) {
+        counts[lag] = (counts[lag] || 0) + 1;
+      }
+
+      const modalLag = +Object.keys(counts).reduce((a, b) =>
+        counts[+a] > counts[+b] ? a : b
+      );
+
+      modalLagMap[+acc] = modalLag;
+
+      // Confidence: % of lags within ±1 week of modal
+      const closeCount = lags.filter(lag => Math.abs(lag - modalLag) <= 1).length;
+      const confidence = lags.length > 0 ? closeCount / lags.length : 0;
+
+      result[+acc] = {
+        probability: 0,
+        weeks: lags.length,
+        paidCycles: 0,
+        totalCycles: 0,
+        modalLag,
+        confidencePercent: confidence
+      };
+    }
+
+    // Step 3: Compute paid cycles using modal lag
+    for (const inv of this.invoiceData) {
+      const acc = inv.account;
+      const modalLag = modalLagMap[acc];
+      if (modalLag === undefined || !result[acc]) continue;
+
+      const billDate = new Date(inv.billDate);
+      const expectedPaidDate = new Date(billDate);
+      expectedPaidDate.setDate(billDate.getDate() + modalLag * 7);
+      expectedPaidDate.setHours(0, 0, 0, 0);
+
+      const paidDate = inv.paidDate ? new Date(inv.paidDate) : undefined;
+
+      result[acc].totalCycles++;
+
+      if (paidDate?.toDateString() === expectedPaidDate.toDateString()) {
+        result[acc].paidCycles++;
+      }
+    }
+
+    // Final probability calculation
+    for (const acc in result) {
+      const r = result[+acc];
+      r.probability = r.totalCycles > 0 ? r.paidCycles / r.totalCycles : 0;
+    }
+
+    // Debug for account 3361
+    if (result[3361]) {
+      const debug = result[3361];
+      console.log('🔍 Debug for account 3361 — Behavioral Lag Forecast:');
+      console.log(`  • Modal Lag (weeks): ${debug.modalLag}`);
+      console.log(`  • Paid Cycles: ${debug.paidCycles}`);
+      console.log(`  • Total Cycles: ${debug.totalCycles}`);
+      console.log(`  • Probability: ${(debug.probability * 100).toFixed(1)}%`);
+      console.log(`  • Confidence: ${(debug.confidencePercent * 100).toFixed(1)}%`);
+    }
+
+    return result;
+  }
+
+
+
+
+
+
+
 
   getTotalInvoiced(): number {
     return this.filteredForecastData.reduce((sum, f) => sum + f.totalOutstanding, 0);
@@ -230,6 +419,14 @@ export class ForecastComponent implements OnInit {
     const sum = valid.reduce((acc, f) => acc + (f.accuracyPercent ?? 0), 0);
     return valid.length > 0 ? sum / valid.length : 0;
   }
+
+
+
+  
+
+
+
+
 
   getRecentFridays(n: number): Date[] {
     const fridays: Date[] = [];

@@ -23,6 +23,9 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using Microsoft.EntityFrameworkCore;
 using System.Numerics;
 using Microsoft.AspNetCore.OutputCaching;
+using ProInternal.Models.InvoiceRecord;
+using ProInternal.Models.Patronage;
+using System.Reflection.PortableExecutable;
 
 
 namespace ProInternal.Services
@@ -30,10 +33,15 @@ namespace ProInternal.Services
     public class ProDataAccess : IProDataAccess
     {
         private string _connectionString { get; set; }
+ 
+
         public ProDataAccess(string connectionString)
         {
             _connectionString = connectionString;
+   
         }
+
+
 
         #region QuarterlyRebates
 
@@ -56,6 +64,18 @@ namespace ProInternal.Services
                 return output;
             }
         }
+
+     
+        public List<InvoiceRecord> GetInvoices()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<InvoiceRecord>("GetEzpayInvoices").ToList();
+
+                return output;
+            }
+        }
+
 
 
         public List<VendorStock> GetVendorStock()
@@ -244,13 +264,72 @@ namespace ProInternal.Services
         }
 
 
+    
+        public void savePatronageData(List<PatronageUpload> data )
+        {
+
+            var batchId = "PATR-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+
+            var table = new DataTable();
+            table.Columns.Add("AccountID", typeof(int));
+            table.Columns.Add("TotalValue", typeof(decimal));
+            table.Columns.Add("Perc", typeof(decimal));
+            table.Columns.Add("Shares", typeof(decimal));
+            table.Columns.Add("Balance", typeof(decimal));
+            table.Columns.Add("Profit", typeof(decimal));
+            table.Columns.Add("Dividend", typeof(decimal));
+            table.Columns.Add("Payment", typeof(decimal));
+            table.Columns.Add("Credit", typeof(decimal));
+            table.Columns.Add("DateLoaded", typeof(DateTime));
+            table.Columns.Add("BatchID", typeof(string));
+            table.Columns.Add("StockValue", typeof(decimal));
+            table.Columns.Add("TaxWithholding", typeof(decimal));
+            table.Columns.Add("Withdrawal", typeof(decimal));
+            table.Columns.Add("EndingRetention", typeof(decimal));
+
+            foreach (var item in data)
+            {
+                table.Rows.Add(
+                    item.accountID,
+                    item.totalValue ?? (object)DBNull.Value,
+                    item.perc ?? (object)DBNull.Value,
+                    item.shares ?? (object)DBNull.Value,
+                    item.balance ?? (object)DBNull.Value,
+                    item.profit ?? (object)DBNull.Value,
+                    item.dividend ?? (object)DBNull.Value,
+                    item.payment ?? (object)DBNull.Value,
+                    item.credit ?? (object)DBNull.Value,
+                    item.dateLoaded,
+                    batchId,
+                    item.stockValue ?? (object)DBNull.Value,
+                    item.taxWithholding ?? (object)DBNull.Value,
+                    item.withdrawal ?? (object)DBNull.Value,
+                    item.endingRetention ?? (object)DBNull.Value
+                );
+            }
+
+
+            var p = new DynamicParameters();
+            p.Add("@PatronageUploads", table.AsTableValuedParameter("PatronageUploadTableType"));
+
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var output = connection.Query<string>("InsertPatronageUploads", table, commandType: CommandType.StoredProcedure).FirstOrDefault();
+                }
+                catch (Exception e) { }
+                finally { }
+             
+            }
+        }
+
+
+
 
 
         public QuarterlyRebates saveData(QuarterlyRebates data)
         {
-            //ListtoDataTableConverter converter = new ListtoDataTableConverter();
-            //DataTable Headers = converter.ToDataTable(data.ProgramList);
-
 
             DataTable Headers = new DataTable();
 
@@ -484,17 +563,7 @@ namespace ProInternal.Services
         }
 
 
-        //public User login(string username, string password)
-        //{
-        //    using (IDbConnection connection = new SqlConnection(_connectionString))
-        //    {
-        //        var output = connection.QueryMultiple("Auth_Login @username, @password", new { username = username, password = password });
-        //        User user = null;
-        //        try { user = output.Read<User>().FirstOrDefault(); }
-        //        catch { }  
-        //        return user;
-        //    }
-        //}
+
 
 		#region Exclusions
         public int Exclusion_CreateGroup(string groupName) {

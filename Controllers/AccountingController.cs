@@ -16,6 +16,7 @@ using Newtonsoft.Json.Linq;
 using System.Data;
 using ProInternal.Models.Dashboard;
 using ProInternal.Models.InvoiceRecord;
+using ProInternal.Models.Patronage;
 
 
 namespace ProInternal.Controllers
@@ -67,12 +68,89 @@ namespace ProInternal.Controllers
         }
 
 
-   
+
+        [HttpPost, DisableRequestSizeLimit]
+        [Route("LoadPatronageFile")]
+        // public async Task<IEnumerable<SellThroughUploadError>> UploadSellThrough([FromForm] string date)
+        public async Task<ActionResult> PatronageResult(IFormFile file)
+        {
+            List<PatronageUpload> Loadeddata = await LoadPatronageFile(file);
+            if (Loadeddata == null)
+            {
+            
+            }
+            else
+            {
+        
+                   this._proDataAccess.savePatronageData(Loadeddata);
+
+            }
+
+            return null;
+
+        }
 
 
 
+        private async Task<List<PatronageUpload>> LoadPatronageFile(IFormFile file)
+        {
+            string requestBody = await new StreamReader(file.OpenReadStream()).ReadToEndAsync();
+            var root = JsonConvert.DeserializeObject<dynamic>(requestBody.ToString());
+            var patronageUploads = new List<PatronageUpload>();
 
-        //DataTable tbl
+            List<string> Term = new List<string>();
+
+            DataTable dt = new DataTable();
+            dt.Columns.Add("MemberNumber");
+            dt.Columns.Add("Member");
+
+            ////Get terms names
+            foreach (var field in root[0])
+                if (!string.IsNullOrEmpty(field.ToString()))
+                {
+
+                    //Do validation here. 
+                    Term.Add(field.ToString());
+                }
+
+
+
+            // Assuming first row is header, start from row 1
+            for (int i = 2; i < root.Count; i++)
+            {
+                var row = root[i];
+                try
+                {
+                    PatronageUpload entry = new PatronageUpload
+                    {
+                        accountID = row.Count > 0 ? row[0]: 0,
+                        totalValue = row.Count > 1 ? row[2] : 0,
+                        perc = row.Count > 2 ? row[4] : 0,
+                        shares = row.Count > 3 ? row[5] : 0,
+                        balance = row.Count > 4 ? row[6] : 0,
+                        profit = row.Count > 5 ? row[7] : 0,
+                        dividend = row.Count > 6 ? row[8] : 0,
+                        payment = row.Count > 7 ? row[10] : 0,
+                        credit = row.Count > 8 ? row[11] : 0,
+                        dateLoaded = DateTime.Now,
+                        batchID = "", // You can set BatchID later
+                        stockValue = row.Count > 9 ? row[3] : 0,
+                        taxWithholding = row.Count > 10 ? row[9] : 0,
+                        withdrawal =  "",
+                        endingRetention = row.Count > 12 ? row[12] : 0,
+                    };
+
+                    patronageUploads.Add(entry);
+                }
+                catch (Exception ex)
+                {
+                    // Log or handle parsing error
+                }
+            }
+            return patronageUploads;
+        }
+
+
         private async Task<QuarterlyRebates> LoadQuarterlyData(IFormFile file)
         {  
             string requestBody = await new StreamReader(file.OpenReadStream()).ReadToEndAsync();
@@ -89,7 +167,7 @@ namespace ProInternal.Controllers
 
             //1st line are periods. 
             //Get terms names
-            foreach (var field in root[0])
+                    foreach (var field in root[0])
                     if (!string.IsNullOrEmpty(field.ToString()))
                     {
                         Term.Add(field.ToString());
@@ -115,8 +193,8 @@ namespace ProInternal.Controllers
             //Need to build Program Name 
             foreach (var getVendor in Vendor)
             {
-                try { Programs.Add(Vendor[HeaderCounter] + " - " + Term[HeaderCounter]); 
-                }
+                try 
+                { Programs.Add(Vendor[HeaderCounter] + " - " + Term[HeaderCounter]); }
                 catch (Exception e) { }
                 finally { HeaderCounter++; }
             }
@@ -166,9 +244,8 @@ namespace ProInternal.Controllers
             //I now have my dtaa table 
             //save data 
             return newData;
-
-
         }
+
 
         [HttpGet]
         [Route("getCurrentQuarterlyData")]

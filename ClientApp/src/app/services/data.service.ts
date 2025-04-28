@@ -32,11 +32,37 @@ import { tap, catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { VendorUser } from 'src/app/models/vendor/vendoruser';
 import { InvoiceRecord } from 'src/app/models/accounting/InvoiceRecord';
+import { PatronageUpload, PatronageHistorical, patronageDetail } from "src/app/models/accounting/patronage";
 
 @Injectable()
 export class DataService {
 
   constructor(private api: ApiService) { }
+
+
+
+  getRecentPatronageLoad(): Observable<PatronageUpload[]> {
+    return this.api.get<PatronageUpload[]>('/api/patronage/recentload');
+  }
+  getPatronageHistorical(): Observable<PatronageHistorical[]> {
+    return this.api.get<PatronageHistorical[]>('/api/patronage/historical');
+  }
+  activatePatronage(id: number): Observable<any> {
+    return this.api.post('/api/patronage/activate', { id });
+  }
+  pullPatronageBatchVendorDetail(id: string): Observable<patronageDetail[]> {
+    return this.api.get<patronageDetail[]>(`/api/patronage/batchvendor/${id}`);
+  }
+  pullPatronageBatchDetail(id: number): Observable<patronageDetail[]> {
+    return this.api.get<patronageDetail[]>(`/api/patronage/batch/${id}`);
+  }
+  deletePatronageUpload(id: number): Observable<any> {
+    return this.api.delete('/api/patronage/delete', id);
+  }
+
+
+
+
 
 
   // data.service.ts
@@ -85,16 +111,23 @@ export class DataService {
     return this.api.get<Array<QuarterlyRebates>>('API/Accounting/CurrentQuarterLiability');
   }
 
+
   getEmbedConfig() {
     return this.api.get<{ token: string; embedUrl: string; reportId: string }>('API/PowerBI/token');
   }
+
   uploadQuarterlyFile(file: File) {
     const formData: any = new FormData();
     formData.append(`file`, file, file.name);
     return this.api.postBlob(`API/Accounting/LoadQuarterFile`, formData)
   }
 
-
+  uploadPatronageFile(file: File) {
+    const formData: any = new FormData();
+    formData.append(`file`, file, file.name);
+    return this.api.postBlob(`API/Accounting/LoadPatronageFile`, formData)
+  }
+  
   GetInstantRebateBatches() {
     return this.api.get<Array<InstantRebate>>('API/InstantRebates/GetInstantRebateBatches');
   }

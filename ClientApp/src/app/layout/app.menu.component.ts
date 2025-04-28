@@ -29,7 +29,8 @@ export class AppMenuComponent implements OnInit {
               items: [
                 { label: 'Accounting Dash', icon: 'pi pi-fw pi-sign-in', routerLink: ['/dashboard-accounting'] },
                 { label: 'Quarterly Rebates', icon: 'pi pi-fw pi-times-circle', routerLink: ['/qtr-rebates'] },
-                { label: 'Forecating', icon: 'pi pi-chart-line', routerLink: ['/forecast'] }
+                { label: 'Forecasting', icon: 'pi pi-chart-line', routerLink: ['/forecast'] },
+                { label: 'Patronage', icon: 'pi pi-file', routerLink: ['/patronage'] }
               ]
             },
             { label: 'Product', icon: 'pi pi-fw pi-money-bill', routerLink: ['/dashboard-banking'] }

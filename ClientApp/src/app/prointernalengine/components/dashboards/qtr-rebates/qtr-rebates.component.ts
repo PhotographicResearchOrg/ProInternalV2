@@ -20,10 +20,8 @@ import * as XLSX from 'xlsx';
 
 export class QtrRebatesComponent implements OnInit {
 
-
   menuitems: MenuItem[] = [];
   subscription: Subscription;
-
   QuarterlyRebates: QuarterlyRebates[] = [];
 
   public quarterlyrebates: Array<QuarterlyRebates> = [];
@@ -52,15 +50,12 @@ export class QtrRebatesComponent implements OnInit {
       { label: 'Search', icon: 'pi pi-search' },
     ];
   }
-
   setValue(event: any) {
     this.vendorDownload = event
   }
-
   onReload() {
     window.location.reload();
   }
-
   getTotalRebateAmount(): number {
     return this.QuarterlyRebates.reduce((sum, m) => sum + m.totalAmount, 0);
   }
@@ -76,11 +71,8 @@ export class QtrRebatesComponent implements OnInit {
   this.dataService.activate(item).subscribe((resp) => { });
 
   }
-
-
   DownloadVendor(event: any)
   {
-   
     //batch id comma program id
     this.dataService.pullQRBatchVendorDetail(this.vendorDownload).subscribe((resp) => {
       const data: any[] = resp;
@@ -107,13 +99,7 @@ export class QtrRebatesComponent implements OnInit {
       XLSX.writeFile(wb, item.issueDate + '.xlsx');
 
     });
-
-
-
-
-
   }
-
   }
 
   

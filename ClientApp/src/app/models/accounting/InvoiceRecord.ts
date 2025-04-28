@@ -4,5 +4,5 @@
     public billDate: Date;
     public paidDate?: Date;
     public amount: number;
-    public AccountName: string;
+    public accountName: string;
 }

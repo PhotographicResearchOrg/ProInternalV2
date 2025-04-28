@@ -18,7 +18,7 @@ import { VendorStockComponent } from 'src/app/prointernalengine/components/Vendo
 import { GatingComponent } from './prointernalengine/components/Product/Gating/gating.component';
 import { VendorSetupComponent } from 'src/app/prointernalengine/components/Vendor/vendor-setup/vendor-setup.component';
 import { ForecastComponent } from './prointernalengine/components/dashboards/accounting/forecast/forecast.component';
-
+import { PatronageComponent } from './prointernalengine/components/dashboards/patronage/patronage.component';
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -47,6 +47,8 @@ const routes: Routes = [
           permissions: ['Quarterly']
         }
       },
+
+
 
       {
         path: 'powerbi',
@@ -103,6 +105,17 @@ const routes: Routes = [
         },
            component: ForecastComponent
       },
+
+
+      {
+        path: 'patronage',
+        data: {
+          breadcrumb: 'Patronage'
+        },
+        component: PatronageComponent
+      },
+
+
       {
         path: 'setup',
         data: {

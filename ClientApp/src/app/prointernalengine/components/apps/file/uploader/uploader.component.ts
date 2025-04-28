@@ -5,7 +5,7 @@ import { DataService } from "src/app/services/data.service";
 import * as XLSX from 'xlsx';
 //import * as FileSaver from 'file-saver';
 import { HttpClient, HttpEventType } from '@angular/common/http';
-
+import { Input } from '@angular/core';
 
 interface Image {
     name: string;
@@ -18,6 +18,8 @@ interface Image {
     providers: [MessageService]
 })
 export class UploaderComponent {
+
+  @Input() mode: 'rebate' | 'patronage' = 'rebate';   
 
   @Output() reload: EventEmitter<void> = new EventEmitter<void>();
 
@@ -40,16 +42,9 @@ export class UploaderComponent {
 
 
   onUpload(event: any) {
-
-    //for (let file of event.files) {
-    //  this.uploadedFiles.push(file);
-    //}
-    //const file = this.uploadedFiles[0];
-
     const file = event.files[0];
     const reader = new FileReader();
     var filename = file.name
-    //var file_ext = filename.substr(filename.lastIndexOf('.'), filename.length);
 
     reader.onload = (e: any) => {
       const data = new Uint8Array(reader.result as ArrayBuffer);
@@ -65,17 +60,23 @@ export class UploaderComponent {
         console.log('Excel data:', this.excelData);
 
         var jsonString = JSON.stringify(this.excelData);
-
+        console.log(jsonString)
         //ExcelUpload
         const blob = new Blob([jsonString], { type: "application/json" });
         const fileData = new File([blob], filename, { type: 'application/json' })
 
-        this.dataService.uploadQuarterlyFile(
-
-          fileData).subscribe(event => {
+        if (this.mode === 'rebate') {
+          console.log('rebate')
+          this.dataService.uploadQuarterlyFile(fileData).subscribe(event => {
             this.reload.emit();
-        
           });
+        }
+        else if (this.mode === 'patronage') {
+          console.log('patronage')
+          this.dataService.uploadPatronageFile(fileData).subscribe(event => {
+            this.reload.emit();
+          });
+        }
       }
       catch (error)
       {
