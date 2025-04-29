@@ -49,6 +49,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { ToolbarModule } from 'primeng/toolbar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
+import { MessageService } from 'primeng/api';
 
 
 @NgModule({
@@ -110,6 +111,7 @@ import { TooltipModule } from 'primeng/tooltip';
     [
       FileAppService,
       DataService,
+      MessageService
     ],
     bootstrap: [AppComponent]
 })

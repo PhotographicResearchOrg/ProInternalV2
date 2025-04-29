@@ -1,33 +1,129 @@
 <div class="grid">
-  <div *ngFor="let metric of PatronageUploads" class="col-12 md:col-6 lg:col-3">
-    <div class="card h-full">
-      <div class="flex align-items-center justify-content-between mb-3">
-        <span class="text-900 text-xl font-semibold">Account {{metric.accountID}}</span>
-      </div>
-      <div>
-        <div ngClass="bg-green-100" class="border-round" style="height: 6px">
-          <div ngClass="bg-green-500" class="h-full border-round" [style.width]="getMetricPercentage(metric)"></div>
-        </div>
-        <span class="text-sm text-color-secondary mt-1 d-block">{{ getMetricPercentage(metric) }} of total</span>
 
-        <div class="flex align-items-center justify-content-between">
-          <span class="text-900 mt-3 text-md font-medium">{{metric.totalValue | currency}}</span>
-          <span class="text-900 mt-3 text-md font-medium">{{metric.dateLoaded | date}}</span>
+  <p-toast></p-toast>
+
+  <!-- Top Header Info -->
+  <div class="col-12">
+    <div class="card h-full p-3">
+      <div class="flex flex-column md:flex-row justify-content-between align-items-center">
+        <div>
+          <div class="text-900 text-xl font-semibold">Batch: {{batchSummary?.batchID}}</div>
+          <div class="text-600 text-sm mt-1">Loaded on: {{batchSummary?.dateLoaded | date:'short'}}</div>
+        </div>
+
+        <div class="mt-3 md:mt-0">
+          <button pButton type="button" label="Download Batch Summary" icon="pi pi-download" (click)="downloadBatchSummary()"></button>
+        </div>
+        <div class="mt-3 md:mt-0">
+          <button pButton type="button" label="Download Full Batch Excel" icon="pi pi-download" (click)="downloadFullBatchExcel()"></button>
+        </div>
+      </div>
+
+
+      <!-- Mismatch Warning -->
+      <div *ngIf="hasMismatch" class="mt-3">
+        <div class="p-2 bg-yellow-100 border-round text-yellow-700 flex align-items-center">
+          <i class="pi pi-exclamation-triangle mr-2"></i>
+          Warning: Totals do not match expected Excel values.
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Batch Totals Card -->
+  <div class="col-12 md:col-6 lg:col-4">
+    <div class="card h-full p-3">
+      <div class="flex align-items-center justify-content-between mb-3">
+        <span class="text-900 text-xl font-semibold">Gross Batch Totals</span>
+      </div>
+
+      <div class="mt-2" *ngFor="let field of summaryFields">
+        <div class="flex justify-content-between mt-2">
+          <span class="text-600 font-medium">{{field.label}}:</span>
+          <span class="text-900 font-semibold">{{ getGrossTotal(field.key) | number:'1.0-2' }} {{ field.currency ? '$' : '' }}</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="col-12 mt-4">
+    <button pButton type="button" label="View Member Details" icon="pi pi-users" (click)="toggleDrillDown()" class="p-button-outlined p-button-primary"></button>
+  </div>
+
+
+  <div *ngIf="showDrillDown" class="col-12 mt-2">
+    <p-table #dt
+             [value]="PatronageUploads"
+             [paginator]="true"
+             [rows]="10"
+             [rowsPerPageOptions]="[5,10,25,50]"
+             [responsiveLayout]="'scroll'"
+             [globalFilterFields]="['accountID', 'totalValue', 'shares', 'balance', 'profit', 'dividend', 'payment', 'credit', 'stockValue', 'taxWithholding', 'endingRetention']"
+             [sortMode]="'multiple'">
+
+      <!-- Global Search Box -->
+      <ng-template pTemplate="caption">
+        <div class="flex justify-content-end">
+          <span class="p-input-icon-left">
+            <i class="pi pi-search"></i>
+            <input #globalFilterInput
+                   pInputText
+                   type="text"
+                   (input)="dt.filterGlobal(globalFilterInput.value, 'contains')"
+                   placeholder="Search all members..." />
+          </span>
+        </div>
+      </ng-template>
+
+      <!-- Table Header -->
+      <ng-template pTemplate="header">
+        <tr>
+          <th pSortableColumn="accountID">Account ID <p-sortIcon field="accountID"></p-sortIcon></th>
+          <th pSortableColumn="totalValue">Total Value <p-sortIcon field="totalValue"></p-sortIcon></th>
+          <th pSortableColumn="balance">Balance <p-sortIcon field="balance"></p-sortIcon></th>
+          <th pSortableColumn="profit">Profit <p-sortIcon field="profit"></p-sortIcon></th>
+          <th pSortableColumn="dividend">Dividend <p-sortIcon field="dividend"></p-sortIcon></th>
+          <th pSortableColumn="payment">Payment <p-sortIcon field="payment"></p-sortIcon></th>
+          <th pSortableColumn="credit">Credit <p-sortIcon field="credit"></p-sortIcon></th>
+          <th pSortableColumn="stockValue">Stock Value <p-sortIcon field="stockValue"></p-sortIcon></th>
+          <th pSortableColumn="taxWithholding">Tax Withholding <p-sortIcon field="taxWithholding"></p-sortIcon></th>
+          <th pSortableColumn="endingRetention">Ending Retention <p-sortIcon field="endingRetention"></p-sortIcon></th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-upload>
+        <tr>
+          <td>{{ upload.accountID }}</td>
+          <td>{{ upload.totalValue | currency }}</td>
+          <td>{{ upload.balance | currency }}</td>
+          <td>{{ upload.profit | currency }}</td>
+          <td>{{ upload.dividend | currency }}</td>
+          <td>{{ upload.payment | currency }}</td>
+          <td>{{ upload.credit | currency }}</td>
+          <td>{{ upload.stockValue | currency }}</td>
+          <td>{{ upload.taxWithholding | currency }}</td>
+          <td>{{ upload.endingRetention | currency }}</td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+
+
+
+
   <div class="col-12 md:col-6 lg:col-12">
     <div class="card h-full">
-      <app-file-uploader mode="patronage" (reload)="onReload()"></app-file-uploader>
+      <app-file-uploader mode="patronage" (reload)="onReload($event)"></app-file-uploader>
     </div>
   </div>
 
   <div class="col-14 md:col-9 xl:col-12">
     <div class="card">
       <div class="text-900 text-xl font-semibold mb-3">Patronage Summary Uploads</div>
+
       <p-table responsiveLayout="scroll" #dt [value]="PatronageHistorical" [rows]="8" [paginator]="true">
+
+
         <ng-template pTemplate="header">
           <tr>
             <th pSortableColumn="id" style="min-width:2rem" class="white-space-nowrap">Batch ID <p-sortIcon field="id"></p-sortIcon></th>
@@ -44,10 +140,12 @@
               <div class="flex align-items-center">
                 <i class="text-xl text-primary mr-2 pi pi-key"></i>
                 <span>{{patronage.id}}</span>
+                <i *ngIf="selectedBatchId === patronage.id" class="pi pi-check-circle text-success ml-2"></i>
+             
               </div>
             </td>
             <td>
-              <p-inputSwitch (onChange)="Activate(patronage.id)" [(ngModel)]="patronage.active"></p-inputSwitch>
+              <p-inputSwitch (onChange)="Activate(patronage)" [(ngModel)]="patronage.active"></p-inputSwitch>
             </td>
             <td>
               <span>{{patronage.issueDate | date}}</span>
@@ -56,8 +154,16 @@
               <span>{{patronage.totalAmount | currency}}</span>
             </td>
             <td class="text-center">
+              <button (click)="SelectBatch(patronage)"
+                      pButton
+                      pRipple
+                      icon="pi pi-check"
+                      label="Select"
+                      class="p-button-success p-button-text p-button-rounded mr-2">
+              </button>
               <button (click)="Delete(patronage)" pButton pRipple icon="pi pi-times" class="p-button-danger p-button-text p-button-rounded mr-2"></button>
               <button (click)="Download(patronage)" pButton pRipple icon="pi pi-file-excel" class="p-button-text p-button-rounded"></button>
+
             </td>
           </tr>
         </ng-template>

@@ -59,6 +59,11 @@ namespace ProInternal.Controllers
 
 
 
+
+
+
+
+
         [HttpGet]
         [Route("forecast")]
         public IActionResult GetInvoices()
@@ -69,11 +74,70 @@ namespace ProInternal.Controllers
 
 
 
+
+
+
+
+
+
+
+        [HttpGet]
+        [Route("GetPatronageHistorical")]
+        public IActionResult GetPatronageHistorical()
+        {
+            List<PatronageHistorical> result = this._proDataAccess.GetPatronageHistorical();
+
+            return Ok(result);
+        }
+
+        [HttpPut]
+        [Route("ActivatePatronageBatch")]
+        public bool ActivatePatronageBatch([FromBody] PatronageActivationRequest request)
+        {
+            return this._proDataAccess.activatePatronageBatch(request.BatchID, request.Active);
+        }
+
+
+        [HttpGet]
+        [Route("getPatronageBatchDetails/{batchID}")]
+        public ActionResult<List<PatronageUpload>> getPatronageBatchDetails(string batchID)
+        {
+            var details = this._proDataAccess.getPatronageBatchDetails(batchID);
+
+            if (details == null || !details.Any())
+            {
+                return NotFound();
+            }
+
+            return Ok(details);
+        }
+
+
+
+
+
+
+        [HttpGet]
+        [Route("GetRecentPatronageLoad")]
+        public IActionResult GetRecentPatronageLoad()
+        {
+            List<PatronageUpload> result = this._proDataAccess.GetRecentPatronageLoad(); 
+           
+            return Ok(result);
+        }
+
+
+
         [HttpPost, DisableRequestSizeLimit]
         [Route("LoadPatronageFile")]
         // public async Task<IEnumerable<SellThroughUploadError>> UploadSellThrough([FromForm] string date)
         public async Task<ActionResult> PatronageResult(IFormFile file)
         {
+
+
+
+
+
             List<PatronageUpload> Loadeddata = await LoadPatronageFile(file);
             if (Loadeddata == null)
             {
@@ -81,12 +145,12 @@ namespace ProInternal.Controllers
             }
             else
             {
-        
+       
                    this._proDataAccess.savePatronageData(Loadeddata);
 
             }
 
-            return null;
+            return Ok(new { success = true, message = "Patronage file uploaded successfully." });
 
         }
 
@@ -264,7 +328,20 @@ namespace ProInternal.Controllers
         }
 
 
-        [HttpPut]
+
+
+        [HttpPut("DeletePatronageLoad")]
+        public bool DeletePatronageLoad([FromBody] DeletePatronageRequest request)
+        {
+            return this._proDataAccess.deletePatronageLoad(request.Id);
+
+        }
+
+
+
+
+
+    [HttpPut]
         [Route("deleteQRUpload/{batchID}")]
         public bool deleteQRUpload(int batchID)
         {
@@ -279,9 +356,6 @@ namespace ProInternal.Controllers
             return this._proDataAccess.activate(batchID);
 
         }
-
-        
-
 
 
         [HttpGet]

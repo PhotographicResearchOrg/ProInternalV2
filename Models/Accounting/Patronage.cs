@@ -31,11 +31,24 @@ namespace ProInternal.Models.Patronage
 
     public class PatronageHistorical
     {
-        public int? id { get; set; }
+        public string? id { get; set; }
         public DateTime? issueDate { get; set; }
         public float? totalAmount { get; set; }
         public bool active { get; set; }
     }
+
+    public class DeletePatronageRequest
+    {
+        public string Id { get; set; }
+    }
+
+
+    public class PatronageActivationRequest
+    {
+        public string BatchID { get; set; }
+        public bool Active { get; set; }
+    }
+
 
 }
 //    export interface patronageDetail

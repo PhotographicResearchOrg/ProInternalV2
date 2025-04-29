@@ -46,9 +46,12 @@ namespace ProInternal.Services
 
         List<QuarterlyDataHistorical> getHistoricalQRData();
 
+        List<PatronageUpload> getPatronageBatchDetails(string batchID);
+
+        bool deletePatronageLoad(string id);
         bool deleteQRUpload(int batchID);
         bool activate(int batchID);
-      
+        bool activatePatronageBatch(string batchID, bool active);
         List<qrDetail> getQRBatchDetail(int batchID);
         List<qrDetail> getQRBatchVendorDetail(string batchID);
         List<GatedProducts> getGatedRetailers();
@@ -71,6 +74,10 @@ namespace ProInternal.Services
         List<VendorSearch> getAllVendors();
         List<InvoiceRecord> GetInvoices();
         void savePatronageData(List<PatronageUpload> data);
+        List<PatronageUpload>GetRecentPatronageLoad();
+
+        List<PatronageHistorical> GetPatronageHistorical();
+
 
     }
 

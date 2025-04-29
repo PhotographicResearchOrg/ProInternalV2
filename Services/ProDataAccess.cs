@@ -231,6 +231,81 @@ namespace ProInternal.Services
         }
 
 
+        
+        public List<PatronageUpload> GetRecentPatronageLoad()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<PatronageUpload>("GetRecentPatronage").ToList();
+
+                return output;
+            }
+        }
+
+
+        public List<PatronageHistorical> GetPatronageHistorical()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<PatronageHistorical>("GetPatronageHistorical").ToList();
+
+                return output;
+            }
+        }
+
+
+        public bool activatePatronageBatch(string batchID, bool active)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                try
+                {
+                    var parameters = new { BatchID = batchID, Active = active };
+
+                    var result = connection.Execute(
+                        "UpdatePatronageBatchActive",   
+                        parameters,
+                        commandType: CommandType.StoredProcedure
+                    );
+
+                    return result > 0;
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
+            }
+        }
+
+
+        public List<PatronageUpload> getPatronageBatchDetails(string batchID)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<PatronageUpload>("getPatronageBatchDetails @batchID", new { batchID = batchID }).ToList();
+                return output;
+            }
+        }
+
+
+
+
+
+        public bool deletePatronageLoad(string id)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                bool status = true;
+                try
+                {
+                    connection.Execute("deletePatronageBatch @batchID", new { batchID = id });
+                }
+                catch { status = false; }
+                finally { }
+                return status;
+            }
+        }
+
 
         public bool deleteQRUpload(int batchID)
         {
@@ -263,12 +338,27 @@ namespace ProInternal.Services
             }
         }
 
+        private object ToDbDecimal(object value)
+        {
+            if (value == null)
+                return DBNull.Value;
 
-    
+            var str = value.ToString().Trim();
+
+            if (string.IsNullOrEmpty(str))
+                return DBNull.Value;
+
+            if (decimal.TryParse(str.Replace("(", "-").Replace(")", ""), out var result))
+                return result;
+
+            return DBNull.Value;
+        }
+
         public void savePatronageData(List<PatronageUpload> data )
         {
 
-            var batchId = "PATR-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            var batchId = "PATR-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmm");
+
 
             var table = new DataTable();
             table.Columns.Add("AccountID", typeof(int));
@@ -289,24 +379,30 @@ namespace ProInternal.Services
 
             foreach (var item in data)
             {
+
+                var parsedDate = DateTime.Parse(item.dateLoaded.ToString());
+                var cleanDateLoaded = parsedDate.AddSeconds(-parsedDate.Second).AddMilliseconds(-parsedDate.Millisecond);
+
+
                 table.Rows.Add(
                     item.accountID,
-                    item.totalValue ?? (object)DBNull.Value,
-                    item.perc ?? (object)DBNull.Value,
-                    item.shares ?? (object)DBNull.Value,
-                    item.balance ?? (object)DBNull.Value,
-                    item.profit ?? (object)DBNull.Value,
-                    item.dividend ?? (object)DBNull.Value,
-                    item.payment ?? (object)DBNull.Value,
-                    item.credit ?? (object)DBNull.Value,
-                    item.dateLoaded,
+                    ToDbDecimal(item.totalValue),
+                    ToDbDecimal(item.perc),
+                    ToDbDecimal(item.shares),
+                    ToDbDecimal(item.balance),
+                    ToDbDecimal(item.profit),
+                    ToDbDecimal(item.dividend),
+                    ToDbDecimal(item.payment),
+                    ToDbDecimal(item.credit),
+                    cleanDateLoaded,
                     batchId,
-                    item.stockValue ?? (object)DBNull.Value,
-                    item.taxWithholding ?? (object)DBNull.Value,
-                    item.withdrawal ?? (object)DBNull.Value,
-                    item.endingRetention ?? (object)DBNull.Value
+                    ToDbDecimal(item.stockValue),
+                    ToDbDecimal(item.taxWithholding),
+                    ToDbDecimal(item.withdrawal),
+                    ToDbDecimal(item.endingRetention)
                 );
             }
+
 
 
             var p = new DynamicParameters();
@@ -316,7 +412,7 @@ namespace ProInternal.Services
             {
                 try
                 {
-                    var output = connection.Query<string>("InsertPatronageUploads", table, commandType: CommandType.StoredProcedure).FirstOrDefault();
+                    var output = connection.Query<string>("InsertPatronageUploads", p, commandType: CommandType.StoredProcedure).FirstOrDefault();
                 }
                 catch (Exception e) { }
                 finally { }

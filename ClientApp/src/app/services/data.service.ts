@@ -42,27 +42,29 @@ export class DataService {
 
 
   getRecentPatronageLoad(): Observable<PatronageUpload[]> {
-    return this.api.get<PatronageUpload[]>('/api/patronage/recentload');
+    return this.api.get<PatronageUpload[]>('API/Accounting/GetRecentPatronageLoad');
   }
+
   getPatronageHistorical(): Observable<PatronageHistorical[]> {
-    return this.api.get<PatronageHistorical[]>('/api/patronage/historical');
-  }
-  activatePatronage(id: number): Observable<any> {
-    return this.api.post('/api/patronage/activate', { id });
-  }
-  pullPatronageBatchVendorDetail(id: string): Observable<patronageDetail[]> {
-    return this.api.get<patronageDetail[]>(`/api/patronage/batchvendor/${id}`);
-  }
-  pullPatronageBatchDetail(id: number): Observable<patronageDetail[]> {
-    return this.api.get<patronageDetail[]>(`/api/patronage/batch/${id}`);
-  }
-  deletePatronageUpload(id: number): Observable<any> {
-    return this.api.delete('/api/patronage/delete', id);
+    return this.api.get<PatronageHistorical[]>('API/Accounting/GetPatronageHistorical');
   }
 
 
 
+  activatePatronage(payload: { batchID: string, active: boolean }): Observable<any> {
+    console.log(payload)
+    return this.api.put('API/Accounting/ActivatePatronageBatch', payload);
+  }
 
+
+  getPatronageBatchDetails(id: string): Observable<patronageDetail[]> {
+    return this.api.get<patronageDetail[]>(`API/Accounting/getPatronageBatchDetails/${id}`);
+  }
+
+
+  deletePatronageUpload(id: string): Observable<any> {
+    return this.api.put('API/Accounting/DeletePatronageLoad', { id });
+  }
 
 
   // data.service.ts
@@ -123,6 +125,7 @@ export class DataService {
   }
 
   uploadPatronageFile(file: File) {
+
     const formData: any = new FormData();
     formData.append(`file`, file, file.name);
     return this.api.postBlob(`API/Accounting/LoadPatronageFile`, formData)

@@ -21,7 +21,8 @@ export class UploaderComponent {
 
   @Input() mode: 'rebate' | 'patronage' = 'rebate';   
 
-  @Output() reload: EventEmitter<void> = new EventEmitter<void>();
+  @Output() reload = new EventEmitter<{ reloadHistorical: boolean; reloadCurrent: boolean }>();
+
 
   reloadPage() {
     this.reload.emit();
@@ -74,7 +75,9 @@ export class UploaderComponent {
         else if (this.mode === 'patronage') {
           console.log('patronage')
           this.dataService.uploadPatronageFile(fileData).subscribe(event => {
-            this.reload.emit();
+
+            this.reload.emit({ reloadHistorical: true, reloadCurrent: true });
+
           });
         }
       }
