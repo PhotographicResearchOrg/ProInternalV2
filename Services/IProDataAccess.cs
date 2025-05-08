@@ -17,6 +17,7 @@ using ProInternal.Models.Exclusions;
 using Microsoft.AspNetCore.Mvc;
 using ProInternal.Models.InvoiceRecord;
 using ProInternal.Models.Patronage;
+using ProInternal.Models.InstantRebates;
 
 namespace ProInternal.Services
 {
@@ -75,8 +76,17 @@ namespace ProInternal.Services
         List<InvoiceRecord> GetInvoices();
         void savePatronageData(List<PatronageUpload> data);
         List<PatronageUpload>GetRecentPatronageLoad();
-
         List<PatronageHistorical> GetPatronageHistorical();
+
+
+
+
+
+
+
+
+
+
 
 
     }
