@@ -20,6 +20,7 @@ import { VendorSetupComponent } from 'src/app/prointernalengine/components/Vendo
 import { ForecastComponent } from './prointernalengine/components/dashboards/accounting/forecast/forecast.component';
 import { PatronageComponent } from './prointernalengine/components/dashboards/patronage/patronage.component';
 import { RebateSetupComponent } from './prointernalengine/components/instantrebate/rebate-setup/rebate-setup.component';
+import { RebateExcelUploaderComponent } from './prointernalengine/components/instantrebate/rebate-excel-uploader/rebate-excel-uploader.component';
 
 
 const routerOptions: ExtraOptions = {
@@ -82,6 +83,15 @@ const routes: Routes = [
         path: 'rebatesetup',
         component: RebateSetupComponent
       },
+
+
+      {
+        path: 'uploadrebates',
+        component: RebateExcelUploaderComponent
+      },
+
+
+      
 
       {
         path: 'gating',

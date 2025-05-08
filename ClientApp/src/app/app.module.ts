@@ -55,6 +55,7 @@ import { RebateSetupComponent } from './prointernalengine/components/instantreba
 import { VendorConfigurationComponent } from './prointernalengine/components/instantrebate/rebate-setup/vendor-configuration/vendor-configuration.component';
 import { CardModule } from 'primeng/card';
 import { DividerModule } from 'primeng/divider';
+import { RebateExcelUploaderComponent } from './prointernalengine/components/instantrebate/rebate-excel-uploader/rebate-excel-uploader.component'; 
 
 
 @NgModule({
@@ -70,6 +71,7 @@ import { DividerModule } from 'primeng/divider';
     DashboardAccountingComponent,
     DashboardLandingComponent,
     VendorConfigurationComponent,
+    RebateExcelUploaderComponent,
     ForecastComponent,
     UploaderComponent,
     FileAppComponent,

@@ -1,0 +1,51 @@
+<div class="p-grid p-m-3">
+
+  <!-- Summary Cards Row -->
+  <div class="p-col-12">
+    <div class="summary-card-container">
+      <p-card class="summary-card">
+        <div class="p-d-flex p-ai-center p-gap-2">
+          <i class="pi pi-folder-open p-text-primary" style="font-size: 1.5rem;"></i>
+          <div>
+            <div class="p-text-bold">Batch Upload</div>
+            <small class="p-text-secondary">Upload Excel rebate data</small>
+          </div>
+        </div>
+      </p-card>
+    </div>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="p-col-12 p-md-6 p-lg-4">
+    <p-card class="upload-card">
+      <ng-template pTemplate="title">Upload Excel File</ng-template>
+      <ng-template pTemplate="content">
+        <div class="upload-dropzone"
+             (dragover)="onDragOver($event)"
+             (drop)="onDrop($event)">
+            <i class="pi-upload" styleClass="p-mb-2 p-text-secondary"></i>
+            <p class="p-m-0">Drag and drop file here or click to browse</p>
+            <input type="file" (change)="onFileSelect($event)" hidden #fileInput />
+</div>
+
+        <div *ngIf="selectedFile" class="p-mt-3">
+          <p><strong>Selected File:</strong> {{ selectedFile.name }}</p>
+          <div class="p-d-flex p-gap-2">
+            <button pButton label="Review" icon="pi pi-search" class="p-button-sm p-button-info"></button>
+            <button pButton label="Submit" icon="pi pi-check" class="p-button-sm p-button-success"></button>
+          </div>
+        </div>
+      </ng-template>
+    </p-card>
+  </div>
+
+  <!-- Table Placeholder -->
+  <div class="p-col-12">
+    <p-card>
+      <ng-template pTemplate="title">Uploaded Data Preview</ng-template>
+      <ng-template pTemplate="content">
+        <!-- Your parsed table will go here -->
+      </ng-template>
+    </p-card>
+  </div>
+</div>

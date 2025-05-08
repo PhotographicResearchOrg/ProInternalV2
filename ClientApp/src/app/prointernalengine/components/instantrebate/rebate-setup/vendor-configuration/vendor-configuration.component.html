@@ -101,13 +101,6 @@
 
   <!-- Vendor Table -->
   <div class="p-col-12">
-
-    <!-- Acknowledgement message -->
-    <div *ngIf="vendorActionMessage" class="parent-success-message fade-in p-mb-3">
-      <i class="pi {{ vendorActionIcon }} {{ vendorActionColor }}"></i>
-      <span>{{ vendorActionMessage }}</span>
-    </div>
-
     <p-table [value]="filteredVendors" [paginator]="true" [rows]="10" responsiveLayout="scroll">
       <ng-template pTemplate="header">
         <tr>
@@ -146,6 +139,8 @@
 
 
 
+
+
 <p-dialog header="{{ selectedVendor ? 'Edit Vendor' : 'Add Vendor' }}"
           [(visible)]="displayDialog"
           [modal]="true"
@@ -153,6 +148,15 @@
           [closable]="true"
           (onHide)="resetForm()">
   <div class="p-fluid p-px-3 p-pt-2">
+
+
+
+    <!-- Acknowledgement message -->
+    <div *ngIf="vendorActionMessage" class="parent-success-message fade-in p-mb-3">
+      <i class="pi {{ vendorActionIcon }} {{ vendorActionColor }}"></i>
+      <span>{{ vendorActionMessage }}</span>
+    </div>
+
 
     <!-- Vendor Name -->
     <div class="p-field p-mb-2">

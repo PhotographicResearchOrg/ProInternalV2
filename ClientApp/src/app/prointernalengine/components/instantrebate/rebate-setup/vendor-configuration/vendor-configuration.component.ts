@@ -261,7 +261,7 @@ onParentImageUpload(event: any) {
       this.dataService.updateRebateVendor(vendorToSave).subscribe(() => {
         Object.assign(this.selectedVendor, vendorToSave);
         this.showVendorSuccess(`${vendorToSave.vendorName} was updated successfully.`);
-        this.loadVendors();  // 🔄 Refresh the table
+        this.loadVendors();  // 🔄 Refresh the tableshowVendorSuccess
 
         setTimeout(() => {
           this.displayDialog = false;

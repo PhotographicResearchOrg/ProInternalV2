@@ -1,0 +1,49 @@
+.upload-card {
+  padding: 1.5rem;
+
+  .upload-area {
+    border: 2px dashed var(--surface-border);
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.2s ease;
+
+    &.drag-over {
+      background-color: var(--surface-hover);
+    }
+
+    .upload-instruction {
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+  }
+
+  .file-preview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+
+
+.upload-dropzone {
+  border: 2px dashed var(--surface-border);
+  padding: 2rem;
+  text-align: center;
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--surface-a);
+  color: var(--text-color-secondary);
+  transition: background 0.3s;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+}
+
+.upload-card {
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
