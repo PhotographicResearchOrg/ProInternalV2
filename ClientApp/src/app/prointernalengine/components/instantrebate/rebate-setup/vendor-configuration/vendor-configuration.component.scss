@@ -1,0 +1,134 @@
+.summary-card-container {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.summary-card {
+  width: 240px;
+  flex-shrink: 0;
+  border-radius: 1rem;
+  box-shadow: var(--card-shadow);
+  background: var(--surface-card);
+}
+
+/* Logo upload row in dialog */
+::ng-deep .logo-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Upload button */
+::ng-deep .custom-upload-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  background-color: var(--surface-card);
+  cursor: pointer;
+  color: var(--text-color);
+  transition: background 0.2s ease;
+}
+
+::ng-deep .custom-upload-button:hover {
+  background-color: var(--surface-hover);
+}
+
+
+
+/* Small buttons inside p-dialog */
+::ng-deep .p-dialog .p-button-sm {
+  font-size: 0.85rem;
+  padding: 0.4rem 1rem;
+  width: auto;
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+.parent-success-message {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.vendor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.vendor-search input {
+  width: 200px;
+  font-size: 0.85rem;
+}
+
+::ng-deep .p-togglebutton {
+  font-size: 0.85rem !important;
+  padding: 0.3rem 1.25rem !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--surface-border) !important;
+  background-color: transparent !important;
+  color: var(--text-color) !important;
+  box-shadow: none !important;
+  transition: background 0.2s ease;
+}
+
+// Active state
+::ng-deep .p-togglebutton.p-highlight {
+  background-color: var(--primary-color) !important;
+  color: #fff !important;
+  border-color: var(--primary-color) !important;
+}
+
+
+.vendor-toggle-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+::ng-deep .vendor-toggle-row .p-togglebutton {
+  font-size: 0.85rem !important;
+  padding: 0.35rem 1.25rem !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--surface-border) !important;
+  background-color: transparent !important;
+  color: var(--text-color) !important;
+  box-shadow: none !important;
+}
+
+::ng-deep .vendor-toggle-row .p-togglebutton.p-highlight {
+  background-color: var(--primary-color) !important;
+  color: #fff !important;
+  border-color: var(--primary-color) !important;
+  font-weight: 600;
+}

@@ -69,7 +69,7 @@ export class AppMenuComponent implements OnInit {
         icon: 'pi pi-wrench',
         items: [
           { label: '(IR) Maintenance', icon: 'pi pi-dollar', routerLink: ['/rebatesupport'] },
-          /*       { label: ' BRM - (IR) Support', icon: 'pi pi-wrench', routerLink: ['/rebatesupport'] }*/
+          { label: '(IR) Setup', icon: 'pi pi-wrench', routerLink: ['/rebatesetup'] }
           //{label: 'Connection Comments', icon: 'pi pi-fw pi-comments', routerLink: ['/apps/chat'] },
           //{label: 'Product List',icon: 'pi pi-fw pi-list',routerLink: ['ecommerce/product-list']},
           //{label: 'New Products', icon: 'pi pi-fw pi-plus', routerLink: ['ecommerce/new-product'] },

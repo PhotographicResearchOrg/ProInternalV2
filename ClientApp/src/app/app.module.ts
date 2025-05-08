@@ -50,6 +50,11 @@ import { ToolbarModule } from 'primeng/toolbar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
 import { MessageService } from 'primeng/api';
+import { TabViewModule } from 'primeng/tabview';
+import { RebateSetupComponent } from './prointernalengine/components/instantrebate/rebate-setup/rebate-setup.component';
+import { VendorConfigurationComponent } from './prointernalengine/components/instantrebate/rebate-setup/vendor-configuration/vendor-configuration.component';
+import { CardModule } from 'primeng/card';
+import { DividerModule } from 'primeng/divider';
 
 
 @NgModule({
@@ -57,12 +62,14 @@ import { MessageService } from 'primeng/api';
     [
     AppComponent,
     QtrRebatesComponent,
+    RebateSetupComponent,  
     GatingComponent,
     VendorStockComponent,
     VendorSetupComponent,
     RebatesupportComponent,
     DashboardAccountingComponent,
     DashboardLandingComponent,
+    VendorConfigurationComponent,
     ForecastComponent,
     UploaderComponent,
     FileAppComponent,
@@ -70,14 +77,17 @@ import { MessageService } from 'primeng/api';
   ],
 
   imports: [
+    CardModule,
     TooltipModule,
     ProgressSpinnerModule,
     MessageModule,
     MessagesModule,
     InputGroupModule,
-        DialogModule,
-        BadgeModule,
-        CheckboxModule,
+    DialogModule,
+    BadgeModule,
+    TabViewModule,
+    CheckboxModule,
+    DividerModule,
         ToolbarModule,
         PickListModule,
         ToggleButtonModule,

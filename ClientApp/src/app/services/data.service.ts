@@ -6,7 +6,7 @@ import { OrdersMetrics } from "../models/Dashboard/OrdersMetrics";
 import { SARMetrics } from "../models/Dashboard/SARMetrics";
 import { EDIMetrics } from "../models/Dashboard/EDIMetrics";
 import { IRMetrics } from "../models/Dashboard/IRMetrics";
-import { InstantRebate } from "../models/Dashboard/InstantRebate";
+import { InstantRebate, RebateVendor } from "../models/Dashboard/InstantRebate";
 import { ShippingErrorMetrics } from "../models/Dashboard/ShippingErrorMetrics";
 import { Account, Brands } from "../models/Dashboard/Account";
 import { Products } from "../models/Dashboard/Products";
@@ -33,11 +33,61 @@ import { throwError } from 'rxjs';
 import { VendorUser } from 'src/app/models/vendor/vendoruser';
 import { InvoiceRecord } from 'src/app/models/accounting/InvoiceRecord';
 import { PatronageUpload, PatronageHistorical, patronageDetail } from "src/app/models/accounting/patronage";
+import { ParentCompany } from "src/app/models/Dashboard/InstantRebate"
 
 @Injectable()
 export class DataService {
 
   constructor(private api: ApiService) { }
+
+
+
+
+  getAllParentCompanies(): Observable<ParentCompany[]> {
+    return this.api.get<ParentCompany[]>(`API/InstantRebates/getAllParentCompanies`);
+  }
+
+  addParentCompany(company: ParentCompany): Observable<any> {
+    return this.api.post(`API/InstantRebates/addParentCompany`, company);
+  }
+
+  updateParentCompany(company: ParentCompany): Observable<any> {
+
+
+    return this.api.put(`API/InstantRebates/updateParentCompany/${company.id}`, company);
+  }
+
+  deleteParentCompany(id: number): Observable<any> {
+    return this.api.delete(`API/InstantRebates/deleteParentCompany/${id}`);
+  }
+
+
+  uploadParentImage(fileData: FormData): Observable<string> {
+    return this.api.postFormData<string>('API/InstantRebates/uploadParentImage', fileData);
+  }
+
+
+
+  getAllRebateVendors(): Observable<RebateVendor[]> {
+    return this.api.get<RebateVendor[]>('API/InstantRebates/getAllRebateVendors');
+  }
+
+
+
+
+  addRebateVendor(vendor: RebateVendor): Observable<RebateVendor> {
+    return this.api.post<RebateVendor>('API/InstantRebates/addRebateVendor', vendor);
+  }
+
+  updateRebateVendor(vendor: RebateVendor): Observable<any> {
+    return this.api.put(`API/InstantRebates/updateRebateVendor/${vendor.id}`, vendor);
+  }
+
+  deleteRebateVendor(id: number): Observable<any> {
+    return this.api.delete(`API/InstantRebates/deleteRebateVendor/${id}`);
+  }
+
+
 
 
 

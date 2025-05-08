@@ -1,5 +1,4 @@
 export class InstantRebate {
-
   public irDesc: string;
   public modelNumber: string;
   public batchID: number;
@@ -24,8 +23,25 @@ export class InstantRebate {
    this.irtypeName = "";
    this.expired = false; 
   }
-
 }
 
 
+export interface ParentCompany {
+  id: number;
+  companyName: string;
+  active: boolean;
+  imageUrl: string | null;
+}
 
+
+export interface RebateVendor {
+  id: number;
+  vendorName: string;
+  parentCompany: string;
+  apmstid: string | null;
+  active: boolean;
+  isInstantRebate: boolean;
+  imageUrl: string | null;
+  parentCompanyId: number;
+  isPriceProtection: boolean; 
+}

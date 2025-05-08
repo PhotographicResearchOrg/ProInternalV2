@@ -17,4 +17,30 @@
 
     }
 
+    public class ParentIRCompany
+    {
+        public int ID { get; set; }
+        public string CompanyName { get; set; }
+        public bool Active { get; set; }
+        public string? ImageUrl { get; set; }
+    }
+
+
+
+    public class RebateVendor
+    {
+        public int Id { get; set; }
+        public string VendorName { get; set; }
+        public string ParentCompany { get; set; }
+        public string? Apmstid { get; set; }
+        public bool Active { get; set; }
+        public bool IsInstantRebate { get; set; }
+        public bool IsPriceProtection { get; set; }     
+        public string ImageUrl { get; set; }
+        public int? ParentCompanyId { get; set; }
+    }
+
+
+
+
 }

@@ -46,8 +46,6 @@ builder.Services.AddScoped<INukeDataAccess>(provider => new NukeDataAccess(build
 //EDAConnectionString
 builder.Services.AddCors();
 
-
-
 // In production, the Angular files will be served from this directory
 builder.Services.AddSpaStaticFiles(configuration =>
 {
@@ -72,6 +70,14 @@ app.UseHttpsRedirection();
 
 
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(app.Environment.WebRootPath, "uploads")),
+    RequestPath = "/uploads"
+});
 
 
 if (!app.Environment.IsDevelopment())

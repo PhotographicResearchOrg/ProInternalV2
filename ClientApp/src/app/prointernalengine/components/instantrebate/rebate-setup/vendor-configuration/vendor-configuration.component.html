@@ -1,0 +1,324 @@
+<div class="p-grid p-m-3">
+
+
+
+  <!-- Summary Cards Row -->
+  <div class="summary-card-container">
+    <p-card class="summary-card">
+      <div class="p-d-flex p-ai-center p-gap-2">
+        <i class="pi pi-building p-text-primary" style="font-size: 1.5rem;"></i>
+        <div>
+          <div class="p-text-bold">IR-Vendors</div>
+          <small class="p-text-secondary">Total Count</small>
+          <div class="p-text-lg">{{ rebatevendors.length }}</div>
+        </div>
+      </div>
+    </p-card>
+
+    <p-card class="summary-card">
+      <div class="p-d-flex p-ai-center p-gap-2">
+        <i class="pi pi-check-circle p-text-success" style="font-size: 1.5rem;"></i>
+        <div>
+          <div class="p-text-bold">Active</div>
+          <small class="p-text-secondary">Enabled Vendors</small>
+          <div class="p-text-lg">{{ activeCount }}</div>
+        </div>
+      </div>
+    </p-card>
+
+    <p-card class="summary-card">
+      <div class="p-d-flex p-ai-center p-gap-2">
+        <i class="pi pi-tags p-text-warning" style="font-size: 1.5rem;"></i>
+        <div>
+          <div class="p-text-bold">Rebate Type</div>
+          <small class="p-text-secondary">IR vs PP</small>
+          <div class="p-d-flex p-gap-2 p-mt-2">
+            <span class="p-tag p-tag-info">IR: {{ instantRebateCount }}</span>
+            <span class="p-tag p-tag-warning">PP: {{ priceProtectionCount }}</span>
+          </div>
+        </div>
+      </div>
+    </p-card>
+
+
+
+    <p-card class="summary-card clickable-card" (click)="openParentDialog()">
+      <div class="p-d-flex p-ai-center p-gap-2">
+        <i class="pi pi-plus-circle p-text-secondary" style="font-size: 1.5rem;"></i>
+        <div>
+          <div class="p-text-bold">Add IR Parent Company</div>
+          <small class="p-text-secondary">New Vendor Group</small>
+          <div class="p-text-sm">Tap to create</div>
+        </div>
+      </div>
+    </p-card>
+
+  </div>
+
+
+
+  <!-- Vendor Filters Row -->
+  <div class="vendor-toolbar">
+
+    <!-- Toggle: IR vs PP -->
+    <p-toggleButton [(ngModel)]="showIR"
+                    onLabel="Instant Rebate"
+                    offLabel="Price Protection"
+                    (onChange)="filterVendors()"
+                    class="p-button-sm sharp-toggle">
+    </p-toggleButton>
+
+    <!-- Toggle: Active vs Inactive -->
+    <p-toggleButton [(ngModel)]="showActive"
+                    onLabel="Active"
+                    offLabel="Inactive"
+                    (onChange)="filterVendors()"
+                    class="p-button-sm sharp-toggle">
+    </p-toggleButton>
+
+    <!-- Search: Vendor Name -->
+    <span class="p-input-icon-left vendor-search">
+      <i class="pi pi-search"></i>
+      <input type="text"
+             pInputText
+             [(ngModel)]="vendorSearchTerm"
+             (input)="filterVendors()"
+             placeholder="Search by name"
+             class="p-inputtext-sm" />
+    </span>
+
+    <!-- Add Vendor Button (moved here) -->
+    <button pButton label="Add Vendor"
+            icon="pi pi-plus"
+            (click)="openDialog()"
+            class="p-button-sm p-button-success sharp-button">
+    </button>
+
+  </div>
+
+
+
+
+  <!-- Vendor Table -->
+  <div class="p-col-12">
+
+    <!-- Acknowledgement message -->
+    <div *ngIf="vendorActionMessage" class="parent-success-message fade-in p-mb-3">
+      <i class="pi {{ vendorActionIcon }} {{ vendorActionColor }}"></i>
+      <span>{{ vendorActionMessage }}</span>
+    </div>
+
+    <p-table [value]="filteredVendors" [paginator]="true" [rows]="10" responsiveLayout="scroll">
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Logo</th>
+          <th>Name</th>
+          <th>Parent</th>
+          <th>APMSTID</th>
+          <th>Status</th>
+          <th>Rebate Type</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-vendor>
+        <tr>
+          <td><img [src]="vendor.imageUrl" width="40" class="border-round shadow-1" /></td>
+          <td>{{ vendor.vendorName }}</td>
+          <td>{{ vendor.parentCompany }}</td>
+          <td>{{ vendor.apmstid }}</td>
+          <td>
+            <p-tag [value]="vendor.active ? 'Active' : 'Inactive'" [severity]="vendor.active ? 'success' : 'danger'"></p-tag>
+          </td>
+          <td>
+            <p-tag [value]="vendor.isInstantRebate ? 'Instant Rebate' : 'Price Protection'"
+                   [severity]="vendor.isInstantRebate ? 'info' : 'warning'"></p-tag>
+          </td>
+          <td>
+            <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text" (click)="editVendor(vendor)"></button>
+            <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger" (click)="deleteVendor(vendor.id)"></button>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+
+
+
+<p-dialog header="{{ selectedVendor ? 'Edit Vendor' : 'Add Vendor' }}"
+          [(visible)]="displayDialog"
+          [modal]="true"
+          [style]="{ width: '500px' }"
+          [closable]="true"
+          (onHide)="resetForm()">
+  <div class="p-fluid p-px-3 p-pt-2">
+
+    <!-- Vendor Name -->
+    <div class="p-field p-mb-2">
+      <label for="vendorName">Vendor Name</label>
+      <input pInputText id="vendorName" [(ngModel)]="formVendor.vendorName" class="p-inputtext-sm" placeholder="Enter name" />
+    </div>
+
+    <!-- Parent Company -->
+    <div class="p-field p-mb-2">
+      <label for="parentCompany">Parent Company</label>
+      <p-dropdown [options]="parentCompanies"
+                  [(ngModel)]="formVendor.parentCompany"
+                  optionLabel="companyName"
+                  placeholder="Select a parent company"
+                  class="p-inputtext-sm">
+      </p-dropdown>
+    </div>
+
+    <!-- APMSTID -->
+    <div class="p-field p-mb-2">
+      <label for="apmstid">APMSID</label>
+      <input pInputText id="apmstid" [(ngModel)]="formVendor.apmstid" class="p-inputtext-sm" placeholder="Enter APMSTID" />
+    </div>
+
+    <!-- Toggles -->
+    <!-- Toggle Buttons Row -->
+    <div class="p-d-flex p-ai-center p-gap-2 p-mb-3 vendor-toggle-row">
+      <p-toggleButton [(ngModel)]="formVendor.active"
+                      onLabel="Active"
+                      offLabel="Inactive"
+                      class="p-button-sm sharp-toggle">
+      </p-toggleButton>
+
+      <p-toggleButton [(ngModel)]="formVendor.isInstantRebate"
+                      onLabel="Instant Rebate"
+                      offLabel="Price Protection"
+                      class="p-button-sm sharp-toggle">
+      </p-toggleButton>
+    </div>
+
+
+    <!-- Logo + Upload -->
+    <div class="logo-upload-row p-d-flex p-ai-center p-gap-3 p-mb-3">
+      <img [src]="formVendor.imageUrl || 'https://via.placeholder.com/40'"
+           width="40"
+           height="40"
+           class="border-circle shadow-2" />
+
+      <label class="custom-upload-button">
+        <i class="pi pi-upload p-mr-1"></i> Upload Logo
+        <input type="file"
+               accept="image/*"
+               (change)="onImageUpload($event)"
+               hidden />
+      </label>
+    </div>
+
+    <!-- Save Button -->
+    <div class="p-d-flex p-jc-end">
+      <button pButton
+              type="button"
+              label="Save"
+              icon="pi pi-check"
+              (click)="saveVendor()"
+              class="p-button-sm p-button-success">
+      </button>
+    </div>
+
+  </div>
+</p-dialog>
+
+
+
+
+
+
+
+
+<p-dialog header="Manage Parent Companies"
+          [(visible)]="displayParentDialog"
+          [modal]="true"
+          [style]="{ width: '600px' }"
+          (onHide)="resetParentForm()">
+  <div class="p-fluid p-px-3 p-pt-2">
+
+    <!-- Parent Name Field -->
+    <div class="p-field p-mb-2">
+      <label for="parentName">Parent Name</label>
+      <input pInputText id="parentName"
+             [(ngModel)]="newParentName"
+             placeholder="Enter or edit parent name"
+             class="p-inputtext-sm" />
+    </div>
+
+
+    <!-- Conditionally show image/upload/buttons row if editing or adding -->
+    <div *ngIf="selectedParentIndex !== null || newParentName.trim()" class="logo-upload-row p-d-flex p-ai-center p-gap-3 p-mb-2">
+      <img [src]="selectedParentCompany?.imageUrl || 'https://via.placeholder.com/40'"
+           width="40"
+           height="40"
+           class="border-circle shadow-2" />
+
+      <label class="custom-upload-button">
+        <i class="pi pi-upload p-mr-1"></i> Image
+        <input type="file"
+               accept="image/*"
+               (change)="onParentImageUpload($event)"
+               hidden />
+      </label>
+
+
+      <button pButton
+              icon="pi pi-check"
+              label="{{ selectedParentIndex !== null ? 'Update' : 'Add' }}"
+              class="p-button-sm p-button-success"
+              (click)="selectedParentIndex !== null ? updateParentCompany() : addParentCompany()"></button>
+
+      <button *ngIf="selectedParentIndex !== null"
+              pButton
+              icon="pi pi-times"
+              label="Cancel"
+              class="p-button-sm p-button-secondary"
+              (click)="cancelEditParent()"></button>
+    </div>
+
+
+    <!-- Feedback message after save -->
+    <div *ngIf="parentActionMessage" class="parent-success-message">
+      <i class="pi {{ parentActionIcon }} {{ parentActionColor }}"></i>
+      <span>{{ parentActionMessage }}</span>
+    </div>
+
+    <!-- Divider -->
+    <p-divider class="p-mt-1 p-mb-2"></p-divider>
+
+    <!-- Parent Companies Table -->
+    <p-table [value]="parentCompanies" [scrollable]="true" scrollHeight="200px">
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 60px">Logo</th>
+          <th>Parent Name</th>
+          <th style="width: 100px; text-align: center;">Actions</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-parent let-i="rowIndex">
+        <tr>
+          <td>
+            <img [src]="parent.imageUrl || 'https://via.placeholder.com/40'"
+                 width="40"
+                 height="40"
+                 class="border-circle shadow-2"
+                 style="object-fit: cover;" />
+          </td>
+          <td class="p-text-capitalize">{{ parent.companyName }}</td>
+          <td class="p-d-flex p-jc-center">
+            <button pButton icon="pi pi-pencil"
+                    class="p-button-rounded p-button-text p-button-secondary p-mr-2"
+                    (click)="editParentCompany(i)"
+                    pTooltip="Edit" tooltipPosition="top"></button>
+            <button pButton icon="pi pi-trash"
+                    class="p-button-rounded p-button-text p-button-danger"
+                    (click)="deleteParentCompany(i)"
+                    pTooltip="Delete" tooltipPosition="top"></button>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</p-dialog>

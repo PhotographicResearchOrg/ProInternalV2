@@ -19,6 +19,8 @@ import { GatingComponent } from './prointernalengine/components/Product/Gating/g
 import { VendorSetupComponent } from 'src/app/prointernalengine/components/Vendor/vendor-setup/vendor-setup.component';
 import { ForecastComponent } from './prointernalengine/components/dashboards/accounting/forecast/forecast.component';
 import { PatronageComponent } from './prointernalengine/components/dashboards/patronage/patronage.component';
+import { RebateSetupComponent } from './prointernalengine/components/instantrebate/rebate-setup/rebate-setup.component';
+
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -47,9 +49,6 @@ const routes: Routes = [
           permissions: ['Quarterly']
         }
       },
-
-
-
       {
         path: 'powerbi',
 
@@ -61,7 +60,6 @@ const routes: Routes = [
 
 
       { path: 'rebatesupport', data: { breadcrumb: 'Quarterly Rebates' }, component: RebatesupportComponent },
-
       { path: 'rebatesupport', data: { breadcrumb: 'Quarterly Rebates' }, component: RebatesupportComponent },
       { path: 'apps/files', data: { breadcrumb: 'Files' }, component: FileAppComponent },
       { path: 'uikit', data: { breadcrumb: 'UI Kit' }, loadChildren: () => import('./prointernalengine/components/uikit/uikit.module').then(m => m.UIkitModule) },
@@ -79,6 +77,11 @@ const routes: Routes = [
         component: RebatesupportComponent
       },
 
+
+      {
+        path: 'rebatesetup',
+        component: RebateSetupComponent
+      },
 
       {
         path: 'gating',

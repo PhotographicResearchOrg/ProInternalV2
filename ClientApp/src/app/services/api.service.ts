@@ -67,6 +67,11 @@ export class ApiService {
     return this.http.post<T>(this.getUrl(url), JSON.stringify(objectToPost), options);
   }
 
+  postFormData<T>(url: string, formData: FormData): Observable<T> {
+    return this.http.post<T>(this.getUrl(url), formData, {
+      responseType: 'text' as unknown as 'json' // workaround for Angular type system
+    });
+  }
 
 
   postGetBlob(url: string, objectToPost: any): Observable<any> {
@@ -80,9 +85,10 @@ export class ApiService {
     return this.http.put<T>(this.getUrl(url), JSON.stringify(objectToPost), { headers: this.defaultHeaders });
   }
 
-  delete<T>(url: string, id: number): Observable<T> {
-    return this.http.delete<T>(this.getUrl(url) + `/${id}`);
+  delete<T>(url: string): Observable<T> {
+    return this.http.delete<T>(this.getUrl(url));
   }
+
 
   postBlob(url: string, formData: FormData): Observable<any> {
     const headers = new HttpHeaders({ enctype: "multipart/form-data" });
