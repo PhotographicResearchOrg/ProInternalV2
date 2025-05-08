@@ -1,0 +1,124 @@
+{
+    "data": [
+        {
+            "id": 1,
+            "name": "Ioni Bowcher",
+            "image": "ionibowcher.png",
+            "status": "active",
+            "messages": [
+                {
+                    "text": "AAAKLASS ipsum gg, consectetur adipiscing elit",
+                    "ownerId": 1,
+                    "createdAt": 1652646338240
+                },
+              {
+                "text": "Nice! Love this deal and the promo sheets look awesome.",
+                "ownerId": 1,
+                "createdAt": 1652646368718
+              },
+                {
+                    "text": "CCCSed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+                    "ownerId": 123,
+                    "createdAt": 1652646368718
+                }
+            ],
+            "lastSeen": "2d"
+        },
+      {
+        "id": 2,
+        "name": "Lauren Elsea",
+        "image": "stephenshaw.png",
+        "status": "away",
+        "messages": [
+          {
+            "text": "Nice! Love this deal and the promo sheets look awesome.",
+            "ownerId": 1,
+            "createdAt": 1652646338240
+          },
+          {
+            "text": "What is the password for the dealer portal?",
+            "ownerId": 1,
+            "createdAt": 1652646368718
+          },
+          {
+            "text": "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+            "ownerId": 123,
+            "createdAt": 1652646368718
+          }
+        ],
+        "lastSeen": "2d"
+      },
+        {
+            "id": 3,
+            "name": "Xuxue Feng",
+            "image": "xuxuefeng.png",
+            "status": "busy",
+            "messages": [
+                {
+                    "text":  "Duis aute irure dolor in reprehenderit",
+                    "ownerId": 1,
+                    "createdAt": 1652646338240
+                },
+              {
+                "text": "They should give the price increase to B&H and Adarama only maybe.",
+                "ownerId": 1,
+                "createdAt": 1652646368718
+              },
+                {
+                    "text": "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+                    "ownerId": 123,
+                    "createdAt": 1652646368718
+                }
+            ],
+            "lastSeen": "2d"
+        },
+        {
+            "id": 4,
+            "name": "Ivan Magalhaes",
+            "image": "ivanmagalhaes.png",
+            "status": "active",
+            "messages": [
+                {
+                    "text":  "Ut enim ad minim veniam",
+                    "ownerId": 1,
+                    "createdAt": 1652646338240
+                },
+              {
+                "text": "Hi, Jerry! Yes—the new chargers support the same batteries as",
+                "ownerId": 1,
+                "createdAt": 1652646368718
+              },
+                {
+                    "text": "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+                    "ownerId": 123,
+                    "createdAt": 1652646368718
+                }
+            ],
+            "lastSeen": "2d"
+        },
+        {
+            "id": 4,
+            "name": "Onyama Limba",
+            "image": "onyamalimba.png",
+            "status": "busy",
+            "messages": [
+                {
+                    "text":  "Culpa qui officia deserunt mollit anim id est laborum",
+                    "ownerId": 1,
+                    "createdAt": 1652646338240
+                },
+              {
+                "text": "*Also 5643 - LARGE - Invalid Product Code",
+                "ownerId": 1,
+                "createdAt": 1652646368718
+              },
+                {
+                    "text": "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+                    "ownerId": 123,
+                    "createdAt": 1652646368718
+                }
+            ],
+            "lastSeen": "2d"
+        }
+    ]
+}
