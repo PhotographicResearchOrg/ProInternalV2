@@ -26,6 +26,14 @@ obj/
 Obj/
 .angular/
 
+
+
+
+# TypeScript
+*.js
+*.js.map
+
+
 # Visual Studio 2015 cache/options directory
 .vs/
 
