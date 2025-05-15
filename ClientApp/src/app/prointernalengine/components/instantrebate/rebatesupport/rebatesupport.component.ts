@@ -12,7 +12,7 @@ import { InstantRebate } from "src/app/models/Dashboard/InstantRebate";
 import { DeclinedIR } from "src/app/models/Dashboard/DeclinedIR";
 import * as XLSX from 'xlsx';
 import { Table } from 'primeng/table';
-
+import { MessageService } from 'primeng/api';
 
 @Component({
   templateUrl: './rebatesupport.component.html',
@@ -33,7 +33,8 @@ export class RebatesupportComponent implements OnInit {
     http: HttpClient,
     private dataService: DataService,
     private fileService: FileAppService,
-    public layoutService: LayoutService) { }
+    public layoutService: LayoutService,
+    private messageService: MessageService) { }
 
 
   ngOnInit()
@@ -88,15 +89,41 @@ export class RebatesupportComponent implements OnInit {
   }
 
 
+  getActiveStatus(batch: any): boolean {
+    return !batch.expired;
+  }
+
+
   onReload() {
     window.location.reload();
   }
 
+  Activate(batch: InstantRebate) {
+    const newExpiredValue = !batch.expired;
 
-    Activate(item: any) {
-      this.dataService.activateIRBatch(item).subscribe((resp) => { });
-      this.onReload();
-    }
+    this.dataService.activateIRBatch(batch.batchID).subscribe({
+      next: () => {
+        batch.expired = newExpiredValue; // Update local status
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Status Updated',
+          detail: `Batch ${batch.batchID} marked as ${newExpiredValue ? 'Expired' : 'Active'}`
+        });
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Update Failed',
+          detail: `Could not update batch ${batch.batchID}`
+        });
+      }
+    });
+  }
+
+
+
+
+
 
 
     onGlobalFilter(table: Table, event: Event) {

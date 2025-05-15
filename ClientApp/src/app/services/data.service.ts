@@ -34,11 +34,44 @@ import { VendorUser } from 'src/app/models/vendor/vendoruser';
 import { InvoiceRecord } from 'src/app/models/accounting/InvoiceRecord';
 import { PatronageUpload, PatronageHistorical, patronageDetail } from "src/app/models/accounting/patronage";
 import { ParentCompany } from "src/app/models/Dashboard/InstantRebate"
+import { panaAccount, panaRep } from 'src/app/models/vendor/panasonicreporting';
+
 
 @Injectable()
 export class DataService {
 
   constructor(private api: ApiService) { }
+
+
+  getAllReps(): Observable<panaRep[]> {
+    return this.api.get<panaRep[]>('API/Vendor/panareps');
+  }
+
+
+  getAllAccounts(): Observable<panaAccount[]> {
+    return this.api.get<panaAccount[]>('API/Vendor/panaaccounts');
+  }
+
+
+  saveRep(rep: panaRep): Observable<panaRep> {
+
+    return this.api.post<panaRep>('API/Vendor/savepanarep', rep);
+  }
+  saveAccount(account: panaAccount): Observable<panaAccount> {
+    return this.api.post<panaAccount>('API/Vendor/savepanaaccount', account);
+  }
+
+
+  // Delete a rep by ID
+  deleteRep(repId: number): Observable<void> {
+    return this.api.delete<void>(`API/Vendor/deletepanarep/${repId}`);
+  }
+
+  // Delete an account by MECA number
+  deleteAccount(meca: string): Observable<void> {
+
+    return this.api.delete<void>(`API/Vendor/deletepanaaccount/${meca}`);
+  }
 
 
 
@@ -174,6 +207,16 @@ export class DataService {
     return this.api.postBlob(`API/Accounting/LoadQuarterFile`, formData)
   }
 
+
+  getUnassignedProducts() { return this.api.get<Array<Products>>(`API/Product/unassigned`); }
+
+
+  getCompaniesForGroup(groupId: number): Observable<{ companyId: number; companyName: string }[]> {
+    return this.api.get<{ companyId: number; companyName: string }[]>(`API/Product/exclusiongroups/${groupId}/companies`);
+  }
+
+
+
   uploadPatronageFile(file: File) {
 
     const formData: any = new FormData();
@@ -303,7 +346,12 @@ export class DataService {
 
 	getExclusionGroups() {
 		return this.api.get<Array<ProductExclusionGroup>>(`API/Product/exclusion/groups`);
-	}
+  }
+
+
+
+
+
 	getExclusionGroupProducts(groupID: number) {
 		return this.api.get<Array<ProductExclusionGroupProduct>>(`API/Product/exclusion/group/${groupID}`);
 	}

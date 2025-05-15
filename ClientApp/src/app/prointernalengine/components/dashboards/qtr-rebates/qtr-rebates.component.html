@@ -1,4 +1,5 @@
 <div class="grid">
+  <p-confirmDialog></p-confirmDialog>
   <div *ngFor="let metric of QuarterlyRebates" class="col-12 md:col-6 lg:col-3">
     <div class="card h-full">
       <div class="flex align-items-center justify-content-between mb-3">
@@ -30,53 +31,53 @@
   </div>
 
 
-      <div class="col-14 md:col-9 xl:col-12">
-        <div class="card">
-          <div class="text-900 text-xl font-semibold mb-3">Quarterly Rebate Summary Uploads</div>
-          <p-table responsiveLayout="scroll" #dt [value]="QRHistorical" [rows]="8" [paginator]="true">
-            <ng-template pTemplate="header">
-              <tr>
+  <div class="col-14 md:col-9 xl:col-12">
+    <div class="card">
+      <div class="text-900 text-xl font-semibold mb-3">Quarterly Rebate Summary Uploads</div>
+      <p-table responsiveLayout="scroll" #dt [value]="QRHistorical" [rows]="8" [paginator]="true">
+        <ng-template pTemplate="header">
+          <tr>
 
-                <th pSortableColumn="id" style="min-width:2rem" class="white-space-nowrap">Batch ID <p-sortIcon field="id"></p-sortIcon></th>
+            <th pSortableColumn="id" style="min-width:2rem" class="white-space-nowrap">Batch ID <p-sortIcon field="id"></p-sortIcon></th>
 
-                <th style="min-width:2rem" class="white-space-nowrap">Public </th>
+            <th style="min-width:2rem" class="white-space-nowrap">Public </th>
 
-                <th pSortableColumn="issueDate" style="min-width:2rem" class="white-space-nowrap">Issue Date <p-sortIcon field="issueDate"></p-sortIcon></th>
+            <th pSortableColumn="issueDate" style="min-width:2rem" class="white-space-nowrap">Issue Date <p-sortIcon field="issueDate"></p-sortIcon></th>
 
-                <th pSortableColumn="totalAmount" style="min-width:2rem" class="white-space-nowrap">Gross Issued <p-sortIcon field="totalAmount"></p-sortIcon></th>
+            <th pSortableColumn="totalAmount" style="min-width:2rem" class="white-space-nowrap">Gross Issued <p-sortIcon field="totalAmount"></p-sortIcon></th>
 
-                <th style="width:8rem"></th>
+            <th style="width:8rem"></th>
 
-              </tr>
-            </ng-template>
+          </tr>
+        </ng-template>
 
 
-            <ng-template pTemplate="body" let-QRHistorical>
-              <tr>
-                <td>
-                  <div class="flex align-items-center">
-                    <i [class]="'text-xl text-primary mr-2 ' + 'pi pi-key'"></i>
-                    <span>{{QRHistorical.id}}  </span>
-                  </div>
-                </td>
-                <td>
-                  <span> <p-inputSwitch   (onChange)="Activate(QRHistorical.id)" [(ngModel)]=QRHistorical.active> </p-inputSwitch></span>
-                </td>
-                <td>
-                  <span>{{QRHistorical.issueDate | date}}</span>
-                </td>
-                <td>
-                  <span>{{QRHistorical.totalAmount | currency}}</span>
-                </td>
+        <ng-template pTemplate="body" let-QRHistorical>
+          <tr>
+            <td>
+              <div class="flex align-items-center">
+                <i [class]="'text-xl text-primary mr-2 ' + 'pi pi-key'"></i>
+                <span>{{QRHistorical.id}}  </span>
+              </div>
+            </td>
+            <td>
+              <span> <p-inputSwitch (onChange)="Activate(QRHistorical.id)" [(ngModel)]=QRHistorical.active> </p-inputSwitch></span>
+            </td>
+            <td>
+              <span>{{QRHistorical.issueDate | date}}</span>
+            </td>
+            <td>
+              <span>{{QRHistorical.totalAmount | currency}}</span>
+            </td>
 
-                <td class="text-center">
-                  <button (click)="Delete(QRHistorical)" pButton pRipple icon="pi pi-times" class="p-button-danger p-button-text p-button-rounded mr-2"></button>
-                  <button (click)="Download(QRHistorical)" pButton pRipple icon="pi pi-file-excel" class="p-button-text p-button-rounded"></button>
-                </td>
+            <td class="text-center">
+              <button (click)="Delete(QRHistorical)" pButton pRipple icon="pi pi-times" class="p-button-danger p-button-text p-button-rounded mr-2"></button>
+              <button (click)="Download(QRHistorical)" pButton pRipple icon="pi pi-file-excel" class="p-button-text p-button-rounded"></button>
+            </td>
 
-              </tr>
-            </ng-template>
-          </p-table>
-        </div>
-      </div>
+          </tr>
+        </ng-template>
+      </p-table>
     </div>
+  </div>
+</div>

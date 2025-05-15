@@ -56,6 +56,9 @@ import { VendorConfigurationComponent } from './prointernalengine/components/ins
 import { CardModule } from 'primeng/card';
 import { DividerModule } from 'primeng/divider';
 import { RebateExcelUploaderComponent } from './prointernalengine/components/instantrebate/rebate-excel-uploader/rebate-excel-uploader.component'; 
+import { ConfirmationService } from 'primeng/api'; // already assumed
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+
 
 
 @NgModule({
@@ -90,6 +93,7 @@ import { RebateExcelUploaderComponent } from './prointernalengine/components/ins
     TabViewModule,
     CheckboxModule,
     DividerModule,
+    ConfirmDialogModule,
         ToolbarModule,
         PickListModule,
         ToggleButtonModule,
@@ -123,7 +127,8 @@ import { RebateExcelUploaderComponent } from './prointernalengine/components/ins
     [
       FileAppService,
       DataService,
-      MessageService
+      MessageService,
+      ConfirmationService
     ],
     bootstrap: [AppComponent]
 })

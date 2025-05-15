@@ -33,29 +33,46 @@ namespace ProInternal.Controllers
         }
 
 
+
         [HttpPost, DisableRequestSizeLimit]
         [Route("LoadQuarterFile")]
-       // public async Task<IEnumerable<SellThroughUploadError>> UploadSellThrough([FromForm] string date)
         public async Task<ActionResult> Result(IFormFile file)
         {
+            QuarterlyRebates Loadeddata = await LoadQuarterlyData(file);
 
-            //get data from file
-            QuarterlyRebates Loadeddata =  await LoadQuarterlyData(file);
-
-            if (Loadeddata == null) 
-            { 
-            
-            }
-            else
+            if (Loadeddata != null)
             {
-                //Call SP.
                 this._proDataAccess.saveData(Loadeddata);
-
             }
 
-            return null;
-
+            return Ok(new { success = true }); // ✅ ensures Angular receives a response
         }
+
+
+
+       // [HttpPost, DisableRequestSizeLimit]
+       // [Route("LoadQuarterFile")]
+       //// public async Task<IEnumerable<SellThroughUploadError>> UploadSellThrough([FromForm] string date)
+       // public async Task<ActionResult> Result(IFormFile file)
+       // {
+
+       //     //get data from file
+       //     QuarterlyRebates Loadeddata =  await LoadQuarterlyData(file);
+
+       //     if (Loadeddata == null) 
+       //     { 
+            
+       //     }
+       //     else
+       //     {
+       //         //Call SP.
+       //         this._proDataAccess.saveData(Loadeddata);
+
+       //     }
+
+       //     return null;
+
+       // }
 
 
 

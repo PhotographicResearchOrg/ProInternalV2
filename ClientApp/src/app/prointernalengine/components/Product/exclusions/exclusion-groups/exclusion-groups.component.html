@@ -1,13 +1,14 @@
 <div class="grid exclusion-groups">
-	<!-- Create New Group Card (Left) -->
+
+
+
 	<!-- Create New Group Card -->
 	<div class="col-12 lg:col-4">
-		<div class="card p-4 shadow-1 border-round" style="max-width: 400px;">
+		<div class="card p-4 shadow-1 border-round">
 			<div class="flex align-items-center mb-3">
 				<i class="pi pi-plus-circle text-2xl text-primary mr-2"></i>
 				<h5 class="m-0">Create New Group</h5>
 			</div>
-
 			<p class="text-sm text-color-secondary mb-3">
 				Enter a name below to create a new exclusion group.
 			</p>
@@ -28,7 +29,42 @@
 				Group <strong>{{ newlyCreatedGroupName }}</strong> created.
 			</div>
 		</div>
+
+
+
+
+		<!-- Unassigned Products Card -->
+		<div class="card mt-4 p-3 border-round shadow-1">
+			<div class="flex align-items-center mb-2">
+				<i class="pi pi-exclamation-triangle text-2xl text-orange-500 mr-2"></i>
+				<h6 class="m-0">Unassigned Products</h6>
+			</div>
+
+			<p class="text-sm text-color-secondary mb-3">
+				These products are not part of any exclusion group.
+			</p>
+
+			<div *ngIf="unassignedProducts.length === 0" class="text-sm text-color-secondary">
+				All products are assigned.
+			</div>
+
+			<ul *ngIf="unassignedProducts.length > 0" class="text-sm pl-3">
+				<li *ngFor="let product of unassignedProducts | slice:0:5">
+					<i class="pi pi-box text-secondary mr-1"></i>
+					{{ product.productCode }} - {{ product.modelName }}
+				</li>
+			</ul>
+
+			<div *ngIf="unassignedProducts.length > 5" class="text-xs text-color-secondary mt-2">
+				And {{ unassignedProducts.length - 5 }} more...
+			</div>
+		</div>
 	</div>
+
+
+
+
+
 
 	<!-- Edit Existing Group + Products (Right) -->
 	<div class="col-12 lg:col-8">
@@ -168,14 +204,19 @@
 
 
 	<!-- Company Group Assignment Card -->
-	<!-- Company Group Assignment Card -->
-	<!-- Company Group Assignment Card -->
+
 	<div class="col-12 mt-5">
 		<div class="card p-4 border-round shadow-1">
-
 			<!-- Embedded Component Only (handles its own header) -->
-			<app-exclusion-group-company></app-exclusion-group-company>
-
+			<app-exclusion-group-company [groups]="groups"></app-exclusion-group-company>
 		</div>
 	</div>
 
+	<div class="col-12 mt-5">
+		<div class="card p-4 border-round shadow-1">
+
+			<!-- Embedded Component -->
+			<app-panasonicreporting></app-panasonicreporting>
+
+		</div>
+	</div>

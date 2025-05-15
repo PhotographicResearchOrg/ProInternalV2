@@ -136,6 +136,22 @@ namespace ProInternal.Controllers
         }
 
 
+        [HttpGet("unassigned")]
+        public async Task<ActionResult<List<Products>>> GetUnassignedProducts()
+        {
+            var products =  this._prodataAccess.GetUnassignedProductsAsync();
+
+            return Ok(products);
+
+        }
+
+
+        [HttpGet("exclusiongroups/{groupId}/companies")]
+        public async Task<ActionResult<List<CompanyDto>>> GetCompaniesForGroup(int groupId)
+        {
+            var companies = this._prodataAccess.GetCompaniesAssignedToGroupAsync(groupId);
+            return Ok(companies);
+        }
 
 
 

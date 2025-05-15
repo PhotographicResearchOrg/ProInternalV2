@@ -1,3 +1,4 @@
+<p-toast></p-toast>
 <div class="grid">
 
 
@@ -31,11 +32,11 @@
       <div class="inline-flex align-items-center">
         <span class="p-input-icon-left flex-auto">
           <i class="pi pi-search"></i>
-          <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
+          <input pInputText type="text" (input)="onGlobalFilter(dtDeclines, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
         </span>
-        <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dt.exportCSV()"></button>
+        <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dtDeclines.exportCSV()"></button>
       </div>
-      <p-table responsiveLayout="scroll" #dt [columns]="IRDeclinecols"  [value]="declinedIRs" [rows]="8" [paginator]="true" [globalFilterFields]="['orderID','processDate','rejectReason','memberID','model']">
+      <p-table responsiveLayout="scroll" #dtDeclines [columns]="IRDeclinecols" [value]="declinedIRs" [rows]="8" [paginator]="true" [globalFilterFields]="['orderID','processDate','rejectReason','memberID','model']">
         <ng-template pTemplate="header">
           <tr>
             <th pSortableColumn="orderID" style="min-width:2rem" class="white-space-nowrap">Rebate ID <p-sortIcon field="orderID"></p-sortIcon></th>
@@ -101,20 +102,21 @@
 
   <!--<div class="col-12 md:col-6 lg:col-12">
     <div class="card h-full">-->
-      <!--<app-file-uploader (reload)="onReload()"></app-file-uploader>-->
-    <!--</div>
+  <!--<app-file-uploader (reload)="onReload()"></app-file-uploader>-->
+  <!--</div>
   </div>-->
+
   <div class="col-12 md:col-9 xl:col-12">
     <div class="card">
       <div class="text-900 text-xl font-semibold mb-3">Instant Rebate Deployments</div>
       <div class="inline-flex align-items-center">
         <span class="p-input-icon-left flex-auto">
           <i class="pi pi-search"></i>
-          <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
+          <input pInputText type="text" (input)="onGlobalFilter(dtDeployments, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
         </span>
-        <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dt.exportCSV()"></button>
+        <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dtDeployments.exportCSV()"></button>
       </div>
-      <p-table responsiveLayout="scroll" #dt [columns]="cols" [value]="InstantRebateBatches" [rows]="8" [paginator]="true" [globalFilterFields]="['batchID','vendorName','units','programStart','programEnd','irtypeName']">
+      <p-table responsiveLayout="scroll" #dtDeployments [columns]="cols" [value]="InstantRebateBatches" [rows]="8" [paginator]="true" [globalFilterFields]="['batchID','vendorName','units','programStart','programEnd','irtypeName']">
         <ng-template pTemplate="header">
           <tr>
             <th pSortableColumn="batchID" style="min-width:2rem" class="white-space-nowrap">Batch ID <p-sortIcon field="batchID"></p-sortIcon></th>
@@ -127,32 +129,36 @@
             <th style="width:8rem"></th>
           </tr>
         </ng-template>
-        <ng-template pTemplate="body" let-InstantRebateBatches>
+        <ng-template pTemplate="body" let-batch>
           <tr>
             <td>
               <div class="flex align-items-center">
                 <i [class]="'text-xl text-primary mr-2 ' + 'pi pi-key'"></i>
-                <span>{{InstantRebateBatches.batchID}}</span>
+                <span>{{batch.batchID}}</span>
               </div>
             </td>
             <td>
-              <span> <p-inputSwitch (reload)="onReload()" (onChange)="Activate(InstantRebateBatches.batchID)" [(ngModel)]=InstantRebateBatches.expired>  </p-inputSwitch></span>
+              <span>
+                <p-inputSwitch (reload)="onReload()"
+                               [ngModel]="getActiveStatus(batch)"
+                               (onChange)="Activate(batch)">  </p-inputSwitch>
+              </span>
             </td>
             <td>
-              <span>{{InstantRebateBatches.vendorName}}</span>
+              <span>{{batch.vendorName}}</span>
             </td>
             <td>
-              <span>{{InstantRebateBatches.units}}</span>
+              <span>{{batch.units}}</span>
             </td>
             <td>
-              <span>{{InstantRebateBatches.programStart | date }}</span>
+              <span>{{batch.programStart | date }}</span>
             </td>
             <td>
-              <span>{{InstantRebateBatches.programEnd | date }}</span>
+              <span>{{batch.programEnd | date }}</span>
             </td>
 
             <td>
-              <span>{{InstantRebateBatches.irtypeName }}</span>
+              <span>{{batch.irtypeName }}</span>
             </td>
 
             <td class="text-center">

@@ -728,6 +728,34 @@ namespace ProInternal.Services
 			}
 		}
 
+        public List<CompanyDto> GetCompaniesAssignedToGroupAsync(int groupId)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<CompanyDto>(
+                    "Exclusions_GetCompanyExclusions",
+                    new { GroupID = groupId },  // Match this to what the stored procedure expects
+                    commandType: CommandType.StoredProcedure
+                ).ToList();
+
+                return output;
+            }
+        }
+
+
+
+        public List<Products> GetUnassignedProductsAsync()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<Products>("GetUnassignedProducts").ToList();
+              
+                return output;
+            }
+        }
+
+
+
         public List<ProductExclusionGroup> Exclusions_GetExclusionGroups() {
 			using (IDbConnection connection = new SqlConnection(_connectionString)) {
 				var output = connection.Query<ProductExclusionGroup>("Exclusions_GetExclusionGroups").ToList();

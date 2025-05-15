@@ -30,4 +30,12 @@
         public string Country { get; set; }
         public List<int> BrandIds { get; set; }
     }
+
+
+    public class CompanyDto
+    {
+        public int CompanyId { get; set; }
+        public string CompanyName { get; set; }
+    }
+
 }

@@ -1,7 +1,9 @@
 <p-toast key="fu"></p-toast>
 <div class="card">
     <!--<p-fileUpload #fileUploader name="demo[]" url="./upload.php" accept=".xlsx" (onUpload)="onUpload($event)" [customUpload]="true"-->
-                   <p-fileUpload #fileUploader  accept=".xlsx" (onUpload)="onUpload($event)"  [multiple]="false" (onSelect)="onUpload($event)"  [showUploadButton]="true"
+                   <p-fileUpload #fileUploader
+                                 accept=".xlsx"
+                                 (onUpload)="onUpload($event)"  [multiple]="false" (onSelect)="onUpload($event)"  [showUploadButton]="true"
                     [showCancelButton]="false" [auto]="true" class="w-full">
 
 

@@ -1,0 +1,197 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="card p-4 border-round shadow-1">
+  <div class="flex align-items-center mb-3">
+    <i class="pi pi-users text-2xl text-primary mr-2"></i>
+    <h5 class="m-0">Panasonic Dealer Reporting</h5>
+  </div>
+
+  <p-tabView>
+
+    <!-- Tab: Account Management -->
+    <p-tabPanel header="Account Management">
+      <div class="flex justify-content-end mb-2">
+        <button pButton label="Add Account" icon="pi pi-plus" class="p-button-sm" (click)="showAddAccountDialog()"></button>
+      </div>
+
+
+      <div class="mb-3 flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-2">
+        <div class="p-input-icon-left w-full md:w-4">
+          <i class="pi pi-search"></i>
+          <input #globalFilter
+                 pInputText
+                 type="text"
+                 (input)="table.filterGlobal(globalFilter.value, 'contains')"
+                 placeholder="Search accounts..."
+                 class="w-full" />
+        </div>
+
+        <button pButton
+                label="Export to Excel"
+                icon="pi pi-file-excel"
+                (click)="exportAccountsToExcel()"
+                class="p-button-sm p-button-success w-full md:w-auto">
+        </button>
+      </div>
+
+
+
+      <p-table #table
+               [value]="accounts"
+               [paginator]="true"
+               [rows]="30"
+               [responsiveLayout]="'scroll'"
+               [globalFilterFields]="['meca', 'accountNumber', 'accountName']"
+               [resizableColumns]="true">
+
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="meca">MECA <p-sortIcon field="meca"></p-sortIcon></th>
+            <th pSortableColumn="accountNumber">Account Number <p-sortIcon field="accountNumber"></p-sortIcon></th>
+            <th pSortableColumn="accountName">Account Name <p-sortIcon field="accountName"></p-sortIcon></th>
+            <th>Rep</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-account>
+          <tr>
+            <td>{{ account.meca }}</td>
+            <td>{{ account.accountNumber }}</td>
+            <td>{{ account.accountName }}</td>
+            <td>{{ getRepName(account.repid) }}</td>
+            <td>
+              <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text" (click)="openEditAccountDialog(account)"></button>
+              <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger" (click)="deleteAccount(account)"></button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+
+
+    </p-tabPanel>
+
+    <!-- Tab: Rep Directory -->
+    <p-tabPanel header="Rep Directory">
+      <div class="flex justify-content-end mb-2">
+        <button pButton label="Add Rep" icon="pi pi-user-plus" class="p-button-sm" (click)="showAddRepDialog()"></button>
+      </div>
+
+      <p-table [value]="reps" [responsiveLayout]="'scroll'" [rows]="10">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Rep Name</th>
+            <th>Email</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-rep>
+          <tr>
+            <td>{{ rep.repName }}</td>
+            <td>{{ rep.email }}</td>
+            <td>
+              <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text" (click)="openEditRepDialog(rep)"></button>
+              <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger" (click)="deleteRep(rep)"></button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+  </p-tabView>
+</div>
+
+
+<!-- Account Dialog -->
+<p-dialog header="Account Details"
+          [(visible)]="accountDialogVisible"
+          [modal]="true"
+          [closable]="false"
+          styleClass="w-11 md:w-6 max-h-screen"
+          [baseZIndex]="10000"
+          [contentStyle]="{ 'overflow': 'visible' }">
+
+  <div class="p-fluid formgrid grid">
+    <!-- MECA -->
+    <div class="field col-12 md:col-6">
+      <label for="meca" class="font-semibold">MECA</label>
+      <input pInputText id="meca" [(ngModel)]="editingAccount.meca" />
+    </div>
+
+    <!-- Account Number -->
+    <div class="field col-12 md:col-6">
+      <label for="accountNumber" class="font-semibold">Account Number</label>
+      <input pInputText type="number" id="accountNumber" [(ngModel)]="editingAccount.accountNumber" />
+    </div>
+
+    <!-- Account Name -->
+    <div class="field col-12">
+      <label for="accountName" class="font-semibold">Account Name</label>
+      <input pInputText id="accountName" [(ngModel)]="editingAccount.accountName" />
+    </div>
+
+    <!-- Rep Dropdown -->
+    <div class="field col-12" style="z-index: 10001; position: relative;">
+      <label for="repid" class="font-semibold">Rep</label>
+      <p-dropdown id="repid"
+                  [options]="reps"
+                  optionLabel="repName"
+                  optionValue="id"
+                  [(ngModel)]="editingAccount.repid"
+                  placeholder="Select Rep"
+                  appendTo="body">
+      </p-dropdown>
+    </div>
+  </div>
+
+  <p-footer class="flex justify-content-end gap-2 mt-4">
+    <button pButton label="Cancel"
+            icon="pi pi-times"
+            class="p-button-text"
+            (click)="accountDialogVisible = false"></button>
+    <button pButton label="Save"
+            icon="pi pi-check"
+            (click)="confirmAddAccount()"
+            [disabled]="!isAccountValid()"></button>
+  </p-footer>
+</p-dialog>
+
+
+
+
+<!-- Rep Dialog -->
+<p-dialog header="Rep Details"
+          [(visible)]="repDialogVisible"
+          [modal]="true"
+          [closable]="false"
+          styleClass="w-10 md:w-4">
+
+  <div *ngIf="editingRep">
+    <div class="field">
+      <label for="repName">Rep Name</label>
+      <input pInputText id="repName" [(ngModel)]="editingRep.repName" />
+    </div>
+
+    <div class="field">
+      <label for="email">Email</label>
+      <input pInputText id="email" [(ngModel)]="editingRep.email" />
+    </div>
+
+    <!-- Rep Dialog Footer -->
+    <div class="mt-4 text-right">
+      <button pButton
+              label="Cancel"
+              icon="pi pi-times"
+              class="p-button-text"
+              (click)="repDialogVisible = false"></button>
+
+      <button pButton
+              label="Save"
+              icon="pi pi-check"
+              (click)="confirmAddRep()"
+              [disabled]="!isRepValid()"></button>
+    </div>
+
+  </div>
+</p-dialog>

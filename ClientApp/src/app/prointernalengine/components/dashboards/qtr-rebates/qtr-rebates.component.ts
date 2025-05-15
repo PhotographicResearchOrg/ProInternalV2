@@ -11,6 +11,7 @@ import { Router } from "@angular/router";
 import { QuarterlyRebates, QuarterlyRebatesHistorical, qrDetail } from "src/app/models/accounting/quarterly-rebates";
 import { HttpClient } from '@angular/common/http';
 import * as XLSX from 'xlsx';
+import { ConfirmationService } from 'primeng/api'; // already assumed
 
 
 
@@ -32,7 +33,8 @@ export class QtrRebatesComponent implements OnInit {
   constructor(http: HttpClient, 
     private dataService: DataService,
     private fileService: FileAppService,
-    public layoutService: LayoutService
+    public layoutService: LayoutService,
+    private confirmationService: ConfirmationService
   )
   { }
 
@@ -53,9 +55,23 @@ export class QtrRebatesComponent implements OnInit {
   setValue(event: any) {
     this.vendorDownload = event
   }
-  onReload() {
-    window.location.reload();
+
+  onReload(payload?: { reloadHistorical: boolean; reloadCurrent: boolean }) {
+    const reloadHistorical = payload?.reloadHistorical ?? true;
+    const reloadCurrent = payload?.reloadCurrent ?? true;
+
+    if (reloadCurrent) {
+      this.dataService.getRecentLoad().subscribe((data) => this.QuarterlyRebates = data);
+    }
+
+    if (reloadHistorical) {
+      this.dataService.getQRHistorical().subscribe((data) => this.QRHistorical = data);
+    }
   }
+
+
+
+
   getTotalRebateAmount(): number {
     return this.QuarterlyRebates.reduce((sum, m) => sum + m.totalAmount, 0);
   }
@@ -68,9 +84,19 @@ export class QtrRebatesComponent implements OnInit {
 
   Activate(item: any) {
    
-  this.dataService.activate(item).subscribe((resp) => { });
+  //this.dataService.activate(item).subscribe((resp) => { });
+
+    this.dataService.activate(item).subscribe(() => {
+      this.refreshQuarterlyData();  // re-fetch updated data
+    });
 
   }
+
+  refreshQuarterlyData() {
+    this.dataService.getRecentLoad().subscribe((data) => this.QuarterlyRebates = data);
+    this.dataService.getQRHistorical().subscribe((data) => this.QRHistorical = data);
+  }
+
   DownloadVendor(event: any)
   {
     //batch id comma program id
@@ -84,9 +110,16 @@ export class QtrRebatesComponent implements OnInit {
     });
   }
 
-  Delete(item: any) {
-    this.dataService.deleteQRUpload(item.id).subscribe((resp) => {
-      window.location.reload();
+  Delete(item: QuarterlyRebatesHistorical) {
+    this.confirmationService.confirm({
+      message: `Are you sure you want to delete batch ID ${item.id}?`,
+      header: 'Confirm Delete',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.dataService.deleteQRUpload(item.id).subscribe(() => {
+          this.refreshQuarterlyData();
+        });
+      }
     });
   }
 

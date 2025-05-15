@@ -25,7 +25,8 @@ namespace ProInternal.Services
     {
 
 
-
+        List<CompanyDto> GetCompaniesAssignedToGroupAsync(int groupId);
+        List<Products> GetUnassignedProductsAsync();
         List<QuarterlyRebate> GetQuarterRebateSummary();
         OrdersMetrics GetOrdersMetrics();
         EDIMetrics GetEDIMetrics();

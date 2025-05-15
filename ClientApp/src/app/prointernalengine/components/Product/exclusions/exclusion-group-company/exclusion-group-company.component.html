@@ -1,119 +1,201 @@
 <div class="card p-4 mt-4 border-round shadow-1">
 	<div class="flex align-items-center mb-3">
 		<i class="pi pi-sitemap text-2xl text-cyan-600 mr-2"></i>
-		<h5 class="m-0">Group Exclusions by Company</h5>
+		<h5 class="m-0">Exclusion Group Assignments</h5>
 	</div>
 
-	<p class="text-sm text-color-secondary mb-4">
-		Assign exclusion groups to companies by dragging and dropping between lists.
-	</p>
+	<p-tabView>
+		<!-- TAB 1: Assign Groups to Company -->
+		<p-tabPanel header="Company-Based Assignment">
+			<p class="text-sm text-color-secondary mb-3">
+				Assign exclusion groups to a selected company using drag-and-drop.
+			</p>
 
-	<!-- Company Dropdown -->
-	<div class="mb-4">
-		<label class="text-sm font-medium text-color">Select Company</label>
-		<p-dropdown [(ngModel)]="selectedCompanyId"
-								[options]="companies"
-								[optionLabel]="'accountName'"
-								[optionValue]="'companyID'"
-								placeholder="Select a company"
-								(onChange)="onCompanyChange($event)">
-		</p-dropdown>
-	</div>
+			<!-- Company Dropdown -->
+			<div class="mb-4">
+				<label class="text-sm font-medium text-color">Select Company</label>
+				<p-dropdown [(ngModel)]="selectedCompanyId"
+										[options]="companies"
+										[optionLabel]="'accountName'"
+										[optionValue]="'companyID'"
+										placeholder="Select a company"
+										(onChange)="onCompanyChange($event)">
+				</p-dropdown>
+			</div>
 
-	<!-- Drag and Drop Lists -->
-	<div class="grid" *ngIf="selectedCompanyId">
-		<!-- All Groups -->
-		<div class="col-12 lg:col-6">
-			<div class="border-round p-3 h-full" pDroppable (onDrop)="drop(false)">
-				<h6 class="mb-3 flex align-items-center text-sm font-medium text-color">
-					<i class="pi pi-list text-primary mr-2"></i> All Groups
-				</h6>
+			<!-- Drag and Drop Lists -->
+			<div class="grid" *ngIf="selectedCompanyId">
+				<!-- All Groups -->
+				<div class="col-12 lg:col-6">
+					<div class="border-round p-3 h-full" pDroppable (onDrop)="drop(false)">
+						<h6 class="mb-3 flex align-items-center text-sm font-medium text-color">
+							<i class="pi pi-list text-primary mr-2"></i> All Groups
+						</h6>
 
-				<div *ngIf="unselectedGroups.length === 0" class="text-sm text-color-secondary">
-					No available groups to assign.
+						<div *ngIf="unselectedGroups.length === 0" class="text-sm text-color-secondary">
+							No available groups to assign.
+						</div>
+
+						<div class="flex flex-column gap-2">
+							<div *ngFor="let group of unselectedGroups"
+									 pDraggable
+									 (onDragStart)="dragStart(group)"
+									 class="border-1 surface-border p-2 border-round flex justify-content-between align-items-center cursor-move">
+								<span>{{ group.groupName }}</span>
+								<i class="pi pi-bars text-secondary"></i>
+							</div>
+						</div>
+					</div>
 				</div>
 
-				<div class="flex flex-column gap-2">
-					<div *ngFor="let group of unselectedGroups"
-							 pDraggable
-							 (onDragStart)="dragStart(group)"
-							 class="border-1 surface-border p-2 border-round flex justify-content-between align-items-center cursor-move">
-						<span>{{ group.groupName }}</span>
-						<i class="pi pi-bars text-secondary"></i>
+				<!-- Assigned Groups -->
+				<div class="col-12 lg:col-6">
+					<div class="border-round p-3 h-full" pDroppable (onDrop)="drop(true)">
+						<h6 class="mb-3 flex align-items-center text-sm font-medium text-color">
+							<i class="pi pi-lock text-primary mr-2"></i> Excluded Groups
+						</h6>
+
+						<div *ngIf="selectedGroups.length === 0" class="text-sm text-color-secondary">
+							No groups currently assigned to this company.
+						</div>
+
+						<div class="flex flex-column gap-2">
+							<div *ngFor="let group of selectedGroups"
+									 pDraggable
+									 (onDragStart)="dragStart(group)"
+									 class="border-1 surface-border p-2 border-round flex justify-content-between align-items-center cursor-move">
+								<span>{{ group.groupName }}</span>
+								<i class="pi pi-bars text-secondary"></i>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
-		</div>
 
-		<!-- Assigned Groups -->
-		<div class="col-12 lg:col-6">
-			<div class="border-round p-3 h-full" pDroppable (onDrop)="drop(true)">
-				<h6 class="mb-3 flex align-items-center text-sm font-medium text-color">
-					<i class="pi pi-lock text-primary mr-2"></i> Excluded Groups
-				</h6>
+			<!-- Save Button -->
+			<div class="mt-4" *ngIf="selectedCompanyId">
+				<button pButton
+								pRipple
+								label="Save Changes"
+								icon="pi pi-check"
+								class="p-button-outlined w-full"
+								(click)="save()">
+				</button>
 
-				<div *ngIf="selectedGroups.length === 0" class="text-sm text-color-secondary">
-					No groups currently assigned to this company.
-				</div>
-
-				<div class="flex flex-column gap-2">
-					<div *ngFor="let group of selectedGroups"
-							 pDraggable
-							 (onDragStart)="dragStart(group)"
-							 class="border-1 surface-border p-2 border-round flex justify-content-between align-items-center cursor-move">
-						<span>{{ group.groupName }}</span>
-						<i class="pi pi-bars text-secondary"></i>
+				<!-- Save Summary -->
+				<div class="card mt-4 p-4 surface-100 border-round shadow-1" *ngIf="saveTimestamp">
+					<div class="flex align-items-center mb-3">
+						<i class="pi pi-check-circle text-green-600 text-2xl mr-2"></i>
+						<h5 class="m-0 text-green-700 font-bold">Group Exclusions by Company</h5>
 					</div>
-				</div>
-			</div>
-		</div>
-	</div>
 
-	<!-- Save Button -->
-	<div class="mt-4" *ngIf="selectedCompanyId">
-		<button pButton
-						pRipple
-						label="Save Changes"
-						icon="pi pi-check"
-						class="p-button-outlined w-full"
-						(click)="save()">
-		</button>
-		<!-- Save Summary Card -->
-		<div class="card mt-4 p-4 surface-100 border-round shadow-1" *ngIf="saveTimestamp">
-			<div class="flex align-items-center mb-3">
-				<i class="pi pi-check-circle text-green-600 text-2xl mr-2"></i>
-				<h5 class="m-0 text-green-700 font-bold">Group Exclusions by Company</h5>
-			</div>
-
-			<div>
-				<p class="mb-2">
-					<strong>Company:</strong> {{ saveCompanyName }}
-				</p>
-
-				<p class="mb-2"><strong>Assigned Groups:</strong></p>
-
-				<ng-container *ngIf="groupSaveSummary.length > 0; else noGroupsAssigned">
-					<ul class="pl-3">
+					<p><strong>Company:</strong> {{ saveCompanyName }}</p>
+					<p class="mb-2"><strong>Assigned Groups:</strong></p>
+					<ul class="pl-3" *ngIf="groupSaveSummary.length > 0; else noGroupsAssigned">
 						<li *ngFor="let group of groupSaveSummary">
-							<i class="pi pi-folder text-primary mr-1"></i>
-							{{ group.groupName }}
+							<i class="pi pi-folder text-primary mr-1"></i> {{ group.groupName }}
 						</li>
 					</ul>
-				</ng-container>
+					<ng-template #noGroupsAssigned>
+						<p class="text-sm text-color-secondary">
+							No groups are currently assigned to this company.
+						</p>
+					</ng-template>
 
-				<ng-template #noGroupsAssigned>
-					<p class="text-sm text-color-secondary">
-						No groups are currently assigned to this company. Groups may have been removed during the update.
+					<p class="text-sm text-color-secondary mt-2">
+						<i class="pi pi-clock mr-1"></i> {{ saveTimestamp | date:'short' }}
 					</p>
-				</ng-template>
-
-				<p class="text-sm text-color-secondary mt-3">
-					<i class="pi pi-clock mr-1"></i> {{ saveTimestamp | date:'short' }}
-				</p>
+				</div>
 			</div>
-		</div>
+		</p-tabPanel>
+
+		<!-- TAB 2: View Companies in Group -->
+		<p-tabPanel header="Group-Based View">
+			<p class="text-sm text-color-secondary mb-3">
+				Select a group below to see which companies are assigned to it.
+			</p>
+
+			<!-- Group Dropdown -->
+			<div class="mb-3">
+				<label class="text-sm font-medium text-color">Select Group</label>
+				<p-dropdown [(ngModel)]="selectedGroupIdForCompanyView"
+										[options]="groups"
+										[optionLabel]="'groupName'"
+										[optionValue]="'productExclusionGroupID'"
+										placeholder="Select a group"
+										  (onChange)="onGroupSelect($event); loadCompaniesForGroup()">
+				</p-dropdown>
+			</div>
+
+			<!-- Assigned Companies -->
+			<div *ngIf="groupCompanies.length > 0" class="mt-2 pl-2 text-sm">
 
 
 
-	</div>
+
+				<p-table #table
+								 [value]="groupCompanies"
+								 [paginator]="true"
+								 [rows]="10"
+								 [rowsPerPageOptions]="[10, 25, 50]"
+								 [globalFilterFields]="['companyName', 'companyId']"
+								 [responsiveLayout]="'scroll'"
+								 sortField="companyName"
+								 [sortOrder]="1">
+					<!-- Caption with Search + Export -->
+					<ng-template pTemplate="caption">
+						<div class="flex justify-content-between align-items-center flex-wrap gap-2">
+							<span class="text-sm font-medium">Companies assigned to this group</span>
+
+							<div class="flex align-items-center gap-2">
+								<i class="pi pi-search text-gray-600 text-base"></i>
+								<input type="text"
+											 pInputText
+											 (input)="onGlobalFilter($event, table)"
+											 placeholder="Search..." />
+							</div>
+
+							<button pButton
+											type="button"
+											icon="pi pi-file-excel"
+											label="Export"
+											class="p-button-sm"
+											(click)="exportGroupCompaniesToExcel()"></button>
+						</div>
+					</ng-template>
+
+					<!-- Table Header -->
+					<ng-template pTemplate="header">
+						<tr>
+							<th pSortableColumn="companyName">
+								Company Name
+								<p-sortIcon field="companyName"></p-sortIcon>
+							</th>
+							<th pSortableColumn="companyId">
+								Company ID
+								<p-sortIcon field="companyId"></p-sortIcon>
+							</th>
+						</tr>
+					</ng-template>
+
+					<!-- Table Body -->
+					<ng-template pTemplate="body" let-company>
+						<tr>
+							<td>{{ company.companyName }}</td>
+							<td>{{ company.companyId }}</td>
+						</tr>
+					</ng-template>
+				</p-table>
+
+
+
+
+
+
+			</div>
+			<div *ngIf="selectedGroupIdForCompanyView && groupCompanies.length === 0" class="text-sm text-color-secondary mt-2">
+				No companies currently assigned to this group.
+			</div>
+		</p-tabPanel>
+	</p-tabView>
 </div>

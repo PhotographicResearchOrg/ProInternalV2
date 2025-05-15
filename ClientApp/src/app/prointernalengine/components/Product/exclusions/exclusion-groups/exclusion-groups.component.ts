@@ -13,11 +13,12 @@ import { ProProduct } from 'src/app/prointernalengine/api/product';
 import { DataService } from 'src/app/services/data.service';
 import * as XLSX from 'xlsx';
 import { ExclusionGroupCompanyComponent } from 'src/app/prointernalengine/components/Product/exclusions/exclusion-group-company/exclusion-group-company.component';
+import { PanasonicreportingComponent } from 'src/app/prointernalengine/components/Reporting/panasonicreporting/panasonicreporting.component';
 
 @Component({
   selector: 'app-exclusion-groups',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, InputTextModule, ButtonModule, DropdownModule, DragDropModule, ToastModule, ExclusionGroupCompanyComponent],
+  imports: [PanasonicreportingComponent ,CommonModule, FormsModule, ReactiveFormsModule, InputTextModule, ButtonModule, DropdownModule, DragDropModule, ToastModule, ExclusionGroupCompanyComponent],
   providers: [MessageService],
   templateUrl: './exclusion-groups.component.html',
   styleUrl: './exclusion-groups.component.scss'
@@ -50,6 +51,9 @@ export class ExclusionGroupsComponent {
   public saveTimestamp: Date = new Date();
 
 
+  public unassignedProducts: ProProduct[] = [];
+
+
 
 	private activeProduct: ProductExclusionGroupProduct | undefined;
 	public searchBox = new FormControl('');
@@ -61,7 +65,8 @@ export class ExclusionGroupsComponent {
 
 	constructor(private dataService: DataService, private messageService: MessageService) { }
 
-	ngOnInit() {
+  ngOnInit()
+  {
 		this.dataService.getExclusionGroups().subscribe((data: Array<ProductExclusionGroup>) => {
 			this.groups = data.sort((a, b) => a.groupName.localeCompare(b.groupName));
 		});
@@ -77,6 +82,12 @@ export class ExclusionGroupsComponent {
         .filter(p => !includedProductCodes.has(p.productCode)) // Exclude already added
         .sort((a, b) => a.productCode.localeCompare(b.productCode));
     });
+
+    this.dataService.getUnassignedProducts().subscribe(data => {
+      this.unassignedProducts = data;
+    });
+
+
 
 	}
 

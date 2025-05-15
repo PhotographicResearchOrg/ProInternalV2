@@ -1,6 +1,6 @@
 import { group } from '@angular/animations';
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -10,16 +10,21 @@ import { ToastModule } from 'primeng/toast';
 import { Account } from 'src/app/models/Dashboard/Account';
 import { CompanyGroupExclusion, ProductExclusionGroup } from 'src/app/models/exclusions/group-exclusions';
 import { DataService } from 'src/app/services/data.service';
+import { TabViewModule } from 'primeng/tabview';
+import * as XLSX from 'xlsx';
+import { TableModule } from 'primeng/table';
 
 @Component({
   selector: 'app-exclusion-group-company',
   standalone: true,
-  imports: [CommonModule, DropdownModule, FormsModule, DragDropModule, ButtonModule, ToastModule],
+  imports: [CommonModule, DropdownModule, FormsModule, DragDropModule, ButtonModule, ToastModule, TabViewModule, TableModule],
 	providers: [MessageService],
 	templateUrl: './exclusion-group-company.component.html',
   styleUrl: './exclusion-group-company.component.scss'
 })
 export class ExclusionGroupCompanyComponent {
+
+  @Input() groups: ProductExclusionGroup[] = [];
 
 	public allGroups: Array<ProductExclusionGroup> = [];
 	public selectedGroups: Array<ProductExclusionGroup> = [];
@@ -31,7 +36,11 @@ export class ExclusionGroupCompanyComponent {
   public groupSaveSummary: ProductExclusionGroup[] = [];
   public saveCompanyName: string = '';
   public saveTimestamp: Date | null = null;
+  public selectedGroupIdForCompanyView: number | null = null;
 
+  groupCompanies: { companyId: number; companyName: string }[] = [];
+
+  selectedGroupNameForCompanyView: string;
 
 
 	constructor(private dataService: DataService, private messageService: MessageService) { }
@@ -62,6 +71,12 @@ export class ExclusionGroupCompanyComponent {
 		}
 	}
 
+  onGlobalFilter(event: Event, table: any) {
+    const input = event.target as HTMLInputElement;
+    table.filterGlobal(input.value, 'contains');
+  }
+
+
 	dragStart(group: ProductExclusionGroup) {
 		this.activeGroup = group;
 	}
@@ -89,6 +104,41 @@ export class ExclusionGroupCompanyComponent {
       this.saveCompanyName = selectedCompany?.accountName || 'Unknown Company';
       this.saveTimestamp = new Date();
     });
+  }
+
+
+  loadCompaniesForGroup(): void {
+    if (!this.selectedGroupIdForCompanyView) {
+      this.groupCompanies = [];
+      return;
+    }
+
+    this.dataService.getCompaniesForGroup(this.selectedGroupIdForCompanyView).subscribe({
+      next: (data) => this.groupCompanies = data,
+      error: () => this.groupCompanies = []
+    });
+  }
+
+
+  onGroupSelect(event: any) {
+    const selected = this.groups.find(g => g.productExclusionGroupID === event.value);
+    this.selectedGroupNameForCompanyView = selected?.groupName || 'Group';
+  }
+
+  exportGroupCompaniesToExcel(): void {
+    const exportData = this.groupCompanies.map(c => ({
+      'Company Name': c.companyName,
+      'Company ID': c.companyId
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+
+    const safeSheetName = this.selectedGroupNameForCompanyView?.replace(/[\\/?*[\]:]/g, '') || 'Group';
+    const fileName = `Companies_Assigned_to_${safeSheetName.replace(/\s+/g, '_')}.xlsx`;
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName);
+    XLSX.writeFile(workbook, fileName);
   }
 
 }
