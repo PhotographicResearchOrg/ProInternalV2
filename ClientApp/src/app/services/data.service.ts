@@ -35,12 +35,23 @@ import { InvoiceRecord } from 'src/app/models/accounting/InvoiceRecord';
 import { PatronageUpload, PatronageHistorical, patronageDetail } from "src/app/models/accounting/patronage";
 import { ParentCompany } from "src/app/models/Dashboard/InstantRebate"
 import { panaAccount, panaRep } from 'src/app/models/vendor/panasonicreporting';
-
+import { EzPaySummary, EzPayDetail  } from 'src/app/models/accounting/EzPaySummary';
 
 @Injectable()
 export class DataService {
 
   constructor(private api: ApiService) { }
+
+
+  getEzPaySummary(date: Date): Observable<EzPaySummary[]> {
+    const formattedDate = date.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+    return this.api.get<EzPaySummary[]>(`API/Accounting/ezpay-summary?date=${formattedDate}`);
+  }
+
+  getEzPayDetail(date: Date): Observable<EzPayDetail[]> {
+    const formattedDate = date.toISOString().slice(0, 10);
+    return this.api.get<EzPayDetail[]>(`API/Accounting/ezpay-detail?date=${formattedDate}`);
+  }
 
 
   getAllReps(): Observable<panaRep[]> {

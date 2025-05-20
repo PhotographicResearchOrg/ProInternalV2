@@ -58,7 +58,7 @@ import { DividerModule } from 'primeng/divider';
 import { RebateExcelUploaderComponent } from './prointernalengine/components/instantrebate/rebate-excel-uploader/rebate-excel-uploader.component'; 
 import { ConfirmationService } from 'primeng/api'; // already assumed
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-
+import { PaymentsComponent } from './prointernalengine/components/dashboards/accounting/payments/payments.component';
 
 
 @NgModule({
@@ -78,7 +78,8 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
     ForecastComponent,
     UploaderComponent,
     FileAppComponent,
-    PatronageComponent
+    PatronageComponent,
+    PaymentsComponent
   ],
 
   imports: [

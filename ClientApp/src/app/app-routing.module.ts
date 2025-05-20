@@ -8,7 +8,6 @@ import { DashboardLandingComponent } from "src/app/prointernalengine/components/
 import { LoginComponent } from "src/app/prointernalengine/components/auth/login/login.component"; 
 import { FileAppComponent } from './prointernalengine/components/apps/file/file.app.component';
 import { AuthModule } from './prointernalengine/components/auth/auth.module';
-
 import { BrandExclusionsComponent } from './prointernalengine/components/Product/exclusions/brand-exclusions/brand-exclusions.component';
 import { ExclusionGroupsComponent } from './prointernalengine/components/Product/exclusions/exclusion-groups/exclusion-groups.component';
 import { ExclusionGroupCompanyComponent } from './prointernalengine/components/Product/exclusions/exclusion-group-company/exclusion-group-company.component';
@@ -21,6 +20,8 @@ import { ForecastComponent } from './prointernalengine/components/dashboards/acc
 import { PatronageComponent } from './prointernalengine/components/dashboards/patronage/patronage.component';
 import { RebateSetupComponent } from './prointernalengine/components/instantrebate/rebate-setup/rebate-setup.component';
 import { RebateExcelUploaderComponent } from './prointernalengine/components/instantrebate/rebate-excel-uploader/rebate-excel-uploader.component';
+import { EzPaySummary } from './models/accounting/EzPaySummary';
+import { PaymentsComponent } from './prointernalengine/components/dashboards/accounting/payments/payments.component';
 
 
 const routerOptions: ExtraOptions = {
@@ -111,6 +112,7 @@ const routes: Routes = [
         },
         component: VendorStockComponent
       },
+
          {
         path: 'forecast',
         data: {
@@ -127,6 +129,17 @@ const routes: Routes = [
         },
         component: PatronageComponent
       },
+
+
+
+      {
+        path: 'payments',
+        data: {
+          breadcrumb: 'Payments'
+        },
+        component: PaymentsComponent
+      },
+
 
 
       {

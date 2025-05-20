@@ -91,6 +91,7 @@
     <None Remove="ClientApp\src\app\demo\components\dashboards\dashboards.module.ts" />
     <None Remove="ClientApp\src\app\demo\components\dashboards\e-commerce\dashboardecommerce-routing.module.ts" />
     <None Remove="ClientApp\src\app\demo\components\dashboards\e-commerce\dashboardecommerce.module.ts" />
+    <None Remove="ClientApp\src\app\models\accounting\EzPaySummary.ts" />
     <None Remove="ClientApp\src\app\models\accounting\InvoiceRecord.ts" />
     <None Remove="ClientApp\src\app\models\accounting\patronage.ts" />
     <None Remove="ClientApp\src\app\models\accounting\quarterly-rebates.ts" />
@@ -132,6 +133,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <TypeScriptCompile Include="ClientApp\src\app\models\accounting\EzPaySummary.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\patronage.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\InvoiceRecord.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\quarterly-rebates.ts" />

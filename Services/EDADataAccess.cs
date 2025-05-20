@@ -11,6 +11,7 @@ using ProInternal.Models.InstantRebates;
 using ProInternal.Models.Vendor;
 using Microsoft.Data.SqlClient;
 using System.Reflection.Metadata;
+using ProInternal.Models.EzPaySummary;
 
 
 
@@ -22,10 +23,59 @@ namespace ProInternal.Services
 
         private string _connectionString { get; set; }
 
+
         public EDADataAccess(string connectionString)
         {
             _connectionString = connectionString;
         }
+
+
+
+        public async Task<IEnumerable<EzPaySummary>> GetEzPaySummary(DateTime daDate)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var parameters = new DynamicParameters();
+                parameters.Add("@daDate", daDate);
+
+                try
+                {
+                    var result = await connection.QueryAsync<EzPaySummary>(
+                        "GetEzPaySummary", parameters, commandType: CommandType.StoredProcedure);
+                    return result;
+                }
+                catch
+                {
+                    return Enumerable.Empty<EzPaySummary>();
+                }
+            }
+        }
+
+
+        public async Task<IEnumerable<EzPayDetail>> GetEzPayDetail(DateTime daDate)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var parameters = new DynamicParameters();
+                parameters.Add("@daDate", daDate);
+
+                try
+                {
+                    var result = await connection.QueryAsync<EzPayDetail>(
+                        "GetEzPayDetail", parameters, commandType: CommandType.StoredProcedure);
+                    return result;
+                }
+                catch
+                {
+                    return Enumerable.Empty<EzPayDetail>();
+                }
+            }
+        }
+
+
+
+
+
 
 
         public List<PanaAccount> GetAllPanaAccounts()

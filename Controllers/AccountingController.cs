@@ -17,6 +17,7 @@ using System.Data;
 using ProInternal.Models.Dashboard;
 using ProInternal.Models.InvoiceRecord;
 using ProInternal.Models.Patronage;
+using ProInternal.Models.EzPaySummary;
 
 
 namespace ProInternal.Controllers
@@ -27,10 +28,36 @@ namespace ProInternal.Controllers
     public class AccountingController : ControllerBase
     {
         private IProDataAccess _proDataAccess;
-        public AccountingController(IProDataAccess proDataAccess) 
+        private IDRADataAccess _dradataAccess;
+        private IEDADataAccess _edadataAccess;
+
+        public AccountingController(IProDataAccess proDataAccess, IDRADataAccess DRADataAccess, IEDADataAccess edadataAccess) 
         {
             _proDataAccess = proDataAccess;
+            _dradataAccess = DRADataAccess;
+            _edadataAccess = edadataAccess;
+
         }
+
+
+
+        [HttpGet]
+        [Route("ezpay-summary")]
+        public async Task<ActionResult> GetEzPaySummary([FromQuery] DateTime date)
+        {
+            IEnumerable<EzPaySummary> summaryList = await _edadataAccess.GetEzPaySummary(date);
+
+            return Ok(summaryList);
+        }
+
+
+        [HttpGet("ezpay-detail")]
+        public async Task<IActionResult> GetEzPayDetail([FromQuery] DateTime date)
+        {
+            IEnumerable<EzPayDetail> detailList = await _edadataAccess.GetEzPayDetail(date);
+            return Ok(detailList);
+        }
+
 
 
 
@@ -47,36 +74,6 @@ namespace ProInternal.Controllers
 
             return Ok(new { success = true }); // ✅ ensures Angular receives a response
         }
-
-
-
-       // [HttpPost, DisableRequestSizeLimit]
-       // [Route("LoadQuarterFile")]
-       //// public async Task<IEnumerable<SellThroughUploadError>> UploadSellThrough([FromForm] string date)
-       // public async Task<ActionResult> Result(IFormFile file)
-       // {
-
-       //     //get data from file
-       //     QuarterlyRebates Loadeddata =  await LoadQuarterlyData(file);
-
-       //     if (Loadeddata == null) 
-       //     { 
-            
-       //     }
-       //     else
-       //     {
-       //         //Call SP.
-       //         this._proDataAccess.saveData(Loadeddata);
-
-       //     }
-
-       //     return null;
-
-       // }
-
-
-
-
 
 
 

@@ -8,6 +8,7 @@ using ProInternal.Models.InstantRebates ;
 using System;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using ProInternal.Models.Vendor;
+using ProInternal.Models.EzPaySummary;
 
 
 namespace ProInternal.Services
@@ -15,19 +16,15 @@ namespace ProInternal.Services
     public interface IEDADataAccess
     {
 
-
         List<PanaRep> GetAllPanaReps();
-
         List<PanaAccount> GetAllPanaAccounts();
-
 
         Task<PanaRep> SavePanaRep(PanaRep rep);
         Task<PanaAccount> SavePanaAccount(PanaAccount account);
-
-
         Task<bool> DeletePanaRep(int id);
         Task<bool> DeletePanaAccount(string meca);
-
+        Task<IEnumerable<EzPaySummary>> GetEzPaySummary(DateTime daDate);
+        Task<IEnumerable<EzPayDetail>> GetEzPayDetail(DateTime daDate);
     }
 
 }
