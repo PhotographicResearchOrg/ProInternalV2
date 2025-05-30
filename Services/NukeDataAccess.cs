@@ -5,8 +5,10 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
+using Microsoft.AspNetCore.Mvc;
 using ProInternal.Models.Dashboard;
 using ProInternal.Models.InstantRebates;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 
 namespace ProInternal.Services
@@ -61,6 +63,22 @@ namespace ProInternal.Services
 
         }
 
+        public void ResubmitOrderToQueue(int orderId)
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                connection.Execute("ResubmitOrderToQueue",
+                    new { orderId = orderId },
+                    commandType: CommandType.StoredProcedure);
+            }
+        }
+
+
+
+
+
+
+
 
         public List<IR> getIRBatchDetail(int batchID)
         {
@@ -114,6 +132,44 @@ namespace ProInternal.Services
                 return parameters.Get<int>("@NewId");
             }
         }
+
+
+
+        public void DeleteRebateProofFile(int orderId, string filename)
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                var parameters = new DynamicParameters();
+                parameters.Add("@OrderId", orderId);
+                parameters.Add("@FileName", filename);
+
+                connection.Execute("DeleteRebateProofFile", parameters, commandType: CommandType.StoredProcedure);
+            }
+
+         }
+
+        public void InsertAdditionalFile(int orderId, string filename)
+        {
+            var p = new DynamicParameters();
+            p.Add("@OrderId", orderId);
+            p.Add("@FileName", filename);
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                connection.Execute("InsertRebateAdditionalFile", p, commandType: CommandType.StoredProcedure);
+            }
+        }
+        public void MarkAsHasAdditionalFiles(int orderId)
+        {
+            var p = new DynamicParameters();
+            p.Add("@OrderId", orderId);
+  
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                connection.Execute("MarkAsHasAdditionalFiles", p, commandType: CommandType.StoredProcedure);
+            }
+        }
+
+
 
         public void UpdateParentIRCompany(int id, string name, string imageUrl)
         {

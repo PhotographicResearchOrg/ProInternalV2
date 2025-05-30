@@ -1,96 +1,37 @@
 <p-toast></p-toast>
 <div class="grid">
 
-
-  <!--
-    <div *ngFor="let metric of QuarterlyRebates" class="col-12 md:col-6 lg:col-3">
-    <div class="card h-full">
-      <div class="flex align-items-center justify-content-between mb-3">
-        <span class="text-900 text-xl font-semibold">{{metric.programName}}</span>
-        <div>
-          <button pButton pRipple icon="pi pi-ellipsis-v" class="p-button-text p-button-sm p-button-rounded" (click)="menu.toggle($event); setValue(metric.batchID + ',' + metric.programID);"></button>
-          <p-menu #menu [popup]="true" appendTo="body" [model]="menuitems"></p-menu>
-        </div>
-      </div>
-      <div>
-        <div ngClass="bg-green-100" class="border-round" style="height: 6px">
-          <div ngClass="bg-green-500" class="h-full border-round" style="width:34%"></div>
-        </div>
-        <div class="flex align-item-center justify-content-between">
-          <span class="text-900 mt-3 text-md font-medium">{{metric.totalAmount | currency}}</span>
-          <span class="text-900 mt-3 text-md font-medium">{{metric.issueDate | date}}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-  -->
-
-
   <div class="col-12 md:col-9 xl:col-12">
     <div class="card">
-      <div class="text-900 text-xl font-semibold mb-3">Instant Rebate Declines (Support Needed)</div>
-      <div class="inline-flex align-items-center">
-        <span class="p-input-icon-left flex-auto">
-          <i class="pi pi-search"></i>
-          <input pInputText type="text" (input)="onGlobalFilter(dtDeclines, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
-        </span>
-        <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dtDeclines.exportCSV()"></button>
+      <div class="mb-3">
+        <div class="text-900 text-xl font-semibold mb-3">
+          Instant Rebate Declines (Support Needed)
+        </div>
+
+        <div class="flex align-items-center" style="gap: 1rem;">
+          <div class="p-input-icon-left w-100 max-w-25rem">
+            <i class="pi pi-search"></i>
+            <input pInputText
+                   type="text"
+                   (input)="onSearch($event)"
+                   placeholder="Search..."
+                   class="w-full"
+                   style="border-radius: 2rem" />
+          </div>
+          <button pButton
+                  pRipple
+                  icon="pi pi-cloud-download"
+                  class="p-button-rounded"
+                  (click)="exportData()">
+          </button>
+        </div>
       </div>
-      <p-table responsiveLayout="scroll" #dtDeclines [columns]="IRDeclinecols" [value]="declinedIRs" [rows]="8" [paginator]="true" [globalFilterFields]="['orderID','processDate','rejectReason','memberID','model']">
-        <ng-template pTemplate="header">
-          <tr>
-            <th pSortableColumn="orderID" style="min-width:2rem" class="white-space-nowrap">Rebate ID <p-sortIcon field="orderID"></p-sortIcon></th>
-            <th pSortableColumn="processDate" style="min-width:2rem" class="white-space-nowrap">Declined On<p-sortIcon field="processDate"></p-sortIcon></th>
-            <th pSortableColumn="total" style="min-width:2rem" class="white-space-nowrap"> Total <p-sortIcon field="total"></p-sortIcon></th>
-            <th pSortableColumn="rejectReason" style="min-width:2rem" class="white-space-nowrap"> Reject Reason <p-sortIcon field="rejectReason"></p-sortIcon></th>
-            <th pSortableColumn="memberID" style="min-width:2rem" class="white-space-nowrap"> Member # <p-sortIcon field="memberID"></p-sortIcon></th>
-            <th pSortableColumn="model" style="min-width:2rem" class="white-space-nowrap"> Model <p-sortIcon field="model"></p-sortIcon></th>
-            <th pSortableColumn="quantity" style="min-width:2rem" class="white-space-nowrap"> Units <p-sortIcon field="quantity"></p-sortIcon></th>
-            <th pSortableColumn="eMail" style="min-width:2rem" class="white-space-nowrap"> Email <p-sortIcon field="eMail"></p-sortIcon></th>
-            <th style="width:8rem"></th>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-declinedIRs>
-          <tr>
-            <td>
-              <div class="flex align-items-center">
-                <i [class]="'text-xl text-primary mr-2 ' + 'pi pi-key'"></i>
-                <span> {{declinedIRs.orderID}}</span>
-              </div>
-            </td>
 
-            <td>
-              <span>{{declinedIRs.processDate | date}}</span>
-            </td>
-            <td>
-              <span>{{declinedIRs.total | currency}}</span>
-            </td>
-            <td>
-              <span>{{declinedIRs.rejectReason}}</span>
-            </td>
-            <td>
-              <span>{{declinedIRs.memberID}}</span>
-            </td>
-
-            <td>
-              <span>{{declinedIRs.model}}</span>
-            </td>
-
-            <td>
-              <span>{{declinedIRs.quantity}}</span>
-            </td>
-
-            <td>
-              <span>{{declinedIRs.eMail}}</span>
-            </td>
-            <td class="text-center">
-              <!--<button (click)="Delete(InstantRebateBatches)" pButton pRipple icon="pi pi-times" class="p-button-danger p-button-text p-button-rounded mr-2"></button>-->
-              <button (click)="Download(InstantRebateBatches)" pButton pRipple icon="pi pi-file-excel" class="p-button-text p-button-rounded"></button>
-            </td>
-          </tr>
-
-        </ng-template>
-      </p-table>
+      <app-ir-declines-table [declines]="declinedIRs"
+                             [columns]="IRDeclinecols"
+                             [globalFilterFields]="['orderID','processDate','rejectReason','memberID','model']"
+                             #declinesTable>
+      </app-ir-declines-table>
     </div>
   </div>
 

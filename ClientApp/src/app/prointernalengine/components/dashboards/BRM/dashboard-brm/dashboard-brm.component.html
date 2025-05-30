@@ -1,0 +1,49 @@
+<div class="grid">
+  <!-- HubSpot Company Management Card (Full Width) -->
+  <div class="col-12">
+    <p-card header="HubSpot Company Management">
+      <app-hubspot-company (filterByAccountNumbers)="onAccountFilter($event)"></app-hubspot-company>
+    </p-card>
+  </div>
+
+  <!-- Instant Rebate Declines Card (Full Width) -->
+  <div class="col-12">
+    <p-card>
+      <ng-template pTemplate="header">
+        <div class="text-900 text-xl font-semibold">
+          Instant Rebate Declines (Support Needed)
+        </div>
+      </ng-template>
+
+      <div class="flex align-items-center mb-3" style="max-width: 100%;">
+        <div class="p-input-icon-left" style="flex: 1; max-width: 400px;">
+          <i class="pi pi-search"></i>
+          <input pInputText
+                 type="text"
+                 (input)="onSearch($event)"
+                 placeholder="Search..."
+                 class="w-full"
+                 style="border-radius: 2rem" />
+        </div>
+        <button pButton
+                pRipple
+                icon="pi pi-cloud-download"
+                class="p-button-rounded ml-3"
+                (click)="exportData()">
+        </button>
+      </div>
+
+
+      <app-ir-declines-table
+                               
+                             [declines]="declinedIRs"
+                             [columns]="IRDeclinecols"
+                             [globalFilterFields]="['orderID','processDate','rejectReason','memberID','model']"
+                             [accountNumberFilter]="hubspotAccountNumbers"
+                             #declinesTable>
+      </app-ir-declines-table>
+
+
+    </p-card>
+  </div>
+</div>

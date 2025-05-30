@@ -33,7 +33,18 @@ export class AppMenuComponent implements OnInit {
                 { label: 'Patronage', icon: 'pi pi-file', routerLink: ['/patronage'] },
                 { label: 'Payments', icon: 'pi pi-briefcase', routerLink: ['/payments'] }
               ]
-            },
+              },
+
+
+              {
+                label: 'BRM', icon: 'pi pi-user',
+                items: [
+                  { label: 'BRM Dash', icon: 'pi pi-tags', routerLink: ['/BRMdash'] },             
+                ]
+              },
+
+
+
             { label: 'Product', icon: 'pi pi-fw pi-money-bill', routerLink: ['/dashboard-banking'] }
             ]
         },
@@ -162,9 +173,6 @@ export class AppMenuComponent implements OnInit {
 
 
 
-
-
-
     if (this.authService.hasPermission('Super Admin')) {
       rawModel.push
         (
@@ -174,7 +182,18 @@ export class AppMenuComponent implements OnInit {
     }
 
     rawModel.push({ label: 'New Products', icon: 'pi pi-fw pi-plus', routerLink: ['ecommerce/new-product'] });
-    rawModel.push({ label: 'Member Management', icon: 'pi pi-fw pi-list', routerLink: ['profile/list'] });
+    rawModel.push({
+      label: 'Member Management', icon: 'pi pi-fw pi-list',
+      items:
+        [
+          { label: 'BRM SetUp', icon: 'pi pi-cog', routerLink: ['/BRMsetup'] },
+        ]
+    });
+
+
+
+
+
     rawModel.push({ label: 'Process Orders', icon: 'pi pi-fw pi-history', routerLink: ['ecommerce/order-history'] });
 
     if (this.authService.hasPermission('Super Admin')) {

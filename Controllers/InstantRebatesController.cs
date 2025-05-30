@@ -47,6 +47,109 @@ namespace ProInternal.Controllers
             }
 
 
+        [HttpGet("GetDeclinedRebateOrder")]
+        public IActionResult GetDeclinedRebateOrder([FromQuery] int orderId)
+        {
+            var summary = _nukedataAccess.GetDeclinedInstantRebates()
+                                         .Where(x => x.OrderID == orderId)
+                                         .ToList();
+
+            if (!summary.Any())
+                return NotFound();
+
+            return Ok(summary);
+        }
+
+
+
+        [HttpPost]
+        [Route("UploadIRFile")]
+        public async Task<IActionResult> UploadIRFile([FromForm] IFormFile file, [FromForm] int orderId)
+        {
+
+
+            if (file == null || file.Length == 0)
+                return BadRequest("Invalid file");
+
+            var safeFileName = Path.GetFileName(file.FileName);
+            var uploadDir = Path.Combine(@"\\YourServer\ProofShare"); // use UNC or local
+            //var fullPath = Path.Combine(uploadDir, $"{orderId}_{safeFileName}");
+            var uncPath = $@"\\10.0.0.13\Temp\uploads\Master\{orderId}_{safeFileName}";
+            try
+            {
+                using (var stream = new FileStream(uncPath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+            
+                // Save to DB
+                _nukedataAccess.InsertAdditionalFile(orderId, safeFileName);
+                _nukedataAccess.MarkAsHasAdditionalFiles(orderId); // sets MasterFileLoc = 'Additional Files' if not already
+
+
+
+                return Ok();
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Upload error: {ex.Message}");
+            }
+        }
+
+
+
+        [HttpPost("resubmit")]
+        public IActionResult ResubmitRebateOrder([FromBody] int orderId)
+        {
+            if (orderId <= 0)
+                return BadRequest("Invalid order ID");
+
+            try
+            {
+                _nukedataAccess.ResubmitOrderToQueue(orderId);
+                return Ok(new { success = true, message = "Order resubmitted successfully." });
+            }
+            catch (Exception ex)
+            {
+           
+                return StatusCode(500, "An error occurred while resubmitting the order.");
+            }
+        }
+
+
+
+
+
+        [HttpDelete]
+        [Route("DeleteIRFile/{orderId}/{filename}")]
+        public IActionResult DeleteIRFile(int orderId, string filename)
+        {
+            if (orderId <= 0 || string.IsNullOrWhiteSpace(filename))
+                return BadRequest("Invalid input.");
+
+
+            var safeFilename = Path.GetFileName(filename); // Prevent path traversal
+            var proofDirectory = Path.Combine("C:\\Path\\To\\Proof"); // adjust as needed
+            //var fullPath = Path.Combine(proofDirectory, $"{orderId}_{safeFilename}");
+            var uncPath = $@"\\10.0.0.13\Temp\uploads\Master\{orderId}_{safeFilename}";
+            try
+            {
+                // 1. Delete physical file if it exists
+                if (System.IO.File.Exists(uncPath))
+                {
+                    System.IO.File.Delete(uncPath);
+                }
+                // 2. Delete from database
+                this._nukedataAccess.DeleteRebateProofFile(orderId, safeFilename);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error deleting file: {ex.Message}");
+            }
+        }
 
 
 
@@ -55,7 +158,8 @@ namespace ProInternal.Controllers
 
 
 
-            [HttpPut]
+
+        [HttpPut]
         [Route("activateIRBatch/{batchID}")]
         public bool activateIRBatch(int batchID)
         {

@@ -1,0 +1,203 @@
+<p-toast></p-toast>
+<p-confirmDialog key="ir-delete-confirm"></p-confirmDialog>
+
+<div class="col-12">
+  <div class="card">
+    <div class="text-900 text-xl font-semibold mb-3">Instant Rebate Declines</div>
+
+    <p-table #dtDeclines
+             [value]="groupedDeclines"
+             dataKey="orderID"
+             [rows]="25"
+             [paginator]="true"
+             [expandedRowKeys]="expandedRowKeys"
+             rowExpandMode="single"
+             responsiveLayout="scroll"
+             [globalFilterFields]="['orderID', 'processDate', 'rejectReason', 'memberID', 'eMail']">
+
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 3rem"></th>
+          <th>Claim</th>
+          <th>Decline</th>
+          <th>Total</th>
+          <th>Reject Reason</th>
+          <th>Member #</th>
+          <th>Email</th>
+          <th style="width: 8rem" class="text-center">Actions</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-rowData let-expanded="expanded">
+        <tr>
+          <td>
+            <span (click)="toggleRow(rowData.orderID.toString())"
+                  [pRowToggler]="rowData"
+                  class="row-toggle-icon" style="cursor: pointer;">
+              <i class="pi"
+                 [ngClass]="expandedOrderId === rowData.orderID.toString() ? 'pi-angle-double-down' : 'pi-angle-double-right'">
+              </i>
+            </span>
+          </td>
+          <td>{{ rowData.orderID }}</td>
+          <td>{{ rowData.processDate | date }}</td>
+          <td>{{ rowData.total | currency }}</td>
+          <td>{{ rowData.rejectReason }}</td>
+          <td>{{ rowData.memberID }}</td>
+          <td>{{ rowData.eMail }}</td>
+          <td class="text-center">
+            <button pButton
+                    pRipple
+                    icon="pi pi-file-excel"
+                    class="p-button-text p-button-rounded"
+                    (click)="downloadRequested.emit()">
+            </button>
+          </td>
+        </tr>
+
+        <tr *ngIf="expandedOrderId === rowData.orderID.toString()" class="p-row-expanded">
+          <td colspan="8">
+            <div class="p-3">
+              <h5 class="mb-2">Models in Claim {{ rowData.orderID }}</h5>
+
+              <p-table [value]="rowData.children" class="p-datatable-sm" responsiveLayout="scroll">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th>Model</th>
+                    <th>Cost</th>
+                    <th>Units</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-detail>
+                  <tr>
+                    <td><i class="pi pi-box mr-2 text-gray-600"></i>{{ detail.model }}</td>
+                    <td>{{ detail.unitCost }}</td>
+                    <td>{{ detail.quantity }}</td>
+                  </tr>
+                </ng-template>
+              </p-table>
+
+
+
+
+              <!-- ATTACHED FILES -->
+              <div class="mt-4">
+                <h6 class="mb-3 text-900">Attached Files</h6>
+
+                <!-- Master File -->
+                <!-- Master File -->
+                <div *ngIf="rowData.masterFileLoc && rowData.masterFileLoc !== 'Additional Files'"
+                     class="d-flex align-items-center justify-content-between mb-2">
+                  <a [href]="'https://PromasterIR.Promaster.com/Proof/' + rowData.orderID + '_' + rowData.masterFileLoc"
+                     target="_blank"
+                     class="d-flex align-items-center text-green-700 hover:underline">
+                    <i class="pi pi-paperclip mr-2 text-green-600"></i>
+                    {{ rowData.masterFileLoc }}
+                  </a>
+                  <button pButton
+                          icon="pi pi-trash"
+                          class="p-button-rounded p-button-text p-button-danger"
+                          (click)="confirmDelete(rowData.orderID, rowData.masterFileLoc); $event.stopPropagation()"
+                          tooltip="Delete this file">
+                  </button>
+                </div>
+
+                <!-- Additional Files -->
+                <div *ngIf="rowData.additionalFiles || rowData.masterFileLoc === 'Additional Files'">
+                  <div *ngFor="let file of rowData.additionalFiles.split('|')"
+                       class="d-flex align-items-center justify-content-between mb-2">
+                    <a [href]="'https://PromasterIR.Promaster.com/Proof/' + rowData.orderID + '_' + file.trim()"
+                       target="_blank"
+                       class="d-flex align-items-center text-green-700 hover:underline">
+                      <i class="pi pi-paperclip mr-2 text-green-600"></i>
+                      {{ file.trim() }}
+                    </a>
+                    <button pButton
+                            icon="pi pi-trash"
+                            class="p-button-rounded p-button-text p-button-danger"
+                            (click)="confirmDelete(rowData.orderID, file.trim()); $event.stopPropagation()"
+                            tooltip="Delete this file">
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- DROPZONE -->
+              <div class="mt-4">
+                <div class="dropzone border-dashed border-2 border-gray-300 p-4 text-center rounded"
+                     (dragover)="onDragOver($event)"
+                     (dragleave)="onDragLeave($event)"
+                     (drop)="onDrop($event, rowData.orderID)">
+                  <p class="mb-1 text-sm">
+                    <i class="pi pi-cloud-upload text-blue-500 text-2xl mr-2"></i>
+                    Drag & drop files here
+                  </p>
+                  <small class="block mb-2 text-secondary">or click to select files</small>
+
+                  <input type="file"
+                         #fileInput
+                         multiple
+                         class="hidden"
+                         (change)="onUploadFile($event, rowData.orderID)" />
+
+                  <button pButton
+                          type="button"
+                          class="p-button-text p-button-sm"
+                          label="Browse Files"
+                          (click)="fileInput.click()">
+                  </button>
+                </div>
+              </div>
+
+              <!-- PENDING UPLOADS -->
+              <div *ngIf="uploadedFiles[rowData.orderID]?.length" class="mt-4">
+                <h6 class="mb-2 text-900">Pending Uploads</h6>
+                <div *ngFor="let file of uploadedFiles[rowData.orderID]; let i = index"
+                     class="d-flex align-items-center justify-content-between mb-2">
+
+                  <div class="d-flex align-items-center">
+                    <i class="pi pi-clock text-gray-600 mr-2"></i>
+                    <span class="mr-2">{{ file.name }}</span>
+                    <i *ngIf="file.progress === 100" class="pi pi-check text-green-600 text-sm mr-2"></i>
+                    <span *ngIf="file.progress < 100" class="text-xs text-gray-500">{{ file.progress }}%</span>
+
+                    <button pButton
+                            icon="pi pi-trash"
+                            class="p-button-rounded p-button-text p-button-danger p-button-sm"
+                            (click)="removePendingFile(rowData.orderID, i)"
+                            tooltip="Remove this file">
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- SUBMIT BUTTON -->
+              <div class="mt-3" *ngIf="uploadedFiles[rowData.orderID]?.length">
+                <button pButton
+                        label="Submit Changes"
+                        icon="pi pi-check"
+                           class="p-button-secondary p-button-sm"
+                        (click)="onFinalizeUploads(rowData.orderID)">
+                </button>
+              </div>
+
+              <!-- RESUBMIT BUTTON -->
+              <div class="mt-2">
+                <button pButton
+                        label="Resubmit for Queue"
+                        icon="pi pi-refresh"
+                        class="p-button-secondary p-button-sm"
+                        (click)="onResubmitOrder(rowData.orderID)">
+                </button>
+              </div>
+
+
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>

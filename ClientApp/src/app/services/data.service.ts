@@ -43,6 +43,10 @@ export class DataService {
   constructor(private api: ApiService) { }
 
 
+
+
+
+
   getEzPaySummary(date: Date): Observable<EzPaySummary[]> {
     const formattedDate = date.toISOString().slice(0, 10); // 'YYYY-MM-DD'
     return this.api.get<EzPaySummary[]>(`API/Accounting/ezpay-summary?date=${formattedDate}`);
@@ -85,6 +89,14 @@ export class DataService {
   }
 
 
+  deleteIRFile(orderId: number, filename: string): Observable<void> {
+    const encodedFile = encodeURIComponent(filename); // handle special characters
+    return this.api.delete<void>(`API/InstantRebates/DeleteIRFile/${orderId}/${encodedFile}`);
+  }
+
+  uploadRebateFile(formData: FormData): Observable<void> {
+    return this.api.postBlob('API/InstantRebates/UploadIRFile', formData);
+  }
 
 
   getAllParentCompanies(): Observable<ParentCompany[]> {
@@ -253,6 +265,14 @@ export class DataService {
     return this.api.get<Array<DeclinedIR>>('API/InstantRebates/GetDeclinedInstantRebates');
   }
 
+  getDeclinedRebateOrder(orderId: number): Observable<DeclinedIR> {
+    return this.api.get<DeclinedIR>(`API/InstantRebates/GetDeclinedRebateOrder?orderId=${orderId}`);
+  }
+
+  resubmitRebateOrder(orderId: number) {
+    return this.api.post(`API/InstantRebates/resubmit`, { orderId });
+  }
+
 
   getRecentLoad() {
     return this.api.get <Array<QuarterlyRebates>>(`API/Accounting/getCurrentQuarterlyData`);
@@ -381,9 +401,29 @@ export class DataService {
 	}
 	addBrandExclusionToCompany(companyID: number, brandIDs: Array<number>) {
 		return this.api.post(`API/Product/exclusion/brand/add/${companyID}`, brandIDs );
-	}
+  }
 
-  //end region Exclusions
+
+
+  getHubspotCompanies(): Observable<{ results: any[] }> {
+    return this.api.get<{ results: any[] }>('api/hubspot/companies');
+  }
+
+  getHubspotOwners(): Observable<{ results: any[] }> {
+    return this.api.get<{ results: any[] }>('api/hubspot/owners');
+  }
+
+  updateHubspotCompanyOwner(companyId: string, ownerId: string): Observable<any> {
+    return this.api.patch<any>(`api/hubspot/companies/${companyId}`, {
+      properties: { hubspot_owner_id: ownerId }
+    });
+  }
+
+  deleteHubspotCompany(companyId: string): Observable<any> {
+    return this.api.delete(`API/hubspot/companies/${companyId}`);
+  }
+
+
 
 }
 

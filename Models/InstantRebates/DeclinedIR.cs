@@ -10,7 +10,18 @@
         public int Quantity { get; set; }
         public string? Model { get; set; }
         public String? EMail { get; set; }
-      
+
+        public string? MasterFileLoc { get; set; }
+
+        // Single string, comma-delimited
+        public string? AdditionalFiles { get; set; }
+
+
+        public List<string> AdditionalFileList =>
+        string.IsNullOrWhiteSpace(AdditionalFiles)
+            ? new List<string>()
+            : AdditionalFiles.Split('|').ToList();
+
     }
 
 }

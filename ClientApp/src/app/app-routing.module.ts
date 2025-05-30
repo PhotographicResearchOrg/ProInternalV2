@@ -22,7 +22,8 @@ import { RebateSetupComponent } from './prointernalengine/components/instantreba
 import { RebateExcelUploaderComponent } from './prointernalengine/components/instantrebate/rebate-excel-uploader/rebate-excel-uploader.component';
 import { EzPaySummary } from './models/accounting/EzPaySummary';
 import { PaymentsComponent } from './prointernalengine/components/dashboards/accounting/payments/payments.component';
-
+import { HubspotCompanyComponent } from './prointernalengine/components/MemberManagement/hubspot-company/hubspot-company.component';
+import { DashboardBrmComponent } from './prointernalengine/components//dashboards/BRM/dashboard-brm/dashboard-brm.component';
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -61,6 +62,8 @@ const routes: Routes = [
       },
 
 
+
+
       { path: 'rebatesupport', data: { breadcrumb: 'Quarterly Rebates' }, component: RebatesupportComponent },
       { path: 'rebatesupport', data: { breadcrumb: 'Quarterly Rebates' }, component: RebatesupportComponent },
       { path: 'apps/files', data: { breadcrumb: 'Files' }, component: FileAppComponent },
@@ -74,6 +77,18 @@ const routes: Routes = [
       { path: 'apps', data: { breadcrumb: 'Apps' }, loadChildren: () => import('./prointernalengine/components/apps/apps.module').then(m => m.AppsModule) },
 
 
+      {
+        path: 'BRMsetup',
+        component: HubspotCompanyComponent
+      },
+
+      {
+        path: 'BRMdash',
+        component: DashboardBrmComponent
+      },
+
+
+      
       {
         path: 'instantrebate',
         component: RebatesupportComponent
@@ -91,8 +106,6 @@ const routes: Routes = [
         component: RebateExcelUploaderComponent
       },
 
-
-      
 
       {
         path: 'gating',

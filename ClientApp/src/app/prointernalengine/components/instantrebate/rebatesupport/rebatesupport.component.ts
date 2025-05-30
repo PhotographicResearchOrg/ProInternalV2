@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject } from '@angular/core';
+import { Component, OnInit, Inject, ViewChild } from '@angular/core';
 import { AppConfig, LayoutService } from 'src/app/layout/service/app.layout.service';
 import { Router } from "@angular/router";
 import { Folder } from 'src/app/prointernalengine/api/folder';
@@ -13,18 +13,21 @@ import { DeclinedIR } from "src/app/models/Dashboard/DeclinedIR";
 import * as XLSX from 'xlsx';
 import { Table } from 'primeng/table';
 import { MessageService } from 'primeng/api';
+import { IrDeclinesTableComponent } from 'src/app/prointernalengine/components/shared/ir-declines-table/ir-declines-table.component';
 
 @Component({
   templateUrl: './rebatesupport.component.html',
 })
+
+
 export class RebatesupportComponent implements OnInit {
 
+  @ViewChild(IrDeclinesTableComponent) declinesTable!: IrDeclinesTableComponent;
 
   public InstantRebateBatches: Array<InstantRebate> = [];
   public declinedIRs: Array<DeclinedIR> = [];
 
-  
-
+ 
   public cols: any[] = [];
   public IRDeclinecols: any[] = [];
 
@@ -39,6 +42,9 @@ export class RebatesupportComponent implements OnInit {
 
   ngOnInit()
   {
+
+
+
 
     this.dataService.GetInstantRebateBatches().subscribe((data) => (this.InstantRebateBatches = data));
     this.dataService.GetDeclinedInstantRebates().subscribe((data) => (this.declinedIRs = data));
@@ -94,6 +100,15 @@ export class RebatesupportComponent implements OnInit {
   }
 
 
+  exportData() {
+    this.declinesTable.exportCSV();
+  }
+
+  onSearch(event: Event) {
+    this.declinesTable.filterGlobal(event);
+  }
+
+
   onReload() {
     window.location.reload();
   }
@@ -119,11 +134,6 @@ export class RebatesupportComponent implements OnInit {
       }
     });
   }
-
-
-
-
-
 
 
     onGlobalFilter(table: Table, event: Event) {

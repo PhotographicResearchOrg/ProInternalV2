@@ -7,6 +7,7 @@ using ProInternal.Models.Dashboard;
 using ProInternal.Models.InstantRebates ;
 using System;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ProInternal.Services
 {
@@ -17,6 +18,13 @@ namespace ProInternal.Services
         bool activateIRBatch(int batchID);
         List<IR> getIRBatchDetail(int batchID);
 
+
+        void ResubmitOrderToQueue(int orderId);
+
+        void InsertAdditionalFile(int orderId, string filename);
+
+        void MarkAsHasAdditionalFiles(int orderId);
+        void DeleteRebateProofFile(int orderId, string filename);
         List<DeclinedIR> GetDeclinedInstantRebates();
 
         IEnumerable<RebateVendor> GetAllRebateVendors();

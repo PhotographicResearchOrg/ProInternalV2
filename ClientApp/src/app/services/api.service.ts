@@ -28,6 +28,13 @@ export class ApiService {
     this._apiUrl = val;
   }
 
+
+  patch<T>(url: string, body: any): Observable<T> {
+    return this.http.patch<T>(this.getUrl(url), JSON.stringify(body), {
+      headers: this.defaultHeaders
+    });
+  }
+
   getUrl(url: string) {
 
 

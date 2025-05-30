@@ -9,6 +9,9 @@ export class DeclinedIR {
   public model: string;
   public email: string;
 
+  public masterFileLoc: string;           // new field for single file or indicator string
+  public additionalFiles: string;         // new field for comma-separated list
+
   constructor()
   {
     this.orderID = 0;
@@ -18,7 +21,17 @@ export class DeclinedIR {
     this.memberID = 0;
     this.quantity = 0;
     this.model = "";
-    this.email = ""; 
+    this.email = "";
+
+    this.masterFileLoc = "";
+    this.additionalFiles = "";
+  }
+
+  // Optional utility to split files into a list
+  public getAdditionalFileList(): string[] {
+    return this.additionalFiles
+      ? this.additionalFiles.split(',').map(f => f.trim()).filter(f => !!f)
+      : [];
   }
 
 }

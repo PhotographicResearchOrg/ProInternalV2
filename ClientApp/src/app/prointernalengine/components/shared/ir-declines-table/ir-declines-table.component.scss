@@ -1,0 +1,36 @@
+:host ::ng-deep .p-row-expanded + tr > td {
+  padding: 0 !important;
+}
+
+:host ::ng-deep .p-row-expanded + tr > td > div {
+  padding: 1rem;
+  background: #f9f9f9;
+}
+
+
+.row-toggle-icon {
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #495057;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: #0d6efd; // Bootstrap blue or use #1e88e5
+  }
+
+  i {
+    vertical-align: middle;
+  }
+}
+
+.dropzone {
+  position: relative;
+  border-radius: 0.5rem;
+  background-color: #f9f9f9;
+  transition: background-color 0.2s ease;
+}
+
+.dropzone.drag-over {
+  background-color: #e0f3ff;
+  border-color: #2196f3;
+}
