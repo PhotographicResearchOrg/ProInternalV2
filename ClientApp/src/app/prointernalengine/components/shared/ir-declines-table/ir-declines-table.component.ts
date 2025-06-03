@@ -6,6 +6,7 @@ import { MessageService } from 'primeng/api';
 import { ConfirmationService } from 'primeng/api';
 import { forkJoin, of } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
+import { AfterViewInit } from '@angular/core';
 
 
 
@@ -14,18 +15,26 @@ import { catchError, tap } from 'rxjs/operators';
   templateUrl: './ir-declines-table.component.html'
 })
 
-export class IrDeclinesTableComponent implements OnChanges {
+export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
 
   @Input() declines: any[] = [];
   @Input() columns: any[] = [];
   @Input() globalFilterFields: string[] = [];
+
   @Output() downloadRequested = new EventEmitter<any>();
+  @Output() filteredCountChanged = new EventEmitter<number>();
+
   @ViewChild('dtDeclines') table!: Table;
+
+
+
+
+  private pendingAccountFilter: string[] | null = null;
   groupedDeclines: any[] = [];
   expandedRowKeys: { [key: string]: boolean } = {};
   uploadedFiles: { [orderId: number]: { file: File; name: string; progress: number }[] } = {};
   expandedOrderId: string | null = null;
-
+  
 
 
   constructor(private cdr: ChangeDetectorRef, private dataService: DataService, private messageService: MessageService, private confirmationService: ConfirmationService) { }
@@ -33,32 +42,45 @@ export class IrDeclinesTableComponent implements OnChanges {
   
   ngOnInit(): void {}
 
+  ngAfterViewInit(): void {
+    this.tryApplyAccountFilter();
+    console.log('[IR Table] Table initialized:', !!this.table);
+  }
+
+
+
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['declines']) {
+      console.log('🔄 declines changed:', this.declines);  // ← Add this line
+      this.groupedDeclines = this.groupDeclines(this.declines || []);
 
-    if (changes['declines'] && this.declines?.length) {
-      this.groupedDeclines = this.groupDeclines(this.declines);
-      console.log('Grouped Declines:', this.groupedDeclines);
-
-      // Wait until next tick to set expanded keys
       setTimeout(() => {
         this.expandedRowKeys = {};
         for (const item of this.groupedDeclines) {
           this.expandedRowKeys[item.orderID] = true;
         }
 
-        console.log('ExpandedRowKeys:', this.expandedRowKeys);
+        if (this.pendingAccountFilter && this.table) {
+          this.table.filter(this.pendingAccountFilter, 'memberID', 'in');
+        }
 
-
-        this.cdr.detectChanges(); // Force refresh
+        this.cdr.detectChanges();
       });
     }
   }
+
+
+
+
 
   private groupDeclines(declines: any[]): any[] {
     const map = new Map<string, any>();
 
     for (const item of declines) {
-      const key = item.orderID.toString();
+      const key = item.orderID?.toString();
+      if (!key) {
+        continue;
+      }
 
       if (!map.has(key)) {
         map.set(key, {
@@ -70,20 +92,48 @@ export class IrDeclinesTableComponent implements OnChanges {
           eMail: item.eMail,
           masterFileLoc: item.masterFileLoc || '',
           additionalFiles: item.additionalFiles || '',
+          status: item.status,
           children: []
         });
+      } else {
+        // Optional: ensure consistent memberID and email
+        const existing = map.get(key);
+        if (!existing.memberID && item.memberID) {
+          existing.memberID = item.memberID;
+        }
+        if (!existing.eMail && item.eMail) {
+          existing.eMail = item.eMail;
+        }
       }
 
+
       const child = {
-        model: item.model,
-        quantity: item.quantity,
+        model: item.model || '[missing]',
+        quantity: item.quantity ?? 0,
         unitCost: item.unitCost || 0 // Set from source or fallback
       };
+
       map.get(key)!.children.push(child);
     }
+
     const result = Array.from(map.values());
+
+    for (const group of result) {
+      console.log(`Order ${group.orderID} has ${group.children?.length ?? 0} children`);
+    }
     return result;
   }
+
+
+  private tryApplyAccountFilter(): void {
+    if (this.pendingAccountFilter?.length && this.table) {
+      console.log('Applying memberID filter:', this.pendingAccountFilter);
+      this.table.filter(this.pendingAccountFilter, 'memberID', 'in');
+      this.cdr.detectChanges();
+    }
+  }
+
+
 
   trackByOrderId(index: number, item: any): number {
     return item.orderID;
@@ -106,6 +156,8 @@ export class IrDeclinesTableComponent implements OnChanges {
     event.preventDefault();
     (event.currentTarget as HTMLElement).classList.add('drag-over');
   }
+
+
 
   onDragLeave(event: DragEvent) {
     (event.currentTarget as HTMLElement).classList.remove('drag-over');
@@ -137,7 +189,10 @@ export class IrDeclinesTableComponent implements OnChanges {
   }
 
 
-
+  onFilterChange() {
+    const count = this.table?.filteredValue?.length ?? this.groupedDeclines.length;
+    this.filteredCountChanged.emit(count);
+  }
 
 
   onUploadFile(event: Event, orderId: number) {
@@ -182,7 +237,7 @@ export class IrDeclinesTableComponent implements OnChanges {
         name: file.name,
         progress: 0
       };
-      console.log(fileEntry);
+
       this.uploadedFiles[orderId].push(fileEntry);
     }
   }
@@ -283,7 +338,7 @@ export class IrDeclinesTableComponent implements OnChanges {
         tap(() => {
           fileEntry.progress = 100;
 
-          // ✅ Optimistically update local display
+
           const row = this.groupedDeclines.find(x => x.orderID === orderId);
           if (row) {
             // Determine if it should be masterFileLoc or additionalFiles
@@ -321,6 +376,11 @@ export class IrDeclinesTableComponent implements OnChanges {
   }
 
 
+  get filteredDeclineCount(): number {
+    return this.table?.filteredValue ? this.table.filteredValue.length : this.groupedDeclines.length;
+  }
+
+
   onResubmitOrder(orderId: number): void {
     this.dataService.resubmitRebateOrder(orderId).subscribe({
       next: () => {
@@ -336,6 +396,46 @@ export class IrDeclinesTableComponent implements OnChanges {
           severity: 'error',
           summary: 'Resubmit Failed',
           detail: `Could not re-queue order ${orderId}.`,
+          life: 5000
+        });
+      }
+    });
+  }
+
+
+
+
+  confirmDecline(orderId: number) {
+    this.confirmationService.confirm({
+      key: 'ir-decline-confirm',
+      message: `Are you sure you want to confirm the decline of Order #${orderId}?`,
+      header: 'Confirm Decline',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.onConfirmDecline(orderId);
+      }
+    });
+  }
+
+
+
+  onConfirmDecline(orderId: number): void {
+    this.dataService.confirmDecline(orderId).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Decline Confirmed',
+          detail: `Order ${orderId} has been marked as declined.`,
+          life: 3000
+        });
+
+      },
+      error: (err) => {
+        console.error('Error confirming decline:', err);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Decline Failed',
+          detail: `Could not confirm decline for order ${orderId}.`,
           life: 5000
         });
       }
@@ -372,9 +472,6 @@ export class IrDeclinesTableComponent implements OnChanges {
   }
 
 
-
-
-
   removePendingFile(orderId: number, index: number): void {
     if (this.uploadedFiles[orderId]) {
       this.uploadedFiles[orderId].splice(index, 1);
@@ -384,10 +481,15 @@ export class IrDeclinesTableComponent implements OnChanges {
   get activeFilters() {
     return this.table?.filters;
   }
-
   @Input() set accountNumberFilter(accountNumbers: string[] | null) {
+    console.log('[IR Table] Received account filter:', accountNumbers);
+    this.pendingAccountFilter = accountNumbers || null;
+
     if (accountNumbers?.length && this.table) {
+      console.log('[IR Table] Table exists. Applying filter now.');
       this.table.filter(accountNumbers, 'memberID', 'in');
     }
   }
+
+
 }

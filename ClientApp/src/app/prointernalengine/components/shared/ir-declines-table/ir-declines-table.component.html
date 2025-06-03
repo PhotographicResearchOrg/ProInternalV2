@@ -1,6 +1,9 @@
 <p-toast></p-toast>
 <p-confirmDialog key="ir-delete-confirm"></p-confirmDialog>
 
+<p-confirmDialog key="ir-decline-confirm"></p-confirmDialog>
+
+
 <div class="col-12">
   <div class="card">
     <div class="text-900 text-xl font-semibold mb-3">Instant Rebate Declines</div>
@@ -13,7 +16,7 @@
              [expandedRowKeys]="expandedRowKeys"
              rowExpandMode="single"
              responsiveLayout="scroll"
-             [globalFilterFields]="['orderID', 'processDate', 'rejectReason', 'memberID', 'eMail']">
+             [globalFilterFields]="['orderID', 'processDate', 'rejectReason', 'memberID', 'eMail', 'status']">
 
       <ng-template pTemplate="header">
         <tr>
@@ -24,7 +27,7 @@
           <th>Reject Reason</th>
           <th>Member #</th>
           <th>Email</th>
-          <th style="width: 8rem" class="text-center">Actions</th>
+          <th style="width: 8rem" class="text-center">Status</th>
         </tr>
       </ng-template>
 
@@ -45,13 +48,10 @@
           <td>{{ rowData.rejectReason }}</td>
           <td>{{ rowData.memberID }}</td>
           <td>{{ rowData.eMail }}</td>
-          <td class="text-center">
-            <button pButton
-                    pRipple
-                    icon="pi pi-file-excel"
-                    class="p-button-text p-button-rounded"
-                    (click)="downloadRequested.emit()">
-            </button>
+          <td>
+            <p-tag [value]="rowData.status === 3 ? 'Actionable' : 'Information'"
+                   [severity]="rowData.status === 3 ? 'warning' : 'info'">
+            </p-tag>
           </td>
         </tr>
 
@@ -69,11 +69,13 @@
                   </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-detail>
+
                   <tr>
                     <td><i class="pi pi-box mr-2 text-gray-600"></i>{{ detail.model }}</td>
                     <td>{{ detail.unitCost }}</td>
                     <td>{{ detail.quantity }}</td>
                   </tr>
+
                 </ng-template>
               </p-table>
 
@@ -178,12 +180,15 @@
                 <button pButton
                         label="Submit Changes"
                         icon="pi pi-check"
-                           class="p-button-secondary p-button-sm"
+                        class="p-button-secondary p-button-sm"
                         (click)="onFinalizeUploads(rowData.orderID)">
                 </button>
               </div>
 
+
+
               <!-- RESUBMIT BUTTON -->
+
               <div class="mt-2">
                 <button pButton
                         label="Resubmit for Queue"
@@ -194,8 +199,18 @@
               </div>
 
 
-            </div>
-          </td>
+              <div class="mt-2">
+                <button pButton
+                        label="Confirm Decline"
+                        icon="pi pi-times"
+                        class="p-button-secondary p-button-sm"
+                        (click)="confirmDecline(rowData.orderID)">
+                </button>
+                </div>
+
+
+              </div>
+        </td>
         </tr>
       </ng-template>
     </p-table>

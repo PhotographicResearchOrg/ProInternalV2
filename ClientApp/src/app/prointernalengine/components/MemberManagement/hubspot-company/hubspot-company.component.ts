@@ -13,6 +13,7 @@ import { ConfirmationService } from 'primeng/api';
 
 export class HubspotCompanyComponent implements OnInit {
   @ViewChild('table') table!: Table;
+
   @Output() accountNumbersChanged = new EventEmitter<string[]>();
   @Output() filterByAccountNumbers = new EventEmitter<string[]>();
 
@@ -21,6 +22,7 @@ export class HubspotCompanyComponent implements OnInit {
   ownersLookup: { [key: string]: string } = {};
   loading = true;
   filterText: string = '';
+
   selectedOwnerId: string | null = '36109109'; // ← replace with your default ownerId
   globalFilterValue: string = '';
 
@@ -35,13 +37,13 @@ export class HubspotCompanyComponent implements OnInit {
   }
 
 
-
-
-
   loadData(): void {
-
-
     this.dataService.getHubspotOwners().subscribe(ownerData => {
+
+      const loggedInLastName = (localStorage.getItem('userData') || '')
+        .replace(/['"]/g, '')
+        .trim()
+        .toLowerCase();
 
       this.owners = (ownerData.results || []).map(owner => {
         const name = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
@@ -50,10 +52,18 @@ export class HubspotCompanyComponent implements OnInit {
 
         return {
           id: owner.id,
-          name: label
+          name: label,
+          lastName: (owner.lastName || '').toLowerCase()
         };
       });
 
+      const matchedOwner = this.owners.find(o =>
+        o.lastName === loggedInLastName
+      );
+
+      
+
+      this.selectedOwnerId = matchedOwner?.id || null;
 
 
       this.dataService.getHubspotCompanies().subscribe(companyData => {
@@ -77,26 +87,28 @@ export class HubspotCompanyComponent implements OnInit {
         // Apply default filter once data is loaded
         if (this.selectedOwnerId) {
           this.onOwnerFilter(this.selectedOwnerId);
+
         }
         this.loading = false;
       });
     });
   }
 
-
-
-  onOwnerFilter(ownerId: string) {
+  onOwnerFilter(ownerId: string): void {
+    this.selectedOwnerId = ownerId;
     if (this.table) {
       this.table.filter(ownerId, 'ownerId', 'equals');
     }
-
     const matchingAccounts = this.companies
       .filter(c => c.ownerId === ownerId)
       .map(c => c.accountNumber)
-      .filter(a => a); // exclude nulls
-
+      .filter(a => !!a); // Remove nulls
     this.filterByAccountNumbers.emit(matchingAccounts);
   }
+
+
+
+
 
   confirmDeleteCompany(companyId: string): void {
     this.confirmationService.confirm({

@@ -12,7 +12,27 @@
       <ng-template pTemplate="header">
         <div class="text-900 text-xl font-semibold">
           Instant Rebate Declines (Support Needed)
+
         </div>
+
+
+        <div class="mt-3">
+          <button pButton
+                  label="Toggle Status"
+                  icon="pi pi-sync"
+                  class="p-button-sm p-button-text"
+                  (click)="toggleStatusFilter()">
+          </button>
+
+          <p-tag [value]="statusFilter === 3 ? 'Actionable' : 'Information'"
+                 [severity]="statusFilter === 3 ? 'warning' : 'info'"
+                 class="ml-2">
+          </p-tag>
+
+
+        </div>
+
+
       </ng-template>
 
       <div class="flex align-items-center mb-3" style="max-width: 100%;">
@@ -33,13 +53,11 @@
         </button>
       </div>
 
-
-      <app-ir-declines-table
-                               
+      <app-ir-declines-table                              
                              [declines]="declinedIRs"
                              [columns]="IRDeclinecols"
                              [globalFilterFields]="['orderID','processDate','rejectReason','memberID','model']"
-                             [accountNumberFilter]="hubspotAccountNumbers"
+                             [accountNumberFilter]="hubspotAccountNumbers"                             
                              #declinesTable>
       </app-ir-declines-table>
 
