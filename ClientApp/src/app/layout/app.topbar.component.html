@@ -4,14 +4,6 @@
       <p style="color:white">
         ProInternal
       </p>
-      <!--<svg width="100" viewBox="0 0 64 21" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3.528 0.399995H7.7L10.892 20H7.812L7.252 16.108V16.164H3.752L3.192 20H0.335999L3.528 0.399995ZM6.888 13.504L5.516 3.816H5.46L4.116 13.504H6.888Z" fill="var(--topbar-item-text-color)"/>
-          <path d="M10.7813 0.399995H13.8893L15.9053 15.604H15.9613L17.9773 0.399995H20.8053L17.8373 20H13.7493L10.7813 0.399995Z" fill="var(--topbar-item-text-color)"/>
-          <path d="M23.8717 0.399995H28.0437L31.2358 20H28.1557L27.5957 16.108V16.164H24.0957L23.5357 20H20.6797L23.8717 0.399995ZM27.2317 13.504L25.8597 3.816H25.8037L24.4597 13.504H27.2317Z" fill="var(--topbar-item-text-color)"/>
-          <path d="M32.73 0.399995H35.81V17.2H40.878V20H32.73V0.399995Z" fill="var(--topbar-item-text-color)"/>
-          <path d="M46.6977 20.28C45.1857 20.28 44.0283 19.8507 43.2257 18.992C42.423 18.1333 42.0217 16.92 42.0217 15.352V5.048C42.0217 3.48 42.423 2.26666 43.2257 1.408C44.0283 0.549329 45.1857 0.119995 46.6977 0.119995C48.2097 0.119995 49.367 0.549329 50.1697 1.408C50.9723 2.26666 51.3737 3.48 51.3737 5.048V15.352C51.3737 16.92 50.9723 18.1333 50.1697 18.992C49.367 19.8507 48.2097 20.28 46.6977 20.28ZM46.6977 17.48C47.7617 17.48 48.2937 16.836 48.2937 15.548V4.852C48.2937 3.564 47.7617 2.92 46.6977 2.92C45.6337 2.92 45.1017 3.564 45.1017 4.852V15.548C45.1017 16.836 45.6337 17.48 46.6977 17.48Z" fill="var(--topbar-item-text-color)"/>
-          <path d="M53.4566 0.399995H57.3206L60.3166 12.132H60.3726V0.399995H63.1166V20H59.9526L56.2566 5.692H56.2006V20H53.4566V0.399995Z" fill="var(--topbar-item-text-color)"/>
-      </svg>-->
     </a>
     <a #menuButton class="layout-menu-button" (click)="onMenuButtonClick()" pRipple>
       <i class="pi pi-angle-right"></i>
@@ -37,47 +29,96 @@
         </li>
 
 
-        <li>
-          <a pStyleClass="@next" enterFromClass="ng-hidden" enterActiveClass="px-scalein" leaveToClass="ng-hidden" leaveActiveClass="px-fadeout" [hideOnOutsideClick]="true" pRipple>
-            <i class="pi pi-bell"></i>
+
+
+        <li class="relative">
+          <a pStyleClass="@next"
+             enterFromClass="ng-hidden"
+             enterActiveClass="px-scalein"
+             leaveToClass="ng-hidden"
+             leaveActiveClass="px-fadeout"
+             [hideOnOutsideClick]="true"
+             pRipple>
+            <div class="relative">
+              <i class="pi pi-bell text-xl"></i>
+              <span *ngIf="unreadCount > 0" class="badge bg-red-500 text-white text-xs font-bold px-2 py-1 border-circle absolute -top-2 -right-2">{{ unreadCount }}</span>
+            </div>
           </a>
-          <div class="ng-hidden">
-            <ul class="list-none p-0 m-0">
-              <li>
-                <a class="py-2 px-3 flex gap-2 cursor-pointer text-color hover:text-primary">
-                  <i class="pi pi-fw pi-sliders-h text-lg"></i>
-                  <span>Pending tasks</span>
-                </a>
+
+          <div class="ng-hidden bg-surface-card shadow-3 border-round w-20rem overflow-hidden">
+
+            <div class="flex justify-between items-center p-3 border-bottom-1 surface-border gap-4">
+              <span class="font-medium text-900 text-lg">Notifications</span>
+
+              <a *ngIf="unreadCount > 0"
+                 (click)="markAllAsRead()"
+                 class="text-sm text-primary cursor-pointer hover:underline whitespace-nowrap">
+                           Mark all as read
+              </a>
+            </div>
+
+            <ul class="list-none m-0 p-0 max-h-20rem overflow-y-auto">
+
+
+              <li *ngFor="let notification of notifications">
+                <div class="flex align-items-start px-3 py-2 gap-3 hover:surface-hover border-bottom-1 surface-border">
+
+                  <i class="pi text-xl"
+                     [ngClass]="{
+         'pi-info-circle text-primary': notification.type === 'info',
+         'pi-exclamation-triangle text-orange-500': notification.type === 'warning',
+         'pi-check-circle text-green-600': notification.type === 'success',
+         'pi-times-circle text-red-500': notification.type === 'error'
+       }">
+                  </i>
+
+                  <!-- Main Content + Delete -->
+                  <div class="flex-grow-1">
+                    <a class="block cursor-pointer"
+                       *ngIf="notification.route"
+                       [routerLink]="notification.route"
+                       (click)="markAsRead(notification.id)">
+                      <div class="text-sm" [ngClass]="{ 'font-bold': !notification.isRead }">
+                        {{ notification.message }}
+                      </div>
+                    </a>
+                    <div class="text-sm" *ngIf="!notification.route">
+                      {{ notification.message }}
+                    </div>
+
+                    <div class="text-xs text-color-secondary mt-1" *ngIf="notification.timestamp">
+                      {{ notification.timestamp | date:'shortTime' }}
+                    </div>
+                  </div>
+
+                  <!-- Delete Icon -->
+                  <i class="pi pi-trash text-red-400 cursor-pointer"
+                     (click)="delete(notification.id); $event.stopPropagation();"
+                     title="Delete notification">
+                  </i>
+                </div>
               </li>
-              <li>
-                <a class="py-2 px-3 flex gap-2 cursor-pointer text-color hover:text-primary ">
-                  <i class="pi pi-fw pi-calendar text-lg"></i>
-                  <span>Meeting today at 3pm</span>
-                </a>
-              </li>
-              <li>
-                <a class="py-2 px-3 flex gap-2 cursor-pointer text-color hover:text-primary">
-                  <i class="pi pi-fw pi-download text-lg"></i>
-                  <span>Download documents</span>
-                </a>
-              </li>
-              <li>
-                <a class="py-2 px-3 flex gap-2 cursor-pointer text-color hover:text-primary">
-                  <i class="pi pi-fw pi-bookmark text-lg"></i>
-                  <span>Book flight</span>
-                </a>
+
+
+
+              <li *ngIf="notifications.length === 0">
+                <div class="text-sm text-color-secondary px-3 py-2">No notifications</div>
               </li>
             </ul>
           </div>
-
-
         </li>
+
+
+
+
         <li>
           <a pStyleClass="@next" enterFromClass="ng-hidden" enterActiveClass="px-scalein" leaveToClass="ng-hidden" leaveActiveClass="px-fadeout" [hideOnOutsideClick]="true" pRipple>
             <i class="pi pi-envelope"></i>
           </a>
           <div class="ng-hidden">
             <ul class="list-none p-0 m-0 flex flex-column text-color">
+
+
               <li>
                 <a class="cursor-pointer flex align-items-center px-3 py-2 gap-3 hover:text-primary">
                   <img src="assets/layout/images/avatar5.png" class="w-3rem h-3rem">

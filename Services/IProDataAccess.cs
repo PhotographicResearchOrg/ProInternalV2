@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Mvc;
 using ProInternal.Models.InvoiceRecord;
 using ProInternal.Models.Patronage;
 using ProInternal.Models.InstantRebates;
+using ProInternal.Models;
 
 namespace ProInternal.Services
 {
@@ -25,6 +26,10 @@ namespace ProInternal.Services
     {
 
 
+        void MarkNotificationAsRead(int notificationId, int userId);
+        void DeleteNotification(int notificationId, int userId);
+
+        List<Notification> GetNotificationsForUser(int userId);
         List<CompanyDto> GetCompaniesAssignedToGroupAsync(int groupId);
         List<Products> GetUnassignedProductsAsync();
         List<QuarterlyRebate> GetQuarterRebateSummary();

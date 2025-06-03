@@ -8,6 +8,7 @@ export class DeclinedIR {
   public quantity: number;
   public model: string;
   public email: string;
+  public status: number;
 
   public masterFileLoc: string;           // new field for single file or indicator string
   public additionalFiles: string;         // new field for comma-separated list

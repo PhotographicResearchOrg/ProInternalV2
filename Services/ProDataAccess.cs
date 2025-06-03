@@ -26,6 +26,7 @@ using Microsoft.AspNetCore.OutputCaching;
 using ProInternal.Models.InvoiceRecord;
 using ProInternal.Models.Patronage;
 using System.Reflection.PortableExecutable;
+using ProInternal.Models;
 
 
 namespace ProInternal.Services
@@ -155,6 +156,9 @@ namespace ProInternal.Services
                     Permissions = permissionset
                 };
 
+
+               
+
                 return (Response);
 
 
@@ -170,6 +174,36 @@ namespace ProInternal.Services
                 return output;
             }
         }
+        
+        public List<Notification> GetNotificationsForUser(int userId)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var parameters = new { UserId = userId };
+                var notifications = connection.Query<Notification>(
+                    "GetNotificationsForUser",
+                    parameters,
+                    commandType: CommandType.StoredProcedure
+                ).ToList();
+
+                return notifications;
+            }
+        }
+
+
+        public void MarkNotificationAsRead(int notificationId, int userId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            connection.Execute("MarkNotificationAsRead", new { Id = notificationId, UserId = userId }, commandType: CommandType.StoredProcedure);
+        }
+
+        public void DeleteNotification(int notificationId, int userId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            connection.Execute("ArchiveUserNotification", new { Id = notificationId, UserId = userId }, commandType: CommandType.StoredProcedure);
+        }
+
+
 
 
         public List<GatedProducts> getGatedRetailers()

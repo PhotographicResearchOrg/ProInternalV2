@@ -20,6 +20,7 @@ namespace ProInternal.Models.Auth
             var claims = new List<Claim>
             {
             new Claim(JwtRegisteredClaimNames.Sub, user.User.Username),
+            new Claim("userId", user.User.UserId.ToString()  ), // 
             new Claim("permissions", JsonConvert.SerializeObject(user.Permissions)),
             new Claim("userLastName", user.User.LastName ?? string.Empty)
             };

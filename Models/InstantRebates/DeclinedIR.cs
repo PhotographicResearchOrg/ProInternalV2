@@ -3,6 +3,7 @@
     public class DeclinedIR
     {
         public int OrderID { get; set; }
+        public int Status { get; set; }
         public DateTime? ProcessDate { get; set; }
         public double Total { get; set; }
         public string? RejectReason { get; set; }

@@ -45,10 +45,6 @@ export class AppMenuProfileComponent {
       const storedName = (localStorage.getItem('userData') || '') .replace(/['"]/g, '')  // Remove single/double quotes
   .trim();          ; // fallback to empty string
       this.lastName = storedName;
-      console.log('-----------------------get user data ---------------------');
-      console.log(this.lastName);
-      console.log(data);
-
 
     this.currentUser =
       data.find((staff: any) =>
@@ -56,7 +52,7 @@ export class AppMenuProfileComponent {
       ) || null;
     });
 
-    console.log(this.currentUser)
+
 }
 
     toggleMenu() {

@@ -34,8 +34,6 @@ namespace ProInternal.Controllers
         }
 
 
-
-
         [HttpPost("login")]
         public IActionResult Login([FromBody] AuthCredentials authCredentials)
         { 
@@ -51,21 +49,6 @@ namespace ProInternal.Controllers
             var token = JwtToken.GetToken(Login, _appConfig);
             var Perms = JsonConvert.SerializeObject(Login.Permissions);
 
-            //try
-            //{
-            //    var cookieOptions = new Microsoft.AspNetCore.Http.CookieOptions();
-            //    cookieOptions.Expires = DateTime.Now.AddDays(1);
-            //    cookieOptions.Path = "/";
-            //    //cookieOptions.Domain = ".PROINTERNAL.COM";
-            //    cookieOptions.HttpOnly = false;                     // must be false so Angular can read it
-            //    cookieOptions.Secure = false;                       // set to true in production with HTTPS
-            //    cookieOptions.SameSite = SameSiteMode.Lax;          // or None if working cross-site
-            //    Response.Cookies.Append("ProSession", Login.User.Username, cookieOptions);
-            //    Response.Cookies.Append("permissions", Perms, cookieOptions);
-            //}
-
-
- 
            // catch { }
             return new JsonResult(new { token = token });
         }

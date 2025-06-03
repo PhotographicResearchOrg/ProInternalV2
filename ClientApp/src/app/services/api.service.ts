@@ -101,4 +101,34 @@ export class ApiService {
     const headers = new HttpHeaders({ enctype: "multipart/form-data" });
     return this.http.post(this.getUrl(url), formData, { headers: headers });
   }
+
+  getWithAuth<T>(url: string): Observable<T>
+  {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+    return this.http.get<T>(this.getUrl(url), { headers });
+  }
+
+  postWithAuth<T>(url: string, objectToPost: any): Observable<T> {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+    return this.http.post<T>(this.getUrl(url), JSON.stringify(objectToPost), { headers });
+  }
+
+
+  deleteWithAuth<T>(url: string): Observable<T> {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+    return this.http.delete<T>(this.getUrl(url), { headers });
+  }
+
+
+
 }

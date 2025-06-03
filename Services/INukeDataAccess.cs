@@ -18,7 +18,7 @@ namespace ProInternal.Services
         bool activateIRBatch(int batchID);
         List<IR> getIRBatchDetail(int batchID);
 
-
+        void ConfirmDecline(int OrderId);
         void ResubmitOrderToQueue(int orderId);
 
         void InsertAdditionalFile(int orderId, string filename);

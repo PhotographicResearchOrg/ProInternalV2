@@ -119,10 +119,18 @@ namespace ProInternal.Controllers
         }
 
 
+        [HttpPost("ConfirmDecline")]
+        public IActionResult ConfirmDecline([FromBody] int orderId)
+        {
+
+            _nukedataAccess.ConfirmDecline(orderId);
+            return Ok();
+        }
+    
 
 
 
-        [HttpDelete]
+    [HttpDelete]
         [Route("DeleteIRFile/{orderId}/{filename}")]
         public IActionResult DeleteIRFile(int orderId, string filename)
         {

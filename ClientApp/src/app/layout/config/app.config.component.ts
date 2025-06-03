@@ -328,6 +328,5 @@ export class AppConfigComponent implements OnInit {
         this.topbarTheme = topbarTheme;
         this.menuMode = menuMode;
 
-        console.log(item);
     }
 }

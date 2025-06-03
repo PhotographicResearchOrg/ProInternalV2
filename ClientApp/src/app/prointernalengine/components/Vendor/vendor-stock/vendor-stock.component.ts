@@ -65,7 +65,7 @@ export class VendorStockComponent implements OnInit {
 
       this.dataService.getVendorStock().subscribe({
         next: (data) => {
-          console.log(data)
+
           this.vendorStock = data.map(item => ({
             ...item,
             status: item.status || 'Pending'

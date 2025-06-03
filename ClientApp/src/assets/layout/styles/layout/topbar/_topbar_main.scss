@@ -182,3 +182,17 @@
         }
     }
 }
+
+
+.badge {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.6rem;
+  background-color: red;
+  color: white;
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+

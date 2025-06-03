@@ -36,6 +36,7 @@ import { PatronageUpload, PatronageHistorical, patronageDetail } from "src/app/m
 import { ParentCompany } from "src/app/models/Dashboard/InstantRebate"
 import { panaAccount, panaRep } from 'src/app/models/vendor/panasonicreporting';
 import { EzPaySummary, EzPayDetail  } from 'src/app/models/accounting/EzPaySummary';
+import { Notification } from 'src/app/models/notifications';
 
 @Injectable()
 export class DataService {
@@ -158,7 +159,7 @@ export class DataService {
 
 
   activatePatronage(payload: { batchID: string, active: boolean }): Observable<any> {
-    console.log(payload)
+
     return this.api.put('API/Accounting/ActivatePatronageBatch', payload);
   }
 
@@ -198,13 +199,13 @@ export class DataService {
   }
 
   getVendorStock() {
-    console.log('Initiating getVendorStock call');
+  
     return this.api.get<Array<VendorStock>>(`API/Vendor/vendorstock`).pipe(
       tap((data) => {
-        console.log('Data received from API:', data);
+
       }),
       catchError((error) => {
-        console.error('Error occurred while fetching vendor stock:', error);
+
         return throwError(() => error);
       })
     );
@@ -273,6 +274,11 @@ export class DataService {
     return this.api.post(`API/InstantRebates/resubmit`, { orderId });
   }
 
+  confirmDecline(orderId: number): Observable<void> {
+    return this.api.postWithAuth<void>('API/InstantRebates/ConfirmDecline', { orderId });
+  }
+
+
 
   getRecentLoad() {
     return this.api.get <Array<QuarterlyRebates>>(`API/Accounting/getCurrentQuarterlyData`);
@@ -294,12 +300,12 @@ export class DataService {
   }
 
   pullQRBatchDetail(batchId: number) {
-    console.log(batchId);
+
     return this.api.get<Array<qrDetail>>(`API/Accounting/getQRBatchDetail/${batchId}`);
   }
 
   pullQRBatchVendorDetail(batchId: string) {
-    console.log(batchId);
+
     return this.api.get<Array<qrDetail>>(`API/Accounting/getQRBatchVendorDetail/${batchId}`);
   }
 
@@ -346,17 +352,27 @@ export class DataService {
     return this.api.get<Array<MemberGateSummary>>(`API/Dashboard/GetMemberGateSummary/${memberNumber}`);
   }
 
-
-
   login(username: string, password: string): Observable<LoginResponse>
   {
     return this.api.post(`API/Auth/Login`, { username, password });
     //return this.api.post(`API/Product/exclusion/brand/add/${companyID}`, brandIDs);
   }
 
+  getNotifications(): Observable<Notification[]> {
+    return this.api.getWithAuth<Notification[]>('API/Notifications/notifications');
+  }
+
+  markNotificationAsRead(id: number): Observable<void> {
+    return this.api.postWithAuth<void>(`API/Notifications/mark-read/${id}`, {});
+  }
 
 
- 
+  deleteNotification(id: number): Observable<void> {
+    return this.api.deleteWithAuth<void>(`API/Notifications/delete/${id}`);
+  }
+
+
+
   QuickSearchProducts() { return this.api.get<Array<Products>>(`API/Dashboard/QuickSearchProducts`); }
 
 

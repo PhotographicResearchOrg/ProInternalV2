@@ -40,7 +40,7 @@ export class VendorSetupComponent implements OnInit {
   }
 
   sendSetupDetails(): void {
-    console.log(this.vendorUser);
+
   }
 
   filterVendors(event: any): void {
@@ -78,7 +78,7 @@ export class VendorSetupComponent implements OnInit {
     this.userCreated = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    console.log('User Created:', this.vendorUser);
+ 
 
     // Uncomment to wire in backend
     
@@ -88,7 +88,7 @@ export class VendorSetupComponent implements OnInit {
         this.vendorUser.ID = response.UserId;
         this.submissionError = null;
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        console.log('User created:', response);
+
       },
       error: (err) => {
         this.submissionError = err.error || 'An error occurred while creating the user.';

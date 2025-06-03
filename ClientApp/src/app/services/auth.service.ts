@@ -5,12 +5,10 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription, debounceTime } from 'rxjs';
 import { DataService } from "../services/data.service";
 import { Observable,of, throwError } from 'rxjs';
-import { catchError, tap, map } from 'rxjs/operators';
+import { catchError, tap, map, switchMap } from 'rxjs/operators';
 import { LoginResponse } from '../models/LoginResponse'; // <- make sure path is correct
-import { jwtDecode } from 'jwt-decode'; 
-
-
-
+import { jwtDecode } from 'jwt-decode';
+import { NotificationService } from 'src/app/services/notification.service';
 
 interface TokenPayload {
   sub: string;
@@ -23,7 +21,9 @@ interface TokenPayload {
 
 export class AuthService {
 
-  constructor(private router: Router, private api: ApiService, private httpClient: HttpClient, private dataService: DataService) {}
+  constructor(private router: Router, private api: ApiService, private httpClient: HttpClient, private dataService: DataService,
+    private notificationService: NotificationService
+  ) { }
   //Auth
 
   set token(token: string) {
@@ -75,35 +75,44 @@ export class AuthService {
 
 
 
-  login(username: string, password: string): Observable<boolean>
-  {
-      return this.dataService.login(username, password).pipe(
-      map((response: any) =>
-      {
+  login(username: string, password: string): Observable<boolean> {
+    return this.dataService.login(username, password).pipe(
+      switchMap((response: any) => {
         if (response?.error) {
           console.warn('Login response contains error:', response.error);
-          return false;
-        }
-        // ✅ Success — store token
-        const decoded: any = jwtDecode(response.token);
-        localStorage.setItem('token', decoded.token);
-
-        // Store permissions in localStorage as parsed array
-        const permissions = decoded.permissions;
-        localStorage.setItem('permissions', JSON.stringify(permissions));
-
-        const userData = decoded.userLastName;
-        localStorage.setItem('userData', JSON.stringify(userData));
-
-        return true;
-
-      }),
-        catchError(error => {
-          console.error('Login failed due to HTTP error:', error);
           return of(false);
-        })
-      );
+        }
+
+        const token = response.token;
+        localStorage.setItem('token', token);
+
+        const decoded: any = jwtDecode(token);
+
+        // Store decoded claims
+        localStorage.setItem('permissions', JSON.stringify(decoded.permissions));
+        localStorage.setItem('userData', JSON.stringify(decoded.userLastName));
+        localStorage.setItem('userId', decoded.userId); // capture userId for reuse if needed
+
+
+        //  Call notifications endpoint after login
+        return this.dataService.getNotifications().pipe(
+          tap(notifications => {
+            this.notificationService.set(notifications); // or display badge counts, etc.
+          }),
+          map(() => true),
+          catchError(err => {
+            console.error('Error fetching notifications:', err);
+            return of(true); // still return true even if notifications fail
+          })
+        );
+      }),
+      catchError(error => {
+        console.error('Login failed due to HTTP error:', error);
+        return of(false);
+      })
+    );
   }
+
 
 
 

@@ -16,6 +16,8 @@ using ProInternal.Services;
 using Microsoft.AspNetCore.SpaServices.AngularCli;
 using Microsoft.Data.SqlClient;
 using ProInternal;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +33,9 @@ builder.Services.AddHttpClient();
 builder.Services.Configure<AppConfigurations>(
     builder.Configuration.GetSection("AppConfigurations")
 );
+
+
+
 
 
 var configuration = builder.Configuration;
@@ -52,6 +57,35 @@ builder.Services.AddSpaStaticFiles(configuration =>
 {
     configuration.RootPath = "dist";
 });
+
+// Read secret and issuer from AppConfigurations.Jwt
+var jwtSection = builder.Configuration.GetSection("AppConfigurations:Jwt");
+var issuer = jwtSection["Issuer"];
+var secret = jwtSection["Secret"];
+var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+
+// Configure JWT authentication
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = issuer,
+        ValidAudience = issuer,
+        IssuerSigningKey = key
+    };
+});
+
 
 
 

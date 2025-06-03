@@ -67,7 +67,7 @@ namespace ProInternal.Services
         {
             using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
             {
-                connection.Execute("ResubmitOrderToQueue",
+                connection.Execute("ResubmitRebateOrder",
                     new { orderId = orderId },
                     commandType: CommandType.StoredProcedure);
             }
@@ -75,6 +75,16 @@ namespace ProInternal.Services
 
 
 
+
+        public void ConfirmDecline(int orderId)
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                connection.Execute("ConfirmDecline",
+                    new { orderId = orderId },
+                    commandType: CommandType.StoredProcedure);
+            }
+        }
 
 
 

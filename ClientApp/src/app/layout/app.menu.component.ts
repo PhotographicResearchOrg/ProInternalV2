@@ -454,8 +454,6 @@ export class AppMenuComponent implements OnInit {
 
 
   cleanMenuItems(items: any[]): any[] {
-    console.log('Cleaning menu items...', items);
-        console.log('Has Super Admin?', this.authService.hasPermission('Super Admin'));
     return (items || [])
       .filter(item => !!item) // filter out null/undefined
       .map(item => {

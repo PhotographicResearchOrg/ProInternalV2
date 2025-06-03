@@ -2,6 +2,8 @@ import { Component, ElementRef, ViewChild } from '@angular/core';
 import { LayoutService } from './service/app.layout.service';
 import { PrimeNGConfig } from 'primeng/api';
 import { Router } from '@angular/router';
+import { NotificationService } from 'src/app/services/notification.service';
+import { Notification } from 'src/app/models/notifications';
 
 
 @Component({
@@ -13,6 +15,11 @@ import { Router } from '@angular/router';
 export class AppTopbarComponent {
 
   isRefreshing = true;
+  notifications: Notification[] = [];
+  unreadCount: number = 0;
+
+
+
 
   themeOptions =
     [
@@ -81,9 +88,6 @@ export class AppTopbarComponent {
   ngOnInit()
   {
     const storedTheme = localStorage.getItem('selected-theme');
-   // const storedTheme = localStorage.getItem('lara - dark - blue');  
-   // alert('-----------------------------------------------------')
-   // alert(storedTheme)
 
     if (storedTheme) {
       this.selectedTheme = storedTheme;
@@ -91,15 +95,42 @@ export class AppTopbarComponent {
     } else {
       this.onThemeChange(this.selectedTheme);
     }
+
+
+    this.notificationService.get().subscribe(n => {
+      this.notifications = n;
+      this.unreadCount = n.filter(n => !n.isRead).length;
+    });
+   
+
+  }
+
+  markAsRead(id: number) {
+    this.notificationService.markAsRead(id);
+    this.unreadCount = this.notifications.filter(n => !n.isRead).length;
+  }
+
+  markAllAsRead() {
+    this.notifications.forEach(n => this.notificationService.markAsRead(n.id));
+    this.unreadCount = 0;
+  }
+
+  delete(id: number) {
+    this.notificationService.delete(id);
+
   }
 
 
-
     @ViewChild('menuButton') menuButton!: ElementRef;
-
     @ViewChild('mobileMenuButton') mobileMenuButton!: ElementRef;
     
-  constructor(private primengConfig: PrimeNGConfig, public layoutService: LayoutService, public el: ElementRef, private router: Router) {}
+  constructor(
+    private primengConfig: PrimeNGConfig,
+    public layoutService: LayoutService,
+    public el: ElementRef,
+    private router: Router,
+    private notificationService: NotificationService 
+  ) { }
 
     activeItem!: number;
 
