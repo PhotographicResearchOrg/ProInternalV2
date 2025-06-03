@@ -367,12 +367,6 @@ export class ForecastComponent implements OnInit {
     // Debug for account 3361
     if (result[3361]) {
       const debug = result[3361];
-      console.log('🔍 Debug for account 3361 — Behavioral Lag Forecast:');
-      console.log(`  • Modal Lag (weeks): ${debug.modalLag}`);
-      console.log(`  • Paid Cycles: ${debug.paidCycles}`);
-      console.log(`  • Total Cycles: ${debug.totalCycles}`);
-      console.log(`  • Probability: ${(debug.probability * 100).toFixed(1)}%`);
-      console.log(`  • Confidence: ${(debug.confidencePercent * 100).toFixed(1)}%`);
     }
 
     return result;

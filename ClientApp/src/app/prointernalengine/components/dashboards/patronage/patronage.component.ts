@@ -218,7 +218,7 @@ downloadFullBatchExcel() {
 
 
   Activate(patronage: any) {
-    console.log(patronage)
+
     const payload = {
       batchID: patronage.id,
       active: patronage.active
