@@ -7,7 +7,7 @@ import { ConfirmationService } from 'primeng/api';
 import { forkJoin, of } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { AfterViewInit } from '@angular/core';
-
+import * as XLSX from 'xlsx';
 
 
 @Component({
@@ -249,7 +249,23 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
 
 
 
+  exportToExcel(): void {
+    if (!this.columns?.length || !this.declines?.length) return;
 
+    const exportData = this.declines.map(row => {
+      const flat: any = {};
+      this.columns.forEach(col => {
+        flat[col.header] = row[col.field];
+      });
+      return flat;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Declines');
+
+    XLSX.writeFile(workbook, 'InstantRebateDeclines.xlsx');
+  }
 
 
 

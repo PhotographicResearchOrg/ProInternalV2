@@ -22,20 +22,13 @@
   </div>
 
 
-
-
-
-
   <!-- Instant Rebate Declines Card (Full Width) -->
   <div class="col-12">
     <p-card>
       <ng-template pTemplate="header">
         <div class="text-900 text-xl font-semibold">
           Instant Rebate Declines (Support Needed)
-
         </div>
-
-
         <div class="mt-3">
           <button pButton
                   label="Toggle Status"
@@ -43,16 +36,11 @@
                   class="p-button-sm p-button-text"
                   (click)="toggleStatusFilter()">
           </button>
-
           <p-tag [value]="statusFilter === 3 ? 'Actionable' : 'Information'"
                  [severity]="statusFilter === 3 ? 'warning' : 'info'"
                  class="ml-2">
           </p-tag>
-
-
         </div>
-
-
       </ng-template>
 
       <div class="flex align-items-center mb-3" style="max-width: 100%;">
@@ -65,14 +53,13 @@
                  class="w-full"
                  style="border-radius: 2rem" />
         </div>
-        <button pButton
+        <!--<button pButton
                 pRipple
                 icon="pi pi-cloud-download"
                 class="p-button-rounded ml-3"
                 (click)="exportData()">
-        </button>
+        </button>-->
       </div>
-
 
       <app-ir-declines-table #declinesTable
                              [declines]="declinedIRs"
@@ -81,8 +68,6 @@
                              [accountNumberFilter]="hubspotAccountNumbers"
                              (actionCompleted)="refreshNotifications()">
       </app-ir-declines-table>
-
-
 
     </p-card>
   </div>

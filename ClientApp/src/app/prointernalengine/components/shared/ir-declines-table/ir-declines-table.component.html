@@ -1,16 +1,21 @@
 <p-toast></p-toast>
 <p-confirmDialog key="ir-delete-confirm"></p-confirmDialog>
-
 <p-confirmDialog key="ir-decline-confirm"></p-confirmDialog>
 
 
 <div class="col-12">
   <div class="card">
-    <!--<p-dropdown [options]="vendorOptions"
-                optionLabel="label"
-                placeholder="Filter by Vendor"
-                (onChange)="onVendorFilterChange($event.value)">
-    </p-dropdown>-->
+
+    <div class="flex justify-content-end mb-2">
+      <button pButton
+              pRipple
+              icon="pi pi-file-excel"
+              label="Export to Excel"
+              class="p-button-sm p-button-success"
+              (click)="exportToExcel()">
+      </button>
+    </div>
+
 
     <div class="text-900 text-xl font-semibold mb-3">Instant Rebate Declines</div>
 

@@ -179,10 +179,10 @@ namespace ProInternal.Controllers
 
         [HttpGet]
         [Route("getIRBatchDetail/{batchID}")]
-        public List<IR> getQRBatchDetail(int batchID)
+        public IActionResult getQRBatchDetail(int batchID)
         {
-            List<IR> Summary = this._nukedataAccess.getIRBatchDetail(batchID).ToList();
-            return Summary;
+            IRBatchExport result = _nukedataAccess.getIRBatchDetail(batchID);
+            return Ok(result);
         }
 
 

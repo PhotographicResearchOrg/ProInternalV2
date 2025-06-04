@@ -16,7 +16,7 @@ namespace ProInternal.Services
         IRMetrics GetIRMetrics();
         List<IR> GetInstantRebateBatches();
         bool activateIRBatch(int batchID);
-        List<IR> getIRBatchDetail(int batchID);
+        IRBatchExport getIRBatchDetail(int batchID);
 
         void ConfirmDecline(int OrderId);
         void ResubmitOrderToQueue(int orderId);

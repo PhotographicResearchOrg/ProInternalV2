@@ -37,7 +37,6 @@ export class DeclinedIR {
       ? this.additionalFiles.split(',').map(f => f.trim()).filter(f => !!f)
       : [];
   }
-
 }
 
 

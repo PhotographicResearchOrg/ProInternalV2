@@ -5,7 +5,7 @@
     <div class="card">
       <div class="mb-3">
         <div class="text-900 text-xl font-semibold mb-3">
-          Instant Rebate Declines (Support Needed)
+          Instant Rebate Declines
         </div>
 
         <div class="flex align-items-center" style="gap: 1rem;">
@@ -18,12 +18,7 @@
                    class="w-full"
                    style="border-radius: 2rem" />
           </div>
-          <button pButton
-                  pRipple
-                  icon="pi pi-cloud-download"
-                  class="p-button-rounded"
-                  (click)="exportData()">
-          </button>
+         
         </div>
       </div>
 
@@ -38,24 +33,28 @@
 
 
 
-
-
-
-  <!--<div class="col-12 md:col-6 lg:col-12">
-    <div class="card h-full">-->
-  <!--<app-file-uploader (reload)="onReload()"></app-file-uploader>-->
-  <!--</div>
-  </div>-->
-
   <div class="col-12 md:col-9 xl:col-12">
     <div class="card">
       <div class="text-900 text-xl font-semibold mb-3">Instant Rebate Deployments</div>
       <div class="inline-flex align-items-center">
+
         <span class="p-input-icon-left flex-auto">
           <i class="pi pi-search"></i>
           <input pInputText type="text" (input)="onGlobalFilter(dtDeployments, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
         </span>
-        <button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dtDeployments.exportCSV()"></button>
+
+        <!--<button pButton pRipple icon="pi pi-cloud-download" class="p-button-rounded mx-3" (click)="dtDeployments.exportCSV()"></button>-->
+
+      </div>
+
+      <div class="flex justify-content-end mb-2">
+        <button pButton
+                pRipple
+                icon="pi pi-file-excel"
+                label="Export to Excel"
+                class="p-button-sm p-button-success"
+                (click)="exportToExcel(dtDeployments)">
+        </button>
       </div>
       <p-table responsiveLayout="scroll" #dtDeployments [columns]="cols" [value]="InstantRebateBatches" [rows]="8" [paginator]="true" [globalFilterFields]="['batchID','vendorName','units','programStart','programEnd','irtypeName']">
         <ng-template pTemplate="header">
@@ -97,14 +96,12 @@
             <td>
               <span>{{batch.programEnd | date }}</span>
             </td>
-
             <td>
               <span>{{batch.irtypeName }}</span>
             </td>
-
             <td class="text-center">
               <!--<button (click)="Delete(InstantRebateBatches)" pButton pRipple icon="pi pi-times" class="p-button-danger p-button-text p-button-rounded mr-2"></button>-->
-              <button (click)="Download(InstantRebateBatches)" pButton pRipple icon="pi pi-file-excel" class="p-button-text p-button-rounded"></button>
+              <button (click)="Download(batch.batchID)" pButton pRipple icon="pi pi-file-excel" class="p-button-text p-button-rounded"></button>
             </td>
           </tr>
 

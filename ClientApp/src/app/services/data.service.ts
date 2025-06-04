@@ -33,10 +33,12 @@ import { throwError } from 'rxjs';
 import { VendorUser } from 'src/app/models/vendor/vendoruser';
 import { InvoiceRecord } from 'src/app/models/accounting/InvoiceRecord';
 import { PatronageUpload, PatronageHistorical, patronageDetail } from "src/app/models/accounting/patronage";
-import { ParentCompany } from "src/app/models/Dashboard/InstantRebate"
+import { ParentCompany, IRBatchExport } from "src/app/models/Dashboard/InstantRebate"
 import { panaAccount, panaRep } from 'src/app/models/vendor/panasonicreporting';
 import { EzPaySummary, EzPayDetail  } from 'src/app/models/accounting/EzPaySummary';
 import { Notification } from 'src/app/models/notifications';
+
+
 
 @Injectable()
 export class DataService {
@@ -258,7 +260,7 @@ export class DataService {
 
 
   pullIRBatchDetail(batchId: number) {
-    return this.api.get<Array<InstantRebate>>(`API/InstantRebates/getIRBatchDetail/${batchId}`);
+    return this.api.get<IRBatchExport>(`API/InstantRebates/getIRBatchDetail/${batchId}`);
   }
 
 

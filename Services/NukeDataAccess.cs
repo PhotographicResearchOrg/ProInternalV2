@@ -90,14 +90,24 @@ namespace ProInternal.Services
 
 
 
-        public List<IR> getIRBatchDetail(int batchID)
+        public IRBatchExport getIRBatchDetail(int batchID)
         {
             using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
             {
-                var output = connection.Query<IR>("getIRBatchDetail @batchID", new { batchID = batchID }).ToList();
-                return output;
+                using (var output = connection.QueryMultiple("getIRBatchDetail @batchID", new { batchID }, commandType: CommandType.Text))
+                {
+                    var summary = output.Read<IR>().ToList();
+                    var detail = output.Read<IRBatchDetail>().ToList();
+
+                    return new IRBatchExport
+                    {
+                        Summary = summary,
+                        Detail = detail
+                    };
+                }
             }
         }
+
 
 
         public bool activateIRBatch(int batchID)

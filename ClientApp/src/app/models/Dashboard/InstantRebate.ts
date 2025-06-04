@@ -45,3 +45,28 @@ export interface RebateVendor {
   parentCompanyId: number;
   isPriceProtection: boolean; 
 }
+
+
+
+export class IRBatchDetail {
+  programStartWeek!: string;      // e.g., "2025-04-14"
+  programEndWeek!: string;
+  vendorName!: string;
+  quantity!: number;
+  memberID!: number;
+  reimbursementAmount!: number;
+  extended!: number;
+  date!: string;                  // e.g., "2023-12-14T10:11:52.663Z"
+  model!: string;
+  orderID!: number;
+  total!: number;
+  status!: string;
+  rejectReason?: string;
+  computymeProcessed!: string;    // e.g., "Credit Issued"
+  emailComm!: string;             // e.g., "Email Sent"
+}
+
+export class IRBatchExport {
+  summary: InstantRebate[];
+  detail: IRBatchDetail[];
+}

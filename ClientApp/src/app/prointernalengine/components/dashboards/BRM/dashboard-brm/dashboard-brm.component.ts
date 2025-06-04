@@ -32,6 +32,9 @@ export class DashboardBrmComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadDeclinedIRs();
+
+
+
     this.IRDeclinecols = [
       { header: 'Order_ID', field: 'orderID' },
       { header: 'Decline_Date', field: 'processDate' },

@@ -15,6 +15,8 @@ import { Table } from 'primeng/table';
 import { MessageService } from 'primeng/api';
 import { IrDeclinesTableComponent } from 'src/app/prointernalengine/components/shared/ir-declines-table/ir-declines-table.component';
 
+
+
 @Component({
   templateUrl: './rebatesupport.component.html',
 })
@@ -75,16 +77,34 @@ export class RebatesupportComponent implements OnInit {
 
   }
 
-  Download(item: any) {
 
-    this.dataService.pullIRBatchDetail(item.batchID).subscribe((resp) => {
-      const data: any[] = resp;
-      const ws: XLSX.WorkSheet = XLSX.utils.json_to_sheet(data);
+
+  Download(batchID: number) {
+    this.dataService.pullIRBatchDetail(batchID).subscribe((resp) => {
       const wb: XLSX.WorkBook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Batch' + item.batchID);
-      XLSX.writeFile(wb, item.programStart + '_' + item.programEnd + '.xlsx');
+
+
+
+      if (resp.summary?.length) {
+        const summarySheet = XLSX.utils.json_to_sheet(resp.summary);
+        XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+      }
+
+      if (resp.detail?.length) {
+        const detailSheet = XLSX.utils.json_to_sheet(resp.detail);
+        XLSX.utils.book_append_sheet(wb, detailSheet, 'Detail');
+      }
+
+      const dateSuffix = new Date().toISOString().slice(0, 10);
+      const filename = `Batch_${batchID}_${dateSuffix}.xlsx`;
+      XLSX.writeFile(wb, filename);
     });
   }
+
+
+
+
+
 
 
    Delete(item: any)
@@ -103,6 +123,25 @@ export class RebatesupportComponent implements OnInit {
   exportData() {
     this.declinesTable.exportCSV();
   }
+
+  exportToExcel(table: Table): void {
+    const exportData = table.value.map((row: any) => {
+      const flat: any = {};
+      this.cols.forEach(col => {
+        flat[col.header] = row[col.field];
+      });
+      return flat;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'IR_Batches');
+
+    XLSX.writeFile(workbook, 'InstantRebateBatches.xlsx');
+  }
+
+
+
 
   onSearch(event: Event) {
     this.declinesTable.filterGlobal(event);
