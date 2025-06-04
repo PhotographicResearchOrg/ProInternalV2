@@ -41,7 +41,12 @@
              pRipple>
             <div class="relative">
               <i class="pi pi-bell text-xl"></i>
-              <span *ngIf="unreadCount > 0" class="badge bg-red-500 text-white text-xs font-bold px-2 py-1 border-circle absolute -top-2 -right-2">{{ unreadCount }}</span>
+              <span *ngIf="unreadCount > 0"
+                    class="badge bg-red-500 text-white text-xs font-bold px-2 py-1 border-circle absolute -top-2 -right-2"
+                    [class.flash]="flashBadge">
+                {{ unreadCount }}
+              </span>
+
             </div>
           </a>
 

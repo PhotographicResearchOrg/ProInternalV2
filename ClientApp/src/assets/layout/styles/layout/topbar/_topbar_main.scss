@@ -196,3 +196,23 @@
   font-weight: bold;
 }
 
+@keyframes pulse-badge {
+  0% {
+    transform: scale(1);
+    background-color: #ef4444;
+  }
+
+  50% {
+    transform: scale(1.25);
+    background-color: #f87171;
+  }
+
+  100% {
+    transform: scale(1);
+    background-color: #ef4444;
+  }
+}
+
+.flash {
+  animation: pulse-badge 0.6s ease;
+}

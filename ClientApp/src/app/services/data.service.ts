@@ -271,11 +271,12 @@ export class DataService {
   }
 
   resubmitRebateOrder(orderId: number) {
-    return this.api.post(`API/InstantRebates/resubmit`, { orderId });
+    return this.api.post('API/InstantRebates/resubmit', orderId);
   }
 
   confirmDecline(orderId: number): Observable<void> {
-    return this.api.postWithAuth<void>('API/InstantRebates/ConfirmDecline', { orderId });
+    //return this.api.postWithAuth<void>('API/InstantRebates/ConfirmDecline', { orderId });
+    return this.api.postWithAuth<void>('API/InstantRebates/ConfirmDecline', orderId);
   }
 
 

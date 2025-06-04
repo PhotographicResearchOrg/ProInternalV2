@@ -3,8 +3,8 @@ import { DeclinedIR } from 'src/app/models/Dashboard/DeclinedIR';
 import { IrDeclinesTableComponent } from 'src/app/prointernalengine/components/shared/ir-declines-table/ir-declines-table.component';
 import { DataService } from 'src/app/services/data.service';
 import { ChangeDetectorRef } from '@angular/core';
-
-
+import { NotificationService } from 'src/app/services/notification.service';
+import { AppTopbarComponent } from 'src/app/layout/app.topbar.component';
 
 @Component({
   selector: 'app-dashboard-brm',
@@ -12,25 +12,26 @@ import { ChangeDetectorRef } from '@angular/core';
   styleUrls: ['./dashboard-brm.component.scss']
 })
 export class DashboardBrmComponent implements OnInit {
-  @ViewChild('declinesTable') declinesTable!: IrDeclinesTableComponent;
+
+ // @ViewChild('declinesTable') declinesTable!: IrDeclinesTableComponent;
+  @ViewChild('declinesTable', { static: false }) declinesTable!: IrDeclinesTableComponent;
+
+
+
+  @ViewChild('topbar') topbar!: AppTopbarComponent;
 
   public declinedIRs: DeclinedIR[] = [];
   public IRDeclinecols: any[] = [];
   public hubspotAccountNumbers: string[] = [];
   public SelectedAccountNumbers: string[] = [];
-
   public declinedIRsOriginal: any[] = [];
   public statusFilter = 3;
-  constructor(private dataService: DataService, private cdr: ChangeDetectorRef) { }
+  public isHubspotCardCollapsed = true;
+
+  constructor(private dataService: DataService, private cdr: ChangeDetectorRef, private notificationService: NotificationService) { }
 
   ngOnInit(): void {
-    this.dataService.GetDeclinedInstantRebates().subscribe((data) => {
-      this.declinedIRsOriginal = data;
-      this.hubspotAccountNumbers = []; // no filter yet
-      this.onAccountFilter([]);        // apply type 3 filter on init
-    });
-
-
+    this.loadDeclinedIRs();
     this.IRDeclinecols = [
       { header: 'Order_ID', field: 'orderID' },
       { header: 'Decline_Date', field: 'processDate' },
@@ -44,24 +45,19 @@ export class DashboardBrmComponent implements OnInit {
     ];
   }
 
+  //onSearch(event: Event) {
+  //  this.declinesTable.filterGlobal(event);
+  //}
+
   onSearch(event: Event) {
+    if (!this.declinesTable) return; // avoid errors if not yet rendered
+
     this.declinesTable.filterGlobal(event);
   }
-
-  //toggleStatusFilter() {
-  //  this.statusFilter = this.statusFilter === 3 ? 2 : 3;
-  //  this.declinedIRs = this.declinedIRsOriginal
-  //    .filter(ir => ir.status === this.statusFilter)
-  //    .filter(ir => {
-  //      if (!this.hubspotAccountNumbers.length) return true;
-  //      return this.hubspotAccountNumbers.includes(ir.memberID?.toString());
-  //    });
-  //}
 
 
   toggleStatusFilter() {
     this.statusFilter = this.statusFilter === 3 ? 2 : 3;
-
     this.declinedIRs = this.declinedIRsOriginal.filter(ir =>
       ir.status === this.statusFilter &&
       (!this.SelectedAccountNumbers.length || this.SelectedAccountNumbers.includes(ir.memberID?.toString()))
@@ -69,12 +65,25 @@ export class DashboardBrmComponent implements OnInit {
   }
 
 
+  loadDeclinedIRs(): void {
+    this.dataService.GetDeclinedInstantRebates().subscribe((data) => {
+      this.declinedIRsOriginal = data;
+      this.hubspotAccountNumbers = []; // clear filters on reload
+      this.onAccountFilter([]);        // re-apply type 3 filter
+    });
+  }
 
+
+    ReloadDeclinedIRs(): void {
+    this.dataService.GetDeclinedInstantRebates().subscribe((data) => {
+      this.declinedIRsOriginal = data;
+      //this.hubspotAccountNumbers = []; // clear filters on reload
+      this.onAccountFilter(this.SelectedAccountNumbers); //  re-apply previously selected accounts
+    });
+  }
 
   onAccountFilter(accountNumbers: string[]) {
-
    this.SelectedAccountNumbers = accountNumbers;
-
     if (!accountNumbers || accountNumbers.length === 0) {
       this.declinedIRs = [...this.declinedIRsOriginal];
     }
@@ -85,7 +94,12 @@ export class DashboardBrmComponent implements OnInit {
     }
   }
 
-
+  refreshNotifications(): void
+  {
+    this.notificationService.load();
+    this.ReloadDeclinedIRs();     
+    this.topbar?.triggerFlashBadge?.(); // safe call if method exists
+  }
 
   getFilterKeys(): string[] {
     return this.declinesTable?.activeFilters

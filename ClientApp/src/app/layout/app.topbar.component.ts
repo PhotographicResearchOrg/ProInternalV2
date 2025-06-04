@@ -17,7 +17,7 @@ export class AppTopbarComponent {
   isRefreshing = true;
   notifications: Notification[] = [];
   unreadCount: number = 0;
-
+  flashBadge = false;
 
 
 
@@ -103,6 +103,11 @@ export class AppTopbarComponent {
     });
    
 
+  }
+
+  triggerFlashBadge() {
+    this.flashBadge = true;
+    setTimeout(() => this.flashBadge = false, 600); // Match CSS duration
   }
 
   markAsRead(id: number) {

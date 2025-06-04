@@ -12,6 +12,11 @@
         public string? Model { get; set; }
         public String? EMail { get; set; }
 
+        public int vendorID { get; set; }
+        public string? vendorName { get; set; }
+        public string? vendorImage { get; set; }
+
+
         public string? MasterFileLoc { get; set; }
 
         // Single string, comma-delimited

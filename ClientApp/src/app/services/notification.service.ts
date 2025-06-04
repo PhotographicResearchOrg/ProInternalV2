@@ -49,11 +49,11 @@ export class NotificationService {
     return this.notificationsSubject.value.filter(n => !n.isRead).length;
   }
 
-
-
   clear(): void {
     this.notificationsSubject.next([]);
   }
+
+
 
 
 

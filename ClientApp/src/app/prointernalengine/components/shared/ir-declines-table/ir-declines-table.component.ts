@@ -20,9 +20,11 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
   @Input() declines: any[] = [];
   @Input() columns: any[] = [];
   @Input() globalFilterFields: string[] = [];
+  @Output() actionCompleted = new EventEmitter<void>();
 
   @Output() downloadRequested = new EventEmitter<any>();
   @Output() filteredCountChanged = new EventEmitter<number>();
+
 
   @ViewChild('dtDeclines') table!: Table;
 
@@ -34,7 +36,7 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
   expandedRowKeys: { [key: string]: boolean } = {};
   uploadedFiles: { [orderId: number]: { file: File; name: string; progress: number }[] } = {};
   expandedOrderId: string | null = null;
-  
+  vendorOptions = [];
 
 
   constructor(private cdr: ChangeDetectorRef, private dataService: DataService, private messageService: MessageService, private confirmationService: ConfirmationService) { }
@@ -93,6 +95,9 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
           masterFileLoc: item.masterFileLoc || '',
           additionalFiles: item.additionalFiles || '',
           status: item.status,
+          vendorID: item.vendorID,
+          vendorName: item.vendorName,
+          vendorImage: item.vendorImage,
           children: []
         });
       } else {
@@ -390,6 +395,7 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
           detail: `Order ${orderId} has been re-queued.`,
           life: 3000
         });
+        this.actionCompleted.emit(); 
       },
       error: () => {
         this.messageService.add({
@@ -415,6 +421,7 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
         this.onConfirmDecline(orderId);
       }
     });
+
   }
 
 
@@ -428,7 +435,7 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
           detail: `Order ${orderId} has been marked as declined.`,
           life: 3000
         });
-
+        this.actionCompleted.emit(); //  trigger parent refresh
       },
       error: (err) => {
         console.error('Error confirming decline:', err);

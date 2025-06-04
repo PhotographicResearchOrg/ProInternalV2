@@ -1,10 +1,30 @@
 <div class="grid">
-  <!-- HubSpot Company Management Card (Full Width) -->
+
+
+
+
   <div class="col-12">
-    <p-card header="HubSpot Company Management">
+    <!-- Toggle button with spacing above -->
+    <div style="margin-bottom: 1.0rem;">
+      <button pButton
+              type="button"
+              icon="{{ isHubspotCardCollapsed ? 'pi pi-chevron-down' : 'pi pi-chevron-up' }}"
+              class="p-button-text"
+              (click)="isHubspotCardCollapsed = !isHubspotCardCollapsed">
+        {{ isHubspotCardCollapsed ? 'Show' : 'Hide' }} Company Management
+      </button>
+    </div>
+
+    <!-- Collapsible card -->
+    <p-card *ngIf="!isHubspotCardCollapsed" header="HubSpot Company Management" class="mt-2">
       <app-hubspot-company (filterByAccountNumbers)="onAccountFilter($event)"></app-hubspot-company>
     </p-card>
   </div>
+
+
+
+
+
 
   <!-- Instant Rebate Declines Card (Full Width) -->
   <div class="col-12">
@@ -53,13 +73,15 @@
         </button>
       </div>
 
-      <app-ir-declines-table                              
+
+      <app-ir-declines-table #declinesTable
                              [declines]="declinedIRs"
                              [columns]="IRDeclinecols"
-                             [globalFilterFields]="['orderID','processDate','rejectReason','memberID','model']"
-                             [accountNumberFilter]="hubspotAccountNumbers"                             
-                             #declinesTable>
+                             [globalFilterFields]="['orderID','processDate','rejectReason','memberID','model', 'total']"
+                             [accountNumberFilter]="hubspotAccountNumbers"
+                             (actionCompleted)="refreshNotifications()">
       </app-ir-declines-table>
+
 
 
     </p-card>

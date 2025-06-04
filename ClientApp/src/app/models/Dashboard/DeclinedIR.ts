@@ -9,6 +9,9 @@ export class DeclinedIR {
   public model: string;
   public email: string;
   public status: number;
+  public vendorID: number;
+  public vendorName?: string;
+  public vendorImage?: string;
 
   public masterFileLoc: string;           // new field for single file or indicator string
   public additionalFiles: string;         // new field for comma-separated list

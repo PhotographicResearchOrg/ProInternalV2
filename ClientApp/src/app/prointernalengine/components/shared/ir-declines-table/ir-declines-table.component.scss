@@ -34,3 +34,9 @@
   background-color: #e0f3ff;
   border-color: #2196f3;
 }
+
+::ng-deep .border-circle {
+  border-radius: 50%;
+  object-fit: contain;
+  vertical-align: middle;
+}
