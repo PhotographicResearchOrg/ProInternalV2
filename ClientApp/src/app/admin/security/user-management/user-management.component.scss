@@ -1,0 +1,87 @@
+::ng-deep .p-chip {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 1rem;
+  background-color: #eef1f5;
+  color: #333;
+}
+
+::ng-deep .p-button-sm.p-button-text {
+  padding: 0.25rem !important;
+  height: 1.75rem;
+  width: 1.75rem;
+}
+
+::ng-deep .p-button .pi-pencil {
+  font-size: 0.85rem;
+}
+::ng-deep .p-multiselect-panel {
+  max-height: 20rem !important;
+  overflow-y: auto !important;
+  max-height: 18rem;
+  overflow-y: auto;
+}
+::ng-deep .extra-perm-chip .p-chip {
+  font-size: 0.7rem !important;
+  padding: 2px 6px !important;
+  height: auto !important;
+  border-radius: 10px !important;
+  background-color: #e0f0ff;
+  color: #003f70;
+}
+::ng-deep .p-picklist {
+  max-width: 100%;
+
+  .p-picklist-buttons {
+    flex-direction: row; // On mobile, horizontal buttons are cleaner
+    justify-content: center;
+  }
+
+  .p-picklist-list {
+    height: auto; // Prevent fixed-height issues on smaller screens
+  }
+}
+.picklist-wrapper {
+  margin: 1rem 0;
+
+  ::ng-deep .p-picklist {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+
+    .p-picklist-source,
+    .p-picklist-target {
+      flex: 1 1 45%;
+      min-width: 280px;
+    }
+  }
+}
+
+::ng-deep .p-picklist-buttons {
+  display: none !important;
+}
+
+
+
+
+
+::ng-deep .compact-multiselect .p-multiselect-label-container {
+  padding: 2px 6px;
+  min-height: 2.2rem;
+  font-size: 0.8rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+::ng-deep .compact-multiselect .p-multiselect-token {
+  margin: 1px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+::ng-deep .compact-panel {
+  max-height: 200px;
+  font-size: 0.8rem;
+}

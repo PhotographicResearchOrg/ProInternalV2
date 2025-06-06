@@ -187,6 +187,14 @@ export class AppMenuComponent implements OnInit {
       items:
         [
           { label: 'BRM SetUp', icon: 'pi pi-cog', routerLink: ['/BRMsetup'] },
+          {
+            label: 'Security Admin',
+            icon: 'pi pi-lock',
+            routerLink: ['/security-admin'],
+            visible: this.authService.hasPermission('ManageSecurity'),  // optional permission-based menu rendering
+            tooltip: 'Manage roles & permissions',
+            tooltipOptions: { position: 'right' }
+          }
         ]
     });
 

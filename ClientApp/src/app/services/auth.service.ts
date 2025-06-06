@@ -47,6 +47,24 @@ export class AuthService {
     }
   }
 
+  getRoles(): string[] {
+    const token = localStorage.getItem('token');
+    if (!token) return [];
+
+    try {
+      const decoded: any = jwtDecode(token);
+      const roles = decoded['role'];
+      return Array.isArray(roles) ? roles : [roles]; // supports single or multiple
+    } catch (e) {
+      return [];
+    }
+  }
+
+  hasRole(role: string): boolean {
+    return this.getRoles().includes(role);
+  }
+
+
 
   getPermissions(): string[] {
     const raw = localStorage.getItem('permissions');
@@ -74,44 +92,33 @@ export class AuthService {
   }
 
 
-
-  login(username: string, password: string): Observable<boolean> {
+  login(username: string, password: string): Observable<LoginResponse> {
     return this.dataService.login(username, password).pipe(
-      switchMap((response: any) => {
-        if (response?.error) {
-          console.warn('Login response contains error:', response.error);
-          return of(false);
-        }
-
+      tap(response => {
         const token = response.token;
         localStorage.setItem('token', token);
 
         const decoded: any = jwtDecode(token);
-
-        // Store decoded claims
         localStorage.setItem('permissions', JSON.stringify(decoded.permissions));
         localStorage.setItem('userData', JSON.stringify(decoded.userLastName));
-        localStorage.setItem('userId', decoded.userId); // capture userId for reuse if needed
+        localStorage.setItem('userId', decoded.userId);
 
+        // You can also store extraPermissions directly if needed
+        localStorage.setItem('roles', JSON.stringify(response.roles));
+        localStorage.setItem('extraPermissions', JSON.stringify(response.extraPermissions));
 
-        //  Call notifications endpoint after login
-        return this.dataService.getNotifications().pipe(
-          tap(notifications => {
-            this.notificationService.set(notifications); // or display badge counts, etc.
-          }),
-          map(() => true),
-          catchError(err => {
-            console.error('Error fetching notifications:', err);
-            return of(true); // still return true even if notifications fail
-          })
-        );
+        // Load notifications
+        this.dataService.getNotifications().subscribe(notifications => {
+          this.notificationService.set(notifications);
+        });
       }),
       catchError(error => {
         console.error('Login failed due to HTTP error:', error);
-        return of(false);
+        throw error; // propagate error to component
       })
     );
   }
+
 
 
 

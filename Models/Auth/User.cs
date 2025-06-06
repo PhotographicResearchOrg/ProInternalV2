@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace ProInternal.Models.Auth
@@ -27,12 +28,11 @@ namespace ProInternal.Models.Auth
         public bool SharePhoto { get; set; }
         public IEnumerable<int> Roles { get; set; }
         public string Role { get; set; }
-        public string RoleNames { get; set; }
-    
+        public string RoleNames { get; set; }   
         public int CartId { get; set; }
         public string AccountNumber { get; set; }
         public int Permissions { get; set; }
-
+        public string status { get; set; }
 
     }
     public class Permission
@@ -44,10 +44,14 @@ namespace ProInternal.Models.Auth
     {
         public string Token { get; set; }
         public User User { get; set; }
-        public List<Permission> Permissions { get; set; }
+
+        // Add these:
+        public List<string> Roles { get; set; } = new List<string>();
+        public List<string> Permissions { get; set; } = new List<string>();
+
+        public List<string> ExtraPermissions { get; set; } = new List<string>();
+
     }
-
-
 
     public class UserShort
     {
@@ -55,6 +59,48 @@ namespace ProInternal.Models.Auth
         public string FirstName { get; set; }
         public string LastName { get; set; }
     }
+
+
+    public class AssignRoleRequest
+    {
+        public int UserId { get; set; }
+        public string Role { get; set; }
+    }
+
+    public class RoleDto
+    {
+        public string RoleName { get; set; }
+        public string RoleDescription { get; set; }
+    }
+
+    public class RenameRoleRequest
+    {
+        public string OldName { get; set; }
+        public string NewName { get; set; }
+    }
+
+
+    public class AssignPermissionRequest
+    {
+        [JsonPropertyName("role")]
+        public string Role { get; set; }
+
+        [JsonPropertyName("permission")]
+        public List<string> Permission { get; set; }
+    }
+
+    public class UserWithRoles
+    {
+        public int UserId { get; set; }
+        public string Email { get; set; }
+        public string Username { get; set; }
+        public string FullName { get; set; }
+
+        public List<string> Roles { get; set; } = new();
+
+        public List<string> ExtraPermissions { get; set; } = new List<string>();
+    }
+
 
 
 

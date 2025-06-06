@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { CanActivate, Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import { CanActivate, Router, ActivatedRouteSnapshot } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
 @Injectable({
@@ -9,36 +9,32 @@ export class AuthGuard implements CanActivate {
 
   constructor(private authService: AuthService, private router: Router) { }
 
-
-
   canActivate(route: ActivatedRouteSnapshot): boolean {
-    const isLoggedIn = this.authService.isLoggedIn();
-
-    if (!isLoggedIn) {
+    if (!this.authService.isLoggedIn()) {
       this.router.navigate(['/auth/login']);
       return false;
     }
 
-    const requiredPermissions = route.data['permissions'] as string[];
+    const requiredPermissions: string[] = route.data['permissions'] || [];
+    const requiredRoles: string[] = route.data['roles'] || [];
 
-    //const userPermissions = this.authService.getPermissions(); // or from localStorage
+    const userPermissions = this.authService.getPermissions?.() || [];
+    const userRoles = this.authService.getRoles?.() || [];
 
-    const userPermissions = JSON.parse(localStorage.getItem('permissions') || '[]');
+    const hasAllPermissions = requiredPermissions.every(p => userPermissions.includes(p));
+    const hasAnyRole = requiredRoles.length === 0 || requiredRoles.some(r => userRoles.includes(r));
 
-    const userData = localStorage.getItem('userData');
-  
-    if (requiredPermissions && requiredPermissions.length > 0) {
-      const hasPermission = requiredPermissions.every(p => userPermissions.includes(p));
+    if (requiredPermissions.length && !hasAllPermissions) {
+      this.router.navigate(['/auth/access']);
+      return false;
+    }
 
-      if (!hasPermission) {
-        this.router.navigate(['/auth/access']);
-        return false;
-      }
+    if (requiredRoles.length && !hasAnyRole) {
+      this.router.navigate(['/auth/access']);
+      return false;
     }
 
     return true;
   }
-
-
 
 }

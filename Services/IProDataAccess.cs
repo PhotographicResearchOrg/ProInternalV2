@@ -19,11 +19,40 @@ using ProInternal.Models.InvoiceRecord;
 using ProInternal.Models.Patronage;
 using ProInternal.Models.InstantRebates;
 using ProInternal.Models;
+using static ProInternal.Controllers.AuthController;
 
 namespace ProInternal.Services
 {
     public interface IProDataAccess
     {
+
+        List<string> GetPermissionsByRole(string roleName);
+
+        List<string> GetUserExtraPermissions(int userId);
+        void SaveUserExtraPermission(int userId, string permission);
+        void RemoveUserExtraPermission(int userId, string permission);
+
+
+        void CreateRole(string roleName, string roleDescription);
+        void RenameRole(string oldName, string newName);
+        void DeleteRole(string roleName);
+
+
+
+        List<string> GetAllPermissions();  
+        List<UserWithRoles> GetUsersWithRoles();
+        List<RoleDto> GetAllRoles();
+        void AssignRoleToUser(int userId, string roleName);
+        void RemoveRoleFromUser(int userId, string roleName);
+        List<UserWithRoles> GetUserRoles(int userId);
+
+        void AssignPermissionToRole(string roleName, List<string> permissionName);
+        void RemovePermissionFromRole(string roleName, List<string> permissionName);
+        List<string> GetUserPermissions(int userId);
+
+
+
+
 
 
         void MarkNotificationAsRead(int notificationId, int userId);

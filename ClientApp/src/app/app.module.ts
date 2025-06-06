@@ -61,11 +61,13 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { PaymentsComponent } from './prointernalengine/components/dashboards/accounting/payments/payments.component';
 import { HubspotCompanyComponent } from './prointernalengine/components/MemberManagement/hubspot-company/hubspot-company.component';
 import { DashboardBrmComponent } from './prointernalengine/components//dashboards/BRM/dashboard-brm/dashboard-brm.component';
-import { IrDeclinesTableComponent } from './prointernalengine/components/shared/ir-declines-table/ir-declines-table.component'; 
+import { IrDeclinesTableComponent } from './prointernalengine/components/shared/ir-declines-table/ir-declines-table.component';
+
 
 @NgModule({
   declarations:
     [
+
     AppComponent,
     QtrRebatesComponent,
     RebateSetupComponent,  

@@ -24,6 +24,8 @@ import { EzPaySummary } from './models/accounting/EzPaySummary';
 import { PaymentsComponent } from './prointernalengine/components/dashboards/accounting/payments/payments.component';
 import { HubspotCompanyComponent } from './prointernalengine/components/MemberManagement/hubspot-company/hubspot-company.component';
 import { DashboardBrmComponent } from './prointernalengine/components//dashboards/BRM/dashboard-brm/dashboard-brm.component';
+import { SecurityAdminComponent } from 'src/app/admin/security/security-admin/security-admin.component';
+
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -87,7 +89,14 @@ const routes: Routes = [
         component: DashboardBrmComponent
       },
 
-
+      {
+        path: 'security-admin',
+        component: SecurityAdminComponent
+        //canActivate: [AuthGuard],
+        //data: {
+        //  permissions: ['ManageSecurity'] // or roles: ['PIV2_ADMIN']
+        //}
+      },
       
       {
         path: 'instantrebate',
@@ -110,7 +119,7 @@ const routes: Routes = [
       {
         path: 'gating',
         component: GatingComponent,
-        canActivate: [AuthGuard],
+       /* canActivate: [AuthGuard],*/
         data: {
           breadcrumb: 'Product Gating',
           permissions: ['Exclusions']
@@ -169,7 +178,7 @@ const routes: Routes = [
                 {
                   path: 'exclusions/brand',
                   component: BrandExclusionsComponent,
-                  canActivate: [AuthGuard],
+                 /* canActivate: [AuthGuard],*/
                   data: {
                     breadcrumb: 'Brand Exclusions',
                     permissions: ['Exclusions']
@@ -179,7 +188,7 @@ const routes: Routes = [
                 {
                   path: 'exclusions/group',
                   component: ExclusionGroupsComponent,
-                  canActivate: [AuthGuard],
+                 /* canActivate: [AuthGuard],*/
                   data: {
                     breadcrumb: 'Exclusion Groups',
                     permissions: ['Exclusions']
@@ -189,7 +198,7 @@ const routes: Routes = [
                 {
                   path: 'exclusion/group/company',
                   component: ExclusionGroupCompanyComponent,
-                  canActivate: [AuthGuard],
+                /*  canActivate: [AuthGuard],*/
                   data: {
                     breadcrumb: 'Company Exclusion Groups',
                     permissions: ['Exclusions']
@@ -201,6 +210,7 @@ const routes: Routes = [
     { path: 'auth', data: { breadcrumb: 'Auth' }, loadChildren: () => import('./prointernalengine/components/auth/auth.module').then(m => m.AuthModule) },
     { path: 'notfound', loadChildren: () => import('./prointernalengine/components/notfound/notfound.module').then(m => m.NotfoundModule) },
     { path: 'landing', loadChildren: () => import('./prointernalengine/components/landing/landing.module').then(m => m.LandingModule) },
+    { path: 'security-admin', loadChildren: () => import('./admin/security/security.module').then(m => m.SecurityModule) },
     { path: '**', redirectTo: '/notfound' }
 ];
 

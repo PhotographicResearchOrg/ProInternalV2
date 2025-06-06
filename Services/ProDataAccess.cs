@@ -42,6 +42,180 @@ namespace ProInternal.Services
    
         }
 
+        public List<UserWithRoles> GetUsersWithRoles()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                var userDict = new Dictionary<int, UserWithRoles>();
+
+                var result = connection.Query<UserWithRoles, string, UserWithRoles>(
+                    "PIV2_GetUsersWithRoles",
+                    (user, role) =>
+                    {
+                        if (!userDict.TryGetValue(user.UserId, out var existingUser))
+                        {
+                            existingUser = user;
+                            existingUser.Roles = new List<string>();
+                            userDict.Add(existingUser.UserId, existingUser);
+                        }
+
+                        if (!string.IsNullOrEmpty(role) && !existingUser.Roles.Contains(role))
+                        {
+                            existingUser.Roles.Add(role);
+                        }
+
+                        return existingUser;
+                    },
+                    splitOn: "RoleName",
+                    commandType: CommandType.StoredProcedure
+                );
+
+                return userDict.Values.ToList();
+            }
+        }
+
+
+        public void AssignRoleToUser(int userId, string roleName)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Execute("PIV2_AssignRoleToUser", new { userId, roleName }, commandType: CommandType.StoredProcedure);
+        }
+
+        public void RemoveRoleFromUser(int userId, string roleName)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Execute("PIV2_RemoveRoleFromUser", new { userId, roleName }, commandType: CommandType.StoredProcedure);
+        }
+
+
+        public List<UserWithRoles> GetUserRoles(int userId)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            return conn.Query<UserWithRoles>("PIV2_GetUserRoles", new { userId }, commandType: CommandType.StoredProcedure).ToList();
+        }
+
+
+        public List<RoleDto> GetAllRoles()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                return connection.Query<RoleDto>(
+                    "PIV2_GetAllRoles",
+                    commandType: CommandType.StoredProcedure
+                ).ToList();
+            }
+        }
+
+        public List<string> GetPermissionsByRole(string roleName)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                return connection.Query<string>(
+                    "PIV2_GetPermissionsByRole",
+                    new { RoleName = roleName },
+                    commandType: CommandType.StoredProcedure
+                ).ToList();
+            }
+        }
+
+
+
+        public List<string> GetUserExtraPermissions(int userId)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                return connection.Query<string>("[PIV2_GetUserExtraPermissions]", new { UserId = userId }, commandType: CommandType.StoredProcedure).ToList();
+            }
+        }
+
+        public void SaveUserExtraPermission(int userId, string permission)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+
+                connection.Execute("SaveUserExtraPermissions", new { UserId = userId, Permission = permission }, commandType: CommandType.StoredProcedure);
+            }
+        }
+
+        public void RemoveUserExtraPermission(int userId, string permission)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+
+                connection.Execute("RemoveUserExtraPermission", new { UserId = userId, Permission = permission }, commandType: CommandType.StoredProcedure);
+            }
+        }
+
+
+
+
+        public void AssignPermissionToRole(string roleName, List<string> permissionNames)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            foreach (var permission in permissionNames)
+            {
+                conn.Execute("PIV2_AssignPermissionToRole",
+                    new { roleName, permissionName = permission },
+                    commandType: CommandType.StoredProcedure);
+            }
+        }
+
+        public void RemovePermissionFromRole(string roleName, List<string> permissionNames)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            foreach (var permission in permissionNames)
+            {
+                conn.Execute("PIV2_RemovePermissionFromRole",
+                    new { roleName, permissionName = permission },
+                    commandType: CommandType.StoredProcedure);
+            }
+        }
+
+
+
+        public List<string> GetUserPermissions(int userId)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            return conn.Query<string>("PIV2_GetUserPermissions", new { userId }, commandType: CommandType.StoredProcedure).ToList();
+        }
+
+
+        public void CreateRole(string roleName, string roleDescription)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                connection.Execute(
+                    "PIV2_CreateRole",
+                    new { RoleName = roleName, RoleDescription = roleDescription },
+                    commandType: CommandType.StoredProcedure);
+            }
+        }
+
+        public void RenameRole(string oldName, string newName)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                connection.Execute(
+                    "PIV2_RenameRole",
+                    new { OldName = oldName, NewName = newName },
+                    commandType: CommandType.StoredProcedure);
+            }
+        }
+
+        public void DeleteRole(string roleName)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                connection.Execute(
+                    "PIV2_DeleteRole",
+                    new { RoleName = roleName },
+                    commandType: CommandType.StoredProcedure);
+            }
+        }
+
+
+
+
 
 
         #region QuarterlyRebates
@@ -137,34 +311,56 @@ namespace ProInternal.Services
         {
             using (IDbConnection connection = new SqlConnection(_connectionString))
             {
-                var output = connection.QueryMultiple("Auth_Login_Internal @username, @password", new { username = username, password = password });
+                var response = new LoginResponse();
 
-                User user = null;
+                try
+                {
+                    var output = connection.QueryMultiple("PIV2_GetUserLoginData", new { username, password });
 
-                List<Permission> permissionset = new List<Permission>();
+                    // 1. First result set: User
+                    var user = output.Read<User>().FirstOrDefault();
+                    if (user == null)
+                        return response; // Return empty response (invalid login)
+                 
 
-                try {
-                    user = output.Read<User>().FirstOrDefault();
-                    permissionset = output.Read<Permission>().ToList();
+                    // 2. Second result set: Roles (List<string>)
+                    var roles = output.Read<string>().ToList();
+
+
+                    // 3. Third result set: Permissions (List<string>)
+                    var permissions = output.Read<string>().ToList();
+
+
+                    var extraPermissions = output.Read<string>().ToList();
+
+                    // Build final response
+                    response.User = user;
+                    response.Roles = roles;
+                    response.Permissions = permissions;
+                    response.ExtraPermissions = extraPermissions;
                 }
 
-                catch { }
 
-                var Response = new LoginResponse
+
+                catch (Exception ex)
                 {
-                    User = user,
-                    Permissions = permissionset
-                };
+                    // Optional: log error
+                    Console.WriteLine($"Login error: {ex.Message}");
+                }
 
-
-               
-
-                return (Response);
-
-
-
+                return response;
             }
         }
+
+
+        public List<string> GetAllPermissions()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                return connection.Query<string>("PIV2_GetAllPermissions").ToList();
+            }
+        }
+
 
         public List<QuarterlyDataHistorical> getHistoricalQRData()
         {

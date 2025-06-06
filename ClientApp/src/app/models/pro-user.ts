@@ -16,10 +16,11 @@ export class ProUser {
   public title: string;
   public imageUrl: string;
   public phone: string;
-  public department:string;
- 
+  public department:string; 
   public photoUrl: string;
-
+  public roles: string[] = [];
+  public status?: string; // ✅ Add this
+  public  extraPermissions?: string[]; // ["DeleteContent"]
   constructor(o?: any) {
     if (o) {
       this.userId = o.UserId;

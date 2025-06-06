@@ -1,0 +1,213 @@
+
+
+<!-- Filter Toolbar -->
+<div class="flex flex-column md:flex-row justify-content-between align-items-end gap-3 mb-4">
+  <!-- Search -->
+
+
+  <div class="w-full md:w-4">
+    <label for="searchInput" class="block mb-1 text-sm font-semibold">Search Users</label>
+    <div class="flex align-items-center gap-2 w-full">
+      <span class="p-input-icon-left w-full">
+        <i class="pi pi-search"></i>
+        <input id="searchInput"
+               pInputText
+               [(ngModel)]="searchTerm"
+               placeholder="      Name or Email"
+               class="w-full" />
+      </span>
+      <button *ngIf="searchTerm"
+              pButton
+              icon="pi pi-times"
+              class="p-button-sm p-button-text"
+              (click)="searchTerm = ''"
+              title="Clear Search">
+      </button>
+    </div>
+  </div>
+  <!-- Sort -->
+  <div class="w-full md:w-3">
+    <label for="sortDropdown" class="block mb-1 text-sm font-semibold">Sort By</label>
+    <span class="p-input-icon-left w-full">
+      <i class="pi pi-sort-alt"></i>
+      <p-dropdown id="sortDropdown"
+                  [options]="sortOptions"
+                  [(ngModel)]="selectedSort"
+                  placeholder="Sort"
+                  class="w-full"
+                  (onChange)="sortUsers()">
+      </p-dropdown>
+    </span>
+  </div>
+  <!-- Role Filter -->
+  <div class="w-full md:w-5">
+    <label for="roleFilter" class="block mb-1 text-sm font-semibold">Filter by Role</label>
+    <div class="flex align-items-center gap-2">
+      <p-multiSelect id="roleFilter"
+                     [options]="roleFilterOptions"
+                     [(ngModel)]="selectedRoleFilter"
+                     optionLabel="label"
+                     optionValue="value"
+                     display="chip"
+                     placeholder="Select roles"
+                     class="w-full"
+                     styleClass="w-full min-w-[16rem]">
+      </p-multiSelect>
+      <button pButton icon="pi pi-times"
+              class="p-button-sm p-button-rounded p-button-text"
+              (click)="clearRoleFilter()"
+              title="Clear Role Filter">
+      </button>
+    </div>
+  </div>
+</div>
+<!-- User Cards -->
+<div class="grid">
+  <div class="col-12 sm:col-6 lg:col-4" *ngFor="let user of filteredUsers">
+    <div class="p-3 surface-card border-round shadow-1 h-full">
+      <div class="flex justify-content-between align-items-start mb-2">
+        <div>
+          <div class="text-md font-semibold text-900">
+            <i class="pi pi-user text-primary mr-2"></i>{{ user.username }}
+          </div>
+          <div class="text-sm text-color-secondary">
+            <i class="pi pi-envelope mr-1 text-secondary"></i>{{ user.email }}
+          </div>
+        </div>
+        <div class="flex flex-column align-items-end">
+          <p-badge [value]="user.status"
+                   [severity]="getStatusSeverity(user.status)"
+                   class="mb-1 text-xs">
+          </p-badge>
+
+          <button pButton
+                  icon="pi pi-pencil"
+                  class="p-button-sm p-button-rounded p-button-text text-600"
+                  (click)="editUserRoles(user)"
+                  title="Edit Roles">
+          </button>
+
+        </div>
+      </div>
+
+      <div class="text-sm text-color-secondary mt-1">
+        <strong>Roles:</strong>
+
+        <div class="flex flex-wrap mt-1">
+          <p-chip *ngFor="let role of user.roles"
+                  [label]="role"
+                  class="mr-2 mb-1 text-sm bg-gray-200 text-gray-800 font-medium px-2 py-1 border-round">
+          </p-chip>
+        </div>
+
+
+
+        <div *ngIf="user.extraPermissions?.length">
+          <strong class="text-xs font-semibold text-gray-600">Extra Permissions:</strong>
+          <div class="flex flex-wrap mt-1 gap-1">
+            <p-chip *ngFor="let perm of user.extraPermissions"
+                    [label]="perm"
+                    class="extra-perm-chip">
+            </p-chip>
+          </div>
+        </div>
+
+
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+<!-- Edit Roles Dialog -->
+<p-sidebar [(visible)]="showEditSidebar" position="right" [baseZIndex]="10000" [modal]="true"    [style]="{ width: isMobile ? '100%' : '75%' }">
+  <div class="p-fluid">
+    <h3>Edit User: {{ selectedUser?.username }}</h3>
+    <!-- Role Picker -->
+    <label for="rolePicker" class="block mt-3 mb-2 font-semibold">Roles</label>
+
+
+<div class="picklist-wrapper">
+
+  <p-pickList [source]="availableRoles"
+              [target]="selectedRoles"
+              [dragdrop]="true"
+              sourceHeader="Available Roles"
+              targetHeader="Assigned Roles"
+              [responsive]="false"
+              [showSourceControls]="false"
+              [showTargetControls]="false"
+              [metaKeySelection]="false">
+    <ng-template let-role pTemplate="item">
+      {{ role }}
+    </ng-template>
+  </p-pickList>
+
+
+
+</div>
+    <!-- Extra Permissions -->
+<div class="mt-4">
+  <label class="block mb-2 font-semibold">Extra Permissions</label>
+
+  <!--<div class="flex flex-wrap gap-2">
+    <p-chip *ngFor="let perm of selectedUser?.extraPermissions"
+            [label]="perm"
+            [removable]="true"
+            (onRemove)="removeExtraPermission(perm)">
+    </p-chip>
+
+
+    <p-multiSelect *ngIf="availableExtraPermissionOptions?.length"
+                   [options]="availableExtraPermissionOptions"
+                   [(ngModel)]="selectedExtraPermissions"
+                   optionLabel="label"
+                   optionValue="value"
+                   display="chip"
+                   [filter]="true"
+                   placeholder="Add permission"
+                   class="w-full md:w-14rem">
+    </p-multiSelect>
+  </div>-->
+  <!-- Extra Permissions Section -->
+  <div class="mt-4">
+    <label class="block mb-2 font-semibold">Extra Permissions</label>
+
+    <!-- Selected Permission Chips (Outside the dropdown) -->
+    <div class="flex flex-wrap gap-2 mb-2">
+      <p-chip *ngFor="let perm of selectedExtraPermissions"
+              [label]="perm"
+              [removable]="true"
+              (onRemove)="removeExtraPermission(perm)"
+              class="extra-perm-chip">
+      </p-chip>
+    </div>
+
+    <!-- Compact Permission Selector -->
+    <p-multiSelect [options]="availableExtraPermissionOptions"
+                   [(ngModel)]="permissionsToAdd"
+                   optionLabel="label"
+                   optionValue="value"
+                   display="chip"
+                   [filter]="true"
+                   placeholder="Add permission"
+                   (onChange)="addExtraPermissions()"
+                   class="w-full md:w-14rem compact-multiselect">
+    </p-multiSelect>
+  </div>
+
+
+
+
+</div>
+    <div class="mt-5 flex justify-end gap-2">
+      <button pButton label="Cancel" icon="pi pi-times" class="p-button-text" (click)="showEditSidebar = false"></button>
+      <button pButton label="Save" icon="pi pi-check" (click)="saveUserEdits()"></button>
+    </div>
+  </div>
+</p-sidebar>
+

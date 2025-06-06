@@ -37,13 +37,113 @@ import { ParentCompany, IRBatchExport } from "src/app/models/Dashboard/InstantRe
 import { panaAccount, panaRep } from 'src/app/models/vendor/panasonicreporting';
 import { EzPaySummary, EzPayDetail  } from 'src/app/models/accounting/EzPaySummary';
 import { Notification } from 'src/app/models/notifications';
-
+import { ProUser } from 'src/app/models/pro-user';
 
 
 @Injectable()
 export class DataService {
 
   constructor(private api: ApiService) { }
+
+
+
+  //  Load users with their roles for admin UI
+  getUsers(): Observable<ProUser[]> {
+    return this.api.get<ProUser[]>('API/Auth/users');
+  }
+
+  //  Get all available roles (as strings)
+  getAllRoles(): Observable<{ roleName: string; description: string }[]> {
+    return this.api.get<{ roleName: string; description: string }[]>('API/Auth/roles');
+  }
+
+  getAllPermissions(): Observable<string[]> {
+    return this.api.get<string[]>('API/Auth/permissions');
+  }
+
+
+
+
+  // Assign selected roles to a user
+  // This is used
+  assignRoles(userId: number, roles: string[]): Observable<void> {
+    return this.api.post<void>('API/Auth/assign-roles', { userId, roles });
+  }
+
+  // GET user roles by userId
+  getUserRoles(userId: number): Observable<string[]> {
+    return this.api.get<string[]>(`API/Auth/user-roles/${userId}`);
+  }
+
+  // GET user permissions by userId
+  getUserPermissions(userId: number): Observable<string[]> {
+    return this.api.get<string[]>(`API/Auth/user-permissions/${userId}`);
+  }
+
+  // POST assign a single role to a user
+  assignRole(userId: number, roleName: string): Observable<void> {
+    return this.api.post<void>('API/Auth/assign-role', { userId, roleName });
+  }
+
+  // POST remove a single role from a user
+  removeRole(userId: number, roleName: string): Observable<void> {
+    return this.api.post<void>('API/Auth/remove-role', { userId, roleName });
+  }
+
+  getExtraPermissions(userId: number): Observable<string[]> {
+    return this.api.get<string[]>(`/api/user/${userId}/extra-permissions`);
+  }
+
+  addExtraPermission(userId: number, permission: string): Observable<void> {
+    return this.api.post<void>(`/api/user/${userId}/extra-permissions`, permission);
+  }
+
+  removeExtraPermission(userId: number, permission: string): Observable<void> {
+    return this.api.delete<void>(`/api/user/${userId}/extra-permissions/${permission}`);
+  }
+
+  assignExtraPermissions(userId: number, permissions: string[]): Observable<void> {
+    return this.api.postWithAuth<void>('API/Auth/AssignExtraPermissions', {
+      userId,
+      permissions
+    });
+  }
+
+
+
+
+  getPermissionsByRole(roleName: string): Observable<string[]> {
+    return this.api.get<string[]>(`API/Auth/role-permissions/${roleName}`);
+  }
+  // POST assign a permission to a role
+  assignPermissionsToRole(role: string, permission: string[]): Observable<void> {
+    return this.api.post<void>('API/Auth/assign-permission', { role, permission });
+  }
+
+
+  removePermissionsFromRole(role: string, permission: string[]): Observable<void> {
+    return this.api.post<void>('API/Auth/remove-permission', { role, permission });
+  }
+
+
+  // Create a new role
+  createRole(roleName: string, roleDescription: string): Observable<void> {
+    return this.api.post<void>('API/Auth/create-role', {
+      roleName,
+      roleDescription
+    });
+  }
+
+  // Rename a role
+  renameRole(oldName: string, newName: string): Observable<void> {
+    return this.api.post<void>('API/Auth/rename-role', { oldName, newName });
+  }
+
+  // Delete a role
+  deleteRole(roleName: string): Observable<void> {
+    return this.api.post<void>('API/Auth/delete-role', roleName);
+  }
+
 
 
 
@@ -355,10 +455,8 @@ export class DataService {
     return this.api.get<Array<MemberGateSummary>>(`API/Dashboard/GetMemberGateSummary/${memberNumber}`);
   }
 
-  login(username: string, password: string): Observable<LoginResponse>
-  {
-    return this.api.post(`API/Auth/Login`, { username, password });
-    //return this.api.post(`API/Product/exclusion/brand/add/${companyID}`, brandIDs);
+  login(username: string, password: string): Observable<LoginResponse> {
+    return this.api.post<LoginResponse>('API/Auth/Login', { username, password });
   }
 
   getNotifications(): Observable<Notification[]> {

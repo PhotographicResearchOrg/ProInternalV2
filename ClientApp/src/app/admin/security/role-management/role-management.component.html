@@ -1,0 +1,211 @@
+<!-- Confirm Dialog -->
+<p-confirmDialog></p-confirmDialog>
+
+<!-- Header -->
+<div class="flex flex-column md:flex-row justify-between items-start md:items-center mb-4 gap-3">
+  <h2 class="text-xl font-semibold">🎭 Roles Management</h2>
+  <div class="w-full md:w-auto flex justify-end">
+    <button pButton
+            label="New Role"
+            icon="pi pi-plus"
+            class="p-button-sm"
+            (click)="createRoleDialog = true">
+    </button>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="flex flex-column md:flex-row gap-3 mb-3">
+
+  <!-- Search -->
+  <div class="w-full md:w-4">
+    <label for="roleSearchInput" class="block mb-1 text-sm font-semibold">Search Roles</label>
+    <div class="flex align-items-center gap-2 w-full">
+      <span class="p-input-icon-left w-full">
+        <i class="pi pi-search"></i>
+        <input id="roleSearchInput"
+               pInputText
+               [(ngModel)]="roleSearchTerm"
+               (ngModelChange)="applyRoleFilters()"
+               placeholder="Enter role name"
+               class="w-full" />
+      </span>
+      <button *ngIf="roleSearchTerm"
+              pButton
+              icon="pi pi-times"
+              class="p-button-sm p-button-text"
+              (click)="roleSearchTerm = ''; applyRoleFilters()"
+              title="Clear Search">
+      </button>
+    </div>
+  </div>
+
+  <!-- Sort -->
+  <div class="w-full md:w-3">
+    <label for="sortDropdown" class="block mb-1 text-sm font-semibold">Sort By</label>
+    <span class="p-input-icon-left w-full">
+      <i class="pi pi-sort-alt"></i>
+      <p-dropdown id="sortDropdown"
+                  [options]="sortOptions"
+                  [(ngModel)]="selectedSort"
+                  (onChange)="applyRoleFilters()"
+                  placeholder="Sort"
+                  class="w-full">
+      </p-dropdown>
+    </span>
+  </div>
+
+  <!-- Role Filter -->
+  <div class="w-full md:w-5">
+    <label for="roleFilter" class="block mb-1 text-sm font-semibold">Filter by Role</label>
+    <div class="flex align-items-center gap-2">
+      <p-multiSelect id="roleFilter"
+                     [options]="roleFilterOptions"
+                     [(ngModel)]="selectedRoleFilter"
+                     (onChange)="applyRoleFilters()"
+                     optionLabel="label"
+                     optionValue="value"
+                     display="chip"
+                     placeholder="Select roles"
+                     class="w-full min-w-[16rem]">
+      </p-multiSelect>
+      <button pButton icon="pi pi-times"
+              class="p-button-sm p-button-rounded p-button-text"
+              (click)="clearRoleFilter()"
+              title="Clear Role Filter">
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Roles List -->
+<div class="w-full md:w-6 max-h-[20rem] overflow-y-auto border border-gray-200 rounded p-2 space-y-2 bg-white">
+
+
+  <div *ngFor="let role of filteredRoles"
+       class="flex justify-between items-center px-3 py-2 rounded transition cursor-pointer"
+       [ngClass]="{
+       'bg-blue-50 border border-blue-300': role.value === selectedRole,
+       'hover:bg-gray-100': role.value !== selectedRole
+     }"
+       (click)="handleRoleClick(role.value, $event)"
+       pTooltip="Click to edit permissions"
+       tooltipPosition="top">
+
+
+    <!-- Left column -->
+    <div class="flex flex-col gap-1 w-full">
+      <ng-container *ngIf="renameMode === role.value; else labelView">
+        <input pInputText
+               [(ngModel)]="renameInput"
+               (click)="$event.stopPropagation()"
+               class="text-sm w-full" />
+      </ng-container>
+
+      <ng-template #labelView>
+        <span class="font-semibold text-sm truncate">{{ role.label }}</span>
+      </ng-template>
+
+      <span *ngIf="role.description"
+            class="text-xs text-gray-600 truncate"
+            title="{{ role.description }}">
+        {{ role.description }}
+      </span>
+    </div>
+
+    <!-- Right: action buttons -->
+    <div class="flex gap-2 ml-2 shrink-0">
+      <ng-container *ngIf="renameMode === role.value; else defaultButtons">
+        <button pButton icon="pi pi-check"
+                class="p-button-sm p-button-text p-button-rounded text-green-600"
+                (click)="renameRoleConfirmed(role.value); $event.stopPropagation()">
+        </button>
+        <button pButton icon="pi pi-times"
+                class="p-button-sm p-button-text p-button-rounded"
+                (click)="cancelRename(); $event.stopPropagation()">
+        </button>
+      </ng-container>
+
+      <ng-template #defaultButtons>
+        <button pButton icon="pi pi-pencil"
+                class="p-button-sm p-button-text p-button-rounded"
+                (click)="openRenameRole(role.value); $event.stopPropagation()">
+        </button>
+        <button pButton icon="pi pi-trash"
+                class="p-button-sm p-button-text p-button-rounded text-red-600"
+                (click)="confirmDeleteRole(role.value); $event.stopPropagation()">
+        </button>
+      </ng-template>
+    </div>
+
+  </div>
+</div>
+
+
+
+<!-- Sidebar: Edit Role Permissions -->
+<p-sidebar [(visible)]="showEditSidebar"
+           position="right"
+           [style]="{ width: isMobile ? '100%' : '60%' }"
+           [modal]="true">
+  <div class="p-fluid">
+    <h3>Edit Role: {{ selectedRole }}</h3>
+
+    <label class="block mb-2 mt-3 font-semibold">Permissions</label>
+    <p-pickList [source]="availablePermissions"
+                [target]="rolePermissions"
+                [dragdrop]="true"
+                sourceHeader="Available Permissions"
+                targetHeader="Assigned Permissions"
+                [showSourceControls]="false"
+                [showTargetControls]="false"
+                [responsive]="false"
+                (onMoveToTarget)="onPermissionsUpdated()"
+                (onMoveToSource)="onPermissionsUpdated()">
+
+      <ng-template let-role pTemplate="item">
+        {{ role }}
+      </ng-template>
+    </p-pickList>
+
+    <div class="mt-4 flex justify-end gap-2">
+      <button pButton label="Cancel" icon="pi pi-times" class="p-button-text" (click)="showEditSidebar = false"></button>
+      <button pButton label="Save" icon="pi pi-check" (click)="saveRolePermissions()"></button>
+    </div>
+  </div>
+</p-sidebar>
+
+<!-- Create Role Dialog -->
+<p-dialog header="Create New Role"
+          [(visible)]="createRoleDialog"
+          [modal]="true"
+          [closable]="false"
+          [style]="{ width: '25rem' }"
+          [breakpoints]="{ '768px': '90vw' }">
+
+  <div class="p-fluid">
+    <label for="newRoleName" class="block mb-2 font-semibold">Role Name</label>
+    <input id="newRoleName" pInputText [(ngModel)]="newRoleName" placeholder="Enter role name" />
+
+    <label for="newRoleDescription" class="block mb-2 mt-3 font-semibold">Description</label>
+    <textarea id="newRoleDescription"
+              pInputTextarea
+              rows="3"
+              [(ngModel)]="newRoleDescription"
+              placeholder="Optional role description">
+    </textarea>
+
+    <div class="mt-4 flex justify-end gap-2">
+      <button pButton label="Cancel"
+              icon="pi pi-times"
+              class="p-button-text"
+              (click)="createRoleDialog = false"></button>
+
+      <button pButton label="Create"
+              icon="pi pi-check"
+              [disabled]="!newRoleName?.trim()"
+              (click)="createRole()">
+      </button>
+    </div>
+  </div>
+</p-dialog>
