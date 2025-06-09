@@ -11,5 +11,6 @@ import { CommonModule } from '@angular/common';
   styleUrl: './security-admin.component.scss'
 })
 export class SecurityAdminComponent {
+  activeTabIndex: number = 0;
 
 }

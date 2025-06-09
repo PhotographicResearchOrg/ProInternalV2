@@ -19,13 +19,10 @@ export class RolesManagementComponent implements OnInit {
   selectedRole: string = '';
   newRoleName: string = '';
   newRoleDescription: string = '';
-
-  rolePermissions: string[] = [];
-  availablePermissions: string[] = [];
+  rolePermissions: (string | { permissionName: string; description?: string })[] = [];
+  availablePermissions: { permissionName: string, description: string }[] = [];
   selectedRolePermissions: string[] = [];
-  lastSyncedPermissions: string[] = [];
-
-
+  lastSyncedPermissions: (string | { permissionName: string; description?: string })[] = [];
   renameMode: string | null = null;
   renameInput: string = '';
 
@@ -56,14 +53,17 @@ export class RolesManagementComponent implements OnInit {
     this.loadPermissions();
   }
 
-
+  ngOnDestroy(): void {
+    this.confirmationService.close();
+  }
 
   loadRoles() {
     this.dataService.getAllRoles().subscribe(roles => {
+
       this.roles = roles.map(r => ({
         label: r.roleName,
         value: r.roleName,
-        description: r.description
+        description: r.roleDescription    
       }));
 
       this.roleFilterOptions = this.roles.map(r => ({
@@ -84,6 +84,9 @@ export class RolesManagementComponent implements OnInit {
     this.dataService.getAllPermissions().subscribe(perms => {
       this.availablePermissions = perms;
     });
+
+
+
   }
 
 
@@ -137,15 +140,22 @@ export class RolesManagementComponent implements OnInit {
     this.dataService.getAllPermissions().subscribe(all => {
       // Then get assigned permissions for the selected role
       this.dataService.getPermissionsByRole(roleValue).subscribe(assigned => {
-        this.rolePermissions = assigned;
 
-        // Remove assigned from available list
-        this.availablePermissions = all.filter(p => !assigned.includes(p));
+        // assigned: string[] of permission names
+        this.rolePermissions = all.filter(p => assigned.includes(p.permissionName));
 
+        // available = all minus assigned
+        this.availablePermissions = all.filter(p => !assigned.includes(p.permissionName));
+
+        this.lastSyncedPermissions = [...this.rolePermissions];
         this.showEditSidebar = true;
       });
     });
   }
+
+
+  
+
 
 
 
@@ -158,23 +168,36 @@ export class RolesManagementComponent implements OnInit {
     }
   }
 
+
+ 
+
   saveRolePermissions() {
-    if (this.selectedRole) {
-      this.dataService.assignPermissionsToRole(this.selectedRole, this.rolePermissions).subscribe(() => {
+    if (!this.selectedRole) return;
+
+    const permissionsToSave = this.rolePermissions.map(p =>
+      typeof p === 'string' ? p : p.permissionName
+    );
+
+    this.dataService.assignPermissionsToRole(this.selectedRole, permissionsToSave).subscribe({
+      next: () => {
         this.toast.add({ severity: 'success', summary: 'Permissions saved' });
         this.showEditSidebar = false;
-      });
-    }
+      },
+      error: () => {
+        this.toast.add({ severity: 'error', summary: 'Failed to save permissions' });
+      }
+    });
   }
+
 
   onPermissionsUpdated(): void {
     if (!this.selectedRole) return;
 
-    const newAssigned = [...this.rolePermissions];
-    const oldAssigned = this.lastSyncedPermissions || [];
+    const newPerms = this.rolePermissions.map(p => typeof p === 'string' ? p : p.permissionName);
+    const oldPerms = this.lastSyncedPermissions.map(p => typeof p === 'string' ? p : p.permissionName);
 
-    const added = newAssigned.filter(p => !oldAssigned.includes(p));
-    const removed = oldAssigned.filter(p => !newAssigned.includes(p));
+    const added = newPerms.filter(p => !oldPerms.includes(p));
+    const removed = oldPerms.filter(p => !newPerms.includes(p));
 
     const tasks: Observable<void>[] = [];
 
@@ -187,12 +210,18 @@ export class RolesManagementComponent implements OnInit {
     }
 
     if (tasks.length > 0) {
-      forkJoin(tasks).subscribe(() => {
-        this.toast.add({ severity: 'success', summary: 'Permissions updated' });
-        this.lastSyncedPermissions = [...newAssigned];
+      forkJoin(tasks).subscribe({
+        next: () => {
+          this.toast.add({ severity: 'success', summary: 'Permissions updated' });
+          this.lastSyncedPermissions = [...newPerms];
+        },
+        error: () => {
+          this.toast.add({ severity: 'error', summary: 'Failed to update permissions' });
+        }
       });
     }
   }
+
 
 
 
@@ -217,11 +246,16 @@ export class RolesManagementComponent implements OnInit {
       return;
     }
 
-    this.dataService.renameRole(oldName, newName).subscribe(() => {
-     // this.toast.add({ severity: 'success', summary: 'Role Renamed' });
-      this.renameMode = null;
-      this.renameInput = '';
-      this.loadRoles();
+    this.dataService.renameRole(oldName, newName).subscribe({
+      next: () => {
+        this.renameMode = null;
+        this.renameInput = '';
+        this.loadRoles();
+        this.toast.add({ severity: 'success', summary: 'Role renamed' });
+      },
+      error: () => {
+        this.toast.add({ severity: 'error', summary: 'Failed to rename role' });
+      }
     });
   }
 
@@ -236,9 +270,14 @@ export class RolesManagementComponent implements OnInit {
   }
 
   deleteRole(role: string) {
-    this.dataService.deleteRole(role).subscribe(() => {
-      this.toast.add({ severity: 'warn', summary: 'Role Deleted' });
-      this.loadRoles();
+    this.dataService.deleteRole(role).subscribe({
+      next: () => {
+        this.toast.add({ severity: 'warn', summary: 'Role Deleted' });
+        this.loadRoles();
+      },
+      error: () => {
+        this.toast.add({ severity: 'error', summary: 'Failed to delete role' });
+      }
     });
   }
 
@@ -251,14 +290,20 @@ export class RolesManagementComponent implements OnInit {
       return;
     }
 
-    this.dataService.createRole(this.newRoleName, this.newRoleDescription).subscribe(() => {
-      this.toast.add({ severity: 'success', summary: 'Role Created' });
-      this.newRoleName = '';
-      this.newRoleDescription = '';
-      this.createRoleDialog = false;
-      this.loadRoles();
+    this.dataService.createRole(this.newRoleName, this.newRoleDescription).subscribe({
+      next: () => {
+        this.toast.add({ severity: 'success', summary: 'Role Created' });
+        this.newRoleName = '';
+        this.newRoleDescription = '';
+        this.createRoleDialog = false;
+        this.loadRoles();
+      },
+      error: () => {
+        this.toast.add({ severity: 'error', summary: 'Failed to create role' });
+      }
     });
   }
+
 
 
 }

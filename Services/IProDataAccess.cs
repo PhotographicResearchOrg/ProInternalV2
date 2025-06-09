@@ -20,6 +20,7 @@ using ProInternal.Models.Patronage;
 using ProInternal.Models.InstantRebates;
 using ProInternal.Models;
 using static ProInternal.Controllers.AuthController;
+using Azure.Core;
 
 namespace ProInternal.Services
 {
@@ -29,7 +30,10 @@ namespace ProInternal.Services
         List<string> GetPermissionsByRole(string roleName);
 
         List<string> GetUserExtraPermissions(int userId);
-        void SaveUserExtraPermission(int userId, string permission);
+        void SaveUserExtraPermission(int userId, List<string> permissions);
+
+
+
         void RemoveUserExtraPermission(int userId, string permission);
 
 
@@ -39,18 +43,30 @@ namespace ProInternal.Services
 
 
 
-        List<string> GetAllPermissions();  
+        List<PermissionDto> GetAllPermissions();  
         List<UserWithRoles> GetUsersWithRoles();
         List<RoleDto> GetAllRoles();
+
         void AssignRoleToUser(int userId, string roleName);
         void RemoveRoleFromUser(int userId, string roleName);
+
         List<UserWithRoles> GetUserRoles(int userId);
+
+
+
+        void EnableUser(int userId);
+        void DisableUser(int userId);
+        void DeleteUser(int userId);
 
         void AssignPermissionToRole(string roleName, List<string> permissionName);
         void RemovePermissionFromRole(string roleName, List<string> permissionName);
         List<string> GetUserPermissions(int userId);
 
 
+        void CreatePermission(string permissionName, string description);
+        void RenamePermission(string oldName, string newName , string Description);
+
+        void DeletePermission(string permissionName);
 
 
 

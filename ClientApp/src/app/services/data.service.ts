@@ -51,34 +51,53 @@ export class DataService {
   getUsers(): Observable<ProUser[]> {
     return this.api.get<ProUser[]>('API/Auth/users');
   }
-
   //  Get all available roles (as strings)
-  getAllRoles(): Observable<{ roleName: string; description: string }[]> {
-    return this.api.get<{ roleName: string; description: string }[]>('API/Auth/roles');
+  getAllRoles(): Observable<{ roleName: string; roleDescription: string }[]> {
+    return this.api.get<{ roleName: string; roleDescription: string }[]>('API/Auth/roles');
   }
 
-  getAllPermissions(): Observable<string[]> {
-    return this.api.get<string[]>('API/Auth/permissions');
+  getAllPermissions(): Observable<{ permissionName: string; description: string }[]> {
+    return this.api.get<{ permissionName: string; description: string }[]>('API/Auth/permissions');
   }
 
+
+
+  createPermission(name: string, description: string): Observable<void> {
+    return this.api.post<void>('API/Auth/permissionscreate', {
+      PermissionName: name,
+      Description: description });
+  }
+
+  updatePermission(oldName: string, newName: string, description: string): Observable<void> {
+    return this.api.post<void>('API/Auth/permissionsrename', {
+      oldName,
+      newName,
+      description
+    });
+  }
+
+  deletePermission(permissionName: string): Observable<void> {
+    return this.api.post<void>('API/Auth/permissionsdelete', { permissionName });
+  }
 
 
 
   // Assign selected roles to a user
   // This is used
   assignRoles(userId: number, roles: string[]): Observable<void> {
-    return this.api.post<void>('API/Auth/assign-roles', { userId, roles });
+    return this.api.post<void>('API/Auth/assign-role', { userId, roles });
   }
-
   // GET user roles by userId
   getUserRoles(userId: number): Observable<string[]> {
     return this.api.get<string[]>(`API/Auth/user-roles/${userId}`);
   }
-
   // GET user permissions by userId
   getUserPermissions(userId: number): Observable<string[]> {
     return this.api.get<string[]>(`API/Auth/user-permissions/${userId}`);
   }
+
+
+
 
   // POST assign a single role to a user
   assignRole(userId: number, roleName: string): Observable<void> {
@@ -90,40 +109,56 @@ export class DataService {
     return this.api.post<void>('API/Auth/remove-role', { userId, roleName });
   }
 
+
   getExtraPermissions(userId: number): Observable<string[]> {
     return this.api.get<string[]>(`/api/user/${userId}/extra-permissions`);
   }
 
-  addExtraPermission(userId: number, permission: string): Observable<void> {
-    return this.api.post<void>(`/api/user/${userId}/extra-permissions`, permission);
-  }
+
+  //addExtraPermission(userId: number, permission: string): Observable<void> {
+  //  return this.api.postWithAuth<void>(`/api/user/${userId}/extra-permissions`, permission);
+  //}
 
   removeExtraPermission(userId: number, permission: string): Observable<void> {
     return this.api.delete<void>(`/api/user/${userId}/extra-permissions/${permission}`);
   }
 
   assignExtraPermissions(userId: number, permissions: string[]): Observable<void> {
-    return this.api.postWithAuth<void>('API/Auth/AssignExtraPermissions', {
+    return this.api.postWithAuth<void>(`API/Auth/extra-permissions`, {
       userId,
       permissions
     });
   }
 
 
+  enableUser(userId: number): Observable<void> {
+    return this.api.post<void>(`API/Auth/user/${userId}/enable`, {});
+  }
+
+  disableUser(userId: number): Observable<void> {
+    return this.api.post<void>(`API/Auth/user/${userId}/disable`, {});
+  }
+
+
+  deleteUser(userId: number): Observable<void> {
+    return this.api.post<void>(`API/Auth/user/${userId}/delete`, {});
+  }
+
 
 
   getPermissionsByRole(roleName: string): Observable<string[]> {
     return this.api.get<string[]>(`API/Auth/role-permissions/${roleName}`);
   }
-  // POST assign a permission to a role
-  assignPermissionsToRole(role: string, permission: string[]): Observable<void> {
-    return this.api.post<void>('API/Auth/assign-permission', { role, permission });
-  }
 
+  assignPermissionsToRole(role: string, permissions: (string | { permissionName: string })[]): Observable<void> {
+    const cleanPermissions = permissions.map(p => typeof p === 'string' ? p : p.permissionName);
+    return this.api.post<void>('API/Auth/assign-permission', { role, permission: cleanPermissions });
+  }
 
   removePermissionsFromRole(role: string, permission: string[]): Observable<void> {
     return this.api.post<void>('API/Auth/remove-permission', { role, permission });
   }
+
 
 
   // Create a new role
@@ -133,16 +168,15 @@ export class DataService {
       roleDescription
     });
   }
-
   // Rename a role
   renameRole(oldName: string, newName: string): Observable<void> {
     return this.api.post<void>('API/Auth/rename-role', { oldName, newName });
   }
-
   // Delete a role
   deleteRole(roleName: string): Observable<void> {
     return this.api.post<void>('API/Auth/delete-role', roleName);
   }
+
 
 
 

@@ -1,5 +1,5 @@
 <!-- Confirm Dialog -->
-<p-confirmDialog></p-confirmDialog>
+<p-toast></p-toast>
 
 <!-- Header -->
 <div class="flex flex-column md:flex-row justify-between items-start md:items-center mb-4 gap-3">
@@ -16,7 +16,6 @@
 
 <!-- Filters -->
 <div class="flex flex-column md:flex-row gap-3 mb-3">
-
   <!-- Search -->
   <div class="w-full md:w-4">
     <label for="roleSearchInput" class="block mb-1 text-sm font-semibold">Search Roles</label>
@@ -27,7 +26,7 @@
                pInputText
                [(ngModel)]="roleSearchTerm"
                (ngModelChange)="applyRoleFilters()"
-               placeholder="Enter role name"
+               placeholder="       Enter role name"
                class="w-full" />
       </span>
       <button *ngIf="roleSearchTerm"
@@ -55,6 +54,9 @@
     </span>
   </div>
 
+
+
+
   <!-- Role Filter -->
   <div class="w-full md:w-5">
     <label for="roleFilter" class="block mb-1 text-sm font-semibold">Filter by Role</label>
@@ -78,66 +80,64 @@
   </div>
 </div>
 
+
+
 <!-- Roles List -->
-<div class="w-full md:w-6 max-h-[20rem] overflow-y-auto border border-gray-200 rounded p-2 space-y-2 bg-white">
+<div class="grid -mx-2">
+  <div *ngFor="let role of filteredRoles" class="col-12 md:col-6 lg:col-4">
+    <div class="p-3 surface-card border-round shadow-1 h-full cursor-pointer hover:shadow"
+         (click)="handleRoleClick(role.value, $event)"
+         [ngClass]="{ 'border-blue-300 bg-blue-50': role.value === selectedRole }"
+         pTooltip="Click to edit permissions"
+         tooltipPosition="top">
 
+      <!-- Top Row: Name + Description -->
+      <div class="flex justify-content-between align-items-start mb-2">
+        <div class="w-full">
+          <ng-container *ngIf="renameMode === role.value; else roleLabel">
+            <input pInputText
+                   [(ngModel)]="renameInput"
+                   (click)="$event.stopPropagation()"
+                   class="text-sm w-full font-semibold" />
+          </ng-container>
 
-  <div *ngFor="let role of filteredRoles"
-       class="flex justify-between items-center px-3 py-2 rounded transition cursor-pointer"
-       [ngClass]="{
-       'bg-blue-50 border border-blue-300': role.value === selectedRole,
-       'hover:bg-gray-100': role.value !== selectedRole
-     }"
-       (click)="handleRoleClick(role.value, $event)"
-       pTooltip="Click to edit permissions"
-       tooltipPosition="top">
+          <ng-template #roleLabel>
+            <div class="text-md font-semibold text-900 truncate">{{ role.label }}</div>
+          </ng-template>
 
+          <div *ngIf="role.description"
+               class="text-sm text-color-secondary truncate"
+               title="{{ role.description }}">
+            {{ role.description }}
+          </div>
+        </div>
+      </div>
 
-    <!-- Left column -->
-    <div class="flex flex-col gap-1 w-full">
-      <ng-container *ngIf="renameMode === role.value; else labelView">
-        <input pInputText
-               [(ngModel)]="renameInput"
-               (click)="$event.stopPropagation()"
-               class="text-sm w-full" />
-      </ng-container>
+      <!-- Action Buttons -->
+      <div class="flex justify-end gap-2 mt-3">
+        <ng-container *ngIf="renameMode === role.value; else defaultButtons">
+          <button pButton icon="pi pi-check"
+                  class="p-button-sm p-button-text p-button-rounded text-green-600"
+                  (click)="renameRoleConfirmed(role.value); $event.stopPropagation()">
+          </button>
+          <button pButton icon="pi pi-times"
+                  class="p-button-sm p-button-text p-button-rounded"
+                  (click)="cancelRename(); $event.stopPropagation()">
+          </button>
+        </ng-container>
 
-      <ng-template #labelView>
-        <span class="font-semibold text-sm truncate">{{ role.label }}</span>
-      </ng-template>
-
-      <span *ngIf="role.description"
-            class="text-xs text-gray-600 truncate"
-            title="{{ role.description }}">
-        {{ role.description }}
-      </span>
+        <ng-template #defaultButtons>
+          <button pButton icon="pi pi-pencil"
+                  class="p-button-sm p-button-text p-button-rounded"
+                  (click)="openRenameRole(role.value); $event.stopPropagation()">
+          </button>
+          <button pButton icon="pi pi-trash"
+                  class="p-button-sm p-button-text p-button-rounded text-red-600"
+                  (click)="confirmDeleteRole(role.value); $event.stopPropagation()">
+          </button>
+        </ng-template>
+      </div>
     </div>
-
-    <!-- Right: action buttons -->
-    <div class="flex gap-2 ml-2 shrink-0">
-      <ng-container *ngIf="renameMode === role.value; else defaultButtons">
-        <button pButton icon="pi pi-check"
-                class="p-button-sm p-button-text p-button-rounded text-green-600"
-                (click)="renameRoleConfirmed(role.value); $event.stopPropagation()">
-        </button>
-        <button pButton icon="pi pi-times"
-                class="p-button-sm p-button-text p-button-rounded"
-                (click)="cancelRename(); $event.stopPropagation()">
-        </button>
-      </ng-container>
-
-      <ng-template #defaultButtons>
-        <button pButton icon="pi pi-pencil"
-                class="p-button-sm p-button-text p-button-rounded"
-                (click)="openRenameRole(role.value); $event.stopPropagation()">
-        </button>
-        <button pButton icon="pi pi-trash"
-                class="p-button-sm p-button-text p-button-rounded text-red-600"
-                (click)="confirmDeleteRole(role.value); $event.stopPropagation()">
-        </button>
-      </ng-template>
-    </div>
-
   </div>
 </div>
 
@@ -163,9 +163,27 @@
                 (onMoveToTarget)="onPermissionsUpdated()"
                 (onMoveToSource)="onPermissionsUpdated()">
 
-      <ng-template let-role pTemplate="item">
-        {{ role }}
+
+      <!--
+        <ng-template let-role pTemplate="item">
+        <div class="w-full">
+          <div class="flex flex-col leading-tight">
+            <span class="font-medium">{{ role.permissionName }}</span>
+            <span class="text-xs text-gray-500">{{ role.description }}</span>
+          </div>
+        </div>
       </ng-template>
+        -->
+
+      <ng-template let-role pTemplate="item">
+        <span class="font-medium"
+              pTooltip="{{ role.description }}"
+              tooltipPosition="top">
+          {{ role.permissionName }}
+        </span>
+      </ng-template>
+
+
     </p-pickList>
 
     <div class="mt-4 flex justify-end gap-2">
@@ -180,32 +198,51 @@
           [(visible)]="createRoleDialog"
           [modal]="true"
           [closable]="false"
-          [style]="{ width: '25rem' }"
-          [breakpoints]="{ '768px': '90vw' }">
+          [style]="{ width: '28rem' }"
+          [breakpoints]="{ '768px': '90vw' }"
+          class="rounded-xl shadow-md text-sm">
 
-  <div class="p-fluid">
-    <label for="newRoleName" class="block mb-2 font-semibold">Role Name</label>
-    <input id="newRoleName" pInputText [(ngModel)]="newRoleName" placeholder="Enter role name" />
+  <div class="p-fluid text-sm">
+    <!-- Role Name -->
+    <div class="mb-4">
+      <label for="newRoleName" class="block mb-1 font-semibold">Role Name <span class="text-red-500">*</span></label>
+      <input id="newRoleName"
+             pInputText
+             [(ngModel)]="newRoleName"
+             placeholder="Enter role name"
+             class="w-full" />
+    </div>
 
-    <label for="newRoleDescription" class="block mb-2 mt-3 font-semibold">Description</label>
-    <textarea id="newRoleDescription"
-              pInputTextarea
-              rows="3"
-              [(ngModel)]="newRoleDescription"
-              placeholder="Optional role description">
-    </textarea>
+    <!-- Role Description -->
+    <div class="mb-4">
+      <label for="newRoleDescription" class="block mb-1 font-semibold">Description</label>
+      <textarea id="newRoleDescription"
+                pInputTextarea
+                rows="3"
+                [(ngModel)]="newRoleDescription"
+                placeholder="Optional role description"
+                class="w-full">
+      </textarea>
+    </div>
 
-    <div class="mt-4 flex justify-end gap-2">
-      <button pButton label="Cancel"
+    <!-- Action Buttons -->
+    <div class="flex justify-end gap-2 pt-2">
+      <button pButton
+              label="Cancel"
               icon="pi pi-times"
-              class="p-button-text"
-              (click)="createRoleDialog = false"></button>
+              class="p-button-text text-sm"
+              (click)="createRoleDialog = false">
+      </button>
 
-      <button pButton label="Create"
+      <button pButton
+              label="Create"
               icon="pi pi-check"
+              class="text-sm"
               [disabled]="!newRoleName?.trim()"
               (click)="createRole()">
       </button>
     </div>
   </div>
 </p-dialog>
+
+

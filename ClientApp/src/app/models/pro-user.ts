@@ -20,7 +20,8 @@ export class ProUser {
   public photoUrl: string;
   public roles: string[] = [];
   public status?: string; // ✅ Add this
-  public  extraPermissions?: string[]; // ["DeleteContent"]
+  public extraPermissions?: string[]; // ["DeleteContent"]
+
   constructor(o?: any) {
     if (o) {
       this.userId = o.UserId;

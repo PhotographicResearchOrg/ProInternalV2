@@ -57,6 +57,7 @@ namespace ProInternal.Services
                             existingUser = user;
                             existingUser.Roles = new List<string>();
                             userDict.Add(existingUser.UserId, existingUser);
+                            
                         }
 
                         if (!string.IsNullOrEmpty(role) && !existingUser.Roles.Contains(role))
@@ -72,6 +73,28 @@ namespace ProInternal.Services
 
                 return userDict.Values.ToList();
             }
+        }
+
+
+
+        public void EnableUser(int userId)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            var parameters = new { UserId = userId };
+            conn.Execute("PIV2_EnableUser", parameters, commandType: CommandType.StoredProcedure);
+        }
+
+
+        public void DisableUser(int userId)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Execute("PIV2_DisableUser", new { userId }, commandType: CommandType.StoredProcedure);
+        }
+
+        public void DeleteUser(int userId)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Execute("PIV2_DeleteUser", new { userId }, commandType: CommandType.StoredProcedure);
         }
 
 
@@ -106,6 +129,9 @@ namespace ProInternal.Services
             }
         }
 
+
+
+
         public List<string> GetPermissionsByRole(string roleName)
         {
             using (IDbConnection connection = new SqlConnection(_connectionString))
@@ -118,6 +144,31 @@ namespace ProInternal.Services
             }
         }
 
+        public void CreatePermission(string permissionName, string description)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Execute("dbo.CreatePermission", new { permissionName, description }, commandType: CommandType.StoredProcedure);
+        }
+
+
+
+        public void RenamePermission(string oldName, string newName, string description)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            conn.Execute("dbo.RenamePermission", new { oldName, newName, description }, commandType: CommandType.StoredProcedure);
+        }
+
+
+
+
+        public void DeletePermission(string permissionName)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            conn.Execute("dbo.DeletePermission", new { permissionName }, commandType: CommandType.StoredProcedure);
+        }
+
+
 
 
         public List<string> GetUserExtraPermissions(int userId)
@@ -128,14 +179,33 @@ namespace ProInternal.Services
             }
         }
 
-        public void SaveUserExtraPermission(int userId, string permission)
-        {
-            using (var connection = new SqlConnection(_connectionString))
-            {
+        //public void SaveUserExtraPermission(int userId, string permission)
+        //{
+        //    using (var connection = new SqlConnection(_connectionString))
+        //    {
 
-                connection.Execute("SaveUserExtraPermissions", new { UserId = userId, Permission = permission }, commandType: CommandType.StoredProcedure);
-            }
+        //        connection.Execute("PIV2SetUserExtraPermissions", new { UserId = userId, Permission = permission }, commandType: CommandType.StoredProcedure);
+        //    }
+        //}
+
+        public void SaveUserExtraPermission(int userId, List<string> permissions)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            var table = new DataTable();
+            table.Columns.Add("PermissionName", typeof(string));
+            foreach (var p in permissions)
+                table.Rows.Add(p);
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@UserId", userId);
+            parameters.Add("@Permissions", table.AsTableValuedParameter("dbo.ExtraPermissionsList"));
+
+            conn.Execute("dbo.PIV2SetUserExtraPermissions", parameters, commandType: CommandType.StoredProcedure);
         }
+
+
+
 
         public void RemoveUserExtraPermission(int userId, string permission)
         {
@@ -353,11 +423,11 @@ namespace ProInternal.Services
         }
 
 
-        public List<string> GetAllPermissions()
+        public List<PermissionDto> GetAllPermissions()
         {
             using (IDbConnection connection = new SqlConnection(_connectionString))
             {
-                return connection.Query<string>("PIV2_GetAllPermissions").ToList();
+                return connection.Query<PermissionDto>("PIV2_GetAllPermissions").ToList();
             }
         }
 

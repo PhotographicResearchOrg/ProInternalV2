@@ -11,8 +11,8 @@ import { ToastModule } from 'primeng/toast';
 import { ListboxModule } from 'primeng/listbox';
 import { ConfirmationService } from 'primeng/api'; // already assumed
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-
-
+import { TableModule } from 'primeng/table';
+import { TooltipModule } from 'primeng/tooltip';
 import { UserManagementComponent } from 'src/app/admin/security/user-management/user-management.component';
 import { RolesManagementComponent } from 'src/app/admin/security/role-management/role-management.component';
 import { PermissionManagementComponent } from 'src/app/admin/security/permission-management/permission-management.component';
@@ -34,6 +34,7 @@ import { AutoCompleteModule } from 'primeng/autocomplete';
     
   ],
   imports: [
+    TooltipModule,
     ConfirmDialogModule,
     ListboxModule,
     SidebarModule,
@@ -48,7 +49,8 @@ import { AutoCompleteModule } from 'primeng/autocomplete';
     DropdownModule,
     ButtonModule,
     ToastModule,
-    AutoCompleteModule
+    AutoCompleteModule,
+    TableModule
   ],
    providers:
     [

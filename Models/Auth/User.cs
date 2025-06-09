@@ -64,8 +64,17 @@ namespace ProInternal.Models.Auth
     public class AssignRoleRequest
     {
         public int UserId { get; set; }
-        public string Role { get; set; }
+        public List<string> Roles { get; set; }
     }
+
+
+    public class ExtraPermissionsRequest
+    {
+        public int UserId { get; set; }
+        public List<string> Permissions { get; set; }
+    }
+
+
 
     public class RoleDto
     {
@@ -73,10 +82,34 @@ namespace ProInternal.Models.Auth
         public string RoleDescription { get; set; }
     }
 
+    public class PermissionDto
+    {
+        public string PermissionName { get; set; }
+        public string Description { get; set; }
+    }
+
+
     public class RenameRoleRequest
     {
         public string OldName { get; set; }
         public string NewName { get; set; }
+    }
+
+
+    public class PermissionRequest
+    {
+        public string PermissionName { get; set; }
+
+        public string? Description { get; set; }  // Nullable (optional)
+
+    }
+
+    public class RenamePermissionRequest
+    {
+        public string OldName { get; set; }
+        public string NewName { get; set; }
+
+        public string Description { get; set; }
     }
 
 
@@ -95,9 +128,8 @@ namespace ProInternal.Models.Auth
         public string Email { get; set; }
         public string Username { get; set; }
         public string FullName { get; set; }
-
+        public string status { get; set; } = "";
         public List<string> Roles { get; set; } = new();
-
         public List<string> ExtraPermissions { get; set; } = new List<string>();
     }
 

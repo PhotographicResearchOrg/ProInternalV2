@@ -41,21 +41,25 @@ namespace ProInternal.Controllers
             return Ok(result);
         }
 
-        [HttpPost("user/{userId}/extra-permissions")]
-        public IActionResult AddExtraPermission(int userId, [FromBody] string permission)
+
+
+        [HttpPost("extra-permissions")]
+        public IActionResult AddExtraPermissions([FromBody] ExtraPermissionsRequest req)
         {
-            _proDataAccess.SaveUserExtraPermission(userId, permission);
+            _proDataAccess.SaveUserExtraPermission(req.UserId, req.Permissions);
+
             return Ok();
-        }
+
+         }
+
 
         [HttpDelete("user/{userId}/extra-permissions/{permission}")]
         public IActionResult RemoveExtraPermission(int userId, string permission)
         {
             _proDataAccess.RemoveUserExtraPermission(userId, permission);
+
             return Ok();
         }
-
-
 
 
         [HttpGet("users")]
@@ -84,16 +88,32 @@ namespace ProInternal.Controllers
         [HttpPost("assign-role")]
         public IActionResult AssignRoleToUser([FromBody] AssignRoleRequest req)
         {
-            _proDataAccess.AssignRoleToUser(req.UserId, req.Role);
+            foreach (var role in req.Roles)
+            {
+                _proDataAccess.AssignRoleToUser(req.UserId, role);
+            }
+
             return Ok();
         }
+
+
 
         [HttpPost("remove-role")]
         public IActionResult RemoveRoleFromUser([FromBody] AssignRoleRequest req)
         {
-            _proDataAccess.RemoveRoleFromUser(req.UserId, req.Role);
+            foreach (var role in req.Roles)
+            {
+                _proDataAccess.RemoveRoleFromUser(req.UserId, role);
+            }
+
+
             return Ok();
         }
+
+
+
+
+
         [HttpGet("user-roles/{userId}")]
         public IActionResult GetUserRoles(int userId)
         {
@@ -115,6 +135,7 @@ namespace ProInternal.Controllers
             _proDataAccess.RemovePermissionFromRole(req.Role, req.Permission);
             return Ok();
         }
+
 
 
         [HttpPost("create-role")]
@@ -141,12 +162,15 @@ namespace ProInternal.Controllers
 
 
 
+
         [HttpGet("user-permissions/{userId}")]
         public IActionResult GetUserPermissions(int userId)
         {
             var permissions = _proDataAccess.GetUserPermissions(userId);
             return Ok(permissions);
         }
+
+
 
         [HttpGet("permissions")]
         public IActionResult GetAllPermissions()
@@ -164,6 +188,64 @@ namespace ProInternal.Controllers
             var permissions = _proDataAccess.GetPermissionsByRole(roleName);
             return Ok(permissions);
         }
+
+
+
+        [HttpPost("permissionscreate")]
+        public IActionResult CreatePermission([FromBody] PermissionRequest request)
+        {
+            _proDataAccess.CreatePermission(request.PermissionName, request.Description);
+            return Ok();
+        }
+
+
+        [HttpPost("permissionsrename")]
+        public IActionResult RenamePermission([FromBody] RenamePermissionRequest request)
+        {
+        
+            _proDataAccess.RenamePermission(request.OldName, request.NewName, request.Description);
+            return Ok();
+        }
+
+
+
+
+        [HttpPost("permissionsdelete")]
+        public IActionResult DeletePermission([FromBody] PermissionRequest request)
+        {
+            _proDataAccess.DeletePermission(request.PermissionName);
+            return Ok();
+        }
+
+
+
+        [HttpPost("user/{userId}/disable")]
+        public IActionResult DisableUser(int userId)
+        {
+            _proDataAccess.DisableUser(userId);
+            return Ok();
+        }
+
+        [HttpPost("user/{userId}/delete")]
+        public IActionResult DeleteUser(int userId)
+        {
+            _proDataAccess.DeleteUser(userId);
+            return Ok();
+        }
+
+        [HttpPost("user/{userId}/enable")]
+        public IActionResult EnableUser(int userId)
+        {
+            _proDataAccess.EnableUser(userId);
+            return Ok();
+        }
+
+
+
+
+
+
+
 
 
 

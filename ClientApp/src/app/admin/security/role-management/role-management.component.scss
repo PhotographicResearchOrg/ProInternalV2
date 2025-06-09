@@ -1,0 +1,12 @@
+@import '~primeflex/primeflex.css';
+
+
+::ng-deep .p-picklist .p-picklist-item {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start;
+}
+::ng-deep .p-picklist .p-picklist-item {
+  display: block !important;
+}
+

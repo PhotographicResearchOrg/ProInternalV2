@@ -1,7 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { DataService } from 'src/app/services/data.service';
 import { ProUser } from 'src/app/models/pro-user';
-import { MessageService } from 'primeng/api';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { Observable, forkJoin } from 'rxjs';
+
+
+
 
 @Component({
   selector: 'app-user-management',
@@ -16,7 +20,8 @@ export class UserManagementComponent implements OnInit {
   availableRoles: string[] = [];
   selectedRoles: string[] = [];
 
-  allPermissions: { label: string; value: string }[] = [];
+  allPermissions: { permissionName: string, description: string }[] = [];
+  //allPermissions: { label: string; value: string }[] = [];
   availableExtraPermissionOptions: { label: string; value: string }[] = [];
   selectedExtraPermissions: string[] = [];
 
@@ -38,7 +43,8 @@ export class UserManagementComponent implements OnInit {
 
   constructor(
     private dataService: DataService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private confirmationService: ConfirmationService
   ) { }
 
   ngOnInit(): void {
@@ -50,16 +56,26 @@ export class UserManagementComponent implements OnInit {
       this.loadUsers();
     });
 
-
-
+ 
 
 
     this.dataService.getAllPermissions().subscribe(perms => {
-      this.allPermissions = perms.map(p => ({ label: p, value: p }));
-      this.updateAvailableExtraPermissionOptions();
+      this.allPermissions = perms;
+
+      this.availableExtraPermissionOptions = perms.map(p => ({
+        label: `${p.permissionName} — ${p.description}`,
+        value: p.permissionName
+      }));
     });
 
+
   }
+
+
+  ngOnDestroy(): void {
+    this.confirmationService.close();
+  }
+
 
   loadUsers(): void {
     this.dataService.getUsers().subscribe(users => {
@@ -67,10 +83,17 @@ export class UserManagementComponent implements OnInit {
     });
   }
 
+
   updateAvailableExtraPermissionOptions(): void {
     const selectedSet = new Set(this.selectedExtraPermissions);
-    this.availableExtraPermissionOptions = this.allPermissions.filter(p => !selectedSet.has(p.value));
+    this.availableExtraPermissionOptions = this.allPermissions
+      .filter(p => !selectedSet.has(p.permissionName))
+      .map(p => ({
+        label: `${p.permissionName} — ${p.description}`,
+        value: p.permissionName
+      }));
   }
+
 
 
   addExtraPermissions() {
@@ -84,9 +107,12 @@ export class UserManagementComponent implements OnInit {
     this.permissionsToAdd = [];
 
     // Force re-render by rebuilding available options
-    this.availableExtraPermissionOptions = this.allPermissions.filter(p =>
-      !this.selectedExtraPermissions.includes(p.value)
-    );
+    this.availableExtraPermissionOptions = this.allPermissions
+      .filter(p => !this.selectedExtraPermissions.includes(p.permissionName))
+      .map(p => ({
+        label: `${p.permissionName} — ${p.description}`,
+        value: p.permissionName
+      }));
   }
 
 
@@ -125,12 +151,14 @@ export class UserManagementComponent implements OnInit {
     this.showEditSidebar = true;
   }
 
+
   saveUserEdits(): void {
     if (!this.selectedUser) return;
-
     const userId = this.selectedUser.userId;
+
     this.dataService.assignRoles(userId, this.selectedRoles).subscribe(() => {
       this.selectedUser!.roles = [...this.selectedRoles];
+
       this.dataService.assignExtraPermissions(userId, this.selectedExtraPermissions).subscribe(() => {
         this.selectedUser!.extraPermissions = [...this.selectedExtraPermissions];
         this.showEditSidebar = false;
@@ -141,8 +169,10 @@ export class UserManagementComponent implements OnInit {
           detail: 'User roles and permissions updated.'
         });
       });
+
     });
   }
+
 
   removeExtraPermission(perm: string): void {
     this.selectedExtraPermissions = this.selectedExtraPermissions.filter(p => p !== perm);
@@ -152,6 +182,55 @@ export class UserManagementComponent implements OnInit {
     this.updateAvailableExtraPermissionOptions();
   }
 
+
+  disableUser(user: ProUser): void {
+    this.dataService.disableUser(user.userId).subscribe(() => {
+      this.messageService.add({ severity: 'warn', summary: 'User Disabled' });
+      this.showEditSidebar = false;
+      this.loadUsers();
+    });
+  }
+
+  enableUser(user: ProUser): void {
+    this.dataService.enableUser(user.userId).subscribe(() => {
+      this.messageService.add({ severity: 'success', summary: 'User Enabled' });
+      this.showEditSidebar = false;
+      this.loadUsers();
+    });
+  }
+
+  confirmDisableUser(user: ProUser): void {
+    this.confirmationService.confirm({
+      message: `Are you sure you want to disable ${user.username}?`,
+      header: 'Confirm Disable',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => this.disableUser(user)
+    });
+  }
+
+  confirmEnableUser(user: ProUser): void {
+    this.confirmationService.confirm({
+      message: `Are you sure you want to enable ${user.username}?`,
+      header: 'Confirm Enable',
+      icon: 'pi pi-check-circle',
+      accept: () => this.enableUser(user)
+    });
+  }
+
+  confirmDeleteUser(user: ProUser): void {
+    this.confirmationService.confirm({
+      message: `Are you sure you want to permanently delete ${user.username}?`,
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.dataService.deleteUser(user.userId).subscribe(() => {
+          this.messageService.add({ severity: 'error', summary: 'User Deleted' });
+          this.showEditSidebar = false;
+          this.loadUsers();
+        });
+      }
+    });
+  }
 
 
   clearRoleFilter(): void {
@@ -170,4 +249,5 @@ export class UserManagementComponent implements OnInit {
       default: return 'success';
     }
   }
+
 }

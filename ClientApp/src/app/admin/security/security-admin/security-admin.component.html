@@ -1,17 +1,24 @@
 <div class="col-12">
   <div class="card">
     <div class="text-900 text-xl font-semibold mb-3">🔐 Security Administration</div>
-
-    <p-tabView>
+    <p-confirmDialog></p-confirmDialog>
+    <p-tabView [(activeIndex)]="activeTabIndex">
       <p-tabPanel header="Users">
-        <app-user-management></app-user-management>
+        <ng-container *ngIf="activeTabIndex === 0">
+          <app-user-management></app-user-management>
+        </ng-container>
       </p-tabPanel>
       <p-tabPanel header="Roles">
-        <app-role-management></app-role-management>
+        <ng-container *ngIf="activeTabIndex === 1">
+          <app-role-management></app-role-management>
+        </ng-container>
       </p-tabPanel>
       <p-tabPanel header="Permissions">
-        <app-permission-management></app-permission-management>
+        <ng-container *ngIf="activeTabIndex === 2">
+          <app-permission-management></app-permission-management>
+        </ng-container>
       </p-tabPanel>
     </p-tabView>
+
   </div>
 </div>
