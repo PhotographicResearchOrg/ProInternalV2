@@ -56,17 +56,20 @@ export class DataService {
     return this.api.get<{ roleName: string; roleDescription: string }[]>('API/Auth/roles');
   }
 
-  getAllPermissions(): Observable<{ permissionName: string; description: string }[]> {
-    return this.api.get<{ permissionName: string; description: string }[]>('API/Auth/permissions');
+  getAllPermissions(): Observable<{ permissionName: string; description: string; routePath: string }[]> {
+    return this.api.get<{ permissionName: string; description: string, routePath: string }[]>('API/Auth/permissions');
   }
 
 
 
-  createPermission(name: string, description: string): Observable<void> {
+  createPermission(name: string, description: string, routePath?: string): Observable<void> {
     return this.api.post<void>('API/Auth/permissionscreate', {
       PermissionName: name,
-      Description: description });
+      Description: description,
+      RoutePath: routePath
+    });
   }
+
 
   updatePermission(oldName: string, newName: string, description: string): Observable<void> {
     return this.api.post<void>('API/Auth/permissionsrename', {

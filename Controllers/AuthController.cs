@@ -88,10 +88,9 @@ namespace ProInternal.Controllers
         [HttpPost("assign-role")]
         public IActionResult AssignRoleToUser([FromBody] AssignRoleRequest req)
         {
-            foreach (var role in req.Roles)
-            {
-                _proDataAccess.AssignRoleToUser(req.UserId, role);
-            }
+            //Remove 
+            //_proDataAccess.AssignRoleToUser(req.UserId, req.Roles);
+            _proDataAccess.ReplaceUserRoles(req.UserId, req.Roles);
 
             return Ok();
         }
@@ -194,7 +193,7 @@ namespace ProInternal.Controllers
         [HttpPost("permissionscreate")]
         public IActionResult CreatePermission([FromBody] PermissionRequest request)
         {
-            _proDataAccess.CreatePermission(request.PermissionName, request.Description);
+            _proDataAccess.CreatePermission(request.PermissionName, request.Description, request.RoutePath);
             return Ok();
         }
 
