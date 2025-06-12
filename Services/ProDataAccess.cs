@@ -144,10 +144,10 @@ namespace ProInternal.Services
             }
         }
 
-        public void CreatePermission(string permissionName, string description)
+        public void CreatePermission(string permissionName, string description, string? routePath)
         {
             using var conn = new SqlConnection(_connectionString);
-            conn.Execute("dbo.CreatePermission", new { permissionName, description }, commandType: CommandType.StoredProcedure);
+            conn.Execute("dbo.CreatePermission", new { permissionName, description, routePath }, commandType: CommandType.StoredProcedure);
         }
 
 
@@ -215,6 +215,30 @@ namespace ProInternal.Services
                 connection.Execute("RemoveUserExtraPermission", new { UserId = userId, Permission = permission }, commandType: CommandType.StoredProcedure);
             }
         }
+
+
+
+        public void ReplaceUserRoles(int userId, List<string> roles)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                var table = new DataTable();
+                table.Columns.Add("RoleName", typeof(string));
+
+                foreach (var role in roles)
+                {
+                    table.Rows.Add(role);
+                }
+
+                var parameters = new DynamicParameters();
+                parameters.Add("@UserId", userId);
+                parameters.Add("@Roles", table.AsTableValuedParameter("RoleNameTable"));
+
+                connection.Execute("PIV2_ReplaceUserRoles", parameters, commandType: CommandType.StoredProcedure);
+            }
+        }
+
+
 
 
 

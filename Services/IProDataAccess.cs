@@ -51,7 +51,7 @@ namespace ProInternal.Services
         void RemoveRoleFromUser(int userId, string roleName);
 
         List<UserWithRoles> GetUserRoles(int userId);
-
+        void ReplaceUserRoles(int userId, List<string> roles);
 
 
         void EnableUser(int userId);
@@ -63,7 +63,7 @@ namespace ProInternal.Services
         List<string> GetUserPermissions(int userId);
 
 
-        void CreatePermission(string permissionName, string description);
+        void CreatePermission(string permissionName, string description, string? routePath);
         void RenamePermission(string oldName, string newName , string Description);
 
         void DeletePermission(string permissionName);

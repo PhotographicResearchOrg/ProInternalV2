@@ -86,6 +86,8 @@ namespace ProInternal.Models.Auth
     {
         public string PermissionName { get; set; }
         public string Description { get; set; }
+
+        public string RoutePath { get; set; }
     }
 
 
@@ -102,13 +104,14 @@ namespace ProInternal.Models.Auth
 
         public string? Description { get; set; }  // Nullable (optional)
 
+        public string? RoutePath { get; set; } // ✅ Add this
+
     }
 
     public class RenamePermissionRequest
     {
         public string OldName { get; set; }
         public string NewName { get; set; }
-
         public string Description { get; set; }
     }
 

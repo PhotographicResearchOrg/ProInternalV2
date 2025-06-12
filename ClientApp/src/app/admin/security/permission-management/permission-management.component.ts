@@ -3,7 +3,7 @@ import { DataService } from 'src/app/services/data.service';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { Observable, forkJoin } from 'rxjs';
 import { PickListMoveToTargetEvent, PickListMoveToSourceEvent } from 'primeng/picklist';
-
+import { Router, Route } from '@angular/router';
 
 @Component({
   selector: 'app-permission-management',
@@ -24,15 +24,22 @@ export class PermissionManagementComponent implements OnInit {
     { label: 'Name Z-A', value: 'nameDesc' }
   ];
 
+
   selectedPermissionSort: string = '';
   filteredPermissions: { permissionName: string; description?: string }[] = [];
   originalPermissionName: string = '';
-
-
+  unconfiguredRoutes: {
+    path: string;
+    suggestedPermission: string;
+    description: string;
+    routePath: string;
+  }[] = [];
+  missingPermissionDialogVisible = false; 
   constructor(
     private dataService: DataService,
     private toast: MessageService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private router: Router
   ) { }
 
   ngOnInit(): void {
@@ -42,6 +49,7 @@ export class PermissionManagementComponent implements OnInit {
     this.confirmationService.close();
   }
 
+ 
 
   loadPermissions() {
     this.dataService.getAllPermissions().subscribe(perms => {
@@ -131,6 +139,72 @@ export class PermissionManagementComponent implements OnInit {
       }
     });
   }
+
+
+
+  scanRoutesForUnprotectedPermissions(): void {
+    const routes = this.flattenRoutes(this.router.config);
+    const existing = this.permissions.map(p => p.permissionName);
+
+    this.unconfiguredRoutes = routes
+      .filter(r =>
+        r.path &&
+        !(r.data?.['permissions']?.length) &&
+        r.component &&
+        !existing.includes(this.buildPermissionFromRoute(r).suggestedPermission)
+      )
+      .map(r => this.buildPermissionFromRoute(r));
+
+    this.missingPermissionDialogVisible = true;
+  }
+
+
+
+  flattenRoutes(routes: Route[], prefix = ''): Route[] {
+    return routes.flatMap(route => {
+      const fullPath = prefix + '/' + (route.path || '');
+      const flat: Route = { ...route, path: fullPath.replace('//', '/') };
+      return route.children?.length
+        ? [flat, ...this.flattenRoutes(route.children, fullPath)]
+        : [flat];
+    });
+  }
+
+  buildPermissionFromRoute(route: Route): {
+    path: string;
+    suggestedPermission: string;
+    description: string;
+    routePath: string;
+  } {
+    const cleanedPath = route.path?.replace(/\/+/g, '/').replace(/^\//, '') || '';
+
+    return {
+      path: cleanedPath,
+      suggestedPermission: `ACCESS_${cleanedPath.toUpperCase().replace(/[\/\-]/g, '_')}`,
+      description: `Permission for /${cleanedPath}`,
+      routePath: '/' + cleanedPath // ✅ for display
+    };
+  }
+
+
+
+  createSuggestedPermissions(): void {
+    const tasks = this.unconfiguredRoutes.map(p =>
+      this.dataService.createPermission(p.suggestedPermission, p.description, p.routePath)
+    );
+
+    forkJoin(tasks).subscribe({
+      next: () => {
+        this.toast.add({ severity: 'success', summary: 'Permissions Created' });
+        this.loadPermissions();
+        this.missingPermissionDialogVisible = false;
+      },
+      error: () => {
+        this.toast.add({ severity: 'error', summary: 'Failed to create some permissions' });
+      }
+    });
+  }
+
 
 
 }
