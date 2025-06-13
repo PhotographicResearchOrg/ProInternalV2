@@ -37,6 +37,7 @@ export class AuthService {
     //return sessionStorage.getItem("token");
   }
 
+
   set redirectTo(page: string)
   {
     page = "Dashboard-landing"
@@ -65,19 +66,22 @@ export class AuthService {
   }
 
 
-
-  getPermissions(): string[] {
+  getPermissions(): { permissionName: string; routePath: string }[] {
     const raw = localStorage.getItem('permissions');
-    console.log('------------------AUTH SERVICE ---------------------------------------------')
-    console.log(raw)
+    console.log('[getPermissions] Raw:', raw);
+
     try {
-      const parsed = JSON.parse(raw ?? '[]');
-      
-      return Array.isArray(parsed) ? parsed : [];
+      const firstParse = JSON.parse(raw ?? '[]');
+      const final = typeof firstParse === 'string' ? JSON.parse(firstParse) : firstParse;
+      console.log('[getPermissions] Final parsed:', final);
+      return final;
     } catch (e) {
+      console.error('[getPermissions] Parse error:', e);
       return [];
     }
   }
+
+
 
 
   hasPermission(permission: string): boolean {
@@ -96,10 +100,29 @@ export class AuthService {
     return this.dataService.login(username, password).pipe(
       tap(response => {
         const token = response.token;
+
         localStorage.setItem('token', token);
 
         const decoded: any = jwtDecode(token);
-        localStorage.setItem('permissions', JSON.stringify(decoded.permissions));
+
+
+        const parsedPermissions = typeof decoded.permissions === 'string'
+          ? JSON.parse(decoded.permissions)
+          : decoded.permissions;
+
+        // **Normalize from PascalCase to camelCase**
+        const normalizedPermissions = parsedPermissions.map((p: any) => ({
+          permissionName: p.PermissionName,
+          routePath: p.RoutePath
+        }));
+
+        console.log('[login] Normalized permissions:', normalizedPermissions);
+
+        localStorage.setItem('permissions', JSON.stringify(normalizedPermissions));
+
+
+
+
         localStorage.setItem('userData', JSON.stringify(decoded.userLastName));
         localStorage.setItem('userId', decoded.userId);
 
@@ -117,6 +140,14 @@ export class AuthService {
         throw error; // propagate error to component
       })
     );
+  }
+
+
+  getAllowedRoutes(): string[] {
+    return this.getPermissions()
+      .map(p => p?.routePath) // ✅ CORRECT: Matches the camelCase interface
+      .filter((path): path is string => typeof path === 'string')
+      .map(path => path.toLowerCase());
   }
 
 

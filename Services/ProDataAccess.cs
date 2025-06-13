@@ -421,8 +421,8 @@ namespace ProInternal.Services
                     var roles = output.Read<string>().ToList();
 
 
-                    // 3. Third result set: Permissions (List<string>)
-                    var permissions = output.Read<string>().ToList();
+                    // 3. Third result set: Permissions (List<permission>)
+                    var permissions = output.Read<Permission>().ToList();
 
 
                     var extraPermissions = output.Read<string>().ToList();
@@ -430,7 +430,9 @@ namespace ProInternal.Services
                     // Build final response
                     response.User = user;
                     response.Roles = roles;
+                    
                     response.Permissions = permissions;
+
                     response.ExtraPermissions = extraPermissions;
                 }
 

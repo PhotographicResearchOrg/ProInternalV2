@@ -7,6 +7,8 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { TabViewModule } from 'primeng/tabview';
 import { ButtonModule } from 'primeng/button';
 import { RippleModule } from 'primeng/ripple';
+
+
 @NgModule({
 	imports: [
 		CommonModule,

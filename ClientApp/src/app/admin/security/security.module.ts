@@ -17,12 +17,13 @@ import { UserManagementComponent } from 'src/app/admin/security/user-management/
 import { RolesManagementComponent } from 'src/app/admin/security/role-management/role-management.component';
 import { PermissionManagementComponent } from 'src/app/admin/security/permission-management/permission-management.component';
 import { SecurityAdminComponent } from 'src/app/admin/security/security-admin/security-admin.component';
-
 import { FormsModule } from '@angular/forms';
 import { BadgeModule } from 'primeng/badge';
 import { DropdownModule } from 'primeng/dropdown';
 import { ButtonModule } from 'primeng/button';
 import { AutoCompleteModule } from 'primeng/autocomplete';
+import { ReactiveFormsModule } from '@angular/forms';
+
 
 
 @NgModule({
@@ -34,6 +35,7 @@ import { AutoCompleteModule } from 'primeng/autocomplete';
     
   ],
   imports: [
+    ReactiveFormsModule,
     TooltipModule,
     ConfirmDialogModule,
     ListboxModule,

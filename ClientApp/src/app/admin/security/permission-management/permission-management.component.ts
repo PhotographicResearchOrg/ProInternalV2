@@ -4,6 +4,12 @@ import { MessageService, ConfirmationService } from 'primeng/api';
 import { Observable, forkJoin } from 'rxjs';
 import { PickListMoveToTargetEvent, PickListMoveToSourceEvent } from 'primeng/picklist';
 import { Router, Route } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { ToastModule } from 'primeng/toast';
+import { DropdownModule } from 'primeng/dropdown';
+
 
 @Component({
   selector: 'app-permission-management',

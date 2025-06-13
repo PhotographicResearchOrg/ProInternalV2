@@ -37,7 +37,9 @@ namespace ProInternal.Models.Auth
     }
     public class Permission
     {
-        public string Permissions { get; set; }
+        public string PermissionName { get; set; }
+        public string RoutePath { get; set; }
+
     }
 
     public class LoginResponse
@@ -47,7 +49,7 @@ namespace ProInternal.Models.Auth
 
         // Add these:
         public List<string> Roles { get; set; } = new List<string>();
-        public List<string> Permissions { get; set; } = new List<string>();
+        public List<Permission> Permissions { get; set; } = new List<Permission>();
 
         public List<string> ExtraPermissions { get; set; } = new List<string>();
 

@@ -25,200 +25,73 @@ import { PaymentsComponent } from './prointernalengine/components/dashboards/acc
 import { HubspotCompanyComponent } from './prointernalengine/components/MemberManagement/hubspot-company/hubspot-company.component';
 import { DashboardBrmComponent } from './prointernalengine/components//dashboards/BRM/dashboard-brm/dashboard-brm.component';
 import { SecurityAdminComponent } from 'src/app/admin/security/security-admin/security-admin.component';
-
+//import { ProductOverviewComponent } from './prointernalengine/components/ecommerce/productoverview/productoverview.component';
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
   useHash: true
 };
-
 const routes: Routes = [
+  { path: '', redirectTo: 'auth/login', pathMatch: 'full' }, // Default route
+
   {
-    path: '', redirectTo: 'auth/login', pathMatch: 'full'
-  }, //default route
-  {
-    path: "",
+    path: '',
     component: AppLayoutComponent,
-    canActivate: [AuthGuard], 
+    canActivate: [AuthGuard],
     children: [
-      { path: '', data: { breadcrumb: 'Landing Page Dash' }, component: DashboardLandingComponent },
-      { path: 'dashboard-accounting', data: { breadcrumb: 'Accounting Dashboard' }, component: DashboardAccountingComponent },
-      { path: 'Dashboard-landing', data: { breadcrumb: 'PRO Dashboard' }, component: DashboardLandingComponent },
 
-      {
-        path: 'qtr-rebates',
-        component: QtrRebatesComponent,
-        canActivate: [AuthGuard],
-        data: {
-          breadcrumb: 'Quarterly Rebates',
-          permissions: ['Quarterly']
-        }
-      },
-      {
-        path: 'powerbi',
-
-        data: {
-          breadcrumb: 'Reporting'
-        },
-        component: PowerbiComponent
-      },
-
-
-
-
-      { path: 'rebatesupport', data: { breadcrumb: 'Quarterly Rebates' }, component: RebatesupportComponent },
-      { path: 'rebatesupport', data: { breadcrumb: 'Quarterly Rebates' }, component: RebatesupportComponent },
-      { path: 'apps/files', data: { breadcrumb: 'Files' }, component: FileAppComponent },
-      { path: 'uikit', data: { breadcrumb: 'UI Kit' }, loadChildren: () => import('./prointernalengine/components/uikit/uikit.module').then(m => m.UIkitModule) },
-      { path: 'utilities', data: { breadcrumb: 'Utilities' }, loadChildren: () => import('./prointernalengine/components/utilities/utilities.module').then(m => m.UtilitiesModule) },
-      { path: 'pages', data: { breadcrumb: 'Pages' }, loadChildren: () => import('./prointernalengine/components/pages/pages.module').then(m => m.PagesModule) },
-      { path: 'profile', data: { breadcrumb: 'User Management' }, loadChildren: () => import('./prointernalengine/components/profile/profile.module').then(m => m.ProfileModule) },
-      { path: 'documentation', data: { breadcrumb: 'Documentation' }, loadChildren: () => import('./prointernalengine/components/documentation/documentation.module').then(m => m.DocumentationModule) },
-      { path: 'blocks', data: { breadcrumb: 'Prime Blocks' }, loadChildren: () => import('./prointernalengine/components/primeblocks/primeblocks.module').then(m => m.PrimeBlocksModule) },
-      { path: 'ecommerce', data: { breadcrumb: 'E-Commerce' }, loadChildren: () => import('./prointernalengine/components/ecommerce/ecommerce.module').then(m => m.EcommerceModule) },
-      { path: 'apps', data: { breadcrumb: 'Apps' }, loadChildren: () => import('./prointernalengine/components/apps/apps.module').then(m => m.AppsModule) },
+      { path: 'dashboard-landing', component: DashboardLandingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'PRO Dashboard' } },
+      { path: 'dashboard-accounting', component: DashboardAccountingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting Dashboard' } },
+      { path: 'qtr-rebates', component: QtrRebatesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Quarterly Rebates' } },
+      { path: 'powerbi', component: PowerbiComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Reporting' } },
+      { path: 'rebatesupport', component: RebatesupportComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Quarterly Rebates' } },
+      { path: 'apps/files', component: FileAppComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Files' } },
+      { path: 'BRMsetup', component: HubspotCompanyComponent, canActivate: [AuthGuard] },
+      { path: 'BRMdash', component: DashboardBrmComponent, canActivate: [AuthGuard] },
+      { path: 'security-admin', component: SecurityAdminComponent, canActivate: [AuthGuard] },
+      { path: 'instantrebate', component: RebatesupportComponent, canActivate: [AuthGuard] },
+      { path: 'rebatesetup', component: RebateSetupComponent, canActivate: [AuthGuard] },
+      { path: 'uploadrebates', component: RebateExcelUploaderComponent, canActivate: [AuthGuard] },
+      { path: 'gating', component: GatingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Gating' } },
+      { path: 'stock', component: VendorStockComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor Stock' } },
+      { path: 'forecast', component: ForecastComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Forcasting' } },
+      { path: 'patronage', component: PatronageComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Patronage' } },
+      { path: 'payments', component: PaymentsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Payments' } },
+      { path: 'setup', component: VendorSetupComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor SetUp' } },
+      { path: 'exclusions/brand', component: BrandExclusionsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Brand Exclusions' } },
+      { path: 'exclusions/group', component: ExclusionGroupsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Exclusion Groups' } },
+      { path: 'exclusion/group/company', component: ExclusionGroupCompanyComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Company Exclusion Groups' } },
 
 
       {
-        path: 'BRMsetup',
-        component: HubspotCompanyComponent
-      },
+        path: 'ecommerce',
+        children: [
+          {
+            path: 'product-overview',
+            loadChildren: () =>
+              import('./prointernalengine/components/ecommerce/productoverview/productoverview.module')
+                .then(m => m.ProductoverviewModule),
+            data: { breadcrumb: 'Product Overview' }
+          }
+        ]
+      }
 
-      {
-        path: 'BRMdash',
-        component: DashboardBrmComponent
-      },
-
-      {
-        path: 'security-admin',
-        component: SecurityAdminComponent
-        //canActivate: [AuthGuard],
-        //data: {
-        //  permissions: ['ManageSecurity'] // or roles: ['PIV2_ADMIN']
-        //}
-      },
-      
-      {
-        path: 'instantrebate',
-        component: RebatesupportComponent
-      },
-
-
-      {
-        path: 'rebatesetup',
-        component: RebateSetupComponent
-      },
-
-
-      {
-        path: 'uploadrebates',
-        component: RebateExcelUploaderComponent
-      },
-
-
-      {
-        path: 'gating',
-        component: GatingComponent,
-       /* canActivate: [AuthGuard],*/
-        data: {
-          breadcrumb: 'Product Gating',
-          permissions: ['Exclusions']
-        },
-
-      },
-
-      {
-        path: 'stock',
-        data: {
-          breadcrumb: 'Vendor Stock'
-        },
-        component: VendorStockComponent
-      },
-
-         {
-        path: 'forecast',
-        data: {
-          breadcrumb: 'Forcasting'
-        },
-           component: ForecastComponent
-      },
-
-
-      {
-        path: 'patronage',
-        data: {
-          breadcrumb: 'Patronage'
-        },
-        component: PatronageComponent
-      },
-
-
-
-      {
-        path: 'payments',
-        data: {
-          breadcrumb: 'Payments'
-        },
-        component: PaymentsComponent
-      },
-
-
-
-      {
-        path: 'setup',
-        data: {
-          breadcrumb: 'Vendor SetUp'
-        },
-        component: VendorSetupComponent
-      },
-      
-
-
-
-                {
-                  path: 'exclusions/brand',
-                  component: BrandExclusionsComponent,
-                 /* canActivate: [AuthGuard],*/
-                  data: {
-                    breadcrumb: 'Brand Exclusions',
-                    permissions: ['Exclusions']
-                  }
-                },
-
-                {
-                  path: 'exclusions/group',
-                  component: ExclusionGroupsComponent,
-                 /* canActivate: [AuthGuard],*/
-                  data: {
-                    breadcrumb: 'Exclusion Groups',
-                    permissions: ['Exclusions']
-                  }
-                },
-
-                {
-                  path: 'exclusion/group/company',
-                  component: ExclusionGroupCompanyComponent,
-                /*  canActivate: [AuthGuard],*/
-                  data: {
-                    breadcrumb: 'Company Exclusion Groups',
-                    permissions: ['Exclusions']
-                  }, 
-                },
-      ]
+    ]
   },
 
-    { path: 'auth', data: { breadcrumb: 'Auth' }, loadChildren: () => import('./prointernalengine/components/auth/auth.module').then(m => m.AuthModule) },
-    { path: 'notfound', loadChildren: () => import('./prointernalengine/components/notfound/notfound.module').then(m => m.NotfoundModule) },
-    { path: 'landing', loadChildren: () => import('./prointernalengine/components/landing/landing.module').then(m => m.LandingModule) },
-    { path: 'security-admin', loadChildren: () => import('./admin/security/security.module').then(m => m.SecurityModule) },
-    { path: '**', redirectTo: '/notfound' }
+  // Auth & misc modules
+  { path: 'auth', loadChildren: () => import('./prointernalengine/components/auth/auth.module').then(m => m.AuthModule), data: { breadcrumb: 'Auth' } },
+  { path: 'notfound', loadChildren: () => import('./prointernalengine/components/notfound/notfound.module').then(m => m.NotfoundModule) },
+  { path: 'landing', loadChildren: () => import('./prointernalengine/components/landing/landing.module').then(m => m.LandingModule) },
+  { path: 'security-admin', loadChildren: () => import('./admin/security/security.module').then(m => m.SecurityModule) },
+
+
+  // Fallback route
+  { path: '**', redirectTo: '/notfound' }
 ];
 
-
 @NgModule({
-    imports: [RouterModule.forRoot(routes, routerOptions)],
-    exports: [RouterModule]
+  imports: [RouterModule.forRoot(routes, routerOptions)],
+  exports: [RouterModule]
 })
-
-
 export class AppRoutingModule { }
