@@ -79,13 +79,22 @@ export class AppMenuComponent implements OnInit {
             }
           ]
         },
+
         {
           label: 'Vendor Management', icon: 'pi pi-briefcase',
           items: [
             can('/setup') && { label: 'Vendor SetUp', icon: 'pi pi-cog', routerLink: ['/setup'] },
             can('/stock') && { label: 'Stock Submissions', icon: 'pi pi-cloud-upload', routerLink: ['/stock'] }
           ]
-        }
+        },
+
+        {
+          label: 'Account Management', icon: 'pi pi-briefcase',
+          items: [
+            can('/accountmanagement') && { label: 'Account Management', icon: 'pi pi-cog', routerLink: ['/accountmanagement'] }, 
+          ]
+        },
+
       ]
     });
 

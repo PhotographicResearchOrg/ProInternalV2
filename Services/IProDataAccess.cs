@@ -32,10 +32,14 @@ namespace ProInternal.Services
         List<string> GetUserExtraPermissions(int userId);
         void SaveUserExtraPermission(int userId, List<string> permissions);
 
+        void ToggleVendorWebStatus(int vendorId);
 
+        IEnumerable<Vendor> GetVendors();
+        IEnumerable<Member> GetMembers(int memberTypeId);
+        IEnumerable<Subscription> GetSubscriptions();
 
         void RemoveUserExtraPermission(int userId, string permission);
-
+        IEnumerable<MemberAddress> GetMemberShipping(string accountId);
 
         void CreateRole(string roleName, string roleDescription);
         void RenameRole(string oldName, string newName);

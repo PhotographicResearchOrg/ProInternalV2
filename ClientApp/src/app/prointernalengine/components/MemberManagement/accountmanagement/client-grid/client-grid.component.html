@@ -1,0 +1,51 @@
+<!-- src/app/accountmanagement/client-grid/client-grid.component.html -->
+
+<p-toast></p-toast>
+
+<p-table [value]="clients"
+         [loading]="loading"
+         [paginator]="true"
+         [rows]="50"
+         [rowsPerPageOptions]="[50, 100, 500]"
+         [responsiveLayout]="'scroll'"
+         [resizableColumns]="true"
+         [scrollable]="true"
+         scrollHeight="500px">
+
+  <ng-template pTemplate="header">
+    <tr>
+      <th>DBA</th>
+      <th>Legal Name</th>
+      <th>Account</th>
+      <th>Street</th>
+      <th>City</th>
+      <th>State</th>
+      <th>Zip</th>
+      <th>Phone</th>
+      <th>Fax</th>
+      <th>Email</th>
+      <th>Website</th>
+      <th>First Name</th>
+      <th>Last Name</th>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="body" let-client>
+    <tr>
+      <td>{{ client.dba }}</td>
+      <td>{{ client.legalName }}</td>
+      <td>{{ client.accountNumber }}</td>
+      <td>{{ client.street }}</td>
+      <td>{{ client.city }}</td>
+      <td>{{ client.state }}</td>
+      <td>{{ client.zip }}</td>
+      <td>{{ client.phone }}</td>
+      <td>{{ client.fax }}</td>
+      <td>{{ client.email }}</td>
+      <td>{{ client.website }}</td>
+      <td>{{ client.firstName }}</td>
+      <td>{{ client.lastName }}</td>
+    </tr>
+  </ng-template>
+
+</p-table>

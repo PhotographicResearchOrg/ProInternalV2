@@ -1,0 +1,67 @@
+<p-table [value]="members"
+         [loading]="loading"
+         [paginator]="true"
+         [rows]="50"
+         [expandedRowKeys]="expandedRows"
+         (onRowExpand)="onRowExpand($event.data)"
+         dataKey="accountNumber"
+         [rowsPerPageOptions]="[50, 100, 500]"
+         [responsiveLayout]="'scroll'"
+         [resizableColumns]="true"
+         [scrollable]="true"
+         scrollHeight="500px">
+
+  <ng-template pTemplate="header">
+    <tr>
+      <th style="width: 3rem"></th> <!-- Expander column -->
+      <th>DBA</th>
+      <th>Legal Name</th>
+      <!-- ... -->
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="body" let-member>
+    <tr>
+      <td>
+        <button type="button"
+                pRowToggler
+                class="p-button-text p-button-sm pi pi-chevron-down"
+                [pRowToggler]="member">
+        </button>
+
+      </td>
+      <td>{{ member.dba }}</td>
+      <td>{{ member.legalName }}</td>
+      <!-- ... -->
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="rowexpansion" let-member>
+    <div class="p-3">
+      <h5>Shipping Addresses for {{ member.legalName }}</h5>
+      <p-table [value]="rowExpansionCache[member.accountNumber]" [responsiveLayout]="'scroll'">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Type</th>
+            <th>Street</th>
+            <th>City</th>
+            <th>State</th>
+            <th>Zip</th>
+            <th>Country</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-addr>
+          <tr>
+            <td>{{ addr.addressType }}</td>
+            <td>{{ addr.street }}</td>
+            <td>{{ addr.city }}</td>
+            <td>{{ addr.state }}</td>
+            <td>{{ addr.zip }}</td>
+            <td>{{ addr.country }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </ng-template>
+
+</p-table>

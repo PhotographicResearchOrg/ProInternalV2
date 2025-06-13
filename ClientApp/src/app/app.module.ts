@@ -64,10 +64,23 @@ import { DashboardBrmComponent } from './prointernalengine/components//dashboard
 import { IrDeclinesTableComponent } from './prointernalengine/components/shared/ir-declines-table/ir-declines-table.component';
 
 
+import { AccountManagementComponent } from './prointernalengine/components/MemberManagement/accountmanagement/accountmanagement.component';
+import { VendorGridComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-grid/vendor-grid.component';
+import { ProSubscriptionsComponent } from './prointernalengine/components/MemberManagement/accountmanagement/pro-subscriptions/pro-subscriptions.component';
+import { MemberGridComponent } from './prointernalengine/components/MemberManagement/accountmanagement/member-grid/member-grid.component';
+import { ClientGridComponent } from './prointernalengine/components/MemberManagement/accountmanagement/client-grid/client-grid.component';
+import { AffiliateGridComponent } from './prointernalengine/components/MemberManagement/accountmanagement/affiliate-grid/affiliate-grid.component';
+
+
 @NgModule({
   declarations:
     [
-
+    AffiliateGridComponent,
+    ClientGridComponent,
+    MemberGridComponent,
+    ProSubscriptionsComponent,
+    VendorGridComponent,
+    AccountManagementComponent,
     AppComponent,
     QtrRebatesComponent,
     RebateSetupComponent,  
@@ -86,7 +99,8 @@ import { IrDeclinesTableComponent } from './prointernalengine/components/shared/
     PaymentsComponent,
     HubspotCompanyComponent,
     DashboardBrmComponent,
-    IrDeclinesTableComponent
+      IrDeclinesTableComponent,
+      VendorGridComponent
   ],
 
   imports: [

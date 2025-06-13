@@ -1,0 +1,53 @@
+<!-- src/app/accountmanagement/pro-subscriptions/pro-subscriptions.component.html -->
+
+<p-toast></p-toast>
+
+<p-table [value]="subscriptions"
+         [loading]="loading"
+         [paginator]="true"
+         [rows]="50"
+         [rowsPerPageOptions]="[50, 100, 500]"
+         [responsiveLayout]="'scroll'"
+         [resizableColumns]="true"
+         [scrollable]="true"
+         scrollHeight="500px">
+
+  <ng-template pTemplate="header">
+    <tr>
+      <th>Company</th>
+      <th>Account</th>
+      <th>First Name</th>
+      <th>Last Name</th>
+      <th>Phone</th>
+      <th>Fax</th>
+      <th>Street</th>
+      <th>City</th>
+      <th>State</th>
+      <th>Zip</th>
+      <th>Country</th>
+      <th>Email</th>
+      <th>Subscription</th>
+      <th>Quantity</th>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="body" let-sub>
+    <tr>
+      <td>{{ sub.company }}</td>
+      <td>{{ sub.accountNumber }}</td>
+      <td>{{ sub.firstName }}</td>
+      <td>{{ sub.lastName }}</td>
+      <td>{{ sub.phone }}</td>
+      <td>{{ sub.fax }}</td>
+      <td>{{ sub.street }}</td>
+      <td>{{ sub.city }}</td>
+      <td>{{ sub.state }}</td>
+      <td>{{ sub.zip }}</td>
+      <td>{{ sub.country }}</td>
+      <td>{{ sub.email }}</td>
+      <td>{{ sub.subscriptionName }}</td>
+      <td>{{ sub.quantity }}</td>
+    </tr>
+  </ng-template>
+
+</p-table>

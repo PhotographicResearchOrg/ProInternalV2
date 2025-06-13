@@ -25,6 +25,7 @@ import { PaymentsComponent } from './prointernalengine/components/dashboards/acc
 import { HubspotCompanyComponent } from './prointernalengine/components/MemberManagement/hubspot-company/hubspot-company.component';
 import { DashboardBrmComponent } from './prointernalengine/components//dashboards/BRM/dashboard-brm/dashboard-brm.component';
 import { SecurityAdminComponent } from 'src/app/admin/security/security-admin/security-admin.component';
+import { AccountManagementComponent } from './prointernalengine/components/MemberManagement/accountmanagement/accountmanagement.component';
 //import { ProductOverviewComponent } from './prointernalengine/components/ecommerce/productoverview/productoverview.component';
 
 const routerOptions: ExtraOptions = {
@@ -61,7 +62,9 @@ const routes: Routes = [
       { path: 'exclusions/brand', component: BrandExclusionsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Brand Exclusions' } },
       { path: 'exclusions/group', component: ExclusionGroupsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Exclusion Groups' } },
       { path: 'exclusion/group/company', component: ExclusionGroupCompanyComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Company Exclusion Groups' } },
+      { path: 'accountmanagement', component: AccountManagementComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Account Management' } },
 
+      
 
       {
         path: 'ecommerce',

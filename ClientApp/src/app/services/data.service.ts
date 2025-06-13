@@ -39,11 +39,38 @@ import { EzPaySummary, EzPayDetail  } from 'src/app/models/accounting/EzPaySumma
 import { Notification } from 'src/app/models/notifications';
 import { ProUser } from 'src/app/models/pro-user';
 
+import { Vendor } from '../models/accounts/vendor';
+import { Member, MemberAddress  } from '../models/accounts/member';
+import { SubscriptionRecord } from '../models/accounts/subscription';
+
 
 @Injectable()
 export class DataService {
 
   constructor(private api: ApiService) { }
+
+  // Vendors
+  getVendors(): Observable<Vendor[]> {
+    return this.api.get<Vendor[]>('API/Listings/vendors');
+  }
+
+  toggleVendorWebStatus(vendorId: number): Observable<void> {
+    return this.api.post<void>(`API/Listings/vendors/${vendorId}/toggle-web`, {});
+  }
+
+  // Members (Members, Affiliates, Clients)
+  getMembers(type: 'Members' | 'Affiliates' | 'Clients' = 'Members'): Observable<Member[]> {
+    return this.api.get<Member[]>(`API/Listings/members?type=${type}`);
+  }
+
+  // Subscriptions
+  getSubscriptions(): Observable<SubscriptionRecord[]> {
+    return this.api.get<SubscriptionRecord[]>('API/Listings/subscriptions');
+  }
+
+  getMemberShipping(accountNumber: string): Observable<MemberAddress[]> {
+    return this.api.get<MemberAddress[]>(`API/Listings/members/${accountNumber}/shipping`);
+  }
 
 
 

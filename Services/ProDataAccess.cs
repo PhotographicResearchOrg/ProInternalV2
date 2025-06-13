@@ -42,6 +42,166 @@ namespace ProInternal.Services
    
         }
 
+
+
+        public IEnumerable<MemberAddress> GetMemberShipping(string accountId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            using var command = new SqlCommand("GetMemberShipping", connection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            command.Parameters.AddWithValue("@AccountID", accountId);
+
+            connection.Open();
+            var list = new List<MemberAddress>();
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                list.Add(new MemberAddress
+                {
+                    AddressType = reader["addresstype"]?.ToString(),
+                    Street = reader["street"]?.ToString(),
+                    City = reader["city"]?.ToString(),
+                    State = reader["State"]?.ToString(),
+                    Zip = reader["Zip"]?.ToString(),
+                    Country = reader["country"]?.ToString()
+                });
+            }
+
+            return list;
+        }
+
+
+
+        public void ToggleVendorWebStatus(int vendorId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            using var command = new SqlCommand("ToggleVendorWebStatus", connection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            command.Parameters.AddWithValue("@VendorId", vendorId);
+
+            connection.Open();
+            command.ExecuteNonQuery();
+        }
+
+
+        public IEnumerable<Subscription> GetSubscriptions()
+        {
+            using var connection = new SqlConnection(_connectionString);
+            using var command = new SqlCommand("PIV2GetSubscriptions", connection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            connection.Open();
+            var list = new List<Subscription>();
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                list.Add(new Subscription
+                {
+                    Company = reader["Company"]?.ToString(),
+                    AccountNumber = reader["AccountNumber"]?.ToString(),
+                    FirstName = reader["FirstName"]?.ToString(),
+                    LastName = reader["LastName"]?.ToString(),
+                    Phone = reader["Phone"]?.ToString(),
+                    Fax = reader["Fax"]?.ToString(),
+                    Street = reader["Street"]?.ToString(),
+                    City = reader["City"]?.ToString(),
+                    State = reader["State"]?.ToString(),
+                    Zip = reader["Zip"]?.ToString(),
+                    Country = reader["Country"]?.ToString(),
+                    Email = reader["Email"]?.ToString(),
+                    SubscriptionName = reader["SubscriptionName"]?.ToString(),
+                    Quantity = Convert.ToInt32(reader["Quantity"] ?? 0)
+                });
+            }
+
+            return list;
+        }
+
+
+
+        public IEnumerable<Member> GetMembers(int memberTypeId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            using var command = new SqlCommand("PIV2GetMembers", connection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            command.Parameters.AddWithValue("@MemberType", memberTypeId);
+
+            connection.Open();
+            var members = new List<Member>();
+            using var reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                members.Add(new Member
+                {
+                    Dba = reader["DBA"]?.ToString(),
+                    LegalName = reader["Company"]?.ToString(),
+                    AccountNumber = reader["AccountNumber"]?.ToString(),
+                    Phone = reader["Phone"]?.ToString(),
+                    Fax = reader["Fax"]?.ToString(),
+                    Email = reader["Email"]?.ToString(),
+                    Website = reader["Website"]?.ToString(),
+                    FirstName = reader["FirstName"]?.ToString(),
+                    LastName = reader["LastName"]?.ToString(),
+                    Street = reader["Street"]?.ToString(),
+                    City = reader["City"]?.ToString(),
+                    State = reader["State"]?.ToString(),
+                    Zip = reader["Zip"]?.ToString(),
+                    Country = reader["Country"]?.ToString()
+                });
+            }
+
+            return members;
+        }
+
+
+
+
+        public IEnumerable<Vendor> GetVendors()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            using (var command = new SqlCommand("PIV2GetVendors", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                connection.Open();
+
+                using (var reader = command.ExecuteReader())
+                {
+                    var vendors = new List<Vendor>();
+
+                    while (reader.Read())
+                    {
+                        vendors.Add(new Vendor
+                        {
+                            Id = (int)reader["Id"],
+                            Name = reader["NAME"].ToString(),
+                            Street = reader["STREET"].ToString(),
+                            CityState = reader["CITY_ST"].ToString(),
+                            Zip = reader["ZIP"].ToString(),
+                            Phone = reader["PHONE"].ToString(),
+                            ShortName = reader["SH_NAME"].ToString(),
+                            OnWeb = ((int)reader["OnWeb"] == 1) ? "Yes" : "No"
+                        });
+                    }
+
+                    return vendors;
+                }
+            }
+        }
+
         public List<UserWithRoles> GetUsersWithRoles()
         {
             using (var connection = new SqlConnection(_connectionString))
