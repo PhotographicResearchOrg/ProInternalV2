@@ -1,0 +1,117 @@
+.avatar-container {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px dashed #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.avatar-container img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+  vertical-align: middle;
+  max-width: 48px;
+  max-height: 48px;
+}
+
+
+.placeholder-avatar i {
+  font-size: 1.5rem;
+  color: #999;
+  user-select: none;
+}
+
+.placeholder-avatar i {
+  font-size: 1.5rem;
+  color: #999;
+  user-select: none;
+}
+
+
+.p-toolbar-group-left > div.flex-wrap {
+  gap: 0.5rem;
+}
+
+.p-toolbar-group-left input {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .p-toolbar-group-left > div.flex-wrap {
+    flex-direction: column;
+  }
+
+  .p-toolbar-group-left > div.flex-shrink-0 {
+    width: 100%;
+  }
+
+  .p-toolbar-group-left > span.p-input-icon-left {
+    width: 100% !important;
+  }
+
+  p-multiSelect {
+    width: 100% !important;
+  }
+}
+
+.custom-chip {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+  display: inline-block;
+}
+
+.chip-members {
+  background-color: #2196f3; /* Blue */
+}
+
+.chip-clients {
+  background-color: #4caf50; /* Green */
+}
+
+.chip-affiliates {
+  background-color: #ff9800; /* Orange */
+}
+
+/* Ensure multiSelect chip container wraps chips */
+:host ::ng-deep .p-multiselect-token-container {
+  flex-wrap: wrap !important;
+  max-width: 100% !important;
+  overflow-wrap: break-word;
+}
+
+/* Allow individual chips to wrap text and break nicely */
+:host ::ng-deep .p-multiselect-token {
+  white-space: normal !important;
+  word-break: break-word;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* On small screens, limit chip container width */
+@media (max-width: 767px) {
+  :host ::ng-deep .p-multiselect-token-container {
+    max-width: 100% !important;
+  }
+}
+
+.p-toolbar-group-left > div.flex-wrap {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

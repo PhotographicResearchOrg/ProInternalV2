@@ -1,8 +1,68 @@
-<!-- src/app/accountmanagement/pro-subscriptions/pro-subscriptions.component.html -->
-
 <p-toast></p-toast>
+<p-toolbar class="mb-3">
+  <div class="p-toolbar-group-left w-full flex flex-wrap md:flex-nowrap md:align-items-center md:justify-content-between gap-3">
 
-<p-table [value]="subscriptions"
+    <!-- Search input -->
+    <span class="p-input-icon-left flex-grow min-w-0 md:w-1/3">
+      <i class="pi pi-search"></i>
+      <input pInputText
+             type="text"
+             (input)="onGlobalFilter(dtSubs, $event)"
+             placeholder="Search subscriptions..."
+             class="w-full"
+             style="border-radius: 2rem" />
+    </span>
+
+    <!-- Chip selector -->
+    <div class="flex-grow min-w-0 md:w-auto" style="min-width: 250px;">
+
+      <p-multiSelect [options]="subscriptionTypeOptions"
+                     [(ngModel)]="selectedSubscriptionTypes"
+                     defaultLabel="Filter by Subscription Type"
+                     display="chip"
+                     placeholder="Select types"
+                     (onChange)="applyFilter()"
+                     [style.width.%]="100"
+                     [style.min-width.px]="0">
+
+
+        <ng-template let-option pTemplate="item">
+          <span [ngClass]="getChipClass(option.value)" class="custom-chip">
+            {{ option.label }}
+          </span>
+        </ng-template>
+
+
+
+        <ng-template let-selectedOption pTemplate="selectedItem">
+          <span [ngClass]="getChipClass(selectedOption.value)" class="custom-chip">
+            {{ selectedOption.label }}
+          </span>
+        </ng-template>
+
+      </p-multiSelect>
+    </div>
+
+    <!-- Export buttons -->
+    <div class="flex flex-wrap gap-2 md:ml-auto flex-shrink-0">
+      <button pButton
+              icon="pi pi-file-excel"
+              label="Export Subscriptions Only"
+              class="p-button-sm p-button-secondary"
+              (click)="exportSubscriptionsOnly()"
+              [loading]="exporting"
+              [disabled]="exporting">
+      </button>
+    </div>
+
+  </div>
+</p-toolbar>
+
+
+
+<!-- Subscriptions Table -->
+<p-table #dtSubs
+         [value]="subscriptions"
          [loading]="loading"
          [paginator]="true"
          [rows]="50"
@@ -10,30 +70,69 @@
          [responsiveLayout]="'scroll'"
          [resizableColumns]="true"
          [scrollable]="true"
-         scrollHeight="500px">
+         scrollHeight="500px"
+         dataKey="accountNumber"
+         [globalFilterFields]="[
+  'company',
+  'accountNumber',
+  'firstName',
+  'lastName',
+  'phone',
+  'fax',
+  'street',
+  'city',
+  'state',
+  'zip',
+  'country',
+  'email',
+  'subscriptionName',
+  'quantity'
+]"
+
+         [filters]="{}"
+         [showCurrentPageReport]="true"
+         currentPageReportTemplate="Showing {first} to {last} of {totalRecords}">
 
   <ng-template pTemplate="header">
     <tr>
-      <th>Company</th>
-      <th>Account</th>
-      <th>First Name</th>
-      <th>Last Name</th>
-      <th>Phone</th>
-      <th>Fax</th>
-      <th>Street</th>
-      <th>City</th>
-      <th>State</th>
-      <th>Zip</th>
-      <th>Country</th>
-      <th>Email</th>
-      <th>Subscription</th>
-      <th>Quantity</th>
+      <th>Image</th>
+      <th pSortableColumn="company">Company <p-sortIcon field="company" /></th>
+      <th pSortableColumn="subscriptionName">Subscription <p-sortIcon field="subscriptionName" /></th>
+      <th pSortableColumn="accountNumber">Account <p-sortIcon field="accountNumber" /></th>
+      <th pSortableColumn="firstName">First Name <p-sortIcon field="firstName" /></th>
+      <th pSortableColumn="lastName">Last Name <p-sortIcon field="lastName" /></th>
+      <th pSortableColumn="phone">Phone <p-sortIcon field="phone" /></th>
+      <th pSortableColumn="fax">Fax <p-sortIcon field="fax" /></th>
+      <th pSortableColumn="street">Street <p-sortIcon field="street" /></th>
+      <th pSortableColumn="city">City <p-sortIcon field="city" /></th>
+      <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+      <th pSortableColumn="zip">Zip <p-sortIcon field="zip" /></th>
+      <th pSortableColumn="country">Country <p-sortIcon field="country" /></th>
+      <th pSortableColumn="email">Email <p-sortIcon field="email" /></th>
+
+      <th pSortableColumn="quantity">Quantity <p-sortIcon field="quantity" /></th>
     </tr>
   </ng-template>
 
   <ng-template pTemplate="body" let-sub>
     <tr>
+      <td>
+
+
+        <div class="avatar-container">
+          <img *ngIf="sub.imageUrl"
+               [src]="sub.imageUrl"
+               class="rounded-circle shadow-sm" />
+              <div *ngIf="!sub.imageUrl" class="placeholder-avatar">
+            <i class="pi pi-user"></i>
+          </div>
+        </div>
+
+      </td>
       <td>{{ sub.company }}</td>
+      <td>
+        <p-tag [value]="sub.subscriptionName" [styleClass]="getSubscriptionChipClass(sub.subscriptionName)"></p-tag>
+      </td>
       <td>{{ sub.accountNumber }}</td>
       <td>{{ sub.firstName }}</td>
       <td>{{ sub.lastName }}</td>
@@ -45,7 +144,7 @@
       <td>{{ sub.zip }}</td>
       <td>{{ sub.country }}</td>
       <td>{{ sub.email }}</td>
-      <td>{{ sub.subscriptionName }}</td>
+
       <td>{{ sub.quantity }}</td>
     </tr>
   </ng-template>

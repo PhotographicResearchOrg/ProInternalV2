@@ -18,6 +18,7 @@ using Microsoft.Data.SqlClient;
 using ProInternal;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using ProInternal.Models.Accounts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -114,6 +115,19 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/uploads"
 });
 
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(app.Environment.WebRootPath, "member-images")),
+    RequestPath = "/member-images"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(app.Environment.WebRootPath, "vendor-images")),
+    RequestPath = "/vendor-images"
+});
 
 if (!app.Environment.IsDevelopment())
 {

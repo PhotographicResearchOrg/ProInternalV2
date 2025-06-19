@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using ProInternal.Services;
 using ProInternal.Models.Dashboard;
 using Microsoft.AspNetCore.Cors;
+using Microsoft.Data.SqlClient;
 
 
 namespace ProInternal.Controllers
@@ -56,6 +57,62 @@ namespace ProInternal.Controllers
             var addresses = _prodataAccess.GetMemberShipping(accountId);
             return Ok(addresses);
         }
+
+
+
+        [HttpPost("vendors/{vendorId}/upload-image")]
+        public async Task<IActionResult> UploadVendorImage(int vendorId, [FromForm] IFormFile image)
+        {
+            if (image == null || image.Length == 0)
+                return BadRequest("Image is required");
+
+            var fileName = $"{vendorId}.jpg";
+            var folderPath = Path.Combine("wwwroot", "vendor-images");
+            var filePath = Path.Combine(folderPath, fileName);
+
+            Directory.CreateDirectory(folderPath);
+
+            using var stream = new FileStream(filePath, FileMode.Create);
+            await image.CopyToAsync(stream);
+
+            var imageUrl = $"/vendor-images/{fileName}";
+
+            _prodataAccess.UpdateVendorImage(vendorId, imageUrl); // Your DAL update method
+
+            return Ok(new { imageUrl });
+        }
+
+
+
+
+
+        [HttpPost("members/{accountNumber}/upload-image")]
+        public async Task<IActionResult> UploadMemberImage(string accountNumber, [FromForm] IFormFile image)
+        {
+            if (image == null || image.Length == 0)
+                return BadRequest("Image is required");
+
+            var fileName = $"{accountNumber}.jpg";
+            var folderPath = Path.Combine("wwwroot", "member-images");
+            var filePath = Path.Combine(folderPath, fileName);
+
+            Directory.CreateDirectory(folderPath);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await image.CopyToAsync(stream);
+            }
+
+            var imageUrl = $"/member-images/{fileName}";
+
+
+            _prodataAccess.UpdateMemberImage(accountNumber, imageUrl);
+
+            return Ok(new { imageUrl });
+        }
+
+
+
 
 
 

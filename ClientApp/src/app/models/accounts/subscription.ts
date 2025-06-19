@@ -15,4 +15,5 @@ export class SubscriptionRecord {
   email: string;
   subscriptionName: string;
   quantity: number;
+  imageUrl: string;
 }

@@ -36,6 +36,8 @@
     <Compile Remove="ClientApp\src\app\demo\components\auth\login2\**" />
     <Compile Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\**" />
     <Compile Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <Compile Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\affiliate-grid\**" />
+    <Compile Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\client-grid\**" />
     <Compile Remove="ClientApp\src\app\prointernalengine\components\notfound2\**" />
     <Content Remove="$(SpaRoot)**" />
     <Content Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
@@ -43,12 +45,16 @@
     <Content Remove="ClientApp\src\app\demo\components\auth\login2\**" />
     <Content Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\**" />
     <Content Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <Content Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\affiliate-grid\**" />
+    <Content Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\client-grid\**" />
     <Content Remove="ClientApp\src\app\prointernalengine\components\notfound2\**" />
     <EmbeddedResource Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
     <EmbeddedResource Remove="ClientApp\src\app\demo\components\auth\error2\**" />
     <EmbeddedResource Remove="ClientApp\src\app\demo\components\auth\login2\**" />
     <EmbeddedResource Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\**" />
     <EmbeddedResource Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <EmbeddedResource Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\affiliate-grid\**" />
+    <EmbeddedResource Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\client-grid\**" />
     <EmbeddedResource Remove="ClientApp\src\app\prointernalengine\components\notfound2\**" />
     <None Remove="$(SpaRoot)**" />
     <None Remove="ClientApp\src\app\demo\components\auth\accessdenied2\**" />
@@ -56,6 +62,8 @@
     <None Remove="ClientApp\src\app\demo\components\auth\login2\**" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\**" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\**" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\affiliate-grid\**" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\client-grid\**" />
     <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\**" />
     <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**" />
   </ItemGroup>
@@ -93,8 +101,10 @@
     <None Remove="ClientApp\src\app\demo\components\dashboards\e-commerce\dashboardecommerce.module.ts" />
     <None Remove="ClientApp\src\app\models\accounting\EzPaySummary.ts" />
     <None Remove="ClientApp\src\app\models\accounting\InvoiceRecord.ts" />
+    <None Remove="ClientApp\src\app\models\accounting\Outstanding.ts" />
     <None Remove="ClientApp\src\app\models\accounting\patronage.ts" />
     <None Remove="ClientApp\src\app\models\accounting\quarterly-rebates.ts" />
+    <None Remove="ClientApp\src\app\models\accounting\SendInvoicesRequest.ts" />
     <None Remove="ClientApp\src\app\models\ApiResponse.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\comments.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\DeclinedIR.ts" />
@@ -120,6 +130,14 @@
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\landing\dashboardlanding-routing.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\landing\dashboardlanding.module.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\affiliate-grid\affiliate-grid.component.html" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\affiliate-grid\affiliate-grid.component.scss" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\affiliate-grid\affiliate-grid.component.spec.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\affiliate-grid\affiliate-grid.component.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\client-grid\client-grid.component.html" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\client-grid\client-grid.component.scss" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\client-grid\client-grid.component.spec.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\client-grid\client-grid.component.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\notfound2-routing.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\notfound2.component.html" />
     <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\notfound2.component.ts" />
@@ -134,8 +152,10 @@
 
   <ItemGroup>
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\EzPaySummary.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\models\accounting\SendInvoicesRequest.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\patronage.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\InvoiceRecord.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\models\accounting\Outstanding.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\quarterly-rebates.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\comments.ts">
       <SubType>Code</SubType>

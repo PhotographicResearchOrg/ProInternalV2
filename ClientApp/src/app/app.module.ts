@@ -71,10 +71,14 @@ import { MemberGridComponent } from './prointernalengine/components/MemberManage
 import { ClientGridComponent } from './prointernalengine/components/MemberManagement/accountmanagement/client-grid/client-grid.component';
 import { AffiliateGridComponent } from './prointernalengine/components/MemberManagement/accountmanagement/affiliate-grid/affiliate-grid.component';
 
+import {  ReceivablesComponent } from './prointernalengine/components/dashboards/accounting/receivables/receivables.component';
+
+
 
 @NgModule({
   declarations:
     [
+     ReceivablesComponent,
     AffiliateGridComponent,
     ClientGridComponent,
     MemberGridComponent,

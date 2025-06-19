@@ -1,67 +1,215 @@
-<p-table [value]="members"
+<p-toast></p-toast>
+
+<p-toolbar class="mb-3" [style.max-width.%]="100" [style.overflow-x]="'hidden'">
+
+  <div class="p-toolbar-group-left w-full flex flex-col md:flex-row md:align-items-center md:justify-content-between gap-3" style="min-width: 0;">
+
+    <!-- Search input -->
+    <span class="p-input-icon-left w-full md:w-1/3 flex-grow min-w-0" style="min-width: 0;">
+      <i class="pi pi-search"></i>
+      <input pInputText
+             type="text"
+             (input)="onGlobalFilter(dtMembers, $event)"
+             placeholder="Search members..."
+             class="w-full"
+             style="border-radius: 2rem; min-width: 0;" />
+    </span>
+
+    <!-- Chips + Export buttons container -->
+    <div class="flex flex-wrap gap-2 w-full md:w-auto md:ml-auto"
+         style="min-width: 0; max-width: 100%; overflow: visible;">
+
+      <!-- Chip selector container -->
+      <div class="flex-grow flex-shrink" style="min-width: 250px; max-width: 100%;">
+        <p-multiSelect [options]="typeOptions"
+                       [(ngModel)]="selectedTypes"
+                       defaultLabel="Filter by type"
+                       display="chip"
+                       placeholder="Select types"
+                       (onChange)="applyFilter()"
+                       [style.width.%]="100">
+          <ng-template let-option pTemplate="item">
+            <span [ngClass]="getChipClass(option.value)" class="custom-chip">
+              {{ option.label }}
+            </span>
+          </ng-template>
+          <ng-template let-selectedOption pTemplate="selectedItem">
+            <span [ngClass]="getChipClass(selectedOption.value)" class="custom-chip">
+              {{ selectedOption.label }}
+            </span>
+          </ng-template>
+        </p-multiSelect>
+      </div>
+
+      <!-- Export buttons container -->
+      <div class="flex gap-2 flex-shrink-0" style="min-width: 0;">
+        <button pButton
+                icon="pi pi-file-excel"
+                label="Export Members Only"
+                class="p-button-sm p-button-secondary"
+                (click)="exportMembersOnly()"
+                style="white-space: nowrap;"></button>
+        <button pButton
+                icon="pi pi-download"
+                label="Export Members + Addresses"
+                class="p-button-sm p-button-success"
+                [loading]="exporting"
+                [disabled]="exporting"
+                (click)="exportAllWithAddresses()">
+        </button>
+      </div>
+
+    </div>
+  </div>
+</p-toolbar>
+
+
+
+
+
+
+
+<p-table #dtMembers
+         [value]="members"
          [loading]="loading"
          [paginator]="true"
-         [rows]="50"
+         [rows]="150"
+         [rowsPerPageOptions]="[200, 300, 500]"
          [expandedRowKeys]="expandedRows"
          (onRowExpand)="onRowExpand($event.data)"
-         dataKey="accountNumber"
-         [rowsPerPageOptions]="[50, 100, 500]"
-         [responsiveLayout]="'scroll'"
-         [resizableColumns]="true"
+         (onRowCollapse)="onRowCollapse($event.data)"
+         [globalFilterFields]="['dba', 'legalName', 'accountNumber', 'street', 'city', 'state','zip', 'phone', 'fax', 'email', 'website', 'firstName', 'lastName']"
+         [filters]="{}"
          [scrollable]="true"
-         scrollHeight="500px">
+         scrollHeight="500px"
+         dataKey="accountNumber"
+         [resizableColumns]="true"
+         [responsiveLayout]="'scroll'"
+         [showCurrentPageReport]="true"
+         currentPageReportTemplate="Showing {first} to {last} of {totalRecords}">
 
   <ng-template pTemplate="header">
     <tr>
       <th style="width: 3rem"></th> <!-- Expander column -->
-      <th>DBA</th>
-      <th>Legal Name</th>
-      <!-- ... -->
+      <th>Image</th>
+      <th pSortableColumn="type">Type <p-sortIcon field="type"></p-sortIcon></th>
+      <th pSortableColumn="dba">DBA <p-sortIcon field="dba" /></th>
+      <th pSortableColumn="legalName">Legal Name <p-sortIcon field="legalName" /></th>
+      <th pSortableColumn="accountNumber">Account <p-sortIcon field="accountNumber" /></th>
+      <th pSortableColumn="street">Street <p-sortIcon field="street" /></th>
+      <th pSortableColumn="city">City <p-sortIcon field="city" /></th>
+      <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+      <th pSortableColumn="zip">Zip <p-sortIcon field="zip" /></th>
+      <th pSortableColumn="phone">Phone <p-sortIcon field="phone" /></th>
+      <th pSortableColumn="fax">Fax <p-sortIcon field="fax" /></th>
+      <th pSortableColumn="email">Email <p-sortIcon field="email" /></th>
+      <th pSortableColumn="website">Website <p-sortIcon field="website" /></th>
+      <th pSortableColumn="firstName">First Name <p-sortIcon field="firstName" /></th>
+      <th pSortableColumn="lastName">Last Name <p-sortIcon field="lastName" /></th>
+      <!-- Add more sortable/filterable columns as needed -->
     </tr>
   </ng-template>
+
 
   <ng-template pTemplate="body" let-member>
     <tr>
       <td>
-        <button type="button"
-                pRowToggler
-                class="p-button-text p-button-sm pi pi-chevron-down"
-                [pRowToggler]="member">
-        </button>
+        <span [pRowToggler]="member"
+              class="row-toggle-icon"
+              style="cursor: pointer;">
+          <i class="pi"
+             [ngClass]="expandedRows[member.accountNumber] ? 'pi-angle-double-down' : 'pi-angle-double-right'">
+          </i>
+        </span>
 
       </td>
+
+      <td>
+        <div class="avatar-container">
+          <div (drop)="onImageDrop($event, member)"
+               (dragover)="onDragOver($event)"
+               pTooltip="Drag and drop to update or upload image"
+               tooltipPosition="top">
+
+            <img *ngIf="member.imageUrl && uploadingAccount !== member.accountNumber"
+                 [src]="member.imageUrl"
+                 class="rounded-circle shadow-sm" />
+
+            <div *ngIf="uploadingAccount === member.accountNumber" class="upload-spinner">
+              <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem; color: #007ad9;"></i>
+            </div>
+
+            <div *ngIf="!member.imageUrl && uploadingAccount !== member.accountNumber" class="placeholder-avatar">
+              <i class="pi pi-image"></i>
+            </div>
+
+          </div>
+          </div>
+
+      </td>
+
+      <td>
+        <p-tag [value]="member.type" [styleClass]="member.type?.toLowerCase()"></p-tag>
+      </td>
+
+
       <td>{{ member.dba }}</td>
       <td>{{ member.legalName }}</td>
-      <!-- ... -->
+      <td>{{ member.accountNumber }}</td>
+      <td>{{ member.street }}</td>
+      <td>{{ member.city }}</td>
+      <td>{{ member.state }}</td>
+      <td>{{ member.zip }}</td>
+      <td>{{ member.phone }}</td>
+      <td>{{ member.fax }}</td>
+      <td>{{ member.email }}</td>
+      <td>{{ member.website }}</td>
+      <td>{{ member.firstName }}</td>
+      <td>{{ member.lastName }}</td>
     </tr>
   </ng-template>
 
+
   <ng-template pTemplate="rowexpansion" let-member>
-    <div class="p-3">
-      <h5>Shipping Addresses for {{ member.legalName }}</h5>
-      <p-table [value]="rowExpansionCache[member.accountNumber]" [responsiveLayout]="'scroll'">
-        <ng-template pTemplate="header">
-          <tr>
-            <th>Type</th>
-            <th>Street</th>
-            <th>City</th>
-            <th>State</th>
-            <th>Zip</th>
-            <th>Country</th>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-addr>
-          <tr>
-            <td>{{ addr.addressType }}</td>
-            <td>{{ addr.street }}</td>
-            <td>{{ addr.city }}</td>
-            <td>{{ addr.state }}</td>
-            <td>{{ addr.zip }}</td>
-            <td>{{ addr.country }}</td>
-          </tr>
-        </ng-template>
-      </p-table>
-    </div>
+    <tr>
+      <td [attr.colspan]="15">
+        <div class="p-3 border-1 border-round surface-0 shadow-1">
+          <h5 class="text-900 font-semibold mb-3 flex align-items-center">
+            <i class="pi pi-truck text-primary mr-2"></i>
+            Shipping Addresses for {{ member.dba }}
+          </h5>
+
+          <p-table [value]="rowExpansionCache[member.accountNumber]"
+                   [responsiveLayout]="'scroll'"
+                   class="p-datatable-sm p-datatable-striped p-datatable-gridlines"
+                   styleClass="shipping-subtable">
+            <ng-template pTemplate="header">
+              <tr>
+                <th><i class="pi pi-tag mr-1"></i>Type</th>
+                <th><i class="pi pi-map-marker mr-1"></i>Street</th>
+                <th><i class="pi pi-building mr-1"></i>City</th>
+                <th><i class="pi pi-flag mr-1"></i>State</th>
+                <th><i class="pi pi-inbox mr-1"></i>Zip</th>
+                <th><i class="pi pi-globe mr-1"></i>Country</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-addr>
+              <tr>
+                <td>{{ addr.addressType }}</td>
+                <td>{{ addr.street }}</td>
+                <td>{{ addr.city }}</td>
+                <td>{{ addr.state }}</td>
+                <td>{{ addr.zip }}</td>
+                <td>{{ addr.country }}</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </td>
+    </tr>
   </ng-template>
+
+
+
 
 </p-table>

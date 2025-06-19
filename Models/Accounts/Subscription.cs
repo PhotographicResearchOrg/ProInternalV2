@@ -17,7 +17,9 @@
             public string Email { get; set; }
             public string SubscriptionName { get; set; }
             public int Quantity { get; set; }
-        }
+           public string ImageUrl { get; set; }
+        
+    }
 
 
     }

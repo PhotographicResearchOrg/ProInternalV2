@@ -2,7 +2,64 @@
 
 <p-toast></p-toast>
 
-<p-table [value]="vendors"
+<p-toolbar class="mb-3">
+  <div class="p-toolbar-group-left w-full flex flex-wrap md:flex-nowrap md:align-items-center md:justify-content-between gap-3">
+
+    <!-- Search input -->
+    <span class="p-input-icon-left flex-grow min-w-0 md:w-1/3">
+      <i class="pi pi-search"></i>
+      <input pInputText
+             type="text"
+             (input)="onGlobalFilter(dtVendors, $event)"
+             placeholder="Search vendors..."
+             class="w-full"
+             style="border-radius: 2rem" />
+    </span>
+
+    <!-- Visibility chips -->
+    <div class="flex-grow min-w-0 md:w-auto" style="min-width: 250px;">
+
+      <p-multiSelect [options]="visibilityOptions"
+                     [(ngModel)]="selectedVisibility"
+                     defaultLabel="Filter by visibility"
+                     display="chip"
+                     placeholder="Select visibility"
+                     (onChange)="applyFilter()"
+                     [style.width.%]="100"
+                     [style.min-width.px]="0">
+
+        <ng-template let-option pTemplate="item">
+          <span [ngClass]="getVisibilityChipClass(option.value)" class="custom-chip">
+            {{ option.label }}
+          </span>
+        </ng-template>
+        <ng-template let-selectedOption pTemplate="selectedItem">
+          <span [ngClass]="getVisibilityChipClass(selectedOption.value)" class="custom-chip">
+            {{ selectedOption.label }}
+          </span>
+        </ng-template>
+      </p-multiSelect>
+    </div>
+
+
+    <!-- Export buttons -->
+    <div class="flex flex-wrap gap-2 md:ml-auto flex-shrink-0">
+      <button pButton
+              icon="pi pi-file-excel"
+              label="Export Vendors"
+              class="p-button-sm p-button-secondary"
+              (click)="exportVendors()"
+              [loading]="exporting"
+              [disabled]="exporting">
+      </button>
+    </div>
+
+  </div>
+</p-toolbar>
+
+
+<p-table #dtVendors
+         [value]="vendors"
          [loading]="loading"
          [paginator]="true"
          [rows]="50"
@@ -10,30 +67,60 @@
          [responsiveLayout]="'scroll'"
          [resizableColumns]="true"
          [scrollable]="true"
-         scrollHeight="500px">
+         scrollHeight="500px"
+         dataKey="id"
+         [globalFilterFields]="['name', 'street', 'cityState', 'zip', 'phone', 'shortName', 'onWeb']"
+         [filters]="{}"
+         [showCurrentPageReport]="true"
+         currentPageReportTemplate="Showing {first} to {last} of {totalRecords}">
 
   <ng-template pTemplate="header">
     <tr>
-      <th>Name</th>
-      <th>Street</th>
-      <th>City | State</th>
-      <th>Zip</th>
-      <th>Phone</th>
-      <th>Short Name</th>
-      <th>On Web</th>
+      <th>Image</th>
+      <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
+      <th pSortableColumn="street">Street <p-sortIcon field="street"></p-sortIcon></th>
+      <th pSortableColumn="cityState">City | State <p-sortIcon field="cityState"></p-sortIcon></th>
+      <th pSortableColumn="zip">Zip <p-sortIcon field="zip"></p-sortIcon></th>
+      <th pSortableColumn="phone">Phone <p-sortIcon field="phone"></p-sortIcon></th>
+      <th pSortableColumn="shortName">Short Name <p-sortIcon field="shortName"></p-sortIcon></th>
+      <th pSortableColumn="onWeb">On Web <p-sortIcon field="onWeb"></p-sortIcon></th>
       <th>Actions</th>
     </tr>
   </ng-template>
 
   <ng-template pTemplate="body" let-vendor>
     <tr>
+      <td>
+        <div class="avatar-container">
+          <div
+               (drop)="onImageDrop($event, vendor)"
+               (dragover)="onDragOver($event)"
+               pTooltip="Drag and drop to update or upload image"
+               tooltipPosition="top">
+            <img *ngIf="vendor.imageUrl && uploadingVendor !== vendor.id"
+                 [src]="vendor.imageUrl"
+                 class="rounded-circle shadow-sm" />
+
+            <div *ngIf="uploadingVendor === vendor.id" class="upload-spinner">
+              <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem; color: #007ad9;"></i>
+            </div>
+
+            <div *ngIf="!vendor.imageUrl && uploadingVendor !== vendor.id" class="placeholder-avatar">
+              <i class="pi pi-image"></i>
+            </div>
+          </div>
+          </div>
+      </td>
+
       <td>{{ vendor.name }}</td>
       <td>{{ vendor.street }}</td>
       <td>{{ vendor.cityState }}</td>
       <td>{{ vendor.zip }}</td>
       <td>{{ vendor.phone }}</td>
       <td>{{ vendor.shortName }}</td>
-      <td>{{ vendor.onWeb }}</td>
+      <td>
+        <p-tag [value]="vendor.onWeb" [styleClass]="vendor.onWeb === 'Yes' ? 'chip-members' : 'chip-clients'"></p-tag>
+      </td>
       <td>
         <button pButton label="Toggle" icon="pi pi-refresh"
                 class="p-button-sm"
@@ -42,5 +129,5 @@
       </td>
     </tr>
   </ng-template>
-
 </p-table>
+

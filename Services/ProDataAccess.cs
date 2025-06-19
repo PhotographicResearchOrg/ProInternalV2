@@ -27,6 +27,8 @@ using ProInternal.Models.InvoiceRecord;
 using ProInternal.Models.Patronage;
 using System.Reflection.PortableExecutable;
 using ProInternal.Models;
+using System.Reflection;
+using ProInternal.Models.Outstanding;
 
 
 namespace ProInternal.Services
@@ -91,40 +93,35 @@ namespace ProInternal.Services
         }
 
 
+
         public IEnumerable<Subscription> GetSubscriptions()
         {
             using var connection = new SqlConnection(_connectionString);
-            using var command = new SqlCommand("PIV2GetSubscriptions", connection)
+            connection.Open();
+
+            var subscriptions = connection.Query<Subscription>(
+            "PIV2GetSubscriptions",     
+            commandType: CommandType.StoredProcedure
+        ).ToList();
+
+        return subscriptions;
+        }
+
+
+
+        public void UpdateMemberImage(string accountNumber, string imageUrl)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            using var command = new SqlCommand("PIV2UpdateMemberImage", connection)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
+            command.Parameters.AddWithValue("@AccountNumber", accountNumber);
+            command.Parameters.AddWithValue("@ImageUrl", imageUrl);
+
             connection.Open();
-            var list = new List<Subscription>();
-
-            using var reader = command.ExecuteReader();
-            while (reader.Read())
-            {
-                list.Add(new Subscription
-                {
-                    Company = reader["Company"]?.ToString(),
-                    AccountNumber = reader["AccountNumber"]?.ToString(),
-                    FirstName = reader["FirstName"]?.ToString(),
-                    LastName = reader["LastName"]?.ToString(),
-                    Phone = reader["Phone"]?.ToString(),
-                    Fax = reader["Fax"]?.ToString(),
-                    Street = reader["Street"]?.ToString(),
-                    City = reader["City"]?.ToString(),
-                    State = reader["State"]?.ToString(),
-                    Zip = reader["Zip"]?.ToString(),
-                    Country = reader["Country"]?.ToString(),
-                    Email = reader["Email"]?.ToString(),
-                    SubscriptionName = reader["SubscriptionName"]?.ToString(),
-                    Quantity = Convert.ToInt32(reader["Quantity"] ?? 0)
-                });
-            }
-
-            return list;
+            command.ExecuteNonQuery();
         }
 
 
@@ -132,37 +129,13 @@ namespace ProInternal.Services
         public IEnumerable<Member> GetMembers(int memberTypeId)
         {
             using var connection = new SqlConnection(_connectionString);
-            using var command = new SqlCommand("PIV2GetMembers", connection)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            command.Parameters.AddWithValue("@MemberType", memberTypeId);
-
             connection.Open();
-            var members = new List<Member>();
-            using var reader = command.ExecuteReader();
 
-            while (reader.Read())
-            {
-                members.Add(new Member
-                {
-                    Dba = reader["DBA"]?.ToString(),
-                    LegalName = reader["Company"]?.ToString(),
-                    AccountNumber = reader["AccountNumber"]?.ToString(),
-                    Phone = reader["Phone"]?.ToString(),
-                    Fax = reader["Fax"]?.ToString(),
-                    Email = reader["Email"]?.ToString(),
-                    Website = reader["Website"]?.ToString(),
-                    FirstName = reader["FirstName"]?.ToString(),
-                    LastName = reader["LastName"]?.ToString(),
-                    Street = reader["Street"]?.ToString(),
-                    City = reader["City"]?.ToString(),
-                    State = reader["State"]?.ToString(),
-                    Zip = reader["Zip"]?.ToString(),
-                    Country = reader["Country"]?.ToString()
-                });
-            }
+            var members = connection.Query<Member>(
+                "PIV2GetMembers",
+                new { MemberType = memberTypeId },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
 
             return members;
         }
@@ -170,37 +143,91 @@ namespace ProInternal.Services
 
 
 
+
         public IEnumerable<Vendor> GetVendors()
         {
-            using (var connection = new SqlConnection(_connectionString))
-            using (var command = new SqlCommand("PIV2GetVendors", connection))
+            using var connection = new SqlConnection(_connectionString);
+            connection.Open();
+
+            var vendors = connection.Query<Vendor>(
+                "PIV2GetVendors",
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+
+            // Map 'OnWeb' from int to "Yes"/"No" after retrieval
+            foreach (var vendor in vendors)
             {
-                command.CommandType = CommandType.StoredProcedure;
-                connection.Open();
-
-                using (var reader = command.ExecuteReader())
-                {
-                    var vendors = new List<Vendor>();
-
-                    while (reader.Read())
-                    {
-                        vendors.Add(new Vendor
-                        {
-                            Id = (int)reader["Id"],
-                            Name = reader["NAME"].ToString(),
-                            Street = reader["STREET"].ToString(),
-                            CityState = reader["CITY_ST"].ToString(),
-                            Zip = reader["ZIP"].ToString(),
-                            Phone = reader["PHONE"].ToString(),
-                            ShortName = reader["SH_NAME"].ToString(),
-                            OnWeb = ((int)reader["OnWeb"] == 1) ? "Yes" : "No"
-                        });
-                    }
-
-                    return vendors;
-                }
+                // Assuming Vendor.OnWeb is a string property, convert it here
+                vendor.OnWeb = (vendor.OnWeb == "1" || vendor.OnWeb == "True") ? "Yes" : "No";
             }
+
+            return vendors;
         }
+
+
+        public async Task<IEnumerable<OutstandingAccount>> GetAccountsWithOutstanding()
+        {
+            using var connection = new SqlConnection(_connectionString);
+            // Stored procedure returns all accounts with gross outstanding
+            var accounts = await connection.QueryAsync<OutstandingAccount>(
+                "PIV2_GetAccountsWithOutstanding",
+                commandType: CommandType.StoredProcedure);
+            return accounts;
+        }
+
+        public async Task<IEnumerable<OutstandingInvoice>> GetInvoicesByAccount(string accountNumber)
+        {
+            using var connection = new SqlConnection(_connectionString);
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@AccountNumber", accountNumber);
+
+            var invoices = await connection.QueryAsync<OutstandingInvoice>(
+                "PIV2_GetInvoicesByAccount",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+
+            return invoices;
+        }
+
+
+        public async Task<bool> SendInvoicesToMemberEmail(string accountNumber, string email)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            var parameters = new DynamicParameters();
+            parameters.Add("@AccountNumber", accountNumber);
+            parameters.Add("@Email", email);
+            parameters.Add("@ReturnVal", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
+
+            await connection.ExecuteAsync(
+                "PIV2SendInvoicesToMemberEmail",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+
+            var result = parameters.Get<int>("@ReturnVal");
+            return result == 1;
+        }
+
+
+        
+
+
+        public void UpdateVendorImage(int vendorId, string imageUrl)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            using var command = new SqlCommand("dbo.PIV2UpdateVendorImage", connection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            command.Parameters.AddWithValue("@VendorId", vendorId);
+            command.Parameters.AddWithValue("@ImageUrl", imageUrl ?? (object)DBNull.Value);
+
+            connection.Open();
+            command.ExecuteNonQuery();
+        }
+
+
 
         public List<UserWithRoles> GetUsersWithRoles()
         {

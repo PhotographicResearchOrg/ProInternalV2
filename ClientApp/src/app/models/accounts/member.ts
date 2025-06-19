@@ -14,6 +14,8 @@ export class Member {
   website: string;
   firstName: string;
   lastName: string;
+  imageUrl: string;
+  type?: string; // Add this line
 }
 
 

@@ -18,6 +18,9 @@ using ProInternal.Models.Dashboard;
 using ProInternal.Models.InvoiceRecord;
 using ProInternal.Models.Patronage;
 using ProInternal.Models.EzPaySummary;
+using ProInternal.Models.Accounts;
+using ProInternal.Models.Outstanding;
+using ProInternal.Models.SendInvoicesRequest;
 
 
 namespace ProInternal.Controllers
@@ -37,6 +40,39 @@ namespace ProInternal.Controllers
             _dradataAccess = DRADataAccess;
             _edadataAccess = edadataAccess;
 
+        }
+
+
+        [HttpGet("accounts")]
+        public async Task<ActionResult<IEnumerable<OutstandingAccount>>> GetAccounts()
+        {
+            var accounts = await _proDataAccess.GetAccountsWithOutstanding();
+            return Ok(accounts);
+        }
+
+        [HttpGet("accounts/{accountNumber}/invoices")]
+        public async Task<ActionResult<IEnumerable<OutstandingInvoice>>> GetInvoices(string accountNumber)
+        {
+            var invoices = await _proDataAccess.GetInvoicesByAccount(accountNumber);
+            return Ok(invoices);
+        }
+
+
+        [HttpPost("send-invoices")]
+        public async Task<IActionResult> SendInvoices([FromBody] SendInvoicesRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.AccountNumber))
+                return BadRequest("Account number is required.");
+
+            if (string.IsNullOrWhiteSpace(request.Email))
+                return BadRequest("Email address is required.");
+
+            bool success = await _proDataAccess.SendInvoicesToMemberEmail(request.AccountNumber, request.Email);
+
+            if (success)
+                return Ok();
+            else
+                return StatusCode(500, "Failed to send invoices.");
         }
 
 

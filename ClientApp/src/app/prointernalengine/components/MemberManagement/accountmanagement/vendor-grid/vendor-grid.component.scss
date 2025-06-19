@@ -1,0 +1,102 @@
+/* --- Chip Colors --- */
+.chip-members {
+  background-color: #2196f3 !important; /* Blue */
+  color: white !important;
+}
+
+.chip-clients {
+  background-color: #4caf50 !important; /* Green */
+  color: white !important;
+}
+
+.avatar-container {
+  width: 48px; // fixed size container
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px dashed #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.avatar-container img {
+  width: 48px; // force exact size to match container
+  height: 48px;
+  object-fit: cover; // crop & center image nicely
+  border-radius: 50%;
+  display: block; // remove inline spacing
+  vertical-align: middle;
+  max-width: 48px;
+  max-height: 48px;
+}
+
+
+.placeholder-avatar i {
+  font-size: 1.5rem;
+  color: #999;
+  user-select: none;
+}
+
+.upload-spinner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3rem; /* same as container */
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  pointer-events: none;
+  user-select: none;
+}
+
+:host ::ng-deep .p-multiselect-token.chip-members {
+  background-color: #2196f3 !important;
+  color: white !important;
+}
+
+:host ::ng-deep .p-multiselect-token.chip-clients {
+  background-color: #4caf50 !important;
+  color: white !important;
+}
+/* --- PrimeNG MultiSelect Token Styling --- */
+:host ::ng-deep .p-multiselect-token {
+  font-size: 0.75rem !important;
+  padding: 0.15rem 0.5rem !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  margin-right: 0.3rem !important;
+  color: white !important;
+  display: inline-block !important;
+}
+
+/* Colored tokens based on class */
+:host ::ng-deep .p-multiselect-token.chip-members {
+  background-color: #2196f3 !important;
+}
+
+:host ::ng-deep .p-multiselect-token.chip-clients {
+  background-color: #4caf50 !important;
+}
+
+/* --- Custom Chip for Templates --- */
+.custom-chip {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+  display: inline-block;
+  margin-right: 0.3rem;
+}

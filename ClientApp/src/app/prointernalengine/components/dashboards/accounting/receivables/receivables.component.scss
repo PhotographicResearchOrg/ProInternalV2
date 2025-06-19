@@ -1,0 +1,68 @@
+.summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.card {
+  background-color: var(--surface-card, white);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.card-clickable {
+  cursor: pointer;
+}
+
+.card-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-label {
+  font-weight: 600;
+  color: var(--text-color-secondary, #555);
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+}
+
+.card-value {
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+.net-credit {
+  color: #d9534f; /* bootstrap danger red */
+}
+
+.total-open {
+  color: #0275d8; /* bootstrap primary blue */
+}
+
+.bucket-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  padding: 0.1rem 0;
+}
+
+.bar-container {
+  background-color: #e9ecef;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.bar-fill {
+  background-color: #0275d8;
+  height: 6px;
+  transition: width 0.5s ease;
+}

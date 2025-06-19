@@ -10,7 +10,8 @@
         public string Phone { get; set; }
         public string ShortName { get; set; }
         public string OnWeb { get; set; }  // "Yes"/"No"
-
+        public string ImageUrl { get; set; }  // "Yes"/"No"
+        
     }
 
 }

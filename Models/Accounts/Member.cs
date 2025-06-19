@@ -2,6 +2,7 @@
 {
     public class Member
     {
+        public string ImageUrl { get; set; }
         public string Dba { get; set; }
         public string LegalName { get; set; }
         public string AccountNumber { get; set; }

@@ -21,6 +21,7 @@ using ProInternal.Models.InstantRebates;
 using ProInternal.Models;
 using static ProInternal.Controllers.AuthController;
 using Azure.Core;
+using ProInternal.Models.Outstanding;
 
 namespace ProInternal.Services
 {
@@ -45,17 +46,25 @@ namespace ProInternal.Services
         void RenameRole(string oldName, string newName);
         void DeleteRole(string roleName);
 
+        Task<bool> SendInvoicesToMemberEmail(string accountNumber, string email);
 
+        void UpdateVendorImage(int vendorId, string imageUrl);
 
         List<PermissionDto> GetAllPermissions();  
         List<UserWithRoles> GetUsersWithRoles();
         List<RoleDto> GetAllRoles();
 
+        void UpdateMemberImage(string accountNumber, string imageUrl);
         void AssignRoleToUser(int userId, string roleName);
         void RemoveRoleFromUser(int userId, string roleName);
 
         List<UserWithRoles> GetUserRoles(int userId);
         void ReplaceUserRoles(int userId, List<string> roles);
+
+
+        Task<IEnumerable<OutstandingAccount>> GetAccountsWithOutstanding();
+
+        Task<IEnumerable<OutstandingInvoice>> GetInvoicesByAccount(string accountNumber);
 
 
         void EnableUser(int userId);

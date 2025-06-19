@@ -30,7 +30,10 @@ export class AppMenuComponent implements OnInit {
               can('/qtr-rebates') && { label: 'Quarterly Rebates', icon: 'pi pi-fw pi-times-circle', routerLink: ['/qtr-rebates'] },
               can('/forecast') && { label: 'Forecasting', icon: 'pi pi-chart-line', routerLink: ['/forecast'] },
               can('/patronage') && { label: 'Patronage', icon: 'pi pi-file', routerLink: ['/patronage'] },
-              can('/payments') && { label: 'Payments', icon: 'pi pi-briefcase', routerLink: ['/payments'] }
+              can('/payments') && { label: 'Payments', icon: 'pi pi-briefcase', routerLink: ['/payments'] },
+              can('/receivables') && { label: 'Receivables', icon: 'pi-list', routerLink: ['/receivables'] }
+              
+
             ]
           },
           can('/BRMdash') && {

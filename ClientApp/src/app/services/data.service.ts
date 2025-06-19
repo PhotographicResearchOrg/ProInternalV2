@@ -38,10 +38,11 @@ import { panaAccount, panaRep } from 'src/app/models/vendor/panasonicreporting';
 import { EzPaySummary, EzPayDetail  } from 'src/app/models/accounting/EzPaySummary';
 import { Notification } from 'src/app/models/notifications';
 import { ProUser } from 'src/app/models/pro-user';
-
+import { OutstandingAccount, OutstandingInvoice } from 'src/app/models/accounting/Outstanding'; 
 import { Vendor } from '../models/accounts/vendor';
 import { Member, MemberAddress  } from '../models/accounts/member';
 import { SubscriptionRecord } from '../models/accounts/subscription';
+import { SendInvoicesRequest } from 'src/app/models/accounting/SendInvoicesRequest';
 
 
 @Injectable()
@@ -72,6 +73,22 @@ export class DataService {
     return this.api.get<MemberAddress[]>(`API/Listings/members/${accountNumber}/shipping`);
   }
 
+
+
+
+
+  uploadMemberImage(accountNumber: string, file: File): Observable<any> {
+    const formData = new FormData();
+    formData.append('image', file);
+    return this.api.postBlob(`API/Listings/members/${accountNumber}/upload-image`, formData);
+  }
+
+
+  uploadVendorImage(vendorId: number, file: File): Observable<any> {
+    const formData = new FormData();
+    formData.append('image', file);
+    return this.api.postBlob(`API/Listings/vendors/${vendorId}/upload-image`, formData);
+  }
 
 
   //  Load users with their roles for admin UI
@@ -209,6 +226,15 @@ export class DataService {
 
 
 
+  getAccountsWithOutstanding(): Observable<OutstandingAccount[]> {
+    return this.api.get<OutstandingAccount[]>(`API/Accounting/accounts`);
+  }
+
+  getInvoicesByAccount(accountNumber: string): Observable<OutstandingInvoice[]> {
+    return this.api.get<OutstandingInvoice[]>(`API/Accounting/accounts/${accountNumber}/invoices`);
+  }
+
+
 
 
 
@@ -230,6 +256,9 @@ export class DataService {
   }
 
 
+
+
+
   getAllAccounts(): Observable<panaAccount[]> {
     return this.api.get<panaAccount[]>('API/Vendor/panaaccounts');
   }
@@ -239,6 +268,17 @@ export class DataService {
 
     return this.api.post<panaRep>('API/Vendor/savepanarep', rep);
   }
+
+
+  sendAllInvoicesToMemberEmail(data: SendInvoicesRequest): Observable<any> {
+    const body = {
+      AccountNumber: data.AccountNumber.toString(),  // ensure string
+      Email: data.Email.toString()
+    };
+    return this.api.post('API/Accounting/send-invoices', body);
+
+  }
+
   saveAccount(account: panaAccount): Observable<panaAccount> {
     return this.api.post<panaAccount>('API/Vendor/savepanaaccount', account);
   }

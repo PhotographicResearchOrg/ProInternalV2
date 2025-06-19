@@ -26,7 +26,7 @@ import { HubspotCompanyComponent } from './prointernalengine/components/MemberMa
 import { DashboardBrmComponent } from './prointernalengine/components//dashboards/BRM/dashboard-brm/dashboard-brm.component';
 import { SecurityAdminComponent } from 'src/app/admin/security/security-admin/security-admin.component';
 import { AccountManagementComponent } from './prointernalengine/components/MemberManagement/accountmanagement/accountmanagement.component';
-//import { ProductOverviewComponent } from './prointernalengine/components/ecommerce/productoverview/productoverview.component';
+import { ReceivablesComponent } from './prointernalengine/components/dashboards/accounting/receivables/receivables.component';
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -63,7 +63,8 @@ const routes: Routes = [
       { path: 'exclusions/group', component: ExclusionGroupsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Exclusion Groups' } },
       { path: 'exclusion/group/company', component: ExclusionGroupCompanyComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Company Exclusion Groups' } },
       { path: 'accountmanagement', component: AccountManagementComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Account Management' } },
-
+      { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
+      
       
 
       {

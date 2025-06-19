@@ -10,5 +10,6 @@ export class Vendor {
   phone: string;
   shortName: string;
   onWeb: 'Yes' | 'No';
+  imageUrl: string;
 }
 
