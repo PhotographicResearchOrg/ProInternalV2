@@ -13,6 +13,7 @@ import { forkJoin } from 'rxjs';
 @Component({
   selector: 'app-member-grid',
   templateUrl: './member-grid.component.html',
+  styleUrls: ['./member-grid.component.scss'],  // <-- add this
   providers: [MessageService]
 })
 export class MemberGridComponent implements OnInit {

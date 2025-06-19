@@ -1,87 +1,86 @@
-
+/* --- Chip Colors --- */
+.chip-members {
+  background-color: #2196f3 !important; /* Blue */
+  color: white !important;
+}
+.chip-clients {
+  background-color: #4caf50 !important; /* Green */
+  color: white !important;
+}
 .avatar-container {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 115px;
+  height: 55px;
   overflow: hidden;
   border: 2px dashed #ccc;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: #f9f9f9;
-  cursor: pointer;
-  position: relative;
-  flex-shrink: 0;
-}
-
-.avatar-container img {
-  width: 48px;
-  height: 48px;
-  object-fit: cover;
-  border-radius: 50%;
-  display: block;
-  vertical-align: middle;
-  max-width: 48px;
-  max-height: 48px;
-}
-
-
-.placeholder-avatar i {
-  font-size: 1.5rem;
-  color: #999;
-  user-select: none;
-}
-
-
-.upload-spinner {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 3rem; /* same as container */
-  height: 3rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 50%;
-  pointer-events: none;
-  user-select: none;
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; // or 'cover' if you prefer cropping
+  }
+  .upload-spinner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    pointer-events: none;
+    user-select: none;
+  }
 }
 
 
-.placeholder-avatar i {
-  font-size: 1.5rem;
-  color: #999;
-}
-/* --- Type Chip Styling for Table (p-tag) --- */
+
+
+
+
 .type-chip {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
+  padding: .25rem .75rem;
   border-radius: 12px;
-  font-size: 0.75rem;
+  font-size: .75rem;
   font-weight: 600;
   color: white;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: .05em;
   user-select: none;
 }
 
-.p-tag.members {
-  background-color: #2196f3 !important; /* Blue */
-  color: white !important;
+.p-tag {
+  &.members {
+    background-color: #2196f3 !important;
+  }
+
+  &.clients {
+    background-color: #4caf50 !important;
+  }
+
+  &.affiliates {
+    background-color: #ff9800 !important;
+  }
 }
 
-.p-tag.clients {
-  background-color: #4caf50 !important; /* Green */
-  color: white !important;
+
+/* Colored tokens based on class */
+:host ::ng-deep .p-multiselect-token.chip-members {
+  background-color: #2196f3 !important;
 }
 
-.p-tag.affiliates {
-  background-color: #ff9800 !important; /* Orange */
-  color: white !important;
+:host ::ng-deep .p-multiselect-token.chip-clients {
+  background-color: #4caf50 !important;
 }
 
-/* --- MultiSelect Chips Styling (Pierce View Encapsulation) --- */
+
+
+/* --- PrimeNG MultiSelect Token Styling --- */
 :host ::ng-deep .p-multiselect-token {
   font-size: 0.75rem !important;
   padding: 0.15rem 0.5rem !important;
@@ -94,92 +93,69 @@
   display: inline-block !important;
 }
 
-:host ::ng-deep .p-multiselect-token.members {
+
+/* Colored tokens based on class */
+:host ::ng-deep .p-multiselect-token.chip-members {
   background-color: #2196f3 !important;
 }
 
-:host ::ng-deep .p-multiselect-token.clients {
+:host ::ng-deep .p-multiselect-token.chip-clients {
   background-color: #4caf50 !important;
 }
 
-:host ::ng-deep .p-multiselect-token.affiliates {
-  background-color: #ff9800 !important;
-}
-
-/* --- Custom Chip Classes Used in MultiSelect Templates --- */
+/* --- Custom Chip for Templates --- */
 .custom-chip {
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
   border-radius: 12px;
-  color: white;
-  margin-right: 0.3rem;
-  display: inline-block;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   user-select: none;
+  display: inline-block;
+  margin-right: 0.3rem;
 }
 
-.chip-members {
-  background-color: #2196f3;
-}
 
-.chip-clients {
-  background-color: #4caf50;
-}
 
-.chip-affiliates {
-  background-color: #ff9800;
-}
 
-/* --- Flex Helpers --- */
-.flex-grow {
-  flex-grow: 1;
-}
 
-.min-w-0 {
-  min-width: 0;
-}
+// Multiselect chip styling
+:host ::ng-deep {
+  p-multiselect {
+    .p-multiselect-label {
+      display: flex;
+      flex-wrap: wrap; // wrap chips onto new lines :contentReference[oaicite:1]{index=1}
+    }
+    .p-multiselect-token {
+      font-size: .75rem !important;
+      padding: .15rem .5rem !important;
+      border-radius: 12px !important;
+      font-weight: 600 !important;
+      text-transform: uppercase !important;
+      letter-spacing: .05em !important;
+      margin: .15rem .3rem .5rem 0 !important;
+      color: black !important;
+      margin-bottom: 0.5rem; /* Adds vertical spacing between lines */
 
-.flex-shrink-0 {
-  flex-shrink: 0 !important;
-}
-
-.flex-shrink-1 {
-  flex-shrink: 1;
-}
-
-/* --- Responsive Export Buttons --- */
-@media (max-width: 767px) {
-  .p-toolbar-group-left > div.flex > button {
-    font-size: 0.75rem !important;
-    padding: 0.25rem 0.5rem !important;
-    min-width: 140px;
-    white-space: nowrap;
-  }
-
-  .p-toolbar-group-left > div.flex {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .p-toolbar-group-left > div.flex > button {
-    flex: 1 1 calc(50% - 0.5rem);
-    max-width: calc(50% - 0.5rem);
+      &.members {
+        background-color: #2196f3 !important;
+      }
+      &.clients {
+        background-color: #4caf50 !important;
+      }
+      &.affiliates {
+        background-color: #ff9800 !important;
+      }
+    }
   }
 }
 
-/* --- Optional margin between stacked buttons on very narrow screens --- */
-@media (max-width: 480px) {
-  .p-toolbar-group-left > div.flex > button:not(:last-child) {
-    margin-bottom: 0.5rem;
-  }
-}
-/* Ensure container and elements do not overflow */
-.p-toolbar-group-left {
-  min-width: 0 !important;
-  max-width: 100% !important;
-  overflow-x: hidden !important;
+// Toolbar responsive behavior
+.p-toolbar-group-left > div.flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .p-input-icon-left,
@@ -191,41 +167,51 @@ input[pInputText],
   box-sizing: border-box;
 }
 
-/* Flex helpers */
-.flex-grow {
-  flex-grow: 1;
-}
-
-.flex-shrink-0 {
-  flex-shrink: 0 !important;
-}
-
-.flex-shrink {
-  flex-shrink: 1 !important;
-}
-
-.min-w-0 {
-  min-width: 0 !important;
-}
-
-/* Responsive export buttons */
+// Export buttons responsiveness
 @media (max-width: 767px) {
-  .p-toolbar-group-left > div.flex > button {
-    font-size: 0.75rem !important;
-    padding: 0.25rem 0.5rem !important;
-    min-width: 140px !important;
-    white-space: nowrap !important;
-  }
-
   .p-toolbar-group-left > div.flex {
-    flex-wrap: wrap !important;
-    gap: 0.5rem !important;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .p-toolbar-group-left > div.flex > button {
+    font-size: .75rem !important;
+    padding: .25rem .5rem !important;
     flex: 1 1 calc(50% - 0.5rem) !important;
     max-width: calc(50% - 0.5rem) !important;
   }
 }
 
-/* Chip styling omitted for brevity, keep your existing chip styles */
+@media (max-width: 480px) {
+  .p-toolbar-group-left > div.flex > button:not(:last-child) {
+    margin-bottom: .5rem !important;
+  }
+}
+
+
+.p-toolbar-group-left > div.flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.p-toolbar-group-left > div.flex > * {
+  min-width: 0;
+}
+
+.p-input-icon-left,
+.p-multiselect,
+.p-button-sm {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 767px) {
+  .p-toolbar-group-left > div.flex {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+
+
+

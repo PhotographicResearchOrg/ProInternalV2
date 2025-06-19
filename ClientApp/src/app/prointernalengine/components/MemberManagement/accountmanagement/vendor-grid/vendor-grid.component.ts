@@ -8,6 +8,7 @@ import { MessageService } from 'primeng/api';
 @Component({
   selector: 'app-vendor-grid',
   templateUrl: './vendor-grid.component.html',
+  styleUrls: ['./vendor-grid.component.scss'],  // <-- add this
   providers: [MessageService]
 })
 export class VendorGridComponent implements OnInit {

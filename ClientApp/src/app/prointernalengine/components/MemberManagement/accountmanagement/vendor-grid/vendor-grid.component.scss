@@ -10,62 +10,80 @@
 }
 
 .avatar-container {
-  width: 48px; // fixed size container
-  height: 48px;
-  border-radius: 50%;
+  width: 115px;
+  height: 55px;
   overflow: hidden;
   border: 2px dashed #ccc;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: #f9f9f9;
-  cursor: pointer;
-  position: relative;
-  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; // or 'cover' if you prefer cropping
+  }
+
+  .upload-spinner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    pointer-events: none;
+    user-select: none;
+  }
 }
 
-.avatar-container img {
-  width: 48px; // force exact size to match container
-  height: 48px;
-  object-fit: cover; // crop & center image nicely
-  border-radius: 50%;
-  display: block; // remove inline spacing
-  vertical-align: middle;
-  max-width: 48px;
-  max-height: 48px;
-}
 
 
-.placeholder-avatar i {
-  font-size: 1.5rem;
-  color: #999;
+
+
+
+.type-chip {
+  display: inline-block;
+  padding: .25rem .75rem;
+  border-radius: 12px;
+  font-size: .75rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: .05em;
   user-select: none;
 }
 
-.upload-spinner {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 3rem; /* same as container */
-  height: 3rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 50%;
-  pointer-events: none;
-  user-select: none;
+.p-tag {
+  &.members {
+    background-color: #2196f3 !important;
+  }
+
+  &.clients {
+    background-color: #4caf50 !important;
+  }
+
+  &.affiliates {
+    background-color: #ff9800 !important;
+  }
 }
 
+
+/* Colored tokens based on class */
 :host ::ng-deep .p-multiselect-token.chip-members {
   background-color: #2196f3 !important;
-  color: white !important;
 }
 
 :host ::ng-deep .p-multiselect-token.chip-clients {
   background-color: #4caf50 !important;
-  color: white !important;
 }
+
+
+
 /* --- PrimeNG MultiSelect Token Styling --- */
 :host ::ng-deep .p-multiselect-token {
   font-size: 0.75rem !important;
@@ -78,6 +96,7 @@
   color: white !important;
   display: inline-block !important;
 }
+
 
 /* Colored tokens based on class */
 :host ::ng-deep .p-multiselect-token.chip-members {
@@ -99,4 +118,103 @@
   user-select: none;
   display: inline-block;
   margin-right: 0.3rem;
+}
+
+
+
+
+
+// Multiselect chip styling
+:host ::ng-deep {
+  p-multiselect {
+    .p-multiselect-label {
+      display: flex;
+      flex-wrap: wrap; // wrap chips onto new lines :contentReference[oaicite:1]{index=1}
+    }
+
+    .p-multiselect-token {
+      font-size: .75rem !important;
+      padding: .15rem .5rem !important;
+      border-radius: 12px !important;
+      font-weight: 600 !important;
+      text-transform: uppercase !important;
+      letter-spacing: .05em !important;
+      margin: .15rem .3rem .5rem 0 !important;
+      color: black !important;
+      margin-bottom: 0.5rem; /* Adds vertical spacing between lines */
+
+      &.members {
+        background-color: #2196f3 !important;
+      }
+
+      &.clients {
+        background-color: #4caf50 !important;
+      }
+
+      &.affiliates {
+        background-color: #ff9800 !important;
+      }
+    }
+  }
+}
+
+// Toolbar responsive behavior
+.p-toolbar-group-left > div.flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.p-input-icon-left,
+.p-multiselect,
+input[pInputText],
+.p-button-sm {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+// Export buttons responsiveness
+@media (max-width: 767px) {
+  .p-toolbar-group-left > div.flex {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .p-toolbar-group-left > div.flex > button {
+    font-size: .75rem !important;
+    padding: .25rem .5rem !important;
+    flex: 1 1 calc(50% - 0.5rem) !important;
+    max-width: calc(50% - 0.5rem) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .p-toolbar-group-left > div.flex > button:not(:last-child) {
+    margin-bottom: .5rem !important;
+  }
+}
+
+
+.p-toolbar-group-left > div.flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.p-toolbar-group-left > div.flex > * {
+  min-width: 0;
+}
+
+.p-input-icon-left,
+.p-multiselect,
+.p-button-sm {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 767px) {
+  .p-toolbar-group-left > div.flex {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

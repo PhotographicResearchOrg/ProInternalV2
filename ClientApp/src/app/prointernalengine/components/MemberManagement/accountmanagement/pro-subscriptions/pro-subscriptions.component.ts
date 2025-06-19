@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 @Component({
   selector: 'app-pro-subscriptions',
   templateUrl: './pro-subscriptions.component.html',
+  styleUrls: ['./pro-subscriptions.component.scss'],  // <-- add this
   providers: [MessageService]
 })
 export class ProSubscriptionsComponent implements OnInit {
