@@ -1,3 +1,4 @@
+// Background + Card
 .gray-background {
   background-color: #f4f4f5;
 }
@@ -6,25 +7,93 @@
   background-color: #fff;
   padding: 1rem;
   border-radius: 8px;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
 }
 
-.p-table .p-dropdown,
-.p-table .p-dropdown-panel {
-  overflow: visible !important;
-  z-index: 9999 !important;
-}
-.packing-slip-summary, .packing-slip-products {
+// Packing Slip Tables
+.packing-slip-summary,
+.packing-slip-products {
   width: 100%;
   border-collapse: collapse;
+  font-size: 13px;
 
   th, td {
     padding: 6px 8px;
     border: 1px solid #ccc;
-    font-size: 13px;
+    word-break: break-word;
   }
 
   th {
     background: #f5f5f5;
+    font-weight: 600;
+    text-align: left;
+  }
+}
+
+// Fix for dropdowns in p-table
+:host ::ng-deep .p-table .p-dropdown,
+:host ::ng-deep .p-dropdown-panel {
+  overflow: visible !important;
+  z-index: 9999 !important;
+}
+
+// Responsive fix for buttons stacked badly on small screens
+@media screen and (max-width: 767px) {
+  .p-buttonset {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .p-buttonset button {
+    flex: 1 1 auto;
+    min-width: 48%;
+  }
+
+  .p-sidebar {
+    width: 95vw !important;
+  }
+}
+
+// Align Process button cleanly in responsive
+.text-right {
+  text-align: right;
+
+  @media screen and (max-width: 767px) {
+    text-align: center;
+    margin-top: 1rem;
+  }
+}
+.p-buttonset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-start;
+
+  button {
+    min-width: 120px;
+    padding: 0.4rem 1rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+
+    button {
+      width: 100%;
+    }
+  }
+}
+
+.button-container {
+  @media (max-width: 768px) {
+    width: 100%;
+
+    button {
+      width: 100%;
+      justify-content: center;
+    }
   }
 }
