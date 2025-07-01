@@ -6,6 +6,7 @@ using ProInternal.Models.Accounting;
 using ProInternal.Models.Dashboard;
 using ProInternal.Models.Accounts;
 using ProInternal.Models.Auth;
+using ProInternal.Models.WH;
 using ProInternal.Models.Vendor;
 using ProInternal.Services;
 using System;
@@ -28,6 +29,13 @@ namespace ProInternal.Services
     public interface IProDataAccess
     {
 
+
+        IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors();
+        ProInternal.Models.WH.ShippingErrorRecord GetShippingErrorDetails(int id);
+        void ProcessShippingError(int id, string type, string disposition);
+        void ProcessGridShippingErrors(List<ProInternal.Models.WH.ShippingErrorRecord> errors);
+
+        Task<string> ProcessShippingErrors(List<ShippingErrorRequest> errorList);
         List<string> GetPermissionsByRole(string roleName);
 
         List<string> GetUserExtraPermissions(int userId);
@@ -98,7 +106,8 @@ namespace ProInternal.Services
         List<SpecialOrdersSummary> getOrdersSnapshot();
         LoginResponse login(string username, string password);
         
-        List<Account> getAccounts();
+        List<ProInternal.Models.Accounts.ShippingErrorRecord> getAccounts();
+
         List<Products> getProducts(string searchCriteria);
 
         List<MemberGateSummary> GetMemberGateSummary(string searchCriteria);
@@ -112,6 +121,7 @@ namespace ProInternal.Services
         List<QuarterlyDataHistorical> getHistoricalQRData();
 
         List<PatronageUpload> getPatronageBatchDetails(string batchID);
+
 
         bool deletePatronageLoad(string id);
         bool deleteQRUpload(int batchID);
@@ -142,18 +152,6 @@ namespace ProInternal.Services
         List<PatronageUpload>GetRecentPatronageLoad();
         List<PatronageHistorical> GetPatronageHistorical();
 
-
-
-
-
-
-
-
-
-
-
-
     }
-
 
 }

@@ -1,6 +1,6 @@
 ﻿namespace ProInternal.Models.Accounts
 {
-    public class Account
+    public class ShippingErrorRecord
     {
         public int CompanyID { get; set; }
         public int AccountNumber       { get; set; }

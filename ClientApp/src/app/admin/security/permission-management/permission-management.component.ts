@@ -152,8 +152,7 @@ export class PermissionManagementComponent implements OnInit {
     const routes = this.flattenRoutes(this.router.config);
     const existing = this.permissions.map(p => p.permissionName);
 
-    this.unconfiguredRoutes = routes
-      .filter(r =>
+    this.unconfiguredRoutes = routes      .filter(r =>
         r.path &&
         !(r.data?.['permissions']?.length) &&
         r.component &&

@@ -24,24 +24,35 @@ export class AppMenuComponent implements OnInit {
         items: [
           can('/dashboard-landing') && { label: 'Home', icon: 'pi pi-fw pi-home', routerLink: ['/dashboard-landing'] },
           (can('/dashboard-accounting') || can('/qtr-rebates') || can('/forecast') || can('/patronage') || can('/payments')) && {
+
             label: 'Accounting', icon: 'pi pi-fw pi-money-bill',
-            items: [
+            items:
+              [
               can('/dashboard-accounting') && { label: 'Accounting Dash', icon: 'pi pi-fw pi-sign-in', routerLink: ['/dashboard-accounting'] },
               can('/qtr-rebates') && { label: 'Quarterly Rebates', icon: 'pi pi-fw pi-times-circle', routerLink: ['/qtr-rebates'] },
               can('/forecast') && { label: 'Forecasting', icon: 'pi pi-chart-line', routerLink: ['/forecast'] },
               can('/patronage') && { label: 'Patronage', icon: 'pi pi-file', routerLink: ['/patronage'] },
               can('/payments') && { label: 'Payments', icon: 'pi pi-briefcase', routerLink: ['/payments'] },
               can('/receivables') && { label: 'Receivables', icon: 'pi-list', routerLink: ['/receivables'] }
-              
-
             ]
           },
-          can('/BRMdash') && {
+          can('/BRMdash') &&
+            {
             label: 'BRM', icon: 'pi pi-user',
-            items: [
+            items:
+              [
               { label: 'BRM Dash', icon: 'pi pi-tags', routerLink: ['/BRMdash'] }
             ]
+          },
+          can('/BRMdash') &&
+          {
+            label: 'Warehouse', icon: 'pi pi-map-marker',
+            items:
+              [
+                { label: 'Shipping Errors', icon: 'pi pi-flag', routerLink: ['/shippingerror'] }
+              ]
           }
+
         ]
       }]
     });

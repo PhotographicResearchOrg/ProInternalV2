@@ -19,6 +19,8 @@ export class AuthGuard implements CanActivate {
     }
 
     const allowedRoutes = this.authService.getAllowedRoutes();
+
+
     const rawPath = route.routeConfig?.path ?? '';
     const requestedPath = '/' + rawPath.toLowerCase();
 
@@ -32,6 +34,10 @@ export class AuthGuard implements CanActivate {
 
     return true;
   }
+
+
+  
+
 
 
 }

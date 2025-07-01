@@ -12,6 +12,7 @@ using ProInternal.Models.Vendor;
 using Microsoft.Data.SqlClient;
 using System.Reflection.Metadata;
 using ProInternal.Models.EzPaySummary;
+using System.Data.Common;
 
 
 
@@ -50,6 +51,42 @@ namespace ProInternal.Services
                 }
             }
         }
+
+
+
+
+        public async Task<PackingSlipData> GetPackingSlipData(int shippingErrorId)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var parameters = new DynamicParameters();
+                parameters.Add("@ShippingErrorId", shippingErrorId);
+
+                try
+                {
+                    var result = new PackingSlipData();
+
+                    // Use Dapper to execute the stored procedure and get the results
+                    using (var multi = await connection.QueryMultipleAsync(
+                        "ShippingError_GetPackingSlipSummary", parameters, commandType: CommandType.StoredProcedure))
+                    {
+                        // Fetch the header part of the packing slip
+                        result.Header = await multi.ReadSingleOrDefaultAsync<PackingSlipHeader>();
+
+                        // Fetch the product details for the packing slip
+                        result.Products = (await multi.ReadAsync<PackingSlipProduct>()).ToList();
+                    }
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    // Optionally log the exception here
+                    return null;
+                }
+            }
+        }
+
 
 
         public async Task<IEnumerable<EzPayDetail>> GetEzPayDetail(DateTime daDate)

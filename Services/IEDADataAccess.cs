@@ -16,6 +16,7 @@ namespace ProInternal.Services
     public interface IEDADataAccess
     {
 
+        Task<PackingSlipData> GetPackingSlipData(int shippingErrorId);
         List<PanaRep> GetAllPanaReps();
         List<PanaAccount> GetAllPanaAccounts();
 

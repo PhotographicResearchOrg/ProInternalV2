@@ -9,6 +9,7 @@ using Dapper;
 using ProInternal.Models.Dashboard;
 using ProInternal.Models.Auth;
 using ProInternal.Models.Accounts;
+using ProInternal.Models.WH;
 using ProInternal.Models.Products;
 using ProInternal.Models.Vendor;
 using Microsoft.AspNetCore.Identity;
@@ -29,6 +30,7 @@ using System.Reflection.PortableExecutable;
 using ProInternal.Models;
 using System.Reflection;
 using ProInternal.Models.Outstanding;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 
 namespace ProInternal.Services
@@ -46,36 +48,130 @@ namespace ProInternal.Services
 
 
 
+
+        public async Task<string> ProcessShippingErrors(List<ShippingErrorRequest> errorList)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+
+                try
+                {
+                    // Start a transaction to ensure atomicity of the process
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        foreach (var error in errorList)
+                        {
+                            // Define the parameters for the stored procedure
+                            var parameters = new DynamicParameters();
+                            parameters.Add("@ErrorID", error.ErrorID);
+                            parameters.Add("@Disposition", error.Disposition);
+                            parameters.Add("@CustomMessage", error.CustomMessage);
+                            parameters.Add("@ID", error.ID);
+                            parameters.Add("@ProductCode", error.productCode);
+
+                            // Call the stored procedure to process each shipping error
+                            await connection.ExecuteAsync("Process_ShippingError", parameters, commandType: CommandType.StoredProcedure, transaction: transaction);
+                        }
+
+                        // Commit the transaction after all errors are processed
+                        transaction.Commit();
+                    }
+
+                    return "Shipping errors processed successfully.";
+                }
+                catch (Exception ex)
+                {
+                    // Rollback the transaction if an error occurs
+                
+                    throw new Exception("Error processing shipping errors", ex);
+                }
+            }
+        }
+
+
+
+
+
+
+        // DAL Implementation
+        public IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors()
+        {
+            using var connection = new SqlConnection(_connectionString);
+            connection.Open();
+            return connection.Query<ProInternal.Models.WH.ShippingErrorRecord>(
+                "GetShippingErrors",
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+
+
         public IEnumerable<MemberAddress> GetMemberShipping(string accountId)
         {
             using var connection = new SqlConnection(_connectionString);
-            using var command = new SqlCommand("GetMemberShipping", connection)
+            connection.Open();
+            return connection.Query<MemberAddress>(
+                "GetMemberShipping",
+                new { AccountID = accountId },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+        public ProInternal.Models.WH.ShippingErrorRecord GetShippingErrorDetails(int id)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            connection.Open();
+
+            using var multi = connection.QueryMultiple(
+                "GetShippingErrorDetails",
+                new { ErrorId = id },
+                commandType: CommandType.StoredProcedure
+            );
+
+            var record = multi.Read<ProInternal.Models.WH.ShippingErrorRecord>().FirstOrDefault();
+            if (record != null)
+            {
+                record.Products = multi.Read<ProInternal.Models.WH.ShippingErrorProduct>().ToList();
+            }
+
+            return record;
+        }
+
+        public void ProcessShippingError(int id, string type, string disposition)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            using var command = new SqlCommand("ProcessShippingError", connection)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            command.Parameters.AddWithValue("@AccountID", accountId);
+            command.Parameters.AddWithValue("@ErrorId", id);
+            command.Parameters.AddWithValue("@Type", type);
+            command.Parameters.AddWithValue("@Disposition", string.IsNullOrEmpty(disposition) ? DBNull.Value : (object)disposition);
 
             connection.Open();
-            var list = new List<MemberAddress>();
-
-            using var reader = command.ExecuteReader();
-            while (reader.Read())
-            {
-                list.Add(new MemberAddress
-                {
-                    AddressType = reader["addresstype"]?.ToString(),
-                    Street = reader["street"]?.ToString(),
-                    City = reader["city"]?.ToString(),
-                    State = reader["State"]?.ToString(),
-                    Zip = reader["Zip"]?.ToString(),
-                    Country = reader["country"]?.ToString()
-                });
-            }
-
-            return list;
+            command.ExecuteNonQuery();
         }
 
+        public void ProcessGridShippingErrors(List<ProInternal.Models.WH.ShippingErrorRecord> errors)
+        {
+            foreach (var error in errors)
+            {
+                using var connection = new SqlConnection(_connectionString);
+                using var command = new SqlCommand("ProcessGridShippingError", connection)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                command.Parameters.AddWithValue("@ErrorId", error.Id);
+                // Assuming you want to pass disposition or other values
+                command.Parameters.AddWithValue("@Disposition", DBNull.Value);
+
+                connection.Open();
+                command.ExecuteNonQuery();
+            }
+        }
 
 
         public void ToggleVendorWebStatus(int vendorId)
@@ -1038,11 +1134,11 @@ namespace ProInternal.Services
         //ProductMapViolation
 
 
-        public List<Account> getAccounts()
+        public List<ProInternal.Models.Accounts.ShippingErrorRecord> getAccounts()
         {
             using (IDbConnection connection = new SqlConnection(_connectionString))
             {
-                var output = connection.Query<Account>("GetAccounts").ToList();
+                var output = connection.Query<ProInternal.Models.Accounts.ShippingErrorRecord>("GetAccounts").ToList();
 
                 return output;
             }

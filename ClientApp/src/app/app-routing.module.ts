@@ -27,6 +27,10 @@ import { DashboardBrmComponent } from './prointernalengine/components//dashboard
 import { SecurityAdminComponent } from 'src/app/admin/security/security-admin/security-admin.component';
 import { AccountManagementComponent } from './prointernalengine/components/MemberManagement/accountmanagement/accountmanagement.component';
 import { ReceivablesComponent } from './prointernalengine/components/dashboards/accounting/receivables/receivables.component';
+import { ShippingerrorsComponent } from './prointernalengine/components/dashboards/warehouse/shippingerrors/shippingerrors.component'; 
+
+
+
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -64,7 +68,8 @@ const routes: Routes = [
       { path: 'exclusion/group/company', component: ExclusionGroupCompanyComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Company Exclusion Groups' } },
       { path: 'accountmanagement', component: AccountManagementComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Account Management' } },
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
-      
+      { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },
+
       
 
       {

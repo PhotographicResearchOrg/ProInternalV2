@@ -42,9 +42,9 @@ namespace ProInternal.Controllers
 
         [HttpGet]
         [Route("getAccounts")]
-        public List<Account> Accounts()
+        public List<ShippingErrorRecord> Accounts()
         {
-            List<Account> Accounts = this._prodataAccess.getAccounts().ToList();
+            List<ShippingErrorRecord> Accounts = this._prodataAccess.getAccounts().ToList();
             return Accounts;
         }
 

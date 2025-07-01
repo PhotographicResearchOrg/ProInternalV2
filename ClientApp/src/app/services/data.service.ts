@@ -43,12 +43,64 @@ import { Vendor } from '../models/accounts/vendor';
 import { Member, MemberAddress  } from '../models/accounts/member';
 import { SubscriptionRecord } from '../models/accounts/subscription';
 import { SendInvoicesRequest } from 'src/app/models/accounting/SendInvoicesRequest';
+import { ShippingErrorRecord, ShippingErrorProduct, PackingSlipData, ProcessShippingErrorResponse } from 'src/app/models/WH/ShippingErrorRecord';
+
 
 
 @Injectable()
 export class DataService {
 
   constructor(private api: ApiService) { }
+
+
+  getShippingErrors(): Observable<ShippingErrorRecord[]>
+  {
+    return this.api.get<ShippingErrorRecord[]>('API/Warehouse/shippingerrors');
+  }
+
+  getShippingErrorDetails(errorId: number): Observable<ShippingErrorRecord> {
+    return this.api.get<ShippingErrorRecord>(`API/Warehouse/shippingerrorsdetails/${errorId}`);
+  }
+
+
+
+  // processShippingErrors
+  processShippingErrors(errorList: any[]): Observable<void> {
+    console.log(errorList);
+    return this.api.post<void>(`API/Warehouse/processShippingErrors`, errorList);
+  }
+
+
+
+
+
+  getPackingSlip(shippingErrorId: number): Observable<PackingSlipData> {
+    return this.api.get<PackingSlipData>(`API/Warehouse/packingslip/${shippingErrorId}`);
+  }
+
+
+  processShippingError(errorId: number, type: string, disposition?: string): Observable<any> {
+    return this.api.post<any>(`api/warehouse/${errorId}/process`, { type, disposition });
+
+  }
+
+  updateShippingErrors(errors: ShippingErrorRecord[]): Observable<any> {
+    return this.api.post<any>('API/Warehouse/shippingerrors/process-grid', errors);
+  }
+
+
+  resolveProduct(product: any): Observable<void> {
+    return this.api.post<void>(`/api/shipping-errors/resolve`, product);
+  }
+
+  ignoreProduct(product: any): Observable<void> {
+    return this.api.post<void>(`/api/shipping-errors/ignore`, product);
+  }
+
+
+
+
+
 
   // Vendors
   getVendors(): Observable<Vendor[]> {
@@ -72,10 +124,6 @@ export class DataService {
   getMemberShipping(accountNumber: string): Observable<MemberAddress[]> {
     return this.api.get<MemberAddress[]>(`API/Listings/members/${accountNumber}/shipping`);
   }
-
-
-
-
 
   uploadMemberImage(accountNumber: string, file: File): Observable<any> {
     const formData = new FormData();
