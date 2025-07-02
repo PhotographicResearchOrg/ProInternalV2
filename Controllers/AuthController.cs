@@ -251,6 +251,13 @@ namespace ProInternal.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] AuthCredentials authCredentials)
         {
+            Console.WriteLine("--------------------------------------------------");
+            // STEP 1: IP-based bypass
+            var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+            // Replace with your actual IP(s)
+            var trustedIps = new[] { "192.168.1.100", "173.16.1.10"};
+            Console.WriteLine(remoteIp);
+    
             if (string.IsNullOrWhiteSpace(authCredentials.username) || string.IsNullOrWhiteSpace(authCredentials.password))
             {
                 return BadRequest(new { error = "Username and password are required." });
@@ -280,12 +287,6 @@ namespace ProInternal.Controllers
                 extraPermissions = loginResult.ExtraPermissions 
             });
         }
-
-
-
-
-
-
 
 
     }

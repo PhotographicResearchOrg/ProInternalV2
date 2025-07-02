@@ -34,7 +34,7 @@ export class ShippingerrorsComponent {
   packingSlipData: PackingSlipData | null = null;
   filteredShippingErrors: ShippingErrorRecord[] = []; // This will hold the filtered results
   isExporting: boolean = false; // For controlling the spinner
-
+  selectedErrorDetails: ShippingErrorProduct[] = [];
 
   public dispositionsMap: { [key: string]: any[] } = {
     'Overage': [
@@ -249,12 +249,24 @@ export class ShippingerrorsComponent {
 
 
   viewPackingSlip(shippingErrorId: number): void {
+    // Get both packing slip and error details
     this.dataService.getPackingSlip(shippingErrorId).subscribe({
       next: (data: PackingSlipData) => {
-        // Populate the header and products
         this.packingSlipHeader = data.header;
         this.packingSlipProducts = data.products;
-        this.showPackingSlip = true;
+
+        // Now load the error details too
+        this.dataService.getShippingErrorDetails(shippingErrorId).subscribe({
+          next: (errorDetails) => {
+            this.selectedErrorDetails = errorDetails.products || [];
+            this.showPackingSlip = true;
+          },
+          error: (err) => {
+            console.error('Error fetching error details:', err);
+            this.selectedErrorDetails = [];
+            this.showPackingSlip = true; // Still open the sidebar with what we have
+          }
+        });
       },
       error: (err) => {
         console.error('Error fetching packing slip:', err);
@@ -268,9 +280,47 @@ export class ShippingerrorsComponent {
     });
   }
 
+
   closePackingSlip(): void {
     this.showPackingSlip = false;
   }
+
+  isInErrorList(productCode: string): boolean {
+    return this.selectedErrorDetails?.some(e => e.productCode === productCode);
+  }
+  printPackingSlip() {
+
+    const content = document.getElementById('packing-slip-content');
+    if (!content) return;
+
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (!printWindow) return;
+
+    printWindow.document.open();
+    printWindow.document.write(`
+    <html>
+      <head>
+        <title>Packing Slip</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 1rem; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ccc; padding: 6px; text-align: left; font-size: 13px; }
+          th { background-color: #f5f5f5; }
+        </style>
+      </head>
+      <body>
+        ${content.innerHTML}
+      </body>
+    </html>
+  `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  }
+
+
+
+
 
 
   exportErrors() {

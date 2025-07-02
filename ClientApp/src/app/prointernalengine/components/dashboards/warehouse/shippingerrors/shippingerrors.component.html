@@ -87,101 +87,104 @@
               </div>
               <div class="button-container">
                 <button pButton icon="pi pi-eye" label="View Packing Slip" class="p-button-text p-button-sm" (click)="viewPackingSlip(error.id)"></button>
-                </div>
               </div>
+            </div>
 
-              <!-- Info Grid -->
-              <div class="p-fluid grid">
-                <div class="col-12 sm:col-6 mb-2"><i class="pi pi-calendar mr-1 text-600"></i> <strong>Date:</strong> {{ now | date:'short' }}</div>
-                <div class="col-12 sm:col-6 mb-2"><i class="pi pi-hashtag mr-1 text-600"></i> <strong>Shipping ID:</strong> {{ error.id }}</div>
-                <div class="col-12 sm:col-6 mb-2"><i class="pi pi-flag mr-1 text-600"></i> <strong>Status:</strong> {{ error.status }}</div>
-                <div class="col-12 sm:col-6 mb-2"><i class="pi pi-clock mr-1 text-600"></i> <strong>Submitted:</strong> {{ error.dateSubmitted }}</div>
-                <div class="col-12 sm:col-6 mb-2"><i class="pi pi-undo mr-1 text-600"></i> <strong>RMA:</strong> {{ error.rmaStatus || 'NA' }}</div>
-                <div class="col-12 sm:col-6 mb-2"><i class="pi pi-building mr-1 text-600"></i> <strong>Account #:</strong> {{ error.account }}</div>
-                <div class="col-12 sm:col-6 mb-2"><i class="pi pi-users mr-1 text-600"></i> <strong>Account Name:</strong> {{ error.companyName }}</div>
-                <div class="col-12 sm:col-6 mb-2"><i class="pi pi-user mr-1 text-600"></i> <strong>Contact:</strong> {{ error.contactName }}</div>
-                <div class="col-12 sm:col-6 mb-2"><i class="pi pi-envelope mr-1 text-600"></i> <strong>Email:</strong> {{ error.contactEmail }}</div>
-                <div class="col-12 sm:col-6 mb-2"><i class="pi pi-phone mr-1 text-600"></i> <strong>Phone:</strong> {{ error.contactPhone }}</div>
-              </div>
+            <!-- Info Grid -->
+            <div class="p-fluid grid">
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-calendar mr-1 text-600"></i> <strong>Date:</strong> {{ now | date:'short' }}</div>
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-hashtag mr-1 text-600"></i> <strong>Shipping ID:</strong> {{ error.id }}</div>
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-flag mr-1 text-600"></i> <strong>Status:</strong> {{ error.status }}</div>
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-clock mr-1 text-600"></i> <strong>Submitted:</strong> {{ error.dateSubmitted }}</div>
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-undo mr-1 text-600"></i> <strong>RMA:</strong> {{ error.rmaStatus || 'NA' }}</div>
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-building mr-1 text-600"></i> <strong>Account #:</strong> {{ error.account }}</div>
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-users mr-1 text-600"></i> <strong>Account Name:</strong> {{ error.companyName }}</div>
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-user mr-1 text-600"></i> <strong>Contact:</strong> {{ error.contactName }}</div>
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-envelope mr-1 text-600"></i> <strong>Email:</strong> {{ error.contactEmail }}</div>
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-phone mr-1 text-600"></i> <strong>Phone:</strong> {{ error.contactPhone }}</div>
+            </div>
 
-              <!-- Product Table -->
-              <ng-container *ngIf="!isLoading(error.id) && error.products?.length; else loadingOrEmpty">
-                <div class="white-card mt-3">
-                  <div class="text-md font-bold mb-2"><i class="pi pi-list mr-2 text-primary"></i> Product Details</div>
-                  <p-table [value]="error.products" responsiveLayout="scroll">
-                    <ng-template pTemplate="header">
-                      <tr>
-                        <th>Product Code</th>
-                        <th>Description</th>
-                        <th>Quantity</th>
-                        <th>Cost</th>
-                        <th>Error Type</th>
-                        <th>Serial</th>
-                      </tr>
-                    </ng-template>
-                    <ng-template pTemplate="body" let-product>
-                      <tr>
-                        <td>{{ product.productCode }}</td>
-                        <td>{{ product.productDescription }}</td>
-                        <td>{{ product.quantity }}</td>
-                        <td>{{ product.cost | currency }}</td>
-                        <td>{{ product.errorType }}</td>
-                        <td>{{ product.serial }}</td>
-                      </tr>
-                      <tr>
-                        <td colspan="6">
-                          <div class="p-2 border-round shadow-1 mt-2">
-                            <div class="grid">
-                              <div class="col-12 md:col-6">
-                                <strong>Disposition:</strong>
-                                <p-dropdown [options]="product.dispositions"
-                                            [(ngModel)]="product.selectedDisposition"
-                                            (onChange)="product.validationError = null"
-                                            [ngClass]="{'p-invalid': product.validationError === 'disposition'}"
-                                            class="w-full"
-                                            placeholder="Select"
-                                            appendTo="body">
-                                </p-dropdown>
-                                <small *ngIf="product.validationError === 'disposition'" class="p-error">Disposition is required.</small>
-                              </div>
+            <!-- Product Table -->
+            <ng-container *ngIf="!isLoading(error.id) && error.products?.length; else loadingOrEmpty">
+              <div class="white-card mt-3">
+                <div class="text-md font-bold mb-2"><i class="pi pi-list mr-2 text-primary"></i> Product Details</div>
+                <p-table [value]="error.products" responsiveLayout="scroll">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th>Product Code</th>
+                      <th>Description</th>
+                      <th>Quantity</th>
+                      <th>Cost</th>
+                      <th>Error Type</th>
+                      <th>Serial</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-product>
+                    <tr>
+                      <td>{{ product.productCode }}</td>
+                      <td>{{ product.productDescription }}</td>
+                      <td>{{ product.quantity }}</td>
+                      <td>{{ product.cost | currency }}</td>
+                      <td>{{ product.errorType }}</td>
+                      <td>{{ product.serial }}</td>
+                    </tr>
+                    <tr>
+                      <td colspan="6">
+                        <div class="p-2 border-round shadow-1 mt-2">
+                          <div class="grid">
+                            <div class="col-12 md:col-6">
+                              <strong>Disposition:</strong>
+                              <p-dropdown [options]="product.dispositions"
+                                          [(ngModel)]="product.selectedDisposition"
+                                          (onChange)="product.validationError = null"
+                                          [ngClass]="{'p-invalid': product.validationError === 'disposition'}"
+                                          class="w-full"
+                                          placeholder="Select"
+                                          appendTo="body">
+                              </p-dropdown>
+                              <small *ngIf="product.validationError === 'disposition'" class="p-error">Disposition is required.</small>
+                            </div>
 
-                              <div *ngIf="product.selectedDisposition === '9'" class="col-12 md:col-6">
-                                <strong>BRM Message:</strong>
-                                <input pInputText [(ngModel)]="product.brmMessage"
-                                       (input)="product.validationError = null"
-                                       [ngClass]="{'p-invalid': product.validationError === 'brm'}"
-                                       class="w-full"
-                                       placeholder="Enter message" />
-                                <small *ngIf="product.validationError === 'brm'" class="p-error">Message required for BRM Soft Touch.</small>
-                              </div>
+                            <div *ngIf="product.selectedDisposition === '9'" class="col-12 md:col-6">
+                              <strong>BRM Message:</strong>
+                              <input pInputText [(ngModel)]="product.brmMessage"
+                                     (input)="product.validationError = null"
+                                     [ngClass]="{'p-invalid': product.validationError === 'brm'}"
+                                     class="w-full"
+                                     placeholder="Enter message" />
+                              <small *ngIf="product.validationError === 'brm'" class="p-error">Message required for BRM Soft Touch.</small>
                             </div>
                           </div>
-                        </td>
-                      </tr>
-                    </ng-template>
-                  </p-table>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-template>
+                </p-table>
 
-                  <div class="text-right mt-3">
-                    <button pButton label="Process"
-                            icon="pi pi-check"
-                            class="p-button-success p-button-sm"
-                            (click)="processShippingError(error)">
-                    </button>
-                  </div>
+                <div class="text-right mt-3">
+                  <button pButton label="Process"
+                          icon="pi pi-check"
+                          class="p-button-success p-button-sm"
+                          (click)="processShippingError(error)">
+                  </button>
                 </div>
-              </ng-container>
+              </div>
+            </ng-container>
 
-              <ng-template #loadingOrEmpty>
-                <div class="white-card mt-3">
-                  {{ isLoading(error.id) ? 'Loading product details...' : 'No product details found.' }}
-                </div>
-              </ng-template>
-            </div>
+            <ng-template #loadingOrEmpty>
+              <div class="white-card mt-3">
+                {{ isLoading(error.id) ? 'Loading product details...' : 'No product details found.' }}
+              </div>
+            </ng-template>
+          </div>
         </div>
       </td>
     </tr>
 
-    <!-- Sidebar Outside Loop -->
+
+
+  
+      <!-- Sidebar Outside Loop -->
     <p-sidebar [(visible)]="showPackingSlip"
                position="right"
                [modal]="true"
@@ -190,48 +193,93 @@
                [style]="{ width: '90vw', maxWidth: '600px' }"
                [closeOnEscape]="true"
                [showCloseIcon]="true">
-      <h3>Packing Slip</h3>
-      <ng-container *ngIf="packingSlipHeader; else loadingSlip">
-        <table class="packing-slip-summary mb-3">
-          <thead>
-            <tr>
-              <th>Order Date</th>
-              <th>PRO Order #</th>
-              <th>PO #</th>
-              <th>Checked By</th>
-              <th>Shipping #</th>
-              <th>Pro Member</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{{ packingSlipHeader.orderDate | date:'yyyy-MM-dd' }}</td>
-              <td>{{ packingSlipHeader.proOrderNumber }}</td>
-              <td>{{ packingSlipHeader.po }}</td>
-              <td>{{ packingSlipHeader.checkedBy }}</td>
-              <td>{{ packingSlipHeader.shippingNumber }}</td>
-              <td>{{ packingSlipHeader.proMember }}</td>
-            </tr>
-          </tbody>
-        </table>
 
-        <table class="packing-slip-products">
-          <thead>
-            <tr><th>Product Code</th><th>QTY Ordered</th><th>QTY Shipped</th><th>Description</th></tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let product of packingSlipProducts">
-              <td>{{ product.productCode }}</td>
-              <td>{{ product.quantityOrdered }}</td>
-              <td>{{ product.quantityShipped }}</td>
-              <td>{{ product.description }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </ng-container>
-      <ng-template #loadingSlip>
-        <p>Loading packing slip...</p>
-      </ng-template>
+      <div class="flex justify-content-between align-items-center mb-3">
+        <h3>Packing Slip</h3>
+
+        <button pButton
+                icon="pi pi-print"
+                class="p-button-text p-button-sm"
+                (click)="printPackingSlip()"
+                label="Print">
+        </button>
+      </div>
+      <div id="packing-slip-content">
+
+        <ng-container *ngIf="packingSlipHeader; else loadingSlip">
+          <table class="packing-slip-summary mb-3">
+            <thead>
+              <tr>
+                <th>Order Date</th>
+                <th>PRO Order #</th>
+                <th>PO #</th>
+                <th>Checked By</th>
+                <th>Shipping #</th>
+                <th>Pro Member</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ packingSlipHeader.orderDate | date:'yyyy-MM-dd' }}</td>
+                <td>{{ packingSlipHeader.proOrderNumber }}</td>
+                <td>{{ packingSlipHeader.po }}</td>
+                <td>{{ packingSlipHeader.checkedBy }}</td>
+                <td>{{ packingSlipHeader.shippingNumber }}</td>
+                <td>{{ packingSlipHeader.proMember }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="packing-slip-products">
+            <thead>
+              <tr><th>Product Code</th><th>QTY Ordered</th><th>QTY Shipped</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let product of packingSlipProducts"
+                  [ngClass]="{ 'reconciled-row': isInErrorList(product.productCode) }">
+                <td>{{ product.productCode }}</td>
+                <td>{{ product.quantityOrdered }}</td>
+                <td>{{ product.quantityShipped }}</td>
+                <td>{{ product.description }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+
+
+          <!-- Error Product Details -->
+          <h4 class="mt-4 mb-2">Error Products</h4>
+          <table class="packing-slip-products">
+            <thead>
+              <tr>
+                <th>Product Code</th>
+                <th>Desc</th>
+                <th style="width: 90px;">Quan</th>
+                <th>Error</th>
+          
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let product of selectedErrorDetails">
+                <td>{{ product.productCode }}</td>
+                <td>{{ product.productDescription }}</td>
+                <td>{{ product.quantity }}</td>
+     
+                <td>{{ product.errorType }}</td>
+            
+              </tr>
+            </tbody>
+          </table>
+
+
+
+
+        </ng-container>
+      </div>
+        <ng-template #loadingSlip>
+          <p>Loading packing slip...</p>
+        </ng-template>
     </p-sidebar>
+   
   </ng-template>
 </p-table>
