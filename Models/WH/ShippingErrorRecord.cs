@@ -12,6 +12,8 @@ namespace ProInternal.Models.WH
         public string Account { get; set; }
         public string Status { get; set; }
         public string DateSubmitted { get; set; }
+        public DateTime? ShipDate { get; set; }
+        
         public string ContactName { get; set; }
         public string ContactEmail { get; set; }
         public string ContactPhone { get; set; }
@@ -21,12 +23,17 @@ namespace ProInternal.Models.WH
 
     public class ShippingErrorProduct
     {
+
+        public Boolean? isBRMProduct { get; set; }
         public string ProductCode { get; set; }
         public string ProductDescription { get; set; }
         public int Quantity { get; set; }
-        public string ErrorType { get; set; }
+        public string errorType { get; set; }
         public decimal Cost { get; set; }
         public string Serial { get; set; }
+        public string Disposition { get; set; }
+        public int? BRMFollowUp { get; set; }
+        public string CustomMessage { get; set; }
     }
 
 
@@ -38,6 +45,15 @@ namespace ProInternal.Models.WH
 
 
 }
+
+public class CompleteProductRequest
+{
+    public int ShippingErrorId { get; set; }
+    public int ProductId { get; set; }
+    
+    public string UserName { get; set; } // Optional audit
+}
+
 
 // Data/IShippingErrorRepository.cs
 public interface IShippingErrorRepository

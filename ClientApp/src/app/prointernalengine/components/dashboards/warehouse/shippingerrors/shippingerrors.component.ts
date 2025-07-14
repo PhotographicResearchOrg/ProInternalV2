@@ -6,6 +6,7 @@ import { Table } from 'primeng/table';
 import { ShippingErrorRecord, ShippingErrorProduct, PackingSlipData, PackingSlipHeader, PackingSlipProduct } from 'src/app/models/WH/ShippingErrorRecord';
 import { SidebarModule } from 'primeng/sidebar';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { ShippingerrorbrmComponent } from 'src/app/prointernalengine/components/dashboards/BRM/shippingerrorbrm/shippingerrorbrm.component';
 
 
 type UIShippingErrorProduct = ShippingErrorProduct & {
@@ -24,6 +25,7 @@ type UIShippingErrorProduct = ShippingErrorProduct & {
 
 
 export class ShippingerrorsComponent {
+
   shippingErrors: ShippingErrorRecord[] = [];
   expandedErrorId: number | null = null;
   loadingIds: { [id: number]: boolean } = {};
@@ -35,6 +37,7 @@ export class ShippingerrorsComponent {
   filteredShippingErrors: ShippingErrorRecord[] = []; // This will hold the filtered results
   isExporting: boolean = false; // For controlling the spinner
   selectedErrorDetails: ShippingErrorProduct[] = [];
+
 
   public dispositionsMap: { [key: string]: any[] } = {
     'Overage': [
@@ -52,7 +55,6 @@ export class ShippingerrorsComponent {
     'Damaged': [
       { label: 'Issue credit', value: '6' },
       { label: 'Issue RA', value: '7' },
-      { label: 'Issue 50% credit to keep item as display', value: '8' },
       { label: 'BRM Soft Touch', value: '9' }
     ],
     'Forward': [
@@ -75,8 +77,8 @@ export class ShippingerrorsComponent {
   @ViewChild('dtShippingErrors') dtShippingErrors!: Table;
 
   constructor(
-    private dataService: DataService,
-    private messageService: MessageService
+    protected dataService: DataService,
+    protected messageService: MessageService
   ) { }
 
   ngOnInit() {
@@ -88,6 +90,9 @@ export class ShippingerrorsComponent {
     // Call the service to load the data
     this.dataService.getShippingErrors().subscribe({
       next: (data) => {
+
+
+
         this.shippingErrors = data;
         this.filterByStatus('Open'); // Default to showing only 'Open' records
       },
@@ -99,7 +104,16 @@ export class ShippingerrorsComponent {
   }
 
 
+  hasBRMProduct(error: ShippingErrorRecord): boolean {
+    return error.products?.some(p => (p as any).isBRMProduct) ?? false;
+  }
+
+
   filterByStatus(status: string): void {
+    if (status === 'BRM') {
+      this.filterByBRM();
+      return;
+    }
     // Filter based on the status selected (Open, Closed, or Deleted)
     this.filteredShippingErrors = this.shippingErrors.filter(error => error.status === status);
   }
@@ -109,51 +123,119 @@ export class ShippingerrorsComponent {
   }
 
 
+
+  markProductComplete(errorId: number, product: any): void {
+    const payload = {
+      errorId: errorId,
+      productCode: product.productCode
+    };
+
+  }
+
+
+
+  //toggleRow(error: ShippingErrorRecord) {
+  //  if (this.expandedErrorId === error.id) {
+  //    this.expandedErrorId = null;
+  //    return;
+  //  }
+  //  this.expandedErrorId = error.id;
+  //  const index = this.shippingErrors.findIndex(e => e.id === error.id);
+  //  if (index === -1) return;
+  //  const products = error.products || [];
+  //  const isEditable = error.status === 'Open';  //  define this!
+  //  products.forEach(p => {
+  //    const disp = String(p.Disposition || '');
+
+  //    (p as any).dispositions = this.dispositionsMap[p.errorType] || [
+  //      { label: 'No Action', value: 'NoAction' }
+  //    ];
+  //    //(p as any).selectedDisposition = (p as any).disposition != null ? String((p as any).disposition) : '';
+  //    (p as any).selectedDisposition = (p.Disposition != null && String(p.Disposition).trim() !== '')
+  //      ? String(p.Disposition)
+  //      : '';
+  //    (p as any).brmMessage = p.customMessage || '';
+  //    (p as any).validationError = null;
+  //    (p as any).isBRMDisposition = disp === '9' && !!p.customMessage?.trim();
+  //    (p as any).readOnly = !isEditable;
+  //  }); 
+  //  this.shippingErrors[index].products = products;
+  //}
+
+
+
   toggleRow(error: ShippingErrorRecord) {
+
+    console.log('Raw Products for Error', error.id, error.products);
+
+
     if (this.expandedErrorId === error.id) {
       this.expandedErrorId = null;
       return;
     }
 
     this.expandedErrorId = error.id;
+    const index = this.shippingErrors.findIndex(e => e.id === error.id);
+    if (index === -1) return;
 
-    if (!error.products || error.products.length === 0) {
-      this.loadingIds[error.id] = true;
+    const products = error.products || [];
+    const isEditable = error.status === 'Open';
 
-      this.dataService.getShippingErrorDetails(error.id).subscribe({
-        next: (record) => {
-          console.log('Shipping Error Details:', record);
-          const index = this.shippingErrors.findIndex(e => e.id === error.id);
-          if (index !== -1) {
-            const products: (ShippingErrorProduct & {
-              dispositions?: any[];
-              selectedDisposition?: string;
-              brmMessage?: string;
-              validationError?: 'disposition' | 'brm' | null;
-            })[] = record.products || [];
+    products.forEach(p => {
+      const dispositionValue = p.disposition != null ? String(p.disposition) : '';
 
-            products.forEach(p => {
-              p.dispositions = this.dispositionsMap[p.errorType] || [
-                { label: 'No Action', value: 'NoAction' }
-              ];
-              p.selectedDisposition = undefined;
-              p.brmMessage = '';
-              p.validationError = null;
-            });
+      const rawOptions = this.dispositionsMap[p.errorType] || [
+        { label: 'No Action', value: 'NoAction' }
+      ];
 
-            this.shippingErrors[index].products = products;
-          }
-          this.loadingIds[error.id] = false;
-        },
-        error: () => {
-          this.loadingIds[error.id] = false;
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load product details.' });
-        }
+      const normalizedOptions = rawOptions.map(opt => ({
+        label: opt.label,
+        value: String(opt.value).trim()
+      }));
+
+      const match = normalizedOptions.find(o => o.value === dispositionValue);
+
+      console.log({
+        productCode: p.productCode,
+        dispositionValue,
+        matched: !!match,
+        options: normalizedOptions.map(o => o.value)
       });
-    }
+
+      (p as any).dispositions = normalizedOptions;
+      (p as any).selectedDisposition = match ? dispositionValue : null;
+      (p as any).brmMessage = p.customMessage || '';
+      (p as any).validationError = null;
+      (p as any).isBRMDisposition = dispositionValue === '9' && !!p.customMessage?.trim();
+      (p as any).readOnly = !isEditable;
+    });
+
+
+
+    this.shippingErrors[index].products = products;
+
+
+
   }
 
 
+
+
+  allProductsClosed(error: ShippingErrorRecord): boolean {
+    return error.products?.every(p =>
+      p.disposition != null && String(p.disposition).trim() !== ''
+    ) ?? false;
+  }
+
+
+
+
+
+  filterByBRM(): void {
+    this.filteredShippingErrors = this.shippingErrors.filter(error =>
+      error.products?.some(p => (p as any).isBRMProduct)
+    );
+  }
 
   validateErrorRecord(error: ShippingErrorRecord): boolean {
     let isValid = true;
@@ -163,21 +245,22 @@ export class ShippingerrorsComponent {
     for (const product of products) {
       product.validationError = null;
 
- 
-      if (!product.selectedDisposition) {
+      const disposition = product.selectedDisposition || String(product.disposition || '');
+
+      if (!disposition.trim()) {
         product.validationError = 'disposition';
         isValid = false;
       } else if (
-        product.selectedDisposition === '9' &&
+        disposition === '9' &&
         (!product.brmMessage || product.brmMessage.trim() === '')
       ) {
         product.validationError = 'brm';
         isValid = false;
       }
     }
+
     return isValid;
   }
-
 
 
 
@@ -205,7 +288,8 @@ export class ShippingerrorsComponent {
       // Prepare the payload data to send to the backend
       const payload = error.products?.map((product: any) => {
 
-      const customMessage = product.brmMessage && product.selectedDisposition === '9' ? product.brmMessage.trim() : null; // Only set if selectedDisposition is "9"
+
+      const customMessage = product.brmMessage && product.selectedDisposition === '9' ? product.brmMessage.trim() : "NA"; // Only set if selectedDisposition is "9"
 
      
 
@@ -232,6 +316,7 @@ export class ShippingerrorsComponent {
           summary: 'Processed',
           detail: `Shipping error #${error.id} processed successfully.`
         });
+        this.loadData(); // ✅ Refresh data
       },
       error: (err) => {
         // Error handling message
@@ -253,12 +338,28 @@ export class ShippingerrorsComponent {
     this.dataService.getPackingSlip(shippingErrorId).subscribe({
       next: (data: PackingSlipData) => {
         this.packingSlipHeader = data.header;
-        this.packingSlipProducts = data.products;
+
+        //this.packingSlipProducts = (data.products || []).sort((a, b) =>
+        //  b.productCode.localeCompare(a.productCode)
+        //);
+
+        this.packingSlipProducts = (data.products || []).sort((a, b) =>
+          Number(b.productCode) - Number(a.productCode)
+        );
 
         // Now load the error details too
         this.dataService.getShippingErrorDetails(shippingErrorId).subscribe({
           next: (errorDetails) => {
-            this.selectedErrorDetails = errorDetails.products || [];
+
+
+            //this.selectedErrorDetails = (errorDetails.products || []).sort((a, b) =>
+            //  b.productCode.localeCompare(a.productCode)
+            //);
+
+            this.selectedErrorDetails = (errorDetails.products || []).sort((a, b) =>
+              Number(b.productCode) - Number(a.productCode)
+            );
+
             this.showPackingSlip = true;
           },
           error: (err) => {
@@ -278,6 +379,10 @@ export class ShippingerrorsComponent {
         this.showPackingSlip = false;
       }
     });
+  }
+
+  hasDamaged(error: ShippingErrorRecord): boolean {
+    return error.products?.some(p => p.errorType === 'Damaged') ?? false;
   }
 
 
@@ -320,8 +425,104 @@ export class ShippingerrorsComponent {
 
 
 
+  shouldShowPrintRA(error: ShippingErrorRecord): boolean {
+    return error.rmaStatus === 'RMA Requested';
+  }
 
 
+  printRA(error: ShippingErrorRecord): void {
+    const qualifying = error.products?.filter(p =>
+      [0,1, 4, 8].includes(Number(p.disposition ?? -1)) // default to -1 if undefined
+    ) || [];
+
+    if (!qualifying.length) {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'No RA Required',
+        detail: `No returnable products found for Error #${error.id}`
+      });
+      return;
+    }
+
+    const raWindow = window.open('', '_blank', 'width=800,height=600');
+    if (!raWindow) return;
+
+    const html = this.buildRAHtml(error, qualifying);
+    raWindow.document.write(html);
+    raWindow.document.close();
+    raWindow.focus();
+    raWindow.print();
+  }
+
+  buildRAHtml(error: ShippingErrorRecord, products: ShippingErrorProduct[]): string {
+    return `
+    <html>
+      <head>
+        <title>RA #${error.id}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; color: #000; }
+          .header { display: flex; justify-content: space-between; }
+          .return-address { text-align: right; font-size: 14px; line-height: 1.6; }
+          h2 { border-bottom: 1px solid #000; padding-bottom: 5px; margin-top: 10px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+          .instructions { margin-top: 20px; padding: 10px; background-color: #f0f0f0; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h2>Return Authorization (RA)</h2>
+            <p><strong>RA #: </strong> ${error.id}</p>
+            <p><strong>Submitted By:</strong> ${error.contactName} (${error.contactEmail})</p>
+            <p><strong>Account:</strong> ${error.companyName}</p>
+            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+          </div>
+          <div class="return-address">
+            <strong>Return To:</strong><br/>
+            Promaster Customer Returns<br/>
+            123 Main Street<br/>
+            Anytown, CT 06810<br/>
+            Phone: (800) 555-1234<br/>
+            Email: returns@promaster.com
+          </div>
+        </div>
+
+        <div class="instructions">
+          <strong>Instructions:</strong><br/>
+          Please include this RA form inside the return box and write the RA number on the outside of the box. Returns must be received by <strong>${this.getDatePlusDays(30)}</strong>.
+        </div>
+
+        <h3>Return Items</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Product Code</th>
+              <th>Description</th>
+              <th>Quantity</th>
+              <th>Error Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${products.map(p => `
+              <tr>
+                <td>${p.productCode}</td>
+                <td>${p.productDescription}</td>
+                <td>${p.quantity}</td>
+                <td>${p.errorType}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `;
+  }
+  getDatePlusDays(days: number): string {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date.toLocaleDateString();
+  }
 
   exportErrors() {
 

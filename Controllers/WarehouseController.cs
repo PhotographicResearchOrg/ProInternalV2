@@ -51,6 +51,20 @@ namespace ProInternal.Controllers
         }
 
 
+        [HttpPost("completeProduct")]
+        public IActionResult CompleteProduct([FromBody] CompleteProductRequest request)
+        {
+            if (request == null || request.ProductId <= 0 || request.ShippingErrorId <= 0 || string.IsNullOrWhiteSpace(request.UserName))
+            {
+                return BadRequest("Invalid request.");
+            }
+
+            var result = _proDataAccess.MarkProductComplete(request.ShippingErrorId, request.ProductId, request.UserName);
+            return Ok(new { success = result });
+        }
+
+
+
 
         [HttpPost("processShippingErrors")]
         public async Task<ActionResult> ProcessShippingErrors([FromBody] List<ShippingErrorRequest> errorList)

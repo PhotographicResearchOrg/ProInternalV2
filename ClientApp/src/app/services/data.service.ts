@@ -63,6 +63,18 @@ export class DataService {
   }
 
 
+  markProductComplete(shippingErrorId: number, productId: number, userName: string): Observable<any> {
+    const url = `API/Warehouse/completeProduct`;
+    const payload = {
+      shippingErrorId: Number(shippingErrorId), 
+      productId: Number(productId),        
+      userName
+    };
+    return this.api.post<any>(url, payload);
+  }
+
+
+
 
   // processShippingErrors
   processShippingErrors(errorList: any[]): Observable<void> {

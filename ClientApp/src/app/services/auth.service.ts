@@ -173,6 +173,19 @@ export class AuthService {
 
 
 
+  getUsername(): string {
+    const token = localStorage.getItem('token');
+    if (!token) return 'Unknown';
+
+    try {
+      const decoded: any = jwtDecode(token);
+      return decoded?.userLastName || decoded?.sub || 'Unknown';
+    } catch {
+      return 'Unknown';
+    }
+  }
+
+
   private deleteAllCookies(): void {
     const cookies = document.cookie.split(";");
 

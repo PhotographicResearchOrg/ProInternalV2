@@ -94,16 +94,52 @@ namespace ProInternal.Services
 
 
 
-        // DAL Implementation
+        //// DAL Implementation
+        //public IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors()
+        //{
+        //    using var connection = new SqlConnection(_connectionString);
+        //    connection.Open();
+        //    return connection.Query<ProInternal.Models.WH.ShippingErrorRecord>(
+        //        "GetShippingErrors",
+        //        commandType: CommandType.StoredProcedure
+        //    ).ToList();
+        //}
+
         public IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors()
         {
             using var connection = new SqlConnection(_connectionString);
-            connection.Open();
-            return connection.Query<ProInternal.Models.WH.ShippingErrorRecord>(
+            var errorDictionary = new Dictionary<int, ProInternal.Models.WH.ShippingErrorRecord>();
+
+            var result = connection.Query<
+                ProInternal.Models.WH.ShippingErrorRecord,
+                ProInternal.Models.WH.ShippingErrorProduct,
+                ProInternal.Models.WH.ShippingErrorRecord>(
                 "GetShippingErrors",
+                (error, product) =>
+                {
+                    if (!errorDictionary.TryGetValue(error.Id, out var errorEntry))
+                    {
+                        errorEntry = error;
+                        errorEntry.Products = new List<ProInternal.Models.WH.ShippingErrorProduct>();
+                        errorDictionary.Add(error.Id, errorEntry);
+                    }
+
+                    if (product != null && !string.IsNullOrEmpty(product.ProductCode))
+                    {
+                        errorEntry.Products.Add(product);
+                    }
+
+                    return errorEntry;
+                },
+                splitOn: "ProductCode",
                 commandType: CommandType.StoredProcedure
-            ).ToList();
+            );
+
+            return errorDictionary.Values;
         }
+
+
+
 
 
 
@@ -724,12 +760,28 @@ namespace ProInternal.Services
                 catch (Exception ex)
                 {
                     // Optional: log error
-                    Console.WriteLine($"Login error: {ex.Message}");
+                    //Console.WriteLine($"Login error: {ex.Message}");
                 }
 
                 return response;
             }
         }
+
+       
+
+
+        public bool MarkProductComplete(int shippingErrorId, int productId, string updatedBy)
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var result = connection.Execute("ShippingError_MarkProductComplete",
+                    new { ShippingErrorId = shippingErrorId, ProductId = productId, UpdatedBy = updatedBy },
+                    commandType: CommandType.StoredProcedure);
+                return result > 0;
+            }
+        }
+
+
 
 
         public List<PermissionDto> GetAllPermissions()

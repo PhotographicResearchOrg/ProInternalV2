@@ -32,8 +32,9 @@
 <div class="p-mb-3">
   <div class="p-buttonset">
     <button pButton label="Open" icon="pi pi-check-circle" class="p-button-outlined" (click)="filterByStatus('Open')"></button>
-    <button pButton label="Closed" icon="pi pi-times-circle" class="p-button-outlined" (click)="filterByStatus('Closed')"></button>
-    <button pButton label="Deleted" icon="pi pi-trash" class="p-button-outlined" (click)="filterByStatus('Deleted')"></button>
+    <button pButton label="Processed" icon="pi pi-times-circle" class="p-button-outlined" (click)="filterByStatus('Processed')"></button>
+    <button pButton label="BRM" icon="pi pi-trash" class="p-button-outlined" (click)="filterByStatus('BRM')"></button>
+    <button pButton label="Complete" icon="pi pi-trash" class="p-button-outlined" (click)="filterByStatus('Complete')"></button>
     <button pButton label="All" icon="pi pi-refresh" class="p-button-outlined" (click)="resetFilter()"></button>
   </div>
 </div>
@@ -49,7 +50,7 @@
   <ng-template pTemplate="header">
     <tr>
       <th style="width: 3rem"></th>
-      <th pSortableColumn="id">ID <p-sortIcon field="id"></p-sortIcon></th>
+      <th pSortableColumn="id">Claim ID <p-sortIcon field="id"></p-sortIcon></th>
       <th pSortableColumn="shipnumber">Ship #<p-sortIcon field="shipnumber"></p-sortIcon></th>
       <th pSortableColumn="companyName">Company<p-sortIcon field="companyName"></p-sortIcon></th>
       <th pSortableColumn="dateSubmitted">Submitted<p-sortIcon field="dateSubmitted"></p-sortIcon></th>
@@ -70,7 +71,15 @@
       <td>{{ error.dateSubmitted }}</td>
       <td>
         <p-tag [value]="error.status" [severity]="error.status === 'Open' ? 'warning' : 'danger'"></p-tag>
+
+        <p-tag *ngIf="hasBRMProduct(error)"
+               value="BRM"
+               severity="info"
+               styleClass="ml-2">
+        </p-tag>
       </td>
+
+
     </tr>
 
     <!-- Detail Row -->
@@ -85,18 +94,57 @@
               <div class="text-md font-bold">
                 <i class="pi pi-info-circle mr-2 text-primary"></i> Shipping Error Details
               </div>
+
               <div class="button-container">
+
                 <button pButton icon="pi pi-eye" label="View Packing Slip" class="p-button-text p-button-sm" (click)="viewPackingSlip(error.id)"></button>
+
+
+                <!-- Add this block -->
+                <a *ngIf="hasDamaged(error)"
+                   [href]="'https://piv2.promaster.com/ShippingErrors/' + error.id + '/'"
+                   target="_blank"
+                   pButton
+                   label="View Damage Images"
+                   icon="pi pi-images"
+                   class="p-button-text p-button-sm">
+                </a>
+
+
+
+                <button *ngIf="shouldShowPrintRA(error)"
+                        pButton
+                        icon="pi pi-print"
+                        label="Print RA"
+                        class="p-button-text p-button-sm"
+                        (click)="printRA(error)">
+                </button>
+
               </div>
+
+
             </div>
+
+
+
+
 
             <!-- Info Grid -->
             <div class="p-fluid grid">
-              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-calendar mr-1 text-600"></i> <strong>Date:</strong> {{ now | date:'short' }}</div>
-              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-hashtag mr-1 text-600"></i> <strong>Shipping ID:</strong> {{ error.id }}</div>
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-calendar mr-1 text-600"></i> <strong>Submitted:</strong>{{ error.dateSubmitted }}   </div>
+
+
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-hashtag mr-1 text-600"></i> <strong>Shipping ID:</strong> {{ error.shipnumber }}</div>
+
               <div class="col-12 sm:col-6 mb-2"><i class="pi pi-flag mr-1 text-600"></i> <strong>Status:</strong> {{ error.status }}</div>
-              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-clock mr-1 text-600"></i> <strong>Submitted:</strong> {{ error.dateSubmitted }}</div>
+
+
+              <div class="col-12 sm:col-6 mb-2"><i class="pi pi-clock mr-1 text-600"></i> <strong>Shipped:</strong>   {{ error.shipDate | date:'yyyy-MM-dd' }} </div>
+
+
+
               <div class="col-12 sm:col-6 mb-2"><i class="pi pi-undo mr-1 text-600"></i> <strong>RMA:</strong> {{ error.rmaStatus || 'NA' }}</div>
+
               <div class="col-12 sm:col-6 mb-2"><i class="pi pi-building mr-1 text-600"></i> <strong>Account #:</strong> {{ error.account }}</div>
               <div class="col-12 sm:col-6 mb-2"><i class="pi pi-users mr-1 text-600"></i> <strong>Account Name:</strong> {{ error.companyName }}</div>
               <div class="col-12 sm:col-6 mb-2"><i class="pi pi-user mr-1 text-600"></i> <strong>Contact:</strong> {{ error.contactName }}</div>
@@ -134,10 +182,22 @@
                           <div class="grid">
                             <div class="col-12 md:col-6">
                               <strong>Disposition:</strong>
-                              <p-dropdown [options]="product.dispositions"
+                              <!--<p-dropdown [options]="product.dispositions"
                                           [(ngModel)]="product.selectedDisposition"
                                           (onChange)="product.validationError = null"
                                           [ngClass]="{'p-invalid': product.validationError === 'disposition'}"
+                                          class="w-full"
+                                          placeholder="Select"
+                                          appendTo="body">
+                              </p-dropdown>-->
+
+                              <p-dropdown [options]="product.dispositions"
+                                          [(ngModel)]="product.selectedDisposition"
+                                          optionLabel="label"
+                                           [disabled]="product.readOnly"
+                                          optionValue="value"
+                                          (onChange)="product.validationError = null"
+                                          [ngClass]="{ 'p-invalid': product.validationError === 'disposition' }"
                                           class="w-full"
                                           placeholder="Select"
                                           appendTo="body">
@@ -150,9 +210,22 @@
                               <input pInputText [(ngModel)]="product.brmMessage"
                                      (input)="product.validationError = null"
                                      [ngClass]="{'p-invalid': product.validationError === 'brm'}"
+                                     [disabled]="product.readOnly"
                                      class="w-full"
                                      placeholder="Enter message" />
                               <small *ngIf="product.validationError === 'brm'" class="p-error">Message required for BRM Soft Touch.</small>
+
+
+                              <button pButton
+                                      icon="pi pi-check"
+                                      label="Complete"
+                                      class="p-button-success p-button-sm mt-2"
+                                     [disabled]="product.closed || !product.isBRMProduct"
+                                      (click)="markProductComplete(error.id, product.productCode)">
+                              </button>
+
+                              <p-tag *ngIf="product.closed" value="Completed" severity="success" class="ml-2 mt-2"></p-tag>
+
                             </div>
                           </div>
                         </div>
@@ -164,6 +237,7 @@
                 <div class="text-right mt-3">
                   <button pButton label="Process"
                           icon="pi pi-check"
+                             [disabled]="allProductsClosed(error)"
                           class="p-button-success p-button-sm"
                           (click)="processShippingError(error)">
                   </button>
@@ -190,6 +264,7 @@
                [modal]="true"
                [dismissible]="true"
                [baseZIndex]="10000"
+        
                [style]="{ width: '90vw', maxWidth: '600px' }"
                [closeOnEscape]="true"
                [showCloseIcon]="true">
@@ -210,7 +285,7 @@
           <table class="packing-slip-summary mb-3">
             <thead>
               <tr>
-                <th>Order Date</th>
+                <th>Ship Date</th>
                 <th>PRO Order #</th>
                 <th>PO #</th>
                 <th>Checked By</th>
@@ -263,17 +338,11 @@
               <tr *ngFor="let product of selectedErrorDetails">
                 <td>{{ product.productCode }}</td>
                 <td>{{ product.productDescription }}</td>
-                <td>{{ product.quantity }}</td>
-     
-                <td>{{ product.errorType }}</td>
-            
+                <td>{{ product.quantity }}</td>    
+                <td>{{ product.errorType }}</td>        
               </tr>
             </tbody>
           </table>
-
-
-
-
         </ng-container>
       </div>
         <ng-template #loadingSlip>

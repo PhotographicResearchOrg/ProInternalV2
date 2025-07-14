@@ -8,25 +8,29 @@ export interface ShippingErrorRecord {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
-
+  shipDate: Date;
   rmaStatus: string;
   submitted: string;
-
   supportFile?: string; // optional for attached documents
   disposition?: number;
   approved?: boolean;
   customMessage?: string;
-
   products: ShippingErrorProduct[];
 }
 
 export interface ShippingErrorProduct {
+
+  isBRMProduct?: boolean;  // ← add this
   productCode: string;
   productDescription: string;
   quantity: number;
   errorType: string;
   cost?: number;
   serial?: string;
+  disposition?: string;
+  BRMFollowUp?: number;
+  customMessage?: string;
+
 }
 
 export interface PackingSlipData {

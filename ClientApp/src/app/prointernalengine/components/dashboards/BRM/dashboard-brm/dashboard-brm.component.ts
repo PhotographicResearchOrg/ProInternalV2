@@ -5,6 +5,8 @@ import { DataService } from 'src/app/services/data.service';
 import { ChangeDetectorRef } from '@angular/core';
 import { NotificationService } from 'src/app/services/notification.service';
 import { AppTopbarComponent } from 'src/app/layout/app.topbar.component';
+import { ShippingerrorbrmComponent } from 'src/app/prointernalengine/components/dashboards/BRM/shippingerrorbrm/shippingerrorbrm.component';
+
 
 @Component({
   selector: 'app-dashboard-brm',
@@ -27,6 +29,9 @@ export class DashboardBrmComponent implements OnInit {
   public declinedIRsOriginal: any[] = [];
   public statusFilter = 3;
   public isHubspotCardCollapsed = true;
+  public isShippingCardCollapsed = false;
+  public brmShippingErrorCount = 0;
+
 
   constructor(private dataService: DataService, private cdr: ChangeDetectorRef, private notificationService: NotificationService) { }
 

@@ -47,7 +47,7 @@ namespace ProInternal.Services
 
 
                 var accessToken = authResult.AccessToken;
-                Console.WriteLine("Access Token: " + accessToken);
+                //Console.WriteLine("Access Token: " + accessToken);
 
                 var tokenCredentials = new TokenCredentials(authResult.AccessToken, "Bearer");
 
@@ -67,16 +67,16 @@ namespace ProInternal.Services
 
             }
                 catch (HttpOperationException ex) {
-                    Console.WriteLine("Power BI API Call Failed");
-                    Console.WriteLine($"Status: {ex.Response.StatusCode}");
-                    Console.WriteLine($"Content: {ex.Response.Content}");
+                    //Console.WriteLine("Power BI API Call Failed");
+                    //Console.WriteLine($"Status: {ex.Response.StatusCode}");
+                    //Console.WriteLine($"Content: {ex.Response.Content}");
                     throw;
                 }
 
             catch (Exception ex)
             {
-                Console.WriteLine("General Error:");
-                Console.WriteLine(ex.Message);
+                //Console.WriteLine("General Error:");
+               // Console.WriteLine(ex.Message);
                 throw;
             }
 

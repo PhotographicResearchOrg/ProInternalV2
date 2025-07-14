@@ -71,7 +71,7 @@ import { AffiliateGridComponent } from './prointernalengine/components/MemberMan
 import { ReceivablesComponent } from './prointernalengine/components/dashboards/accounting/receivables/receivables.component';
 import { ShippingerrorsComponent} from './prointernalengine/components/dashboards/warehouse/shippingerrors/shippingerrors.component'; 
 import { SidebarModule } from 'primeng/sidebar';
-
+import { ShippingerrorbrmComponent } from './prointernalengine/components/dashboards/BRM/shippingerrorbrm/shippingerrorbrm.component';
 
 @NgModule({
   declarations:
@@ -103,7 +103,8 @@ import { SidebarModule } from 'primeng/sidebar';
     DashboardBrmComponent,
       IrDeclinesTableComponent,
       VendorGridComponent,
-      ShippingerrorsComponent
+      ShippingerrorsComponent,
+      ShippingerrorbrmComponent
   ],
 
   imports: [

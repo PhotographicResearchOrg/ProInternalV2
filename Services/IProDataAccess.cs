@@ -29,6 +29,7 @@ namespace ProInternal.Services
     public interface IProDataAccess
     {
 
+        bool MarkProductComplete(int shippingErrorId, int productId, string updatedBy);
 
         IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors();
         ProInternal.Models.WH.ShippingErrorRecord GetShippingErrorDetails(int id);
