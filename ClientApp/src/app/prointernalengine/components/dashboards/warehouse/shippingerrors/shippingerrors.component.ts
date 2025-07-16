@@ -61,7 +61,8 @@ export class ShippingerrorsComponent {
       { label: 'Complete - Order Forwarded', value: '11' }
     ],
     'Call Me': [
-      { label: 'Complete - BRM call requested', value: '12' }
+      { label: 'Complete - BRM call requested', value: '12' },
+        { label: 'BRM Soft Touch', value: '9' } // Add this line
     ],
     'DidNotOrder': [  // Add this section for DidNotOrder
       { label: 'Issue RA + charge items + update inventory', value: '0' },
@@ -432,7 +433,7 @@ export class ShippingerrorsComponent {
 
   printRA(error: ShippingErrorRecord): void {
     const qualifying = error.products?.filter(p =>
-      [0,1, 4, 8].includes(Number(p.disposition ?? -1)) // default to -1 if undefined
+      [0,3,7].includes(Number(p.disposition ?? -1)) // default to -1 if undefined
     ) || [];
 
     if (!qualifying.length) {
