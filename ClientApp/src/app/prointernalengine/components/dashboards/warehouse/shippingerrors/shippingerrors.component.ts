@@ -427,8 +427,14 @@ export class ShippingerrorsComponent {
 
 
   shouldShowPrintRA(error: ShippingErrorRecord): boolean {
-    return error.rmaStatus === 'RMA Requested';
+    const hasRAStatus = error.rmaStatus === 'RMA Requested';
+    const hasRAProduct = error.products?.some(p =>
+      [0, 3, 7].includes(Number(p.disposition ?? -1))
+    );
+
+    return hasRAStatus || hasRAProduct;
   }
+
 
 
   printRA(error: ShippingErrorRecord): void {
