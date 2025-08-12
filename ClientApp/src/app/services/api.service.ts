@@ -4,6 +4,7 @@ import { options } from "@fullcalendar/core/preact";
 import { Observable } from "rxjs";
 import { isDevMode } from '@angular/core';
 
+
 @Injectable({
   providedIn: "root",
 })
@@ -13,12 +14,12 @@ export class ApiService {
   private defaultHeaders: HttpHeaders;
   constructor(private http: HttpClient)
   {
-    console.log(isDevMode());
+    //console.log(isDevMode());
     //console.log(environment.production);
 
-    if (isDevMode())
-      this._apiUrl = "http://localhost:5248";
-    else
+    //if (isDevMode())
+    //  this._apiUrl = "http://localhost:5248";
+    //else
       this._apiUrl = "http://sqlii:9191/AWS_PRO/subroutine/*pro*API.UPD.SHIPERRS";
 
       this.defaultHeaders = new HttpHeaders().set("Content-Type", "application/json; charset=utf-8");
