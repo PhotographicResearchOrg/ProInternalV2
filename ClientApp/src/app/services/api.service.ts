@@ -19,7 +19,7 @@ export class ApiService {
     if (isDevMode())
       this._apiUrl = "http://localhost:5248";
     else
-      this._apiUrl = "";
+      this._apiUrl = "http://sqlii:9191/AWS_PRO/subroutine/*pro*API.UPD.SHIPERRS";
 
       this.defaultHeaders = new HttpHeaders().set("Content-Type", "application/json; charset=utf-8");
   }
