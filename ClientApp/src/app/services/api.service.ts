@@ -4,6 +4,7 @@ import { options } from "@fullcalendar/core/preact";
 import { Observable } from "rxjs";
 import { isDevMode } from '@angular/core';
 
+
 @Injectable({
   providedIn: "root",
 })
@@ -17,7 +18,7 @@ export class ApiService {
     //console.log(environment.production);
 
     if (isDevMode())
-      this._apiUrl = "http://localhost:5248";
+    this._apiUrl = "http://localhost:5248";
     else
       this._apiUrl = "";
 
