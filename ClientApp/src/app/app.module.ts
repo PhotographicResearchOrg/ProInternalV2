@@ -8,7 +8,7 @@ import { ChartModule } from 'primeng/chart';
 import { ToastModule } from 'primeng/toast';
 import { TableModule } from 'primeng/table';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { RippleModule } from 'primeng/ripple';
 import { ProgressBarModule } from 'primeng/progressbar';
@@ -72,11 +72,22 @@ import { ReceivablesComponent } from './prointernalengine/components/dashboards/
 import { ShippingerrorsComponent} from './prointernalengine/components/dashboards/warehouse/shippingerrors/shippingerrors.component'; 
 import { SidebarModule } from 'primeng/sidebar';
 import { ShippingerrorbrmComponent } from './prointernalengine/components/dashboards/BRM/shippingerrorbrm/shippingerrorbrm.component';
+import { PaymentTypeComponent } from './prointernalengine/components/shared/payment-type/payment-type.component';
+import { ConfirmPopupModule } from 'primeng/confirmpopup';
+import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component'; 
+import { PanelModule } from 'primeng/panel';
+import { BrowserModule } from '@angular/platform-browser';             // <-- add
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; // <-- add
+import { ChipsModule } from 'primeng/chips';
+import { CalendarModule } from 'primeng/calendar'; // If PrimeNG 17+, use DatePickerModule instead
+
+
 
 @NgModule({
   declarations:
     [
-     ReceivablesComponent,
+    ProductEditComponent,
+    ReceivablesComponent,
     AffiliateGridComponent,
     ClientGridComponent,
     MemberGridComponent,
@@ -101,13 +112,21 @@ import { ShippingerrorbrmComponent } from './prointernalengine/components/dashbo
     PaymentsComponent,
     HubspotCompanyComponent,
     DashboardBrmComponent,
-      IrDeclinesTableComponent,
-      VendorGridComponent,
-      ShippingerrorsComponent,
-      ShippingerrorbrmComponent
+    IrDeclinesTableComponent,
+    VendorGridComponent,
+    ShippingerrorsComponent,
+    ShippingerrorbrmComponent,
+    PaymentTypeComponent
   ],
 
   imports: [
+    BrowserModule,                 // <-- required
+    BrowserAnimationsModule,       // <-- required for PrimeNG
+    ChipsModule,
+    CalendarModule, // If on PrimeNG 17+, swap to DatePickerModule and change <p-calendar> to <p-datepicker>
+    ReactiveFormsModule,
+    PanelModule,
+    ConfirmPopupModule,
     SidebarModule,
     CardModule,
     TooltipModule,
@@ -121,33 +140,33 @@ import { ShippingerrorbrmComponent } from './prointernalengine/components/dashbo
     CheckboxModule,
     DividerModule,
     ConfirmDialogModule,
-        ToolbarModule,
-        PickListModule,
-        ToggleButtonModule,
-        MultiSelectModule,
-        SliderModule,
-        RatingModule,
-        HttpClientModule,
-        AutoCompleteModule,
-        SelectButtonModule,
-        AppRoutingModule,
-        AppLayoutModule,
-        MenuModule,
-        ChartModule,
-        ToastModule,
-        TableModule,
-        FormsModule,
-        ButtonModule,
-        RippleModule,
-        CommonModule,
-        ProgressBarModule,
-        DropdownModule,
-        InputTextareaModule,
-        InputTextModule,
-        TagModule,
-        OverlayPanelModule,
-        FileUploadModule,
-        InputSwitchModule
+    ToolbarModule,
+    PickListModule,
+    ToggleButtonModule,
+    MultiSelectModule,
+    SliderModule,
+    RatingModule,
+    HttpClientModule,
+    AutoCompleteModule,
+    SelectButtonModule,
+    AppRoutingModule,
+    AppLayoutModule,
+    MenuModule,
+    ChartModule,
+    ToastModule,
+    TableModule,
+    FormsModule,
+    ButtonModule,
+    RippleModule,
+    CommonModule,
+    ProgressBarModule,
+    DropdownModule,
+    InputTextareaModule,
+    InputTextModule,
+    TagModule,
+    OverlayPanelModule,
+    FileUploadModule,
+    InputSwitchModule
   ],
  
   providers:

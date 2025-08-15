@@ -1,6 +1,125 @@
 <div class="grid">
+
+  <p-toast></p-toast>
+  <p-confirmPopup></p-confirmPopup>
+
+  <div class="col-12 md:col-6 xl:col-3">
+    <div class="surface-card border-1 surface-border rounded-2xl shadow-2 overflow-hidden h-full flex flex-column">
+      <div class="relative">
+        <img src="assets/Invoices.jpeg" alt="Process Invoices" class="w-full h-12rem object-cover" />
+        <div class="absolute inset-0 bg-black/30"></div>
+        <div class="absolute bottom-0 left-0 p-3 text-0">
+          <div class="text-lg font-semibold">Process Pass Through Invoice</div>
+          <div class="text-sm opacity-90">Runs Python batch via .NET</div>
+        </div>
+      </div>
+
+      <div class="p-3 flex align-items-center justify-content-between">
+        <div class="flex align-items-center gap-2 text-color-secondary">
+          <i class="pi pi-clock"></i>
+          <span *ngIf="lastRunAt; else readyTpl">Last run: {{ lastRunAt | date:'short' }}</span>
+          <ng-template #readyTpl>Ready</ng-template>
+        </div>
+        <p-button [label]="isRunning ? 'Running…' : 'Run Batch'"
+                  icon="pi pi-play"
+                  [loading]="isRunning"
+                  [disabled]="isRunning"
+                  (onClick)="confirmRun($event)"></p-button>
+      </div>
+
+      <div *ngIf="isRunning" class="px-3 pb-3">
+        <p-progressBar mode="indeterminate" styleClass="border-round" [style]="{ height: '.5rem' }"></p-progressBar>
+        <div class="text-sm text-color-secondary mt-2">This may take a few minutes…</div>
+      </div>
+
+      <div *ngIf="lastResult" class="px-3 pb-3">
+        <p-message *ngIf="lastOk" severity="success" [text]="successSummary"></p-message>
+        <p-message *ngIf="!lastOk" severity="error" [text]="errorSummary"></p-message>
+
+        <div class="mt-2 flex align-items-center justify-content-between">
+          <span class="text-sm text-color-secondary">Details</span>
+          <p-toggleButton [(ngModel)]="showRaw"
+                          onLabel="Hide" offLabel="Show"
+                          onIcon="pi pi-eye-slash" offIcon="pi pi-eye"
+                          [style]="{ 'font-size': '.85rem' }"></p-toggleButton>
+        </div>
+        <pre *ngIf="showRaw" class="mt-2 p-2 bg-surface-100 border-1 surface-border border-round overflow-auto text-sm"
+             style="max-height: 16rem">{{ lastResult | json }}</pre>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+
+  <div class="col-12 md:col-6 xl:col-3">
+    <div class="surface-card border-1 surface-border rounded-2xl shadow-2 overflow-hidden h-full flex flex-column">
+      <!-- Hero -->
+      <div class="relative">
+        <img src="assets/Invoice2.jpg" alt="Process Single Invoice"
+             class="w-full h-12rem object-cover" />
+        <div class="absolute inset-0 bg-black/30"></div>
+        <div class="absolute bottom-0 left-0 p-3 text-0">
+          <div class="text-lg font-semibold">Process Single Invoice</div>
+          <div class="text-sm opacity-90">Runs Python for one invoice</div>
+        </div>
+      </div>
+
+      <!-- Input + Action -->
+      <div class="p-3 flex flex-column gap-2">
+        <div class="flex align-items-center gap-2">
+          <input pInputText type="text" [(ngModel)]="invoiceNumber"
+                 placeholder="Invoice # (e.g., 983350)" class="w-full"
+                 [disabled]="isRunningSingle" />
+          <p-button [label]="isRunningSingle ? 'Running…' : 'Run'"
+                    icon="pi pi-play"
+                    [loading]="isRunningSingle"
+                    [disabled]="!invoiceNumber || isRunningSingle"
+                    (onClick)="runSingle()"></p-button>
+        </div>
+
+        <div class="flex align-items-center gap-2 text-color-secondary" *ngIf="lastSingleRunAt">
+          <i class="pi pi-clock"></i>
+          <span>Last run: {{ lastSingleRunAt | date:'short' }}</span>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div *ngIf="isRunningSingle" class="px-3 pb-3">
+        <p-progressBar mode="indeterminate" styleClass="border-round" [style]="{ height: '.5rem' }"></p-progressBar>
+        <div class="text-sm text-color-secondary mt-2">Processing invoice {{ invoiceNumber }}…</div>
+      </div>
+
+      <!-- Results -->
+      <div *ngIf="singleResult" class="px-3 pb-3">
+        <p-message *ngIf="singleOk" severity="success" [text]="singleSummary"></p-message>
+        <p-message *ngIf="!singleOk" severity="error" [text]="singleSummary"></p-message>
+
+        <div class="mt-2 flex align-items-center justify-content-between">
+          <span class="text-sm text-color-secondary">Details</span>
+          <p-toggleButton [(ngModel)]="showSingleRaw"
+                          onLabel="Hide" offLabel="Show"
+                          onIcon="pi pi-eye-slash" offIcon="pi pi-eye"
+                          [style]="{ 'font-size': '.85rem' }"></p-toggleButton>
+        </div>
+        <pre *ngIf="showSingleRaw" class="mt-2 p-2 bg-surface-100 border-1 surface-border border-round overflow-auto text-sm"
+             style="max-height: 16rem">{{ singleResult | json }}</pre>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+
+
   <div class="col-12 md:col-4 xl:col-2">
     <p-button styleClass="w-full surface-card flex flex-wrap h-full surface-border text-primary p-3">
+
+
       <div class="p-3 flex justify-content-center align-items-center border-circle bg-primary-50 text-primary mr-2"
            [ngClass]="{'bg-primary-900': layoutService.config().colorScheme === 'dark'}">
         <i class="pi pi-send text-xl"></i>
@@ -8,9 +127,16 @@
       <div class="flex flex-column align-items-start text-900">
         <span class="block h-auto font-bold">SAR</span>
         <span class="block h-auto">Process SAR Credits</span>
+
       </div>
+
+
+
     </p-button>
   </div>
+
+
+
 
   <div class="col-12 md:col-4 xl:col-2">
     <p-button styleClass="w-full surface-card flex flex-wrap h-full surface-border text-primary p-3">
@@ -407,7 +533,7 @@
       Download  : <i class="pi pi-file-excel"> </i>
       <div class="flex justify-content-between border-bottom-1 surface-border p-3">
         <!--<span class="font-semibold text-color-secondary text-xl">AP</span>
-    <span class="text-green-500 text-2xl font-bold">$624,504.00</span>-->
+        <span class="text-green-500 text-2xl font-bold">$624,504.00</span>-->
       </div>
 
       <div class="p-3">
@@ -447,7 +573,7 @@
         <h5>Receivables</h5>Download  : <i class="pi pi-file-excel"> </i>
         <div class="flex justify-content-between border-bottom-1 surface-border p-3">
           <!--<span class="font-semibold text-color-secondary text-xl">AP</span>
-      <span class="text-green-500 text-2xl font-bold">$624,504.00</span>-->
+          <span class="text-green-500 text-2xl font-bold">$624,504.00</span>-->
         </div>
         <div class="p-3">
           <div class="flex align-items-center justify-content-between py-2">
@@ -463,16 +589,16 @@
             </div>
           </div>
           <!--<div class="flex align-items-center justify-content-between py-2">
-      <div class="flex gap-3 text-lg align-items-center">
-        <i class="pi pi-briefcase text-color-secondary"></i>
-        <span class="text-color-secondary">AR</span>
-      </div>
-      <div class="flex align-items-center gap-2">
-        <span class="font-semibold text-base">$394,305.00</span>
-        <a href="#" class="text-color-secondary">
-          <i class="pi pi-angle-double-right"></i>
-        </a>
-      </div>-->
+          <div class="flex gap-3 text-lg align-items-center">
+            <i class="pi pi-briefcase text-color-secondary"></i>
+            <span class="text-color-secondary">AR</span>
+          </div>
+          <div class="flex align-items-center gap-2">
+            <span class="font-semibold text-base">$394,305.00</span>
+            <a href="#" class="text-color-secondary">
+              <i class="pi pi-angle-double-right"></i>
+            </a>
+          </div>-->
         </div>
 
       </div>
@@ -531,7 +657,7 @@
 
   <div class="col-12 lg:col-6">
     <div class="card">
-      <div class="text-900 text-xl font-semibold mb-3">EZ-PAY Week Ending 02/09/24 </div> Download  : <i class="pi pi-file-excel"> </i> 
+      <div class="text-900 text-xl font-semibold mb-3">EZ-PAY Week Ending 02/09/24 </div> Download  : <i class="pi pi-file-excel"> </i>
       <p-table responsiveLayout="scroll">
         <ng-template pTemplate="header">
           <tr>

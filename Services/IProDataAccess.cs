@@ -23,6 +23,8 @@ using ProInternal.Models;
 using static ProInternal.Controllers.AuthController;
 using Azure.Core;
 using ProInternal.Models.Outstanding;
+using ProInternal.Models.EditProduct;
+using ProInternal.Models.Shared;
 
 namespace ProInternal.Services
 {
@@ -43,6 +45,11 @@ namespace ProInternal.Services
         void SaveUserExtraPermission(int userId, List<string> permissions);
 
         void ToggleVendorWebStatus(int vendorId);
+
+
+        IEnumerable<PaymentType> GetPaymentTypes();
+
+        void SavePaymentType(PaymentType payment);
 
         IEnumerable<Vendor> GetVendors();
         IEnumerable<Member> GetMembers(int memberTypeId);
@@ -152,6 +159,27 @@ namespace ProInternal.Services
         void savePatronageData(List<PatronageUpload> data);
         List<PatronageUpload>GetRecentPatronageLoad();
         List<PatronageHistorical> GetPatronageHistorical();
+
+
+        //// Product edit
+        //ProdDto? GetProductEnvelopeByCode(string productCode);
+        //Result UpdateProductEnvelope(ProdDto dto);
+
+        //ProductInfoLookupDto? LookupProductInfo(string code, string type, int parentId);
+        //List<IQPromptDto> GetIQPrompts();
+
+        //Result AddTag(int productId, string tag);
+        //Result RemoveTag(int productId, string tag);
+
+        //Result AddToGroup(string productCode, string groupCode, string? colorName, string? colorHex, string? size);
+        //Result RemoveFromGroup(string productCode);
+
+        //List<ProductAttributeDto> GetTechSpecs(string code);
+        //Result SaveTechSpecs(string code, IEnumerable<ProductAttributeDto> attrs);
+
+        //// Common
+        //List<CategoryNodeDto> GetSubCategories(int parentCatId);
+
 
     }
 

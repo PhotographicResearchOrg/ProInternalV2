@@ -1,0 +1,41 @@
+<p-toast></p-toast>
+
+<div class="flex justify-content-between align-items-center mb-2">
+  <input type="text"
+         pInputText
+         placeholder="Search..."
+         class="w-30rem"
+         (input)="onGlobalFilter($event)" />
+  <a (click)="exportToExcel()" class="text-sm text-primary cursor-pointer font-medium hover:underline">
+    <i class="pi pi-file-excel mr-1"></i> Export to Excel
+  </a>
+</div>
+
+<p-table #dt [value]="filteredList" [paginator]="true" [rows]="10" [responsiveLayout]="'scroll'"
+         [globalFilterFields]="['accountNumber', 'dba', 'legalName', 'paymentType']" [style]="{ 'min-width': '800px' }">
+  <ng-template pTemplate="header">
+    <tr>
+      <th>Account #</th>
+      <th>DBA</th>
+      <th>Legal Name</th>
+      <th>Payment Type</th>
+      <th>Edit</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-row>
+    <tr>
+      <td>{{ row.accountNumber }}</td>
+      <td>{{ row.dba }}</td>
+      <td>{{ row.legalName }}</td>
+      <td>{{ row.paymentType || 'Not Selected' }}</td>
+      <td>
+        <p-dropdown [options]="paymentTypeOptions"
+                    [(ngModel)]="row.paymentType"
+                    placeholder="Select..."
+                    appendTo="body"
+                    (onChange)="onPaymentTypeChange(row)"
+                    styleClass="w-full"></p-dropdown>
+      </td>
+    </tr>
+  </ng-template>
+</p-table>

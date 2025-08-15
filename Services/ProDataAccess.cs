@@ -90,20 +90,38 @@ namespace ProInternal.Services
         }
 
 
+        public void SavePaymentType(PaymentType payment)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            using var command = new SqlCommand("Accounting_SavePaymentType", connection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            command.Parameters.AddWithValue("@AccountNumber", payment.AccountNumber);
+            command.Parameters.AddWithValue("@PaymentType", string.IsNullOrEmpty(payment.PaymentTypeName) ? DBNull.Value : (object)payment.PaymentTypeName);
+
+            connection.Open();
+            command.ExecuteNonQuery();
+
+        }
+
+
+
+        public IEnumerable<PaymentType> GetPaymentTypes()
+        {
+            using var connection = new SqlConnection(_connectionString);
+            return connection.Query<PaymentType>(
+                "Accounting_GetPaymentTypes",
+                commandType: CommandType.StoredProcedure
+            );
+        }
 
 
 
 
-        //// DAL Implementation
-        //public IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors()
-        //{
-        //    using var connection = new SqlConnection(_connectionString);
-        //    connection.Open();
-        //    return connection.Query<ProInternal.Models.WH.ShippingErrorRecord>(
-        //        "GetShippingErrors",
-        //        commandType: CommandType.StoredProcedure
-        //    ).ToList();
-        //}
+
+
 
         public IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors()
         {

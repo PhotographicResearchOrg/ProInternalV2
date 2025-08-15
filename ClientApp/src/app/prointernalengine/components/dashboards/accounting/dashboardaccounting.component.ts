@@ -1,8 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { SelectItem } from 'primeng/api';
 import { Subscription, debounceTime } from 'rxjs';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
-
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { ConfirmPopupModule } from 'primeng/confirmpopup';
+import { ToastModule } from 'primeng/toast';
+import { ButtonModule } from 'primeng/button';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { MessageModule } from 'primeng/message';
+import { ToggleButtonModule } from 'primeng/togglebutton';
+import { DataService } from 'src/app/services/data.service';
+import { BatchRunResponse } from 'src/app/models/Uvicorn/PassThroughInvoice';
 
 interface MonthlyPayment {
     name?: string;
@@ -14,27 +22,42 @@ interface MonthlyPayment {
 @Component({
     templateUrl: './dashboardaccounting.component.html',
 })
+
+
+
 export class DashboardAccountingComponent implements OnInit {
 
+    invoiceNumber = '';
     dropdownItem: SelectItem[] = [];
-
     selectedDropdownItem: any;
-
     payments: MonthlyPayment[] = [];
-
     visitorChart: any;
-
     visitorChartOptions: any;
-
     subscription!: Subscription;
+    isRunning = false;
+    lastRunAt: Date | null = null;
+    lastResult: BatchRunResponse | null = null;
+    lastOk = false;
+    successSummary = '';
+    errorSummary = '';
+    showRaw = false;
 
-    constructor(public layoutService: LayoutService) {
+
+    isRunningSingle = false;
+    lastSingleRunAt: Date | null = null;
+    singleResult: any = null;
+    singleOk = false;
+    singleSummary = '';
+    showSingleRaw = false;
+
+  constructor(public layoutService: LayoutService,  public confirm: ConfirmationService, public toast: MessageService, public dataService: DataService) {
         this.subscription = this.layoutService.configUpdate$
             .pipe(debounceTime(25))
             .subscribe((config) => {
                 this.initChart();
             });
-    }
+  }
+
 
     ngOnInit() {
         this.dropdownItem.push({ label: 'Select One', value: null });
@@ -159,5 +182,96 @@ export class DashboardAccountingComponent implements OnInit {
                 },
             },
         };
+  }
+
+
+  confirmRun(event: Event) {
+    this.confirm.confirm({
+      target: event.target as HTMLElement,
+      message: 'Run invoice batch now?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Run',
+      rejectLabel: 'Cancel',
+      accept: () => this.run()
+    });
+  }
+
+  run() {
+    this.isRunning = true;
+    this.successSummary = '';
+    this.errorSummary = '';
+    this.showRaw = false;
+
+    this.dataService.getInvoiceBatch().subscribe({
+      next: (res) => {
+        this.isRunning = false;
+        this.lastRunAt = new Date();
+        this.lastResult = res;
+        this.lastOk = true;
+
+        const processed = res.processed ?? res.totalProcessed ?? res.count ?? null;
+        const errors = res.errors ?? res.errorCount ?? 0;
+        const msg = res.message ?? 'Batch completed';
+
+        this.successSummary = processed !== null
+          ? `${msg}. Processed: ${processed}${errors ? `, Errors: ${errors}` : ''}`
+          : msg;
+
+        this.toast.add({ severity: 'success', summary: 'Batch complete', detail: this.successSummary, life: 6000 });
+      },
+      error: (err) => {
+        this.isRunning = false;
+        this.lastRunAt = new Date();
+        this.lastResult = (err && 'error' in err) ? (err as any).error : err;
+        this.lastOk = false;
+
+        this.errorSummary = (err as any)?.message || 'Batch failed';
+        this.toast.add({ severity: 'error', summary: 'Batch failed', detail: this.errorSummary, life: 8000 });
+      },
+    });
+  }
+
+
+
+  runSingle() {
+    if (!this.invoiceNumber?.trim()) {
+      this.toast.add({ severity: 'warn', summary: 'Invoice required', detail: 'Enter an invoice number.' });
+      return;
     }
+
+    this.isRunningSingle = true;
+    this.singleSummary = '';
+    this.showSingleRaw = false;
+
+    this.dataService.getInvoiceProcess(this.invoiceNumber.trim()).subscribe({
+      next: (res) => {
+        this.isRunningSingle = false;
+        this.lastSingleRunAt = new Date();
+        this.singleResult = res;
+        this.singleOk = true;
+
+        const msg = res?.message ?? 'Invoice processed';
+        const processed = res?.processed ?? res?.count ?? null;
+        const errors = res?.errors ?? res?.errorCount ?? 0;
+
+        this.singleSummary = processed !== null
+          ? `${msg}. Processed: ${processed}${errors ? `, Errors: ${errors}` : ''}`
+          : msg;
+
+        this.toast.add({ severity: 'success', summary: 'Done', detail: this.singleSummary, life: 6000 });
+      },
+      error: (err) => {
+        this.isRunningSingle = false;
+        this.lastSingleRunAt = new Date();
+        this.singleResult = (err && 'error' in err) ? (err as any).error : err;
+        this.singleOk = false;
+        const detail = (err as any)?.message || 'Request failed';
+        this.singleSummary = detail;
+        this.toast.add({ severity: 'error', summary: 'Error', detail, life: 8000 });
+      }
+    });
+  }
 }
+
+
+

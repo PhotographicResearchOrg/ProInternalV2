@@ -9,6 +9,8 @@ import * as XLSX from 'xlsx';
 import { MessageService } from 'primeng/api';
 import { FormsModule } from '@angular/forms';
 import { InputSwitchModule } from 'primeng/inputswitch'; // Also needed for p-inputSwitc
+import { PaymentTypeComponent } from 'src/app/prointernalengine/components/shared/payment-type/payment-type.component';
+
 
 @Component({
   templateUrl: './patronage.component.html'
@@ -27,7 +29,7 @@ export class PatronageComponent implements OnInit {
   public valSwitch: boolean = false;
   public hasMismatch = false;
   public showDrillDown = false;
-
+  public paymentCardVisible: boolean = false;
 
   public selectedBatchId: number | null = null;
 
@@ -70,6 +72,10 @@ export class PatronageComponent implements OnInit {
 
   }
 
+
+  togglePaymentCard(): void {
+    this.paymentCardVisible = !this.paymentCardVisible;
+  }
 
 
 

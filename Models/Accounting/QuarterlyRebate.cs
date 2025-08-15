@@ -26,6 +26,17 @@ namespace ProInternal.Models.Accounting
 
     }
 
+    public class PaymentType
+    {
+        public string AccountNumber { get; set; }
+        public string Dba { get; set; }
+        public string PaymentTypeName { get; set; }  // rename if "PaymentType" as property name clashes with class name
+    }
+
+
+
+
+
     public class QuarterlyDataHistorical
     {
         public string qrPeriod { get; set; }

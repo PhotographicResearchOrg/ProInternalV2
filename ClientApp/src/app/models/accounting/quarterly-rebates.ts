@@ -19,6 +19,15 @@ export class QuarterlyRebates {
 
 }
 
+
+export class PaymentType {
+  constructor(
+    public accountNumber: string = '',
+    public dba: string = '',
+    public paymentTypeName: string = ''
+  ) { }
+}
+
 export class QuarterlyRebatesHistorical {
 
   public qrPeriod: string;

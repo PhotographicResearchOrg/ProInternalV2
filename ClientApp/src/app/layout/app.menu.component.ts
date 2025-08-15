@@ -79,21 +79,29 @@ export class AppMenuComponent implements OnInit {
     rawModel.push({
       label: 'Management',
       icon: 'pi pi-fw pi-wallet',
-      items: [
+      items:
+        [
         {
           label: 'Product Management', icon: 'pi pi-box',
-          items: [
-            can('ecommerce/product-overview') && { label: 'Product Configuration', icon: 'pi pi-sliders-h', routerLink: ['ecommerce/product-overview'] },
-            (can('/gating') || can('/exclusions/group')) && {
-              label: 'Exclusions', icon: 'pi pi-ban',
-              items: [
-                can('/gating') && { label: 'Brand Gating', icon: 'pi pi-lock', routerLink: ['/gating'] },
-                can('/exclusions/group') && { label: 'Exclusion Groups', icon: 'pi pi-ban', routerLink: ['/exclusions/group'] }
-              ]
-            }
-          ]
-        },
-
+            items:
+           [
+               can('ecommerce/product-overview') && { label: 'Product Configuration', icon: 'pi pi-sliders-h', routerLink: ['ecommerce/product-overview'] },(can('/gating') || can('/exclusions/group')) &&
+              {
+                label: 'Exclusions', icon: 'pi pi-ban',
+                items:
+                 [
+                  can('/gating') && { label: 'Brand Gating', icon: 'pi pi-lock', routerLink: ['/gating'] },
+                  can('/exclusions/group') && { label: 'Exclusion Groups', icon: 'pi pi-ban', routerLink: ['/exclusions/group'] }
+                 ]
+                },
+                //Edit Product
+                //can('ecommerce/product-edit') &&
+                {
+                  label: 'Edit Product', icon: 'pi pi-pencil',
+                  routerLink: ['/productedit'] // adjust to your actual route
+                }
+           ],
+          },
         {
           label: 'Vendor Management', icon: 'pi pi-briefcase',
           items: [

@@ -21,6 +21,57 @@
 
 
 
+  <!-- PO Sync -->
+  <div class="col-12 md:col-6 lg:col-3">
+    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">
+      <div class="flex align-items-center justify-content-between mb-2">
+        <span class="text-lg font-semibold text-900">
+          <i class="pi pi-refresh mr-2 text-primary"></i>
+          <span class="text-primary">PO Sync</span>
+        </span>
+        <p-button [label]="poRunning ? 'Running…' : 'Run'"
+                  icon="pi pi-play"
+                  size="small"
+                  [loading]="poRunning"
+                  [disabled]="poRunning"
+                  (onClick)="runPoSync()"></p-button>
+      </div>
+
+      <!-- Status / feedback -->
+      <div class="text-sm text-color-secondary">
+        <div *ngIf="poLastAt"><i class="pi pi-clock mr-1"></i>Last run: {{ poLastAt | date:'short' }}</div>
+        <div *ngIf="poOk && poSummary" class="mt-1">
+          <i class="pi pi-check-circle mr-1 text-green-500"></i>{{ poSummary }}
+        </div>
+        <div *ngIf="poOk === false && poSummary" class="mt-1">
+          <i class="pi pi-exclamation-triangle mr-1 text-red-500"></i>{{ poSummary }}
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div *ngIf="poRunning" class="mt-2">
+        <p-progressBar mode="indeterminate" styleClass="border-round" [style]="{ height: '.4rem' }"></p-progressBar>
+      </div>
+
+      <!-- Details toggle -->
+      <div *ngIf="poResult" class="mt-2">
+        <div class="flex align-items-center justify-content-between">
+          <span class="text-sm text-color-secondary">Details</span>
+          <p-toggleButton [(ngModel)]="poShowRaw"
+                          onLabel="Hide" offLabel="Show"
+                          onIcon="pi pi-eye-slash" offIcon="pi pi-eye"
+                          [style]="{ 'font-size': '.8rem' }"></p-toggleButton>
+        </div>
+        <pre *ngIf="poShowRaw"
+             class="mt-2 p-2 bg-surface-100 border-1 surface-border border-round overflow-auto text-sm"
+             style="max-height: 14rem">{{ poResult | json }}</pre>
+      </div>
+    </div>
+  </div>
+
+
+
+
   <!-- SARS -->
   <div class="col-12 md:col-6 lg:col-3">
     <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">

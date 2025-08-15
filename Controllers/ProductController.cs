@@ -2,6 +2,8 @@
 using ProInternal.Services;
 using ProInternal.Models.Accounting;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using ProInternal.Models.Shared;
+using ProInternal.Models.EditProduct;
 using ProInternal.Models.Dashboard;
 using ProInternal.Models.Exclusions;
 using ProInternal.Models.Products;
@@ -214,7 +216,79 @@ namespace ProInternal.Controllers
             }
         }
 
+        
+        
+//        // GET API/Product/{code}
+//        [HttpGet("{code}")]
+//        public ActionResult<Result<ProdDto>> GetByCode(string code)
+//        {
+//            var prod = _prodataAccess.GetProductEnvelopeByCode(code);
+//            if (prod == null)
+//                return Ok(Result.Fail<ProdDto>($"The Product Code {code} is invalid."));
 
+//            if (prod.IsDiscontinued)
+//                return Ok(Result.Warn(prod, "This product has been discontinued."));
 
-    }
+//            return Ok(Result.Ok(prod));
+//        }
+
+//        // PUT API/Product/{id}
+//        [HttpPut("{id:int}")]
+//        public ActionResult<Result> Update(int id, [FromBody] ProdDto dto)
+//        {
+//            if (id != dto.ProductId) return BadRequest("Mismatched ProductId.");
+//            var res = _prodataAccess.UpdateProductEnvelope(dto);
+//            return Ok(res);
+//        }
+
+//        // GET API/Product/lookup/{code}?type=accessory|related&parentId=#
+//        [HttpGet("lookup/{code}")]
+//        public ActionResult<Result<ProductInfoLookupDto>> Lookup(string code, [FromQuery] string type, [FromQuery] int parentId)
+//        {
+//            var info = _prodataAccess.LookupProductInfo(code, type, parentId);
+//            return info == null
+//                ? Ok(Result.Fail<ProductInfoLookupDto>("Invalid product code."))
+//                : Ok(Result.Ok(info));
+//        }
+
+//        // GET API/Product/iqprompts
+//        [HttpGet("iqprompts")]
+//        public ActionResult<List<IQPromptDto>> GetIQPrompts()
+//            => Ok(_prodataAccess.GetIQPrompts());
+
+//        // POST API/Product/tags/add
+//        public record TagCmd(int ProductId, string Tag);
+//        [HttpPost("tags/add")]
+//        public ActionResult<Result> AddTag([FromBody] TagCmd cmd)
+//            => Ok(_prodataAccess.AddTag(cmd.ProductId, cmd.Tag));
+
+//        // POST API/Product/tags/remove
+//        [HttpPost("tags/remove")]
+//        public ActionResult<Result> RemoveTag([FromBody] TagCmd cmd)
+//            => Ok(_prodataAccess.RemoveTag(cmd.ProductId, cmd.Tag));
+
+//        // POST API/Product/group/add
+//        public record GroupAddCmd(string ProductCode, string GroupCode, string? ColorName, string? ColorHex, string? Size);
+//        [HttpPost("group/add")]
+//        public ActionResult<Result> AddToGroup([FromBody] GroupAddCmd cmd)
+//            => Ok(_prodataAccess.AddToGroup(cmd.ProductCode, cmd.GroupCode, cmd.ColorName, cmd.ColorHex, cmd.Size));
+
+//        // POST API/Product/group/remove
+//        public record GroupRemoveCmd(string ProductCode);
+//        [HttpPost("group/remove")]
+//        public ActionResult<Result> RemoveFromGroup([FromBody] GroupRemoveCmd cmd)
+//            => Ok(_prodataAccess.RemoveFromGroup(cmd.ProductCode));
+
+//        // GET API/Product/techspecs/{code}
+//        [HttpGet("techspecs/{code}")]
+//        public ActionResult<Result<object>> GetTechSpecs(string code)
+//            => Ok(Result.Ok<object>(new { attributes = _prodataAccess.GetTechSpecs(code) }));
+
+//        // POST API/Product/techspecs/{code}
+//        public record TechSpecsSaveCmd(List<ProductAttributeDto> Attributes);
+//        [HttpPost("techspecs/{code}")]
+//        public ActionResult<Result> SaveTechSpecs(string code, [FromBody] TechSpecsSaveCmd cmd)
+//            => Ok(_prodataAccess.SaveTechSpecs(code, cmd.Attributes ?? new()));
+    
+}
 }

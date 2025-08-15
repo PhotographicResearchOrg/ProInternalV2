@@ -128,6 +128,8 @@
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.component.html" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.component.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\login2\login2.module.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\accounting\dashboardaccounting-routing.module.ts" />
+    <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\accounting\dashboardaccounting.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\landing\dashboardlanding-routing.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\dashboards\landing\dashboardlanding.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\MemberManagement\accountmanagement\affiliate-grid\affiliate-grid.component.html" />

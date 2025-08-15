@@ -36,21 +36,22 @@ builder.Services.Configure<AppConfigurations>(
 );
 
 
-
-
-
 var configuration = builder.Configuration;
 
 //New
 builder.Services.AddSingleton<PowerBIService>();
-
 builder.Services.AddScoped<IProDataAccess>(provider => new ProDataAccess(builder.Configuration.GetConnectionString("ProConnectionString")));
 builder.Services.AddScoped<IDRADataAccess>(provider => new DRADataAccess(builder.Configuration.GetConnectionString("DRAConnectionString")));
 builder.Services.AddScoped<INukeDataAccess>(provider => new NukeDataAccess(builder.Configuration.GetConnectionString("NukeConnectionString")));
 builder.Services.AddScoped<IEDADataAccess>(provider => new EDADataAccess(builder.Configuration.GetConnectionString("EDAConnectionString")));
 
-//EDAConnectionString
-//EDAConnectionString
+builder.Services.AddHttpClient<IUvicornDataAccess, UvicornDataAccess>(c =>
+{
+    c.BaseAddress = new Uri("http://10.0.1.216:8000/"); // FastAPI base
+    c.Timeout = TimeSpan.FromMinutes(15);
+    c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+});
+
 builder.Services.AddCors();
 
 // In production, the Angular files will be served from this directory
@@ -87,12 +88,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-
-
-
-
 var app = builder.Build();
-
 //Configure the HTTP request pipeline.
 //Force SSL
 if (!app.Environment.IsDevelopment())
@@ -100,14 +96,9 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
-
 //UseHttpsRedirection causes an automatic redirection to HTTPS URL when an HTTP URL is received,
 app.UseHttpsRedirection();
-
-
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
-
-
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(
@@ -143,24 +134,18 @@ app.UseAuthorization();
 //app.UseEndpoints(builder => builder.MapDefaultControllerRoute());
 app.UseEndpoints(endpoints => endpoints.MapControllers());
 
-
 ////UseSpa - let asp.net core know which directory you want to run your angular app,
 ////what dist folder when running in production mode and which command to run angular app in dev mode
 app.UseSpa(spa =>
 {
     // To learn more about options for serving an Angular SPA from ASP.NET Core,
     // see https://go.microsoft.com/fwlink/?linkid=864501
-
     spa.Options.SourcePath = "ClientApp";
-
     if (app.Environment.IsDevelopment())
     {
         spa.UseAngularCliServer(npmScript: "start");
     }
-
 });
-
 // Enable Angular routing fallback
 app.MapFallbackToFile("index.html");
-
 app.Run();

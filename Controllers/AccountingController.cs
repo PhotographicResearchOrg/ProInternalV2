@@ -77,6 +77,39 @@ namespace ProInternal.Controllers
 
 
 
+
+        [HttpPost("savePaymentType")]
+        public IActionResult SavePaymentType([FromBody] PaymentType payment)
+        {
+            if (payment == null || string.IsNullOrWhiteSpace(payment.AccountNumber))
+                return BadRequest("Invalid payment type data.");
+
+            _proDataAccess.SavePaymentType(payment);
+            return Ok();
+        }
+
+
+
+        [HttpGet("getPaymentTypes")]
+        public IActionResult GetPaymentTypes()
+        {
+            var result = _proDataAccess.GetPaymentTypes();
+            return Ok(result);
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         [HttpGet]
         [Route("ezpay-summary")]
         public async Task<ActionResult> GetEzPaySummary([FromQuery] DateTime date)

@@ -28,7 +28,7 @@ import { SecurityAdminComponent } from 'src/app/admin/security/security-admin/se
 import { AccountManagementComponent } from './prointernalengine/components/MemberManagement/accountmanagement/accountmanagement.component';
 import { ReceivablesComponent } from './prointernalengine/components/dashboards/accounting/receivables/receivables.component';
 import { ShippingerrorsComponent } from './prointernalengine/components/dashboards/warehouse/shippingerrors/shippingerrors.component'; 
-
+import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component'; 
 
 
 
@@ -69,6 +69,7 @@ const routes: Routes = [
       { path: 'accountmanagement', component: AccountManagementComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Account Management' } },
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
       { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },
+      { path: 'productedit', component: ProductEditComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Edit' } },
 
       
 

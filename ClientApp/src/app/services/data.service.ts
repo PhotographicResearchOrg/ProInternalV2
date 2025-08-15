@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 import { map } from "rxjs/operators";
 import { ApiService } from "./api.service";
-import { QuarterlyRebates, QuarterlyRebatesHistorical, qrDetail } from "../models/accounting/quarterly-rebates";
+import { QuarterlyRebates, QuarterlyRebatesHistorical, qrDetail, PaymentType } from "../models/accounting/quarterly-rebates";
 import { OrdersMetrics } from "../models/Dashboard/OrdersMetrics";
 import { SARMetrics } from "../models/Dashboard/SARMetrics";
 import { EDIMetrics } from "../models/Dashboard/EDIMetrics";
@@ -44,8 +44,8 @@ import { Member, MemberAddress  } from '../models/accounts/member';
 import { SubscriptionRecord } from '../models/accounts/subscription';
 import { SendInvoicesRequest } from 'src/app/models/accounting/SendInvoicesRequest';
 import { ShippingErrorRecord, ShippingErrorProduct, PackingSlipData, ProcessShippingErrorResponse } from 'src/app/models/WH/ShippingErrorRecord';
-
-
+import { BatchRunResponse, PoSyncResult } from 'src/app/models/Uvicorn/PassThroughInvoice';
+import { Prod, Result, ProductInfoType, ProductInfoLookup, IQPrompt, CategoryNode } from 'src/app/models/Product/EditProduct'; 
 
 @Injectable()
 export class DataService {
@@ -53,16 +53,84 @@ export class DataService {
   constructor(private api: ApiService) { }
 
 
+
+  //
+
+  private readonly productBase = 'API/Product';
+  // Product edit
+  getProductByCode(code: string): Observable<Result<Prod>> {
+    return this.api.get<Result<Prod>>(`${this.productBase}/${encodeURIComponent(code)}`);
+  }
+  updateProduct(p: Prod): Observable<Result> {
+    return this.api.put<Result>(`${this.productBase}/${p.productId}`, p);
+  }
+  lookupProductInfo(code: string, type: ProductInfoType, parentProductId: number): Observable<Result<ProductInfoLookup>> {
+    return this.api.get<Result<ProductInfoLookup>>(
+      `${this.productBase}/lookup/${encodeURIComponent(code)}?type=${encodeURIComponent(type)}&parentId=${parentProductId}`
+    );
+  }
+  getIQPrompts(): Observable<IQPrompt[]> {
+    return this.api.get<IQPrompt[]>(`${this.productBase}/iqprompts`);
+  }
+  getSubCategories(parentCatId: number): Observable<CategoryNode[]> {
+    return this.api.get<CategoryNode[]>(`API/Common/categories/${parentCatId}`);
+  }
+  addTag(productId: number, tag: string) {
+    return this.api.post<Result>(`${this.productBase}/tags/add`, { productId, tag });
+  }
+  removeTag(productId: number, tag: string) {
+    return this.api.post<Result>(`${this.productBase}/tags/remove`, { productId, tag });
+  }
+  addToGroup(payload: { productCode: string; groupCode: string; colorName?: string; colorHex?: string; size?: string; }) {
+    return this.api.post<Result>(`${this.productBase}/group/add`, payload);
+  }
+  removeFromGroup(productCode: string) {
+    return this.api.post<Result>(`${this.productBase}/group/remove`, { productCode });
+  }
+  getTechSpecs(code: string) {
+    return this.api.get<Result<{ attributes: any[] }>>(`${this.productBase}/techspecs/${encodeURIComponent(code)}`);
+  }
+  saveTechSpecs(code: string, attributes: any[]) {
+    return this.api.post<Result>(`${this.productBase}/techspecs/${encodeURIComponent(code)}`, { attributes });
+  }
+  //--------------------------------------------------------------------------------------------------------------------------------------
+  //--------------------------------------------------------------------------------------------------------------------------------------
+  //--------------------------------------------------------------------------------------------------------------------------------------
+  //--------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+  getPoSync() {
+    // Route is case-insensitive; keep consistent with your others.
+    return this.api.get<PoSyncResult>('api/uvicorn/po-sync');
+  }
+
+
+  getInvoiceBatch(): Observable<BatchRunResponse> {
+    return this.api.get<BatchRunResponse>('api/Uvicorn/process-batch');
+  }
+
+  getInvoiceProcess(invoiceNumber: string) {
+    return this.api.get<BatchRunResponse>(
+      `api/uvicorn/process?invoice_number=${encodeURIComponent(invoiceNumber)}`
+    );
+  }
+
+
   getShippingErrors(): Observable<ShippingErrorRecord[]>
   {
     return this.api.get<ShippingErrorRecord[]>('API/Warehouse/shippingerrors');
   }
+  getPaymentTypes(): Observable<PaymentType[]> {
+    return this.api.get<PaymentType[]>('API/Accounting/getPaymentTypes');
+  }
 
+  savePaymentType(payment: PaymentType): Observable<void> {
+    return this.api.post<void>('API/Accounting/savePaymentType', payment);
+  }
   getShippingErrorDetails(errorId: number): Observable<ShippingErrorRecord> {
     return this.api.get<ShippingErrorRecord>(`API/Warehouse/shippingerrorsdetails/${errorId}`);
   }
-
-
   markProductComplete(shippingErrorId: number, productId: number, userName: string): Observable<any> {
     const url = `API/Warehouse/completeProduct`;
     const payload = {
@@ -72,85 +140,54 @@ export class DataService {
     };
     return this.api.post<any>(url, payload);
   }
-
-
-
-
   // processShippingErrors
   processShippingErrors(errorList: any[]): Observable<void> {
     console.log(errorList);
     return this.api.post<void>(`API/Warehouse/processShippingErrors`, errorList);
   }
-
-
-
-
-
   getPackingSlip(shippingErrorId: number): Observable<PackingSlipData> {
     return this.api.get<PackingSlipData>(`API/Warehouse/packingslip/${shippingErrorId}`);
   }
-
-
   processShippingError(errorId: number, type: string, disposition?: string): Observable<any> {
     return this.api.post<any>(`api/warehouse/${errorId}/process`, { type, disposition });
-
   }
-
   updateShippingErrors(errors: ShippingErrorRecord[]): Observable<any> {
     return this.api.post<any>('API/Warehouse/shippingerrors/process-grid', errors);
   }
-
-
   resolveProduct(product: any): Observable<void> {
     return this.api.post<void>(`/api/shipping-errors/resolve`, product);
   }
-
   ignoreProduct(product: any): Observable<void> {
     return this.api.post<void>(`/api/shipping-errors/ignore`, product);
   }
-
-
-
-
-
-
   // Vendors
   getVendors(): Observable<Vendor[]> {
     return this.api.get<Vendor[]>('API/Listings/vendors');
   }
-
   toggleVendorWebStatus(vendorId: number): Observable<void> {
     return this.api.post<void>(`API/Listings/vendors/${vendorId}/toggle-web`, {});
   }
-
   // Members (Members, Affiliates, Clients)
   getMembers(type: 'Members' | 'Affiliates' | 'Clients' = 'Members'): Observable<Member[]> {
     return this.api.get<Member[]>(`API/Listings/members?type=${type}`);
   }
-
   // Subscriptions
   getSubscriptions(): Observable<SubscriptionRecord[]> {
     return this.api.get<SubscriptionRecord[]>('API/Listings/subscriptions');
   }
-
   getMemberShipping(accountNumber: string): Observable<MemberAddress[]> {
     return this.api.get<MemberAddress[]>(`API/Listings/members/${accountNumber}/shipping`);
   }
-
   uploadMemberImage(accountNumber: string, file: File): Observable<any> {
     const formData = new FormData();
     formData.append('image', file);
     return this.api.postBlob(`API/Listings/members/${accountNumber}/upload-image`, formData);
   }
-
-
   uploadVendorImage(vendorId: number, file: File): Observable<any> {
     const formData = new FormData();
     formData.append('image', file);
     return this.api.postBlob(`API/Listings/vendors/${vendorId}/upload-image`, formData);
   }
-
-
   //  Load users with their roles for admin UI
   getUsers(): Observable<ProUser[]> {
     return this.api.get<ProUser[]>('API/Auth/users');
@@ -159,13 +196,9 @@ export class DataService {
   getAllRoles(): Observable<{ roleName: string; roleDescription: string }[]> {
     return this.api.get<{ roleName: string; roleDescription: string }[]>('API/Auth/roles');
   }
-
   getAllPermissions(): Observable<{ permissionName: string; description: string; routePath: string }[]> {
     return this.api.get<{ permissionName: string; description: string, routePath: string }[]>('API/Auth/permissions');
   }
-
-
-
   createPermission(name: string, description: string, routePath?: string): Observable<void> {
     return this.api.post<void>('API/Auth/permissionscreate', {
       PermissionName: name,

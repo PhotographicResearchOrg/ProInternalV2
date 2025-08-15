@@ -1,0 +1,209 @@
+<p-toast></p-toast>
+
+<form [formGroup]="form" class="card gap-3">
+  <!-- Header -->
+  <div class="header-row">
+    <div class="title">
+      <div class="badge">Edit Product</div>
+      <h2>{{ form.get('modelName')?.value || 'Product' }}</h2>
+      <div class="sub">{{ form.get('productCode')?.value }}</div>
+    </div>
+
+    <div class="actions">
+      <button pButton type="button" label="Tech Specs" class="p-button-text" (click)="goTechSpecs()" icon="pi pi-sliders-h"></button>
+      <button pButton type="button" label="Save" (click)="save()" icon="pi pi-check"></button>
+    </div>
+  </div>
+
+  <p-divider></p-divider>
+
+  <div class="grid form-grid">
+    <!-- Left column -->
+    <div class="col-12 md:col-6">
+      <p-panel header="Basics">
+        <div class="p-fluid formgrid grid">
+          <div class="field col-12">
+            <label>Product Code</label>
+            <input pInputText formControlName="productCode" readonly>
+          </div>
+
+          <div class="field col-12">
+            <label>Model Name *</label>
+            <input pInputText formControlName="modelName">
+          </div>
+
+          <div class="field col-6">
+            <label>Model Version</label>
+            <input pInputText formControlName="modelVersion">
+          </div>
+
+          <div class="field col-6">
+            <label>Prop 65</label>
+            <input pInputText formControlName="p65">
+          </div>
+
+          <div class="field col-12 toggles">
+            <p-inputSwitch formControlName="isActive"></p-inputSwitch><span>Active</span>
+            <p-inputSwitch formControlName="isPublic"></p-inputSwitch><span>Public</span>
+            <p-inputSwitch formControlName="isForSale"></p-inputSwitch><span>For Sale</span>
+            <p-inputSwitch formControlName="shippingHold"></p-inputSwitch><span>Shipping Hold</span>
+            <p-inputSwitch formControlName="isDiscontinued" [disabled]="true"></p-inputSwitch><span>Discontinued</span>
+            <p-inputSwitch formControlName="requireSerialForSar"></p-inputSwitch><span>Require Serial for SAR</span>
+            <p-inputSwitch formControlName="specialOrder"></p-inputSwitch><span>Special Order</span>
+            <p-inputSwitch formControlName="newProdOverride"></p-inputSwitch><span>New Product Override</span>
+          </div>
+
+          <div class="field col-12">
+            <label>Replacement Code</label>
+            <input pInputText formControlName="replacementCode">
+          </div>
+        </div>
+      </p-panel>
+
+      <p-panel header="Descriptions" class="mt-3">
+        <div class="p-fluid formgrid grid">
+          <div class="field col-12">
+            <label>Features</label>
+            <textarea pInputTextarea rows="4" formControlName="features"></textarea>
+          </div>
+          <div class="field col-12">
+            <label>Specs</label>
+            <textarea pInputTextarea rows="4" formControlName="specs"></textarea>
+          </div>
+          <div class="field col-12">
+            <label>FAQ</label>
+            <textarea pInputTextarea rows="3" formControlName="faq"></textarea>
+          </div>
+          <div class="field col-12">
+            <label>Out of Stock Message</label>
+            <textarea pInputTextarea rows="2" formControlName="outOfStockMessage"></textarea>
+          </div>
+          <div class="field col-6">
+            <label>Stock Due Date</label>
+            <p-calendar formControlName="stockDueDate" [showIcon]="true" dateFormat="yy-mm-dd"></p-calendar>
+          </div>
+        </div>
+      </p-panel>
+
+      <p-panel header="Tags" class="mt-3">
+        <p-chips formControlName="tags"
+                 (onAdd)="onTagAdd($event)"
+                 (onRemove)="onTagRemove($event)"
+                 [separator]="','">
+        </p-chips>
+      </p-panel>
+    </div>
+
+    <!-- Right column -->
+    <div class="col-12 md:col-6">
+      <p-panel header="Brand & Category">
+        <div class="p-fluid formgrid grid">
+          <div class="field col-12">
+            <label>Brand</label>
+            <p-dropdown [options]="brands"
+                        optionLabel="brandName"
+                        optionValue="brandId"
+                        formControlName="brandId"
+                        placeholder="Select a brand">
+              <ng-template pTemplate="item" let-b>
+                <div class="flex align-items-center justify-content-between w-full">
+                  <span>{{ b.brandName }}</span>
+                  <i *ngIf="b.displayBrandRebate" class="pi pi-percentage"></i>
+                </div>
+              </ng-template>
+            </p-dropdown>
+          </div>
+
+          <div class="field col-6" *ngIf="showBrandRebate">
+            <label>Brand Rebate (%)</label>
+            <input pInputText type="number" step="0.01" formControlName="brandRebate">
+          </div>
+
+          <div class="field col-6">
+            <label>Top Category ID</label>
+            <input pInputText type="number" formControlName="topCatId">
+          </div>
+
+          <div class="field col-6">
+            <label>Category ID</label>
+            <input pInputText type="number" formControlName="categoryId">
+          </div>
+
+          <div class="field col-6">
+            <label>Multiple</label>
+            <input pInputText formControlName="multiple" readonly>
+          </div>
+
+          <div class="field col-6">
+            <label>Carton</label>
+            <input pInputText formControlName="carton" readonly>
+          </div>
+        </div>
+      </p-panel>
+
+      <p-panel header="Accessories" class="mt-3">
+        <div class="list-grid" formArrayName="accessories">
+          <div class="row" *ngFor="let _ of accessoriesFA.controls; let i = index" [formGroupName]="i">
+            <input pInputText placeholder="Product Code" formControlName="productCode" (blur)="lookupRow('accessory', i)">
+            <span class="ml-2 model">{{ accessoriesFA.at(i).get('modelName')?.value }}</span>
+            <button pButton type="button" icon="pi pi-times" class="p-button-text p-button-sm" (click)="removeRow('accessory', i)"></button>
+          </div>
+          <button pButton type="button" label="Add" class="p-button-text" (click)="addAccessoryRow()" icon="pi pi-plus"></button>
+        </div>
+      </p-panel>
+
+      <p-panel header="Related Products" class="mt-3">
+        <div class="list-grid" formArrayName="relatedProducts">
+          <div class="row" *ngFor="let _ of relatedFA.controls; let i = index" [formGroupName]="i">
+            <input pInputText placeholder="Product Code" formControlName="productCode" (blur)="lookupRow('related', i)">
+            <span class="ml-2 model">{{ relatedFA.at(i).get('modelName')?.value }}</span>
+            <button pButton type="button" icon="pi pi-times" class="p-button-text p-button-sm" (click)="removeRow('related', i)"></button>
+          </div>
+          <button pButton type="button" label="Add" class="p-button-text" (click)="addRelatedRow()" icon="pi pi-plus"></button>
+        </div>
+      </p-panel>
+
+
+      <p-panel header="Groups" class="mt-3">
+        <div class="p-fluid formgrid grid">
+          <div class="field col-4"><label>Color Name</label><input pInputText formControlName="variationColorName"></div>
+          <div class="field col-4"><label>Color Hex</label><input pInputText formControlName="variationColorHex"></div>
+          <div class="field col-4"><label>Size</label><input pInputText formControlName="variationSize"></div>
+        </div>
+
+        <div class="mt-2" *ngIf="form.get('isGroupDefault')?.value && groupFA.length > 1" formArrayName="group">
+          <div class="text-900 font-medium mb-2">Group Members</div>
+          <ul class="group-list">
+            <ng-container *ngFor="let _ of groupFA.controls; let i = index">
+              <li class="group-item" [formGroupName]="i"
+                  *ngIf="groupFA.at(i).get('productCode')?.value !== form.get('productCode')?.value">
+                <span>{{ groupFA.at(i).get('productCode')?.value }}</span>
+                <button pButton type="button" class="p-button-text p-button-sm"
+                        (click)="removeFromGroup(groupFA.at(i).get('productCode')?.value)"
+                        icon="pi pi-trash"></button>
+              </li>
+            </ng-container>
+          </ul>
+        </div>
+
+
+        <div class="mt-2" *ngIf="!form.get('isGroupDefault')?.value">
+          <div class="text-900 font-medium mb-2">Add to Group</div>
+          <div class="flex align-items-center gap-2">
+            <input id="groupCodeInput" pInputText placeholder="Group Code">
+            <button pButton type="button" label="Add" (click)="addToGroup()" icon="pi pi-plus"></button>
+          </div>
+        </div>
+      </p-panel>
+
+      <p-panel header="Upload Files" class="mt-3">
+        <p-fileUpload mode="advanced"
+                      name="files[]"
+                      [auto]="true"
+                      chooseLabel="Upload"
+                      [url]="'/api/files/products/' + (form.get('productCode')?.value || '')">
+        </p-fileUpload>
+      </p-panel>
+    </div>
+  </div>
+</form>

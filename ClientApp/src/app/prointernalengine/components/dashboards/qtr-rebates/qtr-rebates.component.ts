@@ -12,7 +12,7 @@ import { QuarterlyRebates, QuarterlyRebatesHistorical, qrDetail } from "src/app/
 import { HttpClient } from '@angular/common/http';
 import * as XLSX from 'xlsx';
 import { ConfirmationService } from 'primeng/api'; // already assumed
-
+import { PaymentTypeComponent } from 'src/app/prointernalengine/components/shared/payment-type/payment-type.component';
 
 
 @Component({
@@ -30,6 +30,7 @@ export class QtrRebatesComponent implements OnInit {
   public QRBatchData: qrDetail[] = [];
   public vendorDownload: string;
   public valSwitch: boolean = false;
+  public paymentCardVisible: boolean = false;
   constructor(http: HttpClient, 
     private dataService: DataService,
     private fileService: FileAppService,
@@ -69,7 +70,9 @@ export class QtrRebatesComponent implements OnInit {
     }
   }
 
-
+  togglePaymentCard(): void {
+    this.paymentCardVisible = !this.paymentCardVisible;
+  }
 
 
   getTotalRebateAmount(): number {
@@ -91,6 +94,11 @@ export class QtrRebatesComponent implements OnInit {
     });
 
   }
+
+
+
+
+
 
   refreshQuarterlyData() {
     this.dataService.getRecentLoad().subscribe((data) => this.QuarterlyRebates = data);

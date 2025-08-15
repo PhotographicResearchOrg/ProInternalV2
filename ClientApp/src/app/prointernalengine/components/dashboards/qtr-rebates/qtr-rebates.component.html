@@ -23,6 +23,19 @@
     </div>
   </div>
 
+  <div class="col-12 md:col-12 lg:col-12">
+    <div class="card h-full">
+      <div class="flex align-items-center justify-content-between mb-3">
+        <span class="text-900 text-xl font-semibold">Payment Types</span>
+        <button (click)="togglePaymentCard()" pButton pRipple icon="pi pi-chevron-down" class="p-button-sm p-button-rounded p-button-text"></button>
+      </div>
+      <div *ngIf="paymentCardVisible">
+        <app-payment-type></app-payment-type>
+      </div>
+    </div>
+  </div>
+
+
 
   <div class="col-12 md:col-6 lg:col-12">
     <div class="card h-full">

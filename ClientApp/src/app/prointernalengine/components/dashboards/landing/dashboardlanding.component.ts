@@ -20,6 +20,10 @@ import { SpecialOrdersSummary } from 'src/app/models/Dashboard/SpecialOrdersSumm
 import { comments } from 'src/app/models/Dashboard/comments'
 import { MapViolationResponse } from 'src/app/models/Dashboard/MapViolationResponse';
 import { MapViolation } from 'src/app/models/Dashboard/MapViolation';
+import { BatchRunResponse, PoSyncResult } from 'src/app/models/Uvicorn/PassThroughInvoice';
+import { ToastModule } from 'primeng/toast';
+import { MessageModule } from 'primeng/message';
+import { ConfirmationService, MessageService } from 'primeng/api';
 
 @Component({
   templateUrl: './dashboardlanding.component.html',
@@ -64,6 +68,12 @@ export class DashboardLandingComponent implements OnInit {
   public SelectedAccount: Account = new Account();
   public SelectedProduct: Products = new Products();
 
+  poRunning = false;
+  poLastAt: Date | null = null;
+  poResult: PoSyncResult | null = null;
+  poOk: boolean | null = null;
+  poSummary = '';
+  poShowRaw = false;
 
 
     items!: MenuItem[];
@@ -75,6 +85,7 @@ export class DashboardLandingComponent implements OnInit {
     private productService: ProductService,
     public layoutService: LayoutService,
     private dataService: DataService,
+    public toast: MessageService
    // private messageService: MessageService
   ) {
         this.subscription = this.layoutService.configUpdate$
@@ -168,6 +179,45 @@ export class DashboardLandingComponent implements OnInit {
         ];
     this.chartInit();
   }
+
+
+
+  runPoSync() {
+    this.poRunning = true;
+    this.poOk = null;
+    this.poSummary = '';
+    this.poShowRaw = false;
+
+    this.dataService.getPoSync().subscribe({
+      next: (res) => {
+        this.poRunning = false;
+        this.poLastAt = new Date();
+        this.poResult = res;
+        this.poOk = true;
+
+        const msg = res?.message ?? 'PO sync completed';
+        const synced = res?.synced ?? res?.count ?? res?.processed ?? null;
+        const errors = res?.errors ?? res?.errorCount ?? 0;
+
+        this.poSummary = synced !== null
+          ? `${msg}. Synced: ${synced}${errors ? `, Errors: ${errors}` : ''}`
+          : msg;
+
+        this.toast.add({ severity: 'success', summary: 'PO Sync', detail: this.poSummary, life: 6000 });
+      },
+      error: (err) => {
+        this.poRunning = false;
+        this.poLastAt = new Date();
+        this.poResult = (err && 'error' in err) ? (err as any).error : err;
+        this.poOk = false;
+
+        const detail = (err as any)?.message || 'PO sync failed';
+        this.poSummary = detail;
+        this.toast.add({ severity: 'error', summary: 'PO Sync', detail, life: 8000 });
+      }
+    });
+  }
+
 
 
   filterAccount(event: any) {
