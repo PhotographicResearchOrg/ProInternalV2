@@ -2,6 +2,8 @@
 {
     public class DeclinedIR
     {
+        
+        public string stringprogramweek { get; set; }
         public int OrderID { get; set; }
         public int Status { get; set; }
         public DateTime? ProcessDate { get; set; }

@@ -48,6 +48,17 @@ namespace ProInternal.Controllers
         }
 
 
+        [HttpGet]
+        [Route("mapviolations")]
+        public List<MapViolation> GetAllMapViolations()
+        {
+            return this._prodataAccess.GetAllMapViolations();
+       
+        }
+
+
+
+
         [HttpGet("getCountryExcludedBrands")]
         public IActionResult GetCountryExcludedBrands([FromQuery] string country)
         {

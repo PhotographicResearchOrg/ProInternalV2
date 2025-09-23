@@ -9,9 +9,11 @@
 
     public class MapViolation
     {
+        public string? AccountName { get; set; }     // optional
         public string AccountNumber { get; set; }
         public string ProductCode { get; set; }
         public int PenaltyDays { get; set; }
-        public DateTime SubmittedOn { get; set; } // Include this to show when violations were submitted
+        public DateTime SubmittedOn { get; set; } 
+        public DateTime EndDate { get; set; } 
     }
 }

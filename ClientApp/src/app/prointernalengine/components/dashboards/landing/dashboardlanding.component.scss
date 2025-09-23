@@ -1,4 +1,3 @@
-@import 'src/styles/settings';
 
 
 .dashboard-bucket {
@@ -23,7 +22,7 @@
     left: 0;
     width: 100%;
     height: 4px;
-    background: linear-gradient(to right, $primary, lighten($primary, 15%));
+
     border-bottom-left-radius: 10px;
     border-bottom-right-radius: 10px;
   }
@@ -32,24 +31,23 @@
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 1rem;
-    color: $text-color;
+
     display: flex;
     align-items: center;
 
     i {
       margin-right: 0.5rem;
       font-size: 1.2rem;
-      color: $primary;
+
     }
   }
 
   .bucket-metrics {
     font-size: 0.95rem;
-    color: $text-dark;
 
     .icon {
       margin: 0 0.25rem;
-      color: $primary;
+
     }
 
     .warning-tag {
@@ -59,7 +57,7 @@
 
   a {
     font-weight: 600;
-    color: $primary;
+
     text-decoration: none;
 
     &:hover {
@@ -69,10 +67,12 @@
 }
 
 
+
+
 ::ng-deep .p-datatable th {
   white-space: nowrap;
   font-weight: 600;
-  color: $text-color;
+
   font-size: 0.95rem;
 }
 
@@ -100,6 +100,68 @@
 }
 
 
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background-color: #f1f1f1;
+  color: #333;
+
+  &.status-chip--active {
+    background-color: #d1f5d3;
+    color: #276738;
+
+    i {
+      color: #34a853;
+    }
+  }
+
+  &.status-chip--expired {
+    background-color: #fde2e2;
+    color: #a01a1a;
+
+    i {
+      color: #e53935;
+    }
+  }
+}
+
+
+::ng-deep .status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background-color: #f1f1f1;
+  color: #333;
+
+  &.status-chip--active {
+    background-color: #d1f5d3;
+    color: #276738;
+
+    i {
+      color: #34a853;
+    }
+  }
+
+  &.status-chip--expired {
+    background-color: #fde2e2;
+    color: #a01a1a;
+
+    i {
+      color: #e53935;
+    }
+  }
+}
+
+
 
 // Responsive tweaks
 @media (max-width: 768px) {
@@ -107,3 +169,4 @@
     padding: 1rem;
   }
 }
+

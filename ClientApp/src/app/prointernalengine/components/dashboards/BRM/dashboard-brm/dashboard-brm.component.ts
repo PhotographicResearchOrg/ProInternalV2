@@ -17,9 +17,6 @@ export class DashboardBrmComponent implements OnInit {
 
  // @ViewChild('declinesTable') declinesTable!: IrDeclinesTableComponent;
   @ViewChild('declinesTable', { static: false }) declinesTable!: IrDeclinesTableComponent;
-
-
-
   @ViewChild('topbar') topbar!: AppTopbarComponent;
 
   public declinedIRs: DeclinedIR[] = [];
@@ -41,6 +38,7 @@ export class DashboardBrmComponent implements OnInit {
 
 
     this.IRDeclinecols = [
+      { header: 'Program Week', field: 'stringprogramweek' },
       { header: 'Order_ID', field: 'orderID' },
       { header: 'Decline_Date', field: 'processDate' },
       { header: 'IR_Total', field: 'total' },
@@ -83,9 +81,8 @@ export class DashboardBrmComponent implements OnInit {
 
 
     ReloadDeclinedIRs(): void {
-    this.dataService.GetDeclinedInstantRebates().subscribe((data) => {
+      this.dataService.GetDeclinedInstantRebates().subscribe((data) => {
       this.declinedIRsOriginal = data;
-      //this.hubspotAccountNumbers = []; // clear filters on reload
       this.onAccountFilter(this.SelectedAccountNumbers); //  re-apply previously selected accounts
     });
   }

@@ -50,7 +50,15 @@ namespace ProInternal.Services
 
         void DeleteRebateVendor(int id);
 
+        CommitResult CommitRebateIRPreviewRows(CommitRequest req, string? committedBy = null);
 
+        int  UpdatePreviewProposedName(int previewId, string proposed);
+
+        public int? GetDispositionModelId(string modelName);
+
+        int InsertRebatePreviewRow(RebateIRRowDto row, DateTime expireDate);
+
+        public string GetStackForModel(int modelId);
 
 
 

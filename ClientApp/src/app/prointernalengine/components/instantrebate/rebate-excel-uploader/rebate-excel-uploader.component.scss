@@ -47,3 +47,285 @@
   border-radius: 12px;
   box-shadow: var(--card-shadow);
 }
+
+.upload-dropzone {
+  border: 2px dashed #ccc;
+  padding: 1rem;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.3s ease;
+}
+
+.upload-dropzone.highlight-drop {
+  background: #f4f9ff;
+  border-color: #3f51b5;
+}
+
+.ir-table {
+  min-width: 1100px; // enables horizontal scroll instead of squishing columns
+}
+
+/* Zebra lines for scanning */
+:host ::ng-deep .p-datatable .p-datatable-tbody > tr:nth-child(odd) > td {
+  background: #fafafa;
+}
+
+/* Sticky header when scrolling */
+:host ::ng-deep .p-datatable-scrollable .p-datatable-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Density & text utilities */
+.truncate {
+  max-width: 380px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.center {
+  text-align: center;
+}
+
+.text-mono, .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.date {
+  white-space: nowrap;
+}
+
+/* Funding chips (IR/Mem) */
+.chip-row {
+  display: inline-flex;
+  gap: .35rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.chip :host ::ng-deep .p-tag {
+  padding: .15rem .45rem;
+  font-weight: 600;
+}
+
+/* Rebate type tag */
+.rebate-tag :host ::ng-deep .p-tag {
+  font-weight: 600;
+  letter-spacing: .2px;
+  padding: .2rem .5rem;
+}
+
+/* Expander area */
+.expansion {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem 1rem;
+  padding: .5rem 1rem 1rem 3.25rem; /* indent to align under the row */
+  background: #f9fafb;
+  border-left: 2px solid #e5e7eb;
+}
+
+.exp-item label {
+  display: block;
+  font-size: .75rem;
+  color: #6b7280;
+  margin-bottom: .25rem;
+}
+
+.exp-item.full {
+  grid-column: 1 / -1;
+}
+
+.wrap {
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Subtle row-hover to aid eye tracking */
+:host ::ng-deep .p-datatable .p-datatable-tbody > tr:hover > td {
+  background: #eef2ff;
+}
+
+/* Fixed layout & ellipsis */
+.fixed-table .p-datatable-table {
+  table-layout: fixed; /* keeps column widths predictable */
+}
+
+.ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.num {
+  text-align: right;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.muted {
+  color: #6b7280;
+}
+/* slate-500 */
+
+/* Density controls */
+.density-compact .p-datatable .p-datatable-thead > tr > th,
+.density-compact .p-datatable .p-datatable-tbody > tr > td {
+  padding: .25rem .4rem; /* tighter */
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.density-comfortable .p-datatable .p-datatable-thead > tr > th,
+.density-comfortable .p-datatable .p-datatable-tbody > tr > td {
+  padding: .55rem .7rem;
+  font-size: 13.5px;
+}
+
+/* Row zebra + hover to help scan */
+.p-datatable .p-datatable-tbody > tr:nth-child(odd) {
+  background: #fafafa;
+}
+
+.p-datatable .p-datatable-tbody > tr:hover {
+  background: #eef2ff; /* indigo-50 */
+}
+
+/* Smaller tags/chips */
+:host ::ng-deep .p-tag {
+  font-size: 11px;
+  padding: 0 .35rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem;
+}
+
+.chip {
+  margin: 0;
+}
+
+/* Toolbar spacing */
+.density-toggle {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: .5rem;
+}
+.density-compact .p-datatable-thead > tr > th,
+.density-compact .p-datatable-tbody > tr > td {
+  padding: .25rem .4rem;
+  font-size: 12px;
+}
+
+.density-comfortable .p-datatable-thead > tr > th,
+.density-comfortable .p-datatable-tbody > tr > td {
+  padding: .55rem .7rem;
+  font-size: 13.5px;
+}
+/* Force fixed layout on PrimeNG's inner tables */
+:host ::ng-deep .fixed-table .p-datatable-table,
+:host ::ng-deep .fixed-table .p-datatable-scrollable-body table,
+:host ::ng-deep .fixed-table .p-datatable-scrollable-header table {
+  table-layout: fixed;
+}
+
+/* Ellipsis wrapper */
+:host ::ng-deep .ell {
+  display: block; /* needed inside TD */
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* (keep your other .mono, .num, density rules) */
+
+
+/* Force fixed layout on all inner tables of a scrollable p-table */
+:host ::ng-deep .fixed-table .p-datatable-table,
+:host ::ng-deep .fixed-table .p-datatable-scrollable-header table,
+:host ::ng-deep .fixed-table .p-datatable-scrollable-body table {
+  table-layout: fixed;
+}
+
+/* Ellipsis wrapper inside TDs */
+:host ::ng-deep .ell {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Density variants: target .p-datatable inside the wrapper */
+:host ::ng-deep .density-compact .p-datatable .p-datatable-thead > tr > th,
+:host ::ng-deep .density-compact .p-datatable .p-datatable-tbody > tr > td {
+  padding: .25rem .4rem;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+:host ::ng-deep .density-comfortable .p-datatable .p-datatable-thead > tr > th,
+:host ::ng-deep .density-comfortable .p-datatable .p-datatable-tbody > tr > td {
+  padding: .55rem .7rem;
+  font-size: 13.5px;
+}
+
+
+
+/* spacing + layout for the controls under the dropzone */
+.upload-controls {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem; /* space between the rows */
+  margin-top: .75rem; /* space above the whole block */
+}
+
+.file-name {
+  margin-bottom: .5rem;
+}
+
+.upload-controls .row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+}
+
+.upload-controls .expire-row .label {
+  font-weight: 600;
+  min-width: 5.5rem; /* keeps label tidy */
+}
+
+.upload-controls .expire-row .hint {
+  color: var(--text-color-secondary);
+  font-size: .85rem;
+}
+
+.upload-controls .btn-row {
+  gap: .5rem; /* space between buttons */
+}
+
+/* if you’re on an older PrimeNG, emulate small buttons */
+button.p-button-sm,
+:host ::ng-deep .p-button.p-button-sm {
+  padding: .35rem .6rem;
+  font-size: .85rem;
+  border-radius: .5rem;
+}
+

@@ -1,5 +1,6 @@
 import { Injectable } from "@angular/core";
 import { map } from "rxjs/operators";
+import {  switchMap } from 'rxjs';
 import { ApiService } from "./api.service";
 import { QuarterlyRebates, QuarterlyRebatesHistorical, qrDetail, PaymentType } from "../models/accounting/quarterly-rebates";
 import { OrdersMetrics } from "../models/Dashboard/OrdersMetrics";
@@ -11,6 +12,7 @@ import { ShippingErrorMetrics } from "../models/Dashboard/ShippingErrorMetrics";
 import { Account, Brands } from "../models/Dashboard/Account";
 import { Products } from "../models/Dashboard/Products";
 import { SpecialOrdersSummary } from "../models/Dashboard/SpecialOrdersSummary";
+import { RebateIRRowDto, CommitResult, CommitRequest } from "../models/IR/IRLoad";
 import { DeclinedIR } from "../models/Dashboard/DeclinedIR";
 import { CommentsMetrics } from "../models/Dashboard/CommentsMetrics";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
@@ -47,14 +49,49 @@ import { ShippingErrorRecord, ShippingErrorProduct, PackingSlipData, ProcessShip
 import { BatchRunResponse, PoSyncResult } from 'src/app/models/Uvicorn/PassThroughInvoice';
 import { Prod, Result, ProductInfoType, ProductInfoLookup, IQPrompt, CategoryNode } from 'src/app/models/Product/EditProduct'; 
 
+
 @Injectable()
 export class DataService {
 
-  constructor(private api: ApiService) { }
+  constructor(private api: ApiService, private http: HttpClient) { }
 
 
 
-  //
+  uploadIRFile(file: File, expireDate: Date) {
+    const fd = new FormData();
+    fd.append('file', file, file.name);                    // MUST be 'file'
+    fd.append('expireDate', expireDate.toISOString().slice(0, 10)); // yyyy-MM-dd
+
+    return this.api.postMultipartJson<RebateIRRowDto[]>('api/RebateIr/upload', fd);
+  }
+
+
+  updateProposedModelName(previewId: number, proposed: string) {
+    return this.api.patch<void>(`api/RebateIr/preview/${previewId}/proposed`, {
+      proposedModelName: proposed
+    });
+  }
+
+  //commitIR(body: { previewIds: number[]; dryRun?: boolean; overwriteDuplicates?: boolean; }) {
+  //  return this.api.post<CommitResult>('api/RebateIr/commit', body);
+  //}
+
+  commitIR(payload: CommitRequest) {
+    return this.api.post<CommitResult>('api/RebateIr/commit', payload);
+  }
+
+
+  getAllMapViolations(): Observable<MapViolation[]> {
+    return this.api.get<MapViolation[]>('API/Product/mapviolations');
+  }
+
+  //// data.service.ts
+  //submitMapViolation(violation: MapViolation): Observable<MapViolation[]> {
+  //  return this.api.post<MapViolation[]>(`API/Product/submitMapViolation`, violation);
+  //}
+
+
+
 
   private readonly productBase = 'API/Product';
   // Product edit
@@ -100,11 +137,31 @@ export class DataService {
 
 
 
+  getShopifySync(): Observable<any> {
+    return this.api.get<any>('api/uvicorn/shopify-sync');
+  }
+
+  getShopifyNewProducts(): Observable<any> {
+    return this.api.get<any>('api/uvicorn/shopify-newproducts');
+  }
+
+
+
+
+  getManualSync(emails?: string): Observable<any> {
+    if (emails?.trim()) {
+      const encoded = encodeURIComponent(emails);
+      return this.api.get<any>(`api/uvicorn/manuals?emails=${encoded}`);
+    } else {
+      return this.api.get<any>('api/uvicorn/manuals');
+    }
+  }
+
+
   getPoSync() {
     // Route is case-insensitive; keep consistent with your others.
     return this.api.get<PoSyncResult>('api/uvicorn/po-sync');
   }
-
 
   getInvoiceBatch(): Observable<BatchRunResponse> {
     return this.api.get<BatchRunResponse>('api/Uvicorn/process-batch');
@@ -115,7 +172,6 @@ export class DataService {
       `api/uvicorn/process?invoice_number=${encodeURIComponent(invoiceNumber)}`
     );
   }
-
 
   getShippingErrors(): Observable<ShippingErrorRecord[]>
   {

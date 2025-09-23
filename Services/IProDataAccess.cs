@@ -30,6 +30,7 @@ namespace ProInternal.Services
 {
     public interface IProDataAccess
     {
+        List<MapViolation> GetAllMapViolations();
 
         bool MarkProductComplete(int shippingErrorId, int productId, string updatedBy);
 
@@ -159,6 +160,9 @@ namespace ProInternal.Services
         void savePatronageData(List<PatronageUpload> data);
         List<PatronageUpload>GetRecentPatronageLoad();
         List<PatronageHistorical> GetPatronageHistorical();
+
+
+        string? GetPrimaryProductDescriptionByProCode(int proCode);
 
 
         //// Product edit

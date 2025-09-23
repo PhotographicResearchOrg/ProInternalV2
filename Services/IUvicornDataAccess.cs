@@ -18,7 +18,11 @@ namespace ProInternal.Services
         Task<HttpResponseMessage> ProcessBatchAsync(CancellationToken ct);
         Task<HttpResponseMessage> ProcessInvoiceAsync(string invoiceNumber, CancellationToken ct); // NEW
         Task<HttpResponseMessage> PoSyncAsync(CancellationToken ct);                // NEW
+        Task<HttpResponseMessage> ManualsSyncAsync(string? emails, CancellationToken ct);
 
+        Task<HttpResponseMessage> SyncShopifyOldAsync(CancellationToken ct);
+        Task<HttpResponseMessage> SyncShopifyNewAsync(CancellationToken ct);
+   
     }
 
 }

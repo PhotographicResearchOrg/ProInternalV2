@@ -32,6 +32,7 @@
       <ng-template pTemplate="header">
         <tr>
           <th style="width: 3rem"></th>
+          <th>Prog. Week</th>
           <th>Claim</th>
           <th>Decline</th>
           <th>Total</th>
@@ -45,6 +46,7 @@
 
       <ng-template pTemplate="body" let-rowData let-expanded="expanded">
         <tr>
+
           <td>
             <span (click)="toggleRow(rowData.orderID.toString())"
                   [pRowToggler]="rowData"
@@ -54,6 +56,7 @@
               </i>
             </span>
           </td>
+          <td>{{ rowData.stringprogramweek }}</td>
           <td>{{ rowData.orderID }}</td>
           <td>{{ rowData.processDate | date }}</td>
           <td>{{ rowData.total | currency }}</td>

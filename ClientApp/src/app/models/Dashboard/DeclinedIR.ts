@@ -1,5 +1,6 @@
 export class DeclinedIR {
 
+  public stringprogramweek: string;
   public orderID: number;
   public processDate: Date;
   public total: number;

@@ -58,10 +58,23 @@ namespace ProInternal.Controllers
         }
 
 
+        [HttpGet("manuals")]
+        public async Task<IActionResult> ManualsSync([FromQuery] string? emails, CancellationToken ct)
+        {
+            var resp = await _dal.ManualsSyncAsync(emails, ct);
+            var body = await resp.Content.ReadAsStringAsync(ct);
 
+            if (!resp.IsSuccessStatusCode)
+                _logger.LogWarning("Manuals Sync failed: {Status} {Body}", resp.StatusCode, body);
 
+            return new ContentResult
+            {
+                StatusCode = (int)resp.StatusCode,
+                ContentType = resp.Content.Headers.ContentType?.ToString() ?? "application/json",
+                Content = body
+            };
+        }
 
-        // NEW: /api/uvicorn/process?invoice_number=983350
         [HttpGet("process")]
         public async Task<IActionResult> Process([FromQuery(Name = "invoice_number")] string invoiceNumber, CancellationToken ct)
         {
@@ -80,6 +93,42 @@ namespace ProInternal.Controllers
                 Content = body
             };
         }
+
+
+        [HttpGet("shopify-sync")]
+        public async Task<IActionResult> ShopifySync(CancellationToken ct)
+        {
+            var resp = await _dal.SyncShopifyOldAsync(ct);
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode)
+                _logger.LogWarning("Shopify legacy sync failed: {Status} {Body}", resp.StatusCode, body);
+
+            return new ContentResult
+            {
+                StatusCode = (int)resp.StatusCode,
+                ContentType = resp.Content.Headers.ContentType?.ToString() ?? "application/json",
+                Content = body
+            };
+        }
+
+        [HttpGet("shopify-newproducts")]
+        public async Task<IActionResult> ShopifyNewProducts(CancellationToken ct)
+        {
+            var resp = await _dal.SyncShopifyNewAsync(ct);
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode)
+                _logger.LogWarning("Shopify new product sync failed: {Status} {Body}", resp.StatusCode, body);
+
+            return new ContentResult
+            {
+                StatusCode = (int)resp.StatusCode,
+                ContentType = resp.Content.Headers.ContentType?.ToString() ?? "application/json",
+                Content = body
+            };
+        }
+
+
+
 
 
     }

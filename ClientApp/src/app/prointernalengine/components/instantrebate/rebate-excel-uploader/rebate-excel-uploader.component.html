@@ -1,17 +1,33 @@
 <div class="p-grid p-m-3">
 
-  <!-- Summary Cards Row -->
+
+  <p-toast position="top-right"></p-toast>
+
+  <!-- Header Card -->
   <div class="p-col-12">
     <div class="summary-card-container">
+
       <p-card class="summary-card">
         <div class="p-d-flex p-ai-center p-gap-2">
           <i class="pi pi-folder-open p-text-primary" style="font-size: 1.5rem;"></i>
           <div>
-            <div class="p-text-bold">Batch Upload</div>
-            <small class="p-text-secondary">Upload Excel rebate data</small>
+            <div class="p-text-bold text-lg">Rebate IR Upload - Currently in DEV mode - NO IMPLACATIONS </div>
+
+            <p-progressSpinner *ngIf="isLoading" styleClass="p-text-center" />
+
+            <small class="p-text-secondary">Upload rebate Excel, preview and validate before submission.</small>
+
+            <div *ngIf="commitResult" class="commit-summary">
+              <p-tag value="Inserted: {{commitResult.inserted}}" severity="success"></p-tag>
+              <p-tag value="Updated: {{commitResult.updated}}" severity="info"></p-tag>
+              <p-tag value="Skipped: {{commitResult.skipped}}" severity="secondary"></p-tag>
+              <p-tag value="Errors: {{commitResult.errors}}" severity="danger"></p-tag>
+            </div>
+
           </div>
         </div>
       </p-card>
+
     </div>
   </div>
 
@@ -21,30 +37,222 @@
       <ng-template pTemplate="title">Upload Excel File</ng-template>
       <ng-template pTemplate="content">
         <div class="upload-dropzone"
+             [ngClass]="{ 'highlight-drop': isDragOver }"
              (dragover)="onDragOver($event)"
-             (drop)="onDrop($event)">
-            <i class="pi-upload" styleClass="p-mb-2 p-text-secondary"></i>
-            <p class="p-m-0">Drag and drop file here or click to browse</p>
-            <input type="file" (change)="onFileSelect($event)" hidden #fileInput />
-</div>
+             (dragleave)="onDragLeave($event)"
+             (drop)="onDrop($event)"
+             (click)="fileInput.click()">
+          <i class="pi pi-upload p-text-secondary mb-2" style="font-size: 2rem;"></i>
+          <p class="p-m-0">Drag and drop file here or click to browse</p>
+          <input type="file" (change)="onFileSelect($event)" hidden #fileInput />
+        </div>
 
-        <div *ngIf="selectedFile" class="p-mt-3">
-          <p><strong>Selected File:</strong> {{ selectedFile.name }}</p>
-          <div class="p-d-flex p-gap-2">
-            <button pButton label="Review" icon="pi pi-search" class="p-button-sm p-button-info"></button>
-            <button pButton label="Submit" icon="pi pi-check" class="p-button-sm p-button-success"></button>
+        <div class="p-mt-3" *ngIf="selectedFile">
+          <p class="file-name"><strong>Selected File:</strong> {{ selectedFile.name }}</p>
+
+          <div class="upload-controls">
+            <div class="row expire-row">
+              <label for="expireDate" class="label">Expire On:</label>
+              <p-calendar [(ngModel)]="expireDate"
+                          inputId="expireDate"
+                          [showIcon]="true"
+                          dateFormat="mm/dd/yy"
+                          inputStyleClass="w-12rem">
+              </p-calendar>
+              <span class="hint">applies to all rows</span>
+            </div>
+
+            <div class="row btn-row">
+              <button pButton
+                      label="Upload & Preview"
+                      icon="pi pi-search"
+                      size="small"
+                      severity="help"
+                      (click)="uploadFile()">
+              </button>
+
+              <button pButton
+                      label="Clear"
+                      icon="pi pi-times"
+                      size="small"
+                      severity="secondary"
+                      (click)="clearFile()">
+              </button>
+
+              <button pButton
+                      label="Download Excel"
+                      icon="pi pi-download"
+                      size="small"
+                      severity="help"
+                      (click)="exportGrid()">
+              </button>
+            </div>
           </div>
         </div>
+
+
+
       </ng-template>
     </p-card>
   </div>
 
-  <!-- Table Placeholder -->
-  <div class="p-col-12">
+  <div class="density-toggle">
+    <div class="density-toggle">
+      <p-button label="Comfortable" [outlined]="density!=='comfortable'" (click)="density='comfortable'"></p-button>
+      <p-button label="Compact" [outlined]="density!=='compact'" (click)="density='compact'"></p-button>
+    </div>
+  </div>
+
+
+  <div class="p-col-12" *ngIf="previewRows.length > 0">
     <p-card>
       <ng-template pTemplate="title">Uploaded Data Preview</ng-template>
       <ng-template pTemplate="content">
-        <!-- Your parsed table will go here -->
+        <div [ngClass]="{ 'density-compact': density==='compact', 'density-comfortable': density==='comfortable' }">
+          <p-table [value]="previewRows"
+                   selectionMode="multiple"
+                   [(selection)]="selectedRows"
+                   dataKey="previewId"
+                   [scrollable]="true"
+                   scrollHeight="60vh"
+                   [ngClass]="{ 'density-compact': density==='compact', 'density-comfortable': density==='comfortable' }"
+                   class="p-datatable-sm fixed-table">
+
+            <!-- WIDTHS ONLY (no text here) -->
+            <ng-template pTemplate="colgroup">
+              <colgroup>
+                <col style="width:100px" />  <!-- Vendor / Brand -->
+                <col style="width:100px" />  <!-- Prod Des -->
+                <col style="width:280px" />  <!-- Proposed Model Name -->
+                <col style="width:120px" />  <!-- PRO Code_(Primary) -->
+                <col style="width:120px" />  <!-- Instant Rebate -->
+                <col style="width:100px" />  <!-- Reimbursement -->
+                <col style="width:100px" />  <!-- MAP -->
+                <col style="width:140px" />  <!-- Start Date -->
+                <col style="width:140px" />  <!-- End Date -->
+                <col style="width:160px" />  <!-- Stack Code(s) -->
+                <col style="width:220px" />  <!-- Stack Product (Desc) -->
+                <col style="width:90px" />  <!-- Rebate Type -->
+                <col style="width:120px" />  <!-- Disposition -->
+                <col style="width:240px" />  <!-- Notes -->
+                <col style="width:40px" />  <!-- Status -->
+              </colgroup>
+            </ng-template>
+
+            <!-- HEADERS GO HERE -->
+            <ng-template pTemplate="header">
+              <tr>
+                <th style="width: 3rem;">
+                  <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                </th>
+                <th>Vendor / Brand</th>
+                <th>Prod Des</th>
+                <th>Proposed Model Name</th>
+                <th>PRO Code_(Primary)</th>
+                <th>Instant Rebate</th>
+                <th>Reimbursement</th>
+                <th>MAP</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Stack Code(s)</th>
+                <th>Stack Product (Desc)</th>
+                <th>Rebate Type</th>
+                <th>Disposition</th>
+                <th>Notes</th>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="body" let-r>
+              <tr>
+                <td>
+                  <p-tableCheckbox [value]="r"></p-tableCheckbox>
+                </td>
+                <td><div class="ell">{{ r.vendorBrand }}</div></td>
+                <td><div class="ell" pTooltip="{{ r.productDescription }}" tooltipPosition="top">{{ r.productDescription }}</div></td>
+                <td pEditableColumn (onEditComplete)="saveProposed(r)">
+                  <p-cellEditor>
+                    <!-- input mode -->
+                    <ng-template pTemplate="input">
+                      <input pInputText
+                             class="w-full"
+                             [(ngModel)]="r.proposedModelName"
+                             [maxlength]="300"
+                             placeholder="Enter proposed name"
+                             autofocus />
+                    </ng-template>
+                    <!-- display mode (ellipsis + tooltip) -->
+                    <ng-template pTemplate="output">
+                      <div class="ell" pTooltip="{{ r.proposedModelName }}" tooltipPosition="top">
+                        {{ r.proposedModelName || '—' }}
+                      </div>
+                    </ng-template>
+                  </p-cellEditor>
+                </td>
+
+
+                <!--<td><div class="ell"  pTooltip="{{ r.proposedModelName }}" tooltipPosition="top">{{ r.proposedModelName || '—' }}</div></td>-->
+
+
+                <td class="mono">
+                  <div class="ell" [title]="r.proCodePrimary || r.productCode">
+                    {{ r.proCodePrimary || r.productCode }}
+                  </div>
+                </td>
+
+                <td class="num">{{ r.instantRebate| currency:'USD':'symbol':'1.2-2' }}</td>
+                <td class="num strong">{{ (r.memberReimbursement ?? r.reimbursement) | currency:'USD':'symbol':'1.2-2' }}</td>
+                <td class="num">{{ r.map | number:'1.0-2' }}</td>
+
+                <td class="mono">
+                  <div class="ell" [title]="(r.startDate | date:'M/d/yyyy h:mm:ss a')">
+                    {{ r.startDate | date:'M/d/yyyy h:mm:ss a' }}
+                  </div>
+                </td>
+                <td class="mono">
+                  <div class="ell" [title]="(r.endDate | date:'M/d/yyyy h:mm:ss a')">
+                    {{ r.endDate | date:'M/d/yyyy h:mm:ss a' }}
+                  </div>
+                </td>
+
+                <td class="mono"><div class="ell" pTooltip="{{ r.stackProductCode }}" tooltipPosition="top"> {{ r.stackProductCode || '—' }}</div></td>
+                <td><div class="ell" pTooltip="{{ r.stackProduct }}" tooltipPosition="top">{{ r.stackProduct || '—' }}</div></td>
+
+                <td class="center">
+                  <p-tag [value]="rebateTypeLabel(r.rebateType)"
+                         [severity]="rebateTypeSeverity(r.rebateType)"
+                         class="rebate-tag">
+                  </p-tag>
+                </td>
+                <td class="mono"><div class="ell" [title]="r.dispositionModelID">{{ r.dispositionModelID }}</div></td>
+
+                <td><div class="ell" pTooltip="{{ r.notes }}" tooltipPosition="top">{{ r.notes }}</div></td>
+
+                <td class="center">
+                  <p-tag *ngIf="r.commitStatus"
+                         [value]="r.commitStatus"
+                         [severity]="commitSeverity(r.commitStatus)"
+                         pTooltip="{{ r.commitMessage || '' }}"
+                         tooltipPosition="top">
+                  </p-tag>
+                  <span *ngIf="!r.commitStatus" class="muted">—</span>
+                </td>
+
+
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        <!--<div class="text-right mt-3">
+          <button pButton label="Submit IRs" icon="pi pi-check" class="p-button-success"></button>
+        </div>-->
+
+        <p-button label="Submit IRs"
+                  icon="pi pi-check"
+                  class="p-button-success"
+                  [disabled]="!previewRows?.length"
+                  (click)="submitSelected()">
+        </p-button>
+
       </ng-template>
     </p-card>
   </div>

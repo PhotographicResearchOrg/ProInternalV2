@@ -30,6 +30,11 @@ export class ApiService {
   }
 
 
+  postMultipartJson<T>(url: string, formData: FormData): Observable<T> {
+    // Do NOT set any headers. Browser will add the multipart boundary.
+    return this.http.post<T>(this.getUrl(url), formData);
+  }
+
   patch<T>(url: string, body: any): Observable<T> {
     return this.http.patch<T>(this.getUrl(url), JSON.stringify(body), {
       headers: this.defaultHeaders

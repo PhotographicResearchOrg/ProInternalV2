@@ -1,6 +1,6 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { MenuItem } from 'primeng/api';
-import { Subscription, debounceTime } from 'rxjs';
+import { Subscription, debounceTime, forkJoin } from 'rxjs';
 import { Product } from 'src/app/prointernalengine/api/product';
 import { downloadCsv, CsvColumn } from 'src/app/services/csv.service';
 import { Products } from "src/app/models/Dashboard/Products";
@@ -24,18 +24,23 @@ import { BatchRunResponse, PoSyncResult } from 'src/app/models/Uvicorn/PassThrou
 import { ToastModule } from 'primeng/toast';
 import { MessageModule } from 'primeng/message';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import { utils as XLSXUtils, writeFile as XLSXWriteFile, WorkBook } from 'xlsx';
+
+
 
 @Component({
   templateUrl: './dashboardlanding.component.html',
-
+  styleUrls: ['./dashboardlanding.component.scss']
 })
 export class DashboardLandingComponent implements OnInit {
 
   accounts: Account[] = [];
   products: Products[] = [];
-
   comments: comments[] = [];
-
+  isExpanded = false;
+  globalSearch: string = '';
+  activeFilter: 'all' | 'active' | 'expired' = 'all';
+  submittedViolations: MapViolation[] = [];
   mapViolationSubmitted = false;
   mapSubmittedAt: Date = new Date();
 
@@ -76,6 +81,37 @@ export class DashboardLandingComponent implements OnInit {
   poShowRaw = false;
 
 
+  manualRunning = false;
+  manualLastAt: Date | null = null;
+  manualResult: any = null;
+  manualOk = false;
+  manualSummary = '';
+  manualEmail = '';
+  showManualRaw: boolean = false;
+
+  // OLD SYNC
+  shopifyOldRunning = false;
+  shopifyOldLastAt: Date | null = null;
+  shopifyOldResult: any = null;
+  shopifyOldOk = false;
+  shopifyOldSummary = '';
+  shopifyOldShowRaw = false;
+
+  // NEW SYNC
+  shopifyNewRunning = false;
+  shopifyNewLastAt: Date | null = null;
+  shopifyNewResult: any = null;
+  shopifyNewOk = false;
+  shopifyNewSummary = '';
+  shopifyNewShowRaw = false;
+
+  shopifyAllRunning = false;
+  shopifyAllLastRun: Date | null = null;
+  shopifyAllResult: any = null;
+  shopifyAllOk = false;
+  shopifyAllSummary = '';
+
+
     items!: MenuItem[];
     cols: any[] = [];
     subscription!: Subscription;
@@ -107,7 +143,7 @@ export class DashboardLandingComponent implements OnInit {
       ];
 
 
-
+        this.loadSubmittedMapViolations(); 
 
         this.dataService.getComments().subscribe((data) => {
         
@@ -181,6 +217,68 @@ export class DashboardLandingComponent implements OnInit {
   }
 
 
+  getFilteredViolations(): MapViolation[] {
+    if (!this.submittedViolations) return [];
+
+    return this.submittedViolations
+      .filter(v => {
+        if (this.activeFilter === 'all') return true;
+        const isActive = this.isActiveViolation(v);
+        return this.activeFilter === 'active' ? isActive : !isActive;
+      })
+      .filter(v =>
+        this.globalSearch.trim().length === 0 ||
+        v.accountNumber?.toLowerCase().includes(this.globalSearch.toLowerCase()) ||
+        v.productCode?.toLowerCase().includes(this.globalSearch.toLowerCase()) ||
+        v.accountName?.toLowerCase().includes(this.globalSearch.toLowerCase()) 
+      );
+  }
+
+  isActiveViolation(v: MapViolation): boolean {
+    if (!v?.submittedOn || typeof v.penaltyDays !== 'number') return false;
+
+    const submitted = new Date(v.submittedOn);
+    const endDate = new Date(submitted);
+    endDate.setDate(endDate.getDate() + v.penaltyDays);
+
+    return endDate > new Date();
+  }
+
+
+  toggleExpand(): void {
+    this.isExpanded = !this.isExpanded;
+  }
+
+
+
+
+
+
+  loadSubmittedMapViolations(): void {
+    this.dataService.getAllMapViolations().subscribe((res: MapViolation[]) => {
+      this.submittedViolations = res;
+    });
+  }
+
+
+
+  exportMapViolationsToExcel(): void {
+    const exportData = this.submittedViolations.map(v => ({
+      'Account #': v.accountNumber,
+      'Product Code': v.productCode,
+      'Penalty Days': v.penaltyDays,
+      'Submitted On': v.submittedOn ? new Date(v.submittedOn).toLocaleString() : ''
+    }));
+
+    const worksheet = XLSXUtils.json_to_sheet(exportData);
+    const workbook: WorkBook = XLSXUtils.book_new();
+    XLSXUtils.book_append_sheet(workbook, worksheet, 'MAP Violations');
+
+    const fileName = `MapViolations_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSXWriteFile(workbook, fileName);
+  }
+
+
 
   runPoSync() {
     this.poRunning = true;
@@ -218,6 +316,133 @@ export class DashboardLandingComponent implements OnInit {
     });
   }
 
+
+
+  runShopifyAll() {
+    this.shopifyAllRunning = true;
+    this.shopifyAllLastRun = new Date();
+    this.shopifyAllResult = null;
+    this.shopifyAllOk = false;
+    this.shopifyAllSummary = '';
+
+    forkJoin([
+      this.dataService.getShopifySync(),
+      this.dataService.getShopifyNewProducts()
+    ]).subscribe({
+      next: ([syncRes, newRes]) => {
+        this.shopifyAllRunning = false;
+        this.shopifyAllOk = true;
+        this.shopifyAllResult = { syncRes, newRes };
+
+        const synced = syncRes?.count ?? 0;
+        const newItems = newRes?.added ?? 0;
+        const err1 = syncRes?.errors ?? 0;
+        const err2 = newRes?.errors ?? 0;
+
+        this.shopifyAllSummary = `Sync OK. Synced: ${synced}, New: ${newItems}${(err1 || err2) ? `, Errors: ${err1 + err2}` : ''}`;
+        this.toast.add({ severity: 'success', summary: 'Shopify Sync', detail: this.shopifyAllSummary, life: 6000 });
+      },
+      error: (err) => {
+        this.shopifyAllRunning = false;
+        this.shopifyAllOk = false;
+        this.shopifyAllResult = err;
+        this.shopifyAllSummary = err?.message || 'Shopify full sync failed';
+        this.toast.add({ severity: 'error', summary: 'Shopify Sync', detail: this.shopifyAllSummary, life: 8000 });
+      }
+    });
+  }
+
+
+
+  runShopifyOld() {
+    this.shopifyOldRunning = true;
+    this.shopifyOldResult = null;
+    this.shopifyOldSummary = '';
+    this.shopifyOldOk = false;
+
+    this.dataService.getShopifySync().subscribe({
+      next: (res) => {
+        this.shopifyOldRunning = false;
+        this.shopifyOldLastAt = new Date();
+        this.shopifyOldResult = res;
+        this.shopifyOldOk = true;
+        this.shopifyOldSummary = res?.status ?? 'Legacy sync completed';
+      },
+      error: (err) => {
+        this.shopifyOldRunning = false;
+        this.shopifyOldLastAt = new Date();
+        this.shopifyOldResult = err?.error ?? err;
+        this.shopifyOldOk = false;
+        this.shopifyOldSummary = err?.message || 'Legacy sync failed';
+      }
+    });
+  }
+
+  runShopifyNew() {
+    this.shopifyNewRunning = true;
+    this.shopifyNewResult = null;
+    this.shopifyNewSummary = '';
+    this.shopifyNewOk = false;
+
+    this.dataService.getShopifyNewProducts().subscribe({
+      next: (res) => {
+        this.shopifyNewRunning = false;
+        this.shopifyNewLastAt = new Date();
+        this.shopifyNewResult = res;
+        this.shopifyNewOk = true;
+        this.shopifyNewSummary = res?.status ?? 'New product sync completed';
+      },
+      error: (err) => {
+        this.shopifyNewRunning = false;
+        this.shopifyNewLastAt = new Date();
+        this.shopifyNewResult = err?.error ?? err;
+        this.shopifyNewOk = false;
+        this.shopifyNewSummary = err?.message || 'New sync failed';
+      }
+    });
+  }
+
+
+
+
+
+
+  runManualSync() {
+    this.manualRunning = true;
+    this.manualResult = null;
+    this.manualSummary = '';
+    this.manualOk = false;
+
+    this.dataService.getManualSync(this.manualEmail).subscribe({
+      next: (res) => {
+        this.manualRunning = false;
+        this.manualLastAt = new Date();
+        this.manualResult = res;
+        this.manualOk = true;
+
+        const msg = res?.status ?? 'Manual sync completed';
+        const inserted = res?.inserted ?? null;
+        const skipped = res?.skipped ?? null;
+        const errors = res?.failures?.length ?? 0;
+
+        this.manualSummary = inserted !== null
+          ? `${msg}. Inserted: ${inserted}, Skipped: ${skipped}${errors ? `, Failures: ${errors}` : ''}`
+          : msg;
+
+        this.toast.add({ severity: 'success', summary: 'Manual Sync', detail: this.manualSummary, life: 6000 });
+      },
+      error: (err) => {
+        this.manualRunning = false;
+        this.manualLastAt = new Date();
+        this.manualResult = (err && 'error' in err) ? (err as any).error : err;
+        this.manualOk = false;
+
+        const detail = (err as any)?.message || 'Manual sync failed';
+        this.manualSummary = detail;
+        this.toast.add({ severity: 'error', summary: 'Manual Sync', detail, life: 8000 });
+      }
+    });
+  }
 
 
   filterAccount(event: any) {
@@ -305,16 +530,9 @@ export class DashboardLandingComponent implements OnInit {
 
   MapViolationSubmit(): void {
 
-
     if (!this.SelectedAccount || !this.SelectedProduct || !this.penalty) {
-      //this.messageService.add({
-      //  severity: 'warn',
-      //  summary: 'Validation',
-      //  detail: 'Please ensure all fields are selected.'
-      //});
       return;
     }
-
 
 
     this.selectedAccountsAdvanced = [this.SelectedAccount];
@@ -345,19 +563,13 @@ export class DashboardLandingComponent implements OnInit {
         this.mapViolationSubmitted = true;
         this.mapSubmittedAt = new Date();
         this.existingViolations = res;
-
-
-
-
-
-
       },
       error: (err) => {
-        //this.messageService.add({
-        //  severity: 'error',
-        //  summary: 'Error',
-        //  detail: err?.error?.message || 'Submission failed'
-        //});
+        this.toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: err?.error?.message || 'Submission failed'
+        });
       }
     });
   }

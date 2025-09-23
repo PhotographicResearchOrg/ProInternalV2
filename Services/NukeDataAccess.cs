@@ -25,6 +25,136 @@ namespace ProInternal.Services
 
 
 
+        public int? GetDispositionModelId(string modelName)
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                return connection.QueryFirstOrDefault<int?>(
+                    "PIV2GetDispositionModelId",
+                    new { ModelName = modelName },
+                    commandType: CommandType.StoredProcedure
+                );
+            }
+        }
+
+        public string? GetStackForModel(int modelId)
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                // Returns the aggregated stack string (or null if none)
+                var stack = connection.QueryFirstOrDefault<string?>(
+                    "PIV2GetStackForModel",
+                    new { DispositionModelID = modelId },
+                    commandType: CommandType.StoredProcedure
+                );
+                return string.IsNullOrWhiteSpace(stack) ? null : stack;
+            }
+        }
+
+        public int UpdatePreviewProposedName(int previewId, string proposed)
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                var rows = connection.Execute(
+                    "PIV2UpdateRebateIRPreviewProposedName",
+                    new { PreviewId = previewId, ProposedModelName = proposed },
+                    commandType: CommandType.StoredProcedure
+                );
+                return rows; // 1 on success
+            }
+        }
+
+
+
+        public int InsertRebatePreviewRow(RebateIRRowDto row, DateTime expireDate)
+        {
+            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                var previewId = connection.QuerySingle<int>(
+                    "PIV2InsertRebateIRPreviewRow",
+                    new
+                    {
+                        // Legacy-visible columns
+                        VendorBrand = row.VendorBrand,
+                        ProductDescription = row.ProductDescription ?? row.ModelName,
+                        ProCodePrimary = row.ProCodePrimary ?? row.ProductCode,
+                        InstantRebate = row.InstantRebate,
+                        MemberReimbursement = row.MemberReimbursement,
+                        MAP = row.MAP,
+                        StartDate = row.StartDate,
+                        EndDate = row.EndDate,
+                        StackProduct = row.StackProduct,
+                        RebateType = row.RebateType,
+                        Notes = row.Notes,
+                        Stack = row.Stack,
+                        DispositionModelID = row.DispositionModelID,
+                        ProposedModelName = row.ProposedModelName,
+
+                        // Compat / extra
+                        ProductCode = row.ProductCode,
+                        ModelName = row.ModelName,
+                        IRDescription = row.IRDescription,
+
+                        // Required
+                        ExpireDate = expireDate
+                    },
+                    commandType: CommandType.StoredProcedure
+                );
+
+                return previewId;
+            }
+        }
+
+
+
+        public CommitResult CommitRebateIRPreviewRows(CommitRequest req, string? committedBy = null)
+        {
+            using var conn = new Microsoft.Data.SqlClient.SqlConnection(_connectionString);
+            conn.Open();
+            using var tx = conn.BeginTransaction();
+
+            var results = conn.Query<CommitRowResult>(
+                "PIV2CommitRebateIRPreviewRows",
+                new
+                {
+                    PreviewIdsCsv = string.Join(",", req.PreviewIds.Distinct()),
+                    DryRun = req.DryRun,
+                    Overwrite = req.OverwriteDuplicates,
+                    MarkCommitted = !req.DryRun,                 // <-- tell SP to update rows only on real commit
+                    CommittedBy = committedBy ?? "Web"         // <-- who did it
+                },
+                commandType: CommandType.StoredProcedure,
+                transaction: tx
+            ).ToList();
+
+            if (!req.DryRun)
+                tx.Commit();  // SP will have updated the rows inside the same tx
+
+            // Tally results (handles “Simulated-*” too)
+            int inserted = 0, updated = 0, skipped = 0, errors = 0;
+            foreach (var r in results)
+            {
+                var s = (r.Status ?? "").ToLowerInvariant();
+                if (s.StartsWith("error")) errors++;
+                else if (s.Contains("update")) updated++;
+                else if (s.StartsWith("skipped")) skipped++;
+                else if (s.Contains("insert")) inserted++;
+                else skipped++;
+            }
+
+            return new CommitResult
+            {
+                Inserted = inserted,
+                Updated = updated,
+                Skipped = skipped,
+                Errors = errors,
+                Rows = results
+            };
+        }
+
+
+
+
 
         #region Metrics 
 
@@ -60,7 +190,6 @@ namespace ProInternal.Services
                 var output = connection.Query<DeclinedIR>("GetIRDeclines").ToList();
                 return output;
             }
-
         }
 
         public void ResubmitOrderToQueue(int orderId)
@@ -72,8 +201,6 @@ namespace ProInternal.Services
                     commandType: CommandType.StoredProcedure);
             }
         }
-
-
 
 
         public void ConfirmDecline(int orderId)

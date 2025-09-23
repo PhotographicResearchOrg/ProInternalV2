@@ -9,7 +9,6 @@ import { catchError, tap } from 'rxjs/operators';
 import { AfterViewInit } from '@angular/core';
 import * as XLSX from 'xlsx';
 
-
 @Component({
   selector: 'app-ir-declines-table',
   templateUrl: './ir-declines-table.component.html'
@@ -21,15 +20,9 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
   @Input() columns: any[] = [];
   @Input() globalFilterFields: string[] = [];
   @Output() actionCompleted = new EventEmitter<void>();
-
   @Output() downloadRequested = new EventEmitter<any>();
   @Output() filteredCountChanged = new EventEmitter<number>();
-
-
   @ViewChild('dtDeclines') table!: Table;
-
-
-
 
   private pendingAccountFilter: string[] | null = null;
   groupedDeclines: any[] = [];
@@ -38,22 +31,18 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
   expandedOrderId: string | null = null;
   vendorOptions = [];
 
-
   constructor(private cdr: ChangeDetectorRef, private dataService: DataService, private messageService: MessageService, private confirmationService: ConfirmationService) { }
 
-  
-  ngOnInit(): void {}
 
+  ngOnInit(): void {}
   ngAfterViewInit(): void {
     this.tryApplyAccountFilter();
     console.log('[IR Table] Table initialized:', !!this.table);
   }
 
-
-
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['declines']) {
-      console.log('🔄 declines changed:', this.declines);  // ← Add this line
+      console.log(' declines changed:', this.declines);  // ← Add this line
       this.groupedDeclines = this.groupDeclines(this.declines || []);
 
       setTimeout(() => {
@@ -61,11 +50,9 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
         for (const item of this.groupedDeclines) {
           this.expandedRowKeys[item.orderID] = true;
         }
-
         if (this.pendingAccountFilter && this.table) {
           this.table.filter(this.pendingAccountFilter, 'memberID', 'in');
         }
-
         this.cdr.detectChanges();
       });
     }
@@ -86,6 +73,7 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
 
       if (!map.has(key)) {
         map.set(key, {
+          stringprogramweek: item.stringprogramweek,
           orderID: item.orderID,
           processDate: item.processDate,
           total: item.total,

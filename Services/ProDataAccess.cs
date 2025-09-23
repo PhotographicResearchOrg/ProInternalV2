@@ -31,6 +31,7 @@ using ProInternal.Models;
 using System.Reflection;
 using ProInternal.Models.Outstanding;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using ProInternal.Models.InstantRebates;
 
 
 namespace ProInternal.Services
@@ -119,8 +120,15 @@ namespace ProInternal.Services
 
 
 
-
-
+        public string? GetPrimaryProductDescriptionByProCode(int proCode)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            return conn.QueryFirstOrDefault<string>(
+                "PIV2GetPrimaryProductDescriptionByProCode",
+                new { ProCode = proCode },
+                commandType: CommandType.StoredProcedure
+            );
+        }
 
 
         public IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors()
@@ -1198,10 +1206,15 @@ namespace ProInternal.Services
 
         #endregion
 
+        public List<MapViolation> GetAllMapViolations()
+        {
+            using (IDbConnection connection = new SqlConnection(_connectionString))
+            {
+                var output = connection.Query<MapViolation>("PIV2MapViolations_GetAll", commandType: CommandType.StoredProcedure).ToList();
+                return output;
+            }
+        }
 
-
-        //InternalMapViolation
-        //ProductMapViolation
 
 
         public List<ProInternal.Models.Accounts.ShippingErrorRecord> getAccounts()
