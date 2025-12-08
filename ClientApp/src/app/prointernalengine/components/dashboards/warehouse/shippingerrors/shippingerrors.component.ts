@@ -487,11 +487,12 @@ export class ShippingerrorsComponent {
           </div>
           <div class="return-address">
             <strong>Return To:</strong><br/>
-            Promaster Customer Returns<br/>
-            123 Main Street<br/>
-            Anytown, CT 06810<br/>
-            Phone: (800) 555-1234<br/>
-            Email: returns@promaster.com
+            Pro Warehouse<br/>
+            Attn: Promaster Customer Returns<br/>
+            2950 Turnpike Drive<br/>
+            Hatboro, PA 19040<br/>
+            Phone: (800) 906-3614<br/>
+            Email: custserv@promaster.com
           </div>
         </div>
 
