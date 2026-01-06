@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualBasic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-
 using ProInternal.Models.Accounting;
 using ProInternal.Models.Accounts;
 using ProInternal.Models.Auth;
@@ -14,20 +13,23 @@ using ProInternal.Models.Outstanding;
 using ProInternal.Models.Patronage;
 using ProInternal.Models.SendInvoicesRequest;
 using ProInternal.Services;
+using Spire.Pdf;
+using Spire.Pdf.Fields;
+using Spire.Pdf.Graphics;
+using Spire.Pdf.Widget;
 using Spire.Xls;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing;
 using System.Dynamic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.IO;
-using Spire.Pdf;
-using Spire.Pdf.Graphics;
-using System.Drawing;
+using Spire.Pdf.Fields;
 
 
 namespace ProInternal.Controllers
@@ -100,27 +102,32 @@ namespace ProInternal.Controllers
 
             foreach (var credit in request.OrderDetails)
             {
+                // 1️⃣ Insert credit (SQL)
                 var creditId = _proDataAccess.InsertAccountingCredit(credit);
 
+                // 2️⃣ Post to legacy API
                 var apiResult = await PostCreditToApi(creditId, credit);
 
                 if (!apiResult.Success)
                 {
                     _proDataAccess.MarkCreditFailed(creditId, apiResult.Error);
-                    continue; // do NOT crash batch
+                    continue; // batch-safe
                 }
 
+                // 3️⃣ Build invoice PDF (cover + attachments)
                 ProcessInvoiceFiles(
                     apiResult.InvoiceNumber,
-                    credit.Description,
+                    credit,
                     credit.FileNames
                 );
 
+                // 4️⃣ Mark success
                 _proDataAccess.MarkCreditSuccess(creditId, apiResult.InvoiceNumber);
             }
 
             return Ok(new { success = true });
         }
+
 
 
 
@@ -146,7 +153,10 @@ namespace ProInternal.Controllers
 
 
 
-                ProcessInvoiceFiles(apiResult.InvoiceNumber, request.Description, request.FileNames ?? new List<string>());
+                //ProcessInvoiceFiles(apiResult.InvoiceNumber, request.Description, request.FileNames ?? new List<string>());
+
+
+
 
                 _proDataAccess.MarkVendorBillingSuccess(billingId, apiResult.InvoiceNumber);
 
@@ -227,72 +237,46 @@ namespace ProInternal.Controllers
         }
 
 
-        private void AddCoverPageSpire(
-            PdfDocument document,
-            string invoiceNumber,
-            string description
-        )
+
+
+        private void ProcessInvoiceFiles(
+          string invoiceNumber,
+          CreditRequestDto credit,
+          List<string> fileNames
+      )
         {
-            PdfPageBase page = document.Pages.Add();
-
-            PdfFont titleFont = new PdfFont(PdfFontFamily.Helvetica, 16f, PdfFontStyle.Bold);
-            PdfFont bodyFont = new PdfFont(PdfFontFamily.Helvetica, 10f);
-
-            PdfBrush brush = PdfBrushes.Black;
-
-            float y = 40;
-
-
-            var format = new PdfStringFormat(
-            PdfTextAlignment.Center,
-            PdfVerticalAlignment.Middle
-            );
-
-            page.Canvas.DrawString(
-        $"Invoice {invoiceNumber}",
-        titleFont,
-        brush,
-        new RectangleF(
-            0, y,
-            page.Canvas.ClientSize.Width, 30
-        ),
-        format
-    );
-            y += 40;
-
-            page.Canvas.DrawString(
-                description ?? "",
-                bodyFont,
-                brush,
-                new RectangleF(40, y, page.Canvas.ClientSize.Width - 80, 500)
-            );
-        }
-
-
-        void ProcessInvoiceFiles(
-
-      string invoiceNumber,
-      string description,
-            List<string> fileNames
-  )
-        {
-            var automationRoot = Path.Combine("wwwroot", "AutomationInvoice");
+            var templatePath = Path.Combine("wwwroot", "Templates", "invoice.pdf");
             var processRoot = Path.Combine("wwwroot", "ProcessInvoice");
 
             Directory.CreateDirectory(processRoot);
 
-            var outputPdf = Path.Combine(processRoot, $"{invoiceNumber}.pdf");
+            var coverPath = Path.Combine(processRoot, $"{invoiceNumber}_cover.pdf");
+            var finalPath = Path.Combine(processRoot, $"{invoiceNumber}.pdf");
 
+            // ----------------------------------
+            // 1️⃣ CREATE COVER FROM TEMPLATE
+            // ----------------------------------
+            PopulateCoverTemplate(
+                templatePath,
+                coverPath,
+                credit,
+                invoiceNumber
+            );
+
+            // ----------------------------------
+            // 2️⃣ MERGE COVER + ATTACHMENTS
+            // ----------------------------------
             var finalDoc = new PdfDocument();
 
-            // 1️⃣ Cover page
-            AddCoverPageSpire(finalDoc, invoiceNumber, description);
+            // 🔹 Add cover FIRST
+            var coverDoc = new PdfDocument();
+            coverDoc.LoadFromFile(coverPath);
+            finalDoc.AppendPage(coverDoc);
 
-            // 2️⃣ Attach files
+            // 🔹 Add attachments
             foreach (var file in fileNames ?? Enumerable.Empty<string>())
             {
                 var sourcePath = Path.Combine("wwwroot", "AutomationInvoice", file);
-
                 if (!System.IO.File.Exists(sourcePath))
                     continue;
 
@@ -300,23 +284,112 @@ namespace ProInternal.Controllers
                 {
                     var attachDoc = new PdfDocument();
                     attachDoc.LoadFromFile(sourcePath);
-
                     finalDoc.AppendPage(attachDoc);
                 }
                 else if (file.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
                 {
                     var tempPdf = ConvertExcelToPdf(sourcePath);
-
                     var attachDoc = new PdfDocument();
                     attachDoc.LoadFromFile(tempPdf);
-
                     finalDoc.AppendPage(attachDoc);
                 }
             }
 
-            finalDoc.SaveToFile(Path.Combine("wwwroot", "ProcessInvoice", $"{invoiceNumber}.pdf"));
+            finalDoc.SaveToFile(finalPath);
             finalDoc.Close();
         }
+
+
+
+
+
+
+        private void PopulateCoverTemplate(
+            string templatePath,
+            string outputPath,
+            CreditRequestDto credit,
+            string invoiceNumber
+        )
+        {
+            var doc = new PdfDocument();
+            doc.LoadFromFile(templatePath);
+
+            PdfFormWidget form = doc.Form as PdfFormWidget;
+            if (form == null)
+                throw new InvalidOperationException("PDF does not contain an AcroForm.");
+
+            // 🔑 WRITE TO WIDGETS, NOT FIELDS
+            foreach (PdfField field in form.Fields)
+            {
+                if (field is PdfTextBoxFieldWidget text)
+                {
+                    switch (text.Name)
+                    {
+                        case "ACCOUNT":
+                            text.Text = credit.Account;
+                            break;
+
+                        case "AccountName":
+                            text.Text =
+                                "Photographic Research Organization\n" +
+                                "240 Long Hill Cross Rd.\n" +
+                                "Shelton, CT 06484";
+                            break;
+
+                        case "DATE":
+                            text.Text = DateTime.Now.ToString("MM/dd/yyyy");
+                            break;
+
+                        case "INVOICE":
+                            text.Text = invoiceNumber;
+                            break;
+
+                        case "TERMS":
+                            text.Text = "NET 30";
+                            break;
+
+                        case "PONUMBER":
+                            text.Text = credit.PO ?? "N/A";
+                            break;
+
+                        case "VENDOR":
+                            text.Text = "1320";
+                            break;
+
+                        case "DESCRIPTION":
+                            text.Text =
+                                "Rebates, Credits & Misc\n\n" +
+                                "** Please pay to PRO **\n" +
+                                "See supporting vendor invoice on next page.";
+                            break;
+
+                        case "QUANTITYRow1":
+                            text.Text = "1";
+                            break;
+
+                        case "PRODUCT NORow1":
+                            text.Text = "1320";
+                            break;
+
+                        case "UNIT COSTRow1":
+                        case "TOTALRow1":
+                        case "TOTAL":
+                            text.Text = credit.Amount.ToString("0.00");
+                            break;
+                    }
+
+                    // ✅ ensure appearance refresh
+                    text.ReadOnly = false;
+                }
+            }
+
+            // 🔥 FORCE APPEARANCE GENERATION
+            form.IsFlatten = true;
+
+            doc.SaveToFile(outputPath);
+            doc.Close();
+        }
+
 
 
 

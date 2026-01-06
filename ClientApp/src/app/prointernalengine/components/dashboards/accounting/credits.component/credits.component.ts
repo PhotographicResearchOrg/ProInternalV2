@@ -91,6 +91,12 @@ export class CreditsComponent implements OnInit {
   }
 
 
+  openInvoice(invoiceNumber: string) {
+    if (!invoiceNumber) return;
+
+    const url = `/ProcessInvoice/${invoiceNumber}.pdf`;
+    window.open(url, '_blank', 'noopener');
+  }
 
   get filteredCredits() {
     if (!this.dateRange || this.dateRange.length !== 2) {
@@ -223,7 +229,9 @@ export class CreditsComponent implements OnInit {
     });
   }
 
-
+  getInvoiceUrl(invoiceNumber: string): string {
+    return `/ProcessInvoice/${invoiceNumber}.pdf`;
+  }
 
   // =====================
   // HISTORY GRID

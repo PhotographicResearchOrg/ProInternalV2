@@ -401,7 +401,16 @@
               </p-tag>
             </td>
 
-            <td>{{ row.invoiceNumber || '—' }}</td>
+            <td>
+              <span pTooltip="Click to open invoice PDF"
+                    tooltipPosition="top"
+                    class="invoice-link"
+                    (click)="openInvoice(row.invoiceNumber)">
+                {{ row.invoiceNumber }}
+                <i class="pi pi-external-link ml-1 text-xs"></i>
+              </span>
+            </td>
+
 
             <td class="text-center">
               <button *ngIf="row.fileName"
@@ -410,6 +419,7 @@
                       class="p-button-text p-button-sm"
                       (click)="openHistoryFile(row)">
               </button>
+
               <span *ngIf="!row.fileName">—</span>
             </td>
 

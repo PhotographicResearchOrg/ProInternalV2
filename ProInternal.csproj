@@ -79,6 +79,7 @@
 
   <ItemGroup>
     <Content Remove="appsettings.KLASSDESKTOP.json" />
+    <Content Remove="wwwroot\Templates\invoice.pdf" />
   </ItemGroup>
 
   <ItemGroup>
@@ -230,6 +231,10 @@
     <Folder Include="ClientApp\src\app\prointernalengine\components\instantrebate\rebate-setup\" />
     <Folder Include="ClientApp\src\app\prointernalengine\components\Vendor\" />
     <Folder Include="ClientApp\src\assets\NewFolder\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\Templates\invoice.pdf" />
   </ItemGroup>
 
     <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">

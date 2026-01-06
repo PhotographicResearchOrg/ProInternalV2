@@ -169,3 +169,13 @@ p-table {
   color: #dc2626; // red-600
   font-weight: 600;
 }
+.invoice-tooltip {
+  padding: 0 !important;
+  max-width: unset !important;
+}
+
+.invoice-link {
+  cursor: pointer;
+  color: var(--brand-yellow);
+  text-decoration: underline;
+}
