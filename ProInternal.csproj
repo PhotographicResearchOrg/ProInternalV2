@@ -27,6 +27,9 @@
     </PackageReference>
     <PackageReference Include="Microsoft.PowerBI.Api" Version="4.22.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="PDFsharp" Version="6.2.4" />
+    <PackageReference Include="Spire.PDF" Version="11.12.7" />
+    <PackageReference Include="Spire.XLS" Version="15.12.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.7.0" />
   </ItemGroup>
 
@@ -100,6 +103,7 @@
     <None Remove="ClientApp\src\app\demo\components\dashboards\dashboards.module.ts" />
     <None Remove="ClientApp\src\app\demo\components\dashboards\e-commerce\dashboardecommerce-routing.module.ts" />
     <None Remove="ClientApp\src\app\demo\components\dashboards\e-commerce\dashboardecommerce.module.ts" />
+    <None Remove="ClientApp\src\app\models\accounting\accounting-credit.ts" />
     <None Remove="ClientApp\src\app\models\accounting\EzPaySummary.ts" />
     <None Remove="ClientApp\src\app\models\accounting\InvoiceRecord.ts" />
     <None Remove="ClientApp\src\app\models\accounting\Outstanding.ts" />
@@ -145,6 +149,7 @@
     <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\notfound2.component.html" />
     <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\notfound2.component.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\notfound2\notfound2.module.ts" />
+    <None Remove="ClientApp\src\app\services\AccountingService.ts" />
     <None Remove="ClientApp\src\app\services\auth.guard.ts" />
     <None Remove="ClientApp\src\app\services\auth.service.ts" />
     <None Remove="ClientApp\src\app\services\csv.service.ts" />
@@ -154,6 +159,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <TypeScriptCompile Include="ClientApp\src\app\models\accounting\accounting-credit.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\EzPaySummary.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\SendInvoicesRequest.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\patronage.ts" />
@@ -200,6 +206,7 @@
       <SubType>Code</SubType>
     </TypeScriptCompile>
     <TypeScriptCompile Include="ClientApp\src\app\models\LoginResponse.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\services\AccountingService.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\services\strapi.service.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>

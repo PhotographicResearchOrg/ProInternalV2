@@ -1,26 +1,33 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.VisualBasic;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+using ProInternal.Models.Accounting;
+using ProInternal.Models.Accounts;
+using ProInternal.Models.Auth;
+using ProInternal.Models.Dashboard;
+using ProInternal.Models.EzPaySummary;
+using ProInternal.Models.InvoiceRecord;
+using ProInternal.Models.Outstanding;
+using ProInternal.Models.Patronage;
+using ProInternal.Models.SendInvoicesRequest;
+using ProInternal.Services;
+using Spire.Xls;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using ProInternal.Services;
-using ProInternal.Models.Accounting;
-using ProInternal.Models.Auth;
-using Newtonsoft.Json;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using Microsoft.VisualBasic;
-using System.Dynamic;
-using System.Text.Json;
-using Newtonsoft.Json.Linq;
 using System.Data;
-using ProInternal.Models.Dashboard;
-using ProInternal.Models.InvoiceRecord;
-using ProInternal.Models.Patronage;
-using ProInternal.Models.EzPaySummary;
-using ProInternal.Models.Accounts;
-using ProInternal.Models.Outstanding;
-using ProInternal.Models.SendInvoicesRequest;
+using System.Dynamic;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Xml.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.IO;
+using Spire.Pdf;
+using Spire.Pdf.Graphics;
+using System.Drawing;
 
 
 namespace ProInternal.Controllers
@@ -41,6 +48,402 @@ namespace ProInternal.Controllers
             _edadataAccess = edadataAccess;
 
         }
+
+
+
+
+        [HttpPost("upload")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadFiles(
+            [FromForm] List<IFormFile> files)
+        {
+            if (files == null || files.Count == 0)
+                return BadRequest("No files uploaded.");
+
+            var root = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "AutomationInvoice"
+            );
+
+            // ✅ ENSURE DIRECTORY EXISTS
+            Directory.CreateDirectory(root);
+
+            var results = new List<object>();
+
+            foreach (var file in files)
+            {
+                var safeName = Path.GetFileName(file.FileName);
+                var fullPath = Path.Combine(root, safeName);
+
+                using var stream = new FileStream(fullPath, FileMode.Create);
+                await file.CopyToAsync(stream);
+
+                results.Add(new
+                {
+                    name = safeName,
+                    size = file.Length,
+                    src = "/AutomationInvoice/" + safeName
+                });
+            }
+
+            return Ok(results);
+        }
+
+
+
+        [HttpPost("credits")]
+        public async Task<IActionResult> SaveCredits([FromBody] CreditBatchRequestDto request)
+        {
+            if (request?.OrderDetails == null || !request.OrderDetails.Any())
+                return BadRequest("No credits supplied.");
+
+            foreach (var credit in request.OrderDetails)
+            {
+                var creditId = _proDataAccess.InsertAccountingCredit(credit);
+
+                var apiResult = await PostCreditToApi(creditId, credit);
+
+                if (!apiResult.Success)
+                {
+                    _proDataAccess.MarkCreditFailed(creditId, apiResult.Error);
+                    continue; // do NOT crash batch
+                }
+
+                ProcessInvoiceFiles(
+                    apiResult.InvoiceNumber,
+                    credit.Description,
+                    credit.FileNames
+                );
+
+                _proDataAccess.MarkCreditSuccess(creditId, apiResult.InvoiceNumber);
+            }
+
+            return Ok(new { success = true });
+        }
+
+
+
+
+        [HttpPost("vendor-billing")]
+        public async Task<IActionResult> SaveVendorBilling([FromBody] VendorBillingRequestDto request)
+        {
+            if (request == null)
+                return BadRequest("Invalid payload.");
+
+            try
+            {
+                var billingId = _proDataAccess.InsertVendorBilling(request);
+
+                var apiResult = await PostVendorBillingToApi(billingId, request);
+
+                if (!apiResult.Success)
+                {
+                    _proDataAccess.MarkVendorBillingFailed(billingId, apiResult.Error);
+                    return BadRequest(apiResult.Error);
+                }
+
+
+
+
+                ProcessInvoiceFiles(apiResult.InvoiceNumber, request.Description, request.FileNames ?? new List<string>());
+
+                _proDataAccess.MarkVendorBillingSuccess(billingId, apiResult.InvoiceNumber);
+
+                return Ok(new { invoice = apiResult.InvoiceNumber });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    error = "Vendor billing failed",
+                    details = ex.Message
+                });
+            }
+        }
+        private async Task<(bool Success, string InvoiceNumber, string Error)> PostCreditToApi(int creditId, CreditRequestDto request)
+        {
+            try
+            {
+                var payload = new Dictionary<string, string>
+                {
+                    ["apiid"] = creditId.ToString(),
+                    ["member"] = request.Account?? request.ProID.Substring(0, 4),
+                    ["vendor"] = "1320",
+                    ["quan"] = "0",
+                    ["po"] = string.IsNullOrWhiteSpace(request.PO) ? "N/A": request.PO,
+                    ["amount"] = request.Amount.ToString("0.00"),
+                    ["vendinv"] = string.IsNullOrWhiteSpace(request.VendorInvoice)? "": request.VendorInvoice
+                };
+
+
+
+
+
+
+                using var client = new HttpClient();
+                //var response = await client.PostAsJsonAsync(
+                //    "http://10.0.1.216:9191/AWS_PRO/subroutine/*pro*API.POST.CREDIT",
+                //    payload);
+
+
+                var response = await client.PostAsJsonAsync("http://sqlii:9191/PRO_DEMO/subroutine/*pro.demo*API.POST.CREDIT",  payload);
+
+
+                // 🚨 ONLY transport failure here
+                if (!response.IsSuccessStatusCode)
+                    return (false, null, $"HTTP {response.StatusCode}");
+
+                var result = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+
+                string? invoice = null;
+                string? error = null;
+
+                foreach (var kvp in result)
+                {
+                    if (kvp.Key.Equals("Invoice", StringComparison.OrdinalIgnoreCase))
+                        invoice = kvp.Value;
+
+                    if (kvp.Key.Equals("error", StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(kvp.Value))
+                        error = kvp.Value;
+                }
+
+                // ✅ Success = invoice exists
+                if (!string.IsNullOrEmpty(invoice))
+                    return (true, invoice, null);
+
+                // ❌ Business failure
+                if (!string.IsNullOrEmpty(error))
+                    return (false, null, error);
+
+                // ⚠ Edge case
+                return (false, null, "Unknown API response");
+            }
+            catch (Exception ex)
+            {
+                return (false, null, ex.Message);
+            }
+        }
+
+
+        private void AddCoverPageSpire(
+            PdfDocument document,
+            string invoiceNumber,
+            string description
+        )
+        {
+            PdfPageBase page = document.Pages.Add();
+
+            PdfFont titleFont = new PdfFont(PdfFontFamily.Helvetica, 16f, PdfFontStyle.Bold);
+            PdfFont bodyFont = new PdfFont(PdfFontFamily.Helvetica, 10f);
+
+            PdfBrush brush = PdfBrushes.Black;
+
+            float y = 40;
+
+
+            var format = new PdfStringFormat(
+            PdfTextAlignment.Center,
+            PdfVerticalAlignment.Middle
+            );
+
+            page.Canvas.DrawString(
+        $"Invoice {invoiceNumber}",
+        titleFont,
+        brush,
+        new RectangleF(
+            0, y,
+            page.Canvas.ClientSize.Width, 30
+        ),
+        format
+    );
+            y += 40;
+
+            page.Canvas.DrawString(
+                description ?? "",
+                bodyFont,
+                brush,
+                new RectangleF(40, y, page.Canvas.ClientSize.Width - 80, 500)
+            );
+        }
+
+
+        void ProcessInvoiceFiles(
+
+      string invoiceNumber,
+      string description,
+            List<string> fileNames
+  )
+        {
+            var automationRoot = Path.Combine("wwwroot", "AutomationInvoice");
+            var processRoot = Path.Combine("wwwroot", "ProcessInvoice");
+
+            Directory.CreateDirectory(processRoot);
+
+            var outputPdf = Path.Combine(processRoot, $"{invoiceNumber}.pdf");
+
+            var finalDoc = new PdfDocument();
+
+            // 1️⃣ Cover page
+            AddCoverPageSpire(finalDoc, invoiceNumber, description);
+
+            // 2️⃣ Attach files
+            foreach (var file in fileNames ?? Enumerable.Empty<string>())
+            {
+                var sourcePath = Path.Combine("wwwroot", "AutomationInvoice", file);
+
+                if (!System.IO.File.Exists(sourcePath))
+                    continue;
+
+                if (file.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    var attachDoc = new PdfDocument();
+                    attachDoc.LoadFromFile(sourcePath);
+
+                    finalDoc.AppendPage(attachDoc);
+                }
+                else if (file.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    var tempPdf = ConvertExcelToPdf(sourcePath);
+
+                    var attachDoc = new PdfDocument();
+                    attachDoc.LoadFromFile(tempPdf);
+
+                    finalDoc.AppendPage(attachDoc);
+                }
+            }
+
+            finalDoc.SaveToFile(Path.Combine("wwwroot", "ProcessInvoice", $"{invoiceNumber}.pdf"));
+            finalDoc.Close();
+        }
+
+
+
+        private string ConvertExcelToPdf(string excelPath)
+        {
+            if (!System.IO.File.Exists(excelPath))
+                throw new FileNotFoundException("Excel file not found", excelPath);
+
+            var tempDir = Path.Combine(Path.GetTempPath(), "AccountingPdfTemp");
+            Directory.CreateDirectory(tempDir);
+
+            var pdfPath = Path.Combine(
+                tempDir,
+                Path.GetFileNameWithoutExtension(excelPath) + ".pdf"
+            );
+
+            var workbook = new Workbook();
+
+            // Load Excel
+            workbook.LoadFromFile(excelPath);
+
+            // Optional but recommended
+            foreach (Worksheet sheet in workbook.Worksheets)
+            {
+                sheet.PageSetup.FitToPagesWide = 1;
+                sheet.PageSetup.FitToPagesTall = 1;
+            }
+
+            // Save as PDF
+            workbook.SaveToFile(pdfPath, Spire.Xls.FileFormat.PDF);
+
+            return pdfPath;
+        }
+
+
+
+
+
+
+        [HttpGet("credits")]
+        public IActionResult GetCredits()
+        {
+            var data = _proDataAccess.GetCredits();
+            return Ok(data);
+        }
+
+
+        [HttpGet("vendor-billing")]
+        public IActionResult GetVendorBilling()
+        {
+            var data = _proDataAccess.GetVendorBilling();
+            return Ok(data);
+        }
+        [HttpGet("search/member")]
+        public IActionResult SearchMember([FromQuery] string term)
+        {
+            if (string.IsNullOrWhiteSpace(term) || term.Length < 2)
+                return Ok(Enumerable.Empty<MemberLookupDto>());
+
+            return Ok(_proDataAccess.SearchMember(term));
+        }
+
+
+        [HttpGet("search/vendor")]
+        public IActionResult SearchVendor(
+    [FromQuery] string term,
+    [FromQuery] string type)
+        {
+            if (string.IsNullOrWhiteSpace(term))
+                return Ok(Enumerable.Empty<VendorLookupDto>());
+
+            return Ok(_proDataAccess.SearchVendor(term, type));
+        }
+
+
+
+        private async Task<(bool Success, string InvoiceNumber, string Error)>
+    PostVendorBillingToApi(int billingId, VendorBillingRequestDto request)
+        {
+            try
+            {
+                var payload = new Dictionary<string, string>
+                {
+                    ["Vendor"] = request.VendorID.Substring(0, 4),
+                    ["Member"] = request.ProID.Substring(0, 4),
+                    ["BillDate"] = request.FutureBilling,
+                    ["Terms"] = request.Terms,
+                    ["FutureBilling"] = request.FutureBilling,
+                    ["VendorInvoice"] = request.VendorInv,
+                    ["VendorInvoiceDate"] = request.VendInvDate?.ToShortDateString(),
+                    ["VendorDueDate"] = request.VendorDueDate?.ToShortDateString(),
+                    ["Amount"] = request.Amount.ToString("0.00"),
+                    ["DiscountPercent"] = request.Discount.ToString(),
+                    ["PurchaseOrderNum"] = request.PO ?? "N/A",
+                    ["SequenceNum"] = billingId.ToString()
+                };
+
+                //using var client = new HttpClient();
+                //var response = await client.PostAsJsonAsync( "http://10.0.1.216:9191/AWS_PRO/subroutine/*pro*API.POST.CREDIT", payload
+                //);
+
+                using var client = new HttpClient();
+                var response = await client.PostAsJsonAsync("http://10.0.1.216:9191/PRO_DEMO/subroutine/*pro.demo*API.POST.CREDIT", payload
+                );
+
+                if (!response.IsSuccessStatusCode)
+                    return (false, null, "External API rejected vendor billing");
+
+                var result = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+
+                if (result.ContainsKey("error"))
+                    return (false, null, result["error"]);
+
+                var invoice = result.FirstOrDefault(x => x.Key.Contains("Invoice")).Value;
+
+                return (true, invoice, null);
+            }
+            catch (Exception ex)
+            {
+                return (false, null, ex.Message);
+            }
+        }
+
+
+
+
+
 
 
         [HttpGet("accounts")]
@@ -448,10 +851,6 @@ namespace ProInternal.Controllers
             List<qrDetail> QuarterlyDataSummary = this._proDataAccess.getQRBatchDetail(batchID);
             return QuarterlyDataSummary;
         }
-
-
-
-        
 
         [HttpGet]
         [Route("getQRBatchVendorDetail/{batchID}")]

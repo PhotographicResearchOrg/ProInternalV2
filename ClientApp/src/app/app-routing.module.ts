@@ -28,7 +28,10 @@ import { SecurityAdminComponent } from 'src/app/admin/security/security-admin/se
 import { AccountManagementComponent } from './prointernalengine/components/MemberManagement/accountmanagement/accountmanagement.component';
 import { ReceivablesComponent } from './prointernalengine/components/dashboards/accounting/receivables/receivables.component';
 import { ShippingerrorsComponent } from './prointernalengine/components/dashboards/warehouse/shippingerrors/shippingerrors.component'; 
-import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component'; 
+import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component';
+
+import { CreditsComponent } from './prointernalengine/components/dashboards/accounting/credits.component/credits.component';
+import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 
 
 
@@ -70,6 +73,9 @@ const routes: Routes = [
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
       { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },
       { path: 'productedit', component: ProductEditComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Edit' } },
+
+      { path: 'credits', component: CreditsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Credits' }},
+      {path: 'vendor-billing', component: VendorBillingComponent,canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Vendor Billing' } },
 
       
 

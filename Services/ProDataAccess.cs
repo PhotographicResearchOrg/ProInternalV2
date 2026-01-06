@@ -47,6 +47,161 @@ namespace ProInternal.Services
    
         }
 
+        public int InsertVendorBilling(VendorBillingRequestDto dto)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.QuerySingle<int>(
+                "PIV2_Accounting_InsertVendorBilling",
+                dto,
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+        public void MarkVendorBillingFailed(int billingId, string error)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            conn.Execute(
+                "PIV2_Accounting_MarkVendorBillingFailed",
+                new { BillingId = billingId, Error = error },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+        public void MarkVendorBillingSuccess(int billingId, string invoiceNumber)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            conn.Execute(
+                "PIV2_Accounting_MarkVendorBillingSuccess",
+                new { BillingId = billingId, InvoiceNumber = invoiceNumber },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+        public int InsertAccountingCredit(CreditRequestDto dto)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.ExecuteScalar<int>(
+                "PIV2Accounting_InsertCredit",
+                new
+                {
+                    BatchID = dto.BatchID,
+
+                    // SP expects CHAR(1)
+                    Module = dto.Module.ToString(),
+
+                    // SP expects INT
+                    ProID = int.Parse(dto.ProID),
+
+                    // SP expects CHAR(4)
+                    Account = dto.ProID.Substring(0, 4),
+
+                    Amount = dto.Amount,
+                    OrderDate = dto.OrderDate,
+                    Description = dto.Description,
+
+                    // 🔥 FLATTEN FILE LIST → SINGLE VALUE
+                    FileName = string.Join(",", dto.FileNames),
+
+                    // SP expects CHAR(1)
+                    ApplyEZPay = dto.EZPay ? "Y" : "N",
+
+                    PO = dto.PO ?? "",
+                    VendorPO = dto.VendorInvoice ?? "",
+                    UserEntered = "SYSTEM",
+
+                    // Optional SP params
+                    VendorID = (int?)null,
+                    Terms = (string?)null,
+                    FutureBilling = (string?)null,
+                    VendorInv = dto.VendorInvoice,
+                    VendInvDate = (DateTime?)null,
+                    VendorDueDate = (DateTime?)null,
+                    Discount = (decimal?)null
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+
+
+
+
+        public IEnumerable<AccountingCreditDto> GetCredits()
+        {
+            using var conn = new SqlConnection(_connectionString);
+            return conn.Query<AccountingCreditDto>(
+                "PIV2AAccounting_GetCredits",
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public IEnumerable<AccountingCreditDto> GetVendorBilling()
+        {
+            using var conn = new SqlConnection(_connectionString);
+            return conn.Query<AccountingCreditDto>(
+                "PIV2Accounting_GetVendorBilling",
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+
+        public IEnumerable<MemberLookupDto> SearchMember(string term)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.Query<MemberLookupDto>(
+                "Accounting_SearchMember",
+                new { Term = term },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+        public IEnumerable<VendorLookupDto> SearchVendor(string term, string type)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.Query<VendorLookupDto>(
+                "Accounting_SearchVendor",
+                new { Term = term, Type = type },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public void MarkCreditSuccess(int creditId, string invoiceNumber)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            conn.Execute(
+                "PIV2_Accounting_MarkCreditSuccess",
+                new { CreditId = creditId, InvoiceNumber = invoiceNumber },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public void MarkCreditFailed(int creditId, string error)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            conn.Execute(
+                "PIV2_Accounting_MarkCreditFailed",
+                new { CreditId = creditId, Error = error },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+
+
 
 
 

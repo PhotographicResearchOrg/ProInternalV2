@@ -80,12 +80,17 @@ import { BrowserModule } from '@angular/platform-browser';             // <-- ad
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; // <-- add
 import { ChipsModule } from 'primeng/chips';
 import { CalendarModule } from 'primeng/calendar'; // If PrimeNG 17+, use DatePickerModule instead
+/* Components */
+import { CreditsComponent } from './prointernalengine/components/dashboards/accounting/credits.component/credits.component';
+import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 
-
+import { InputNumberModule } from 'primeng/inputnumber';
 
 @NgModule({
   declarations:
     [
+    CreditsComponent,
+    VendorBillingComponent,
     ProductEditComponent,
     ReceivablesComponent,
     AffiliateGridComponent,
@@ -120,6 +125,7 @@ import { CalendarModule } from 'primeng/calendar'; // If PrimeNG 17+, use DatePi
   ],
 
   imports: [
+    InputNumberModule,
     BrowserModule,                 // <-- required
     BrowserAnimationsModule,       // <-- required for PrimeNG
     ChipsModule,

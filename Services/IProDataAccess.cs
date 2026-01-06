@@ -30,10 +30,39 @@ namespace ProInternal.Services
 {
     public interface IProDataAccess
     {
+
+
+
+
+        // --- Credits ---
+        int InsertAccountingCredit(CreditRequestDto request);
+        int InsertVendorBilling(VendorBillingRequestDto request);
+
+
+        void MarkCreditSuccess(int creditId, string invoiceNumber);
+        void MarkCreditFailed(int creditId, string error);
+
+
+
+        // --- Vendor Billing ---
+  
+        void MarkVendorBillingSuccess(int billingId, string invoiceNumber);
+        void MarkVendorBillingFailed(int billingId, string error);
+
+
+        // --- Accounting (GETs) ---
+        IEnumerable<AccountingCreditDto> GetCredits();
+        IEnumerable<AccountingCreditDto> GetVendorBilling();
+
+        IEnumerable<MemberLookupDto> SearchMember(string term);
+        IEnumerable<VendorLookupDto> SearchVendor(string term, string type);
+
+
+
+
+
         List<MapViolation> GetAllMapViolations();
-
         bool MarkProductComplete(int shippingErrorId, int productId, string updatedBy);
-
         IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors();
         ProInternal.Models.WH.ShippingErrorRecord GetShippingErrorDetails(int id);
         void ProcessShippingError(int id, string type, string disposition);

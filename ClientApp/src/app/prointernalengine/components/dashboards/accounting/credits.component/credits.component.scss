@@ -1,0 +1,171 @@
+:host {
+  display: block;
+}
+
+.card {
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+}
+
+.header {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+p-table {
+  font-size: 0.9rem;
+}
+
+.field-error {
+  border: 1px solid #ef4444 !important;
+  background: #fff5f5;
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.upload-box {
+  border: 2px dashed #d1d5db;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+  transition: all .2s ease;
+}
+
+  .upload-box.drag-active {
+    border-color: #6366f1;
+    background: #eef2ff;
+  }
+
+.file-preview {
+  margin-top: .75rem;
+}
+
+.file-chip {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .25rem 0;
+}
+.upload-box {
+  border: 2px dashed var(--surface-border);
+  padding: 1rem;
+  border-radius: 6px;
+  text-align: center;
+  transition: all .2s ease;
+
+  &.drag-active {
+    border-color: var(--primary-color);
+    background: rgba(255, 209, 0, 0.08);
+  }
+
+  &.has-files {
+    border-color: var(--green-500);
+    background: rgba(0, 200, 83, 0.06);
+  }
+}
+
+.file-chip {
+  display: flex;
+  align-items: center;
+  padding: .4rem .6rem;
+  background: var(--surface-100);
+  border-radius: 4px;
+  margin-bottom: .25rem;
+}
+.file-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.file-chip {
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.file-link {
+  margin-right: 0.5rem;
+  font-weight: 500;
+}
+
+.file-size {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-left: auto;
+}
+.p-invalid {
+  border-color: #ef4444;
+}
+
+.p-error {
+  font-size: 0.75rem;
+}
+.queue-files {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+
+.queue-file {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+}
+
+  .queue-file a {
+    font-size: .8rem;
+  }
+
+
+.file-link {
+  cursor: pointer;
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+  .file-link:hover {
+    opacity: .8;
+  }
+
+.truncate {
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text-green-600 {
+  color: #16a34a;
+}
+.queue-files {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.queue-file {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+  .queue-file .file-link {
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.85rem;
+  }
+:host ::ng-deep .credit-negative input {
+  color: #dc2626; // red-600
+  font-weight: 600;
+}

@@ -1,0 +1,64 @@
+:host {
+  display: block;
+}
+
+.card {
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+}
+
+.header-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section-title {
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.form-grid label {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
+.upload-wrapper {
+  margin-top: 1.5rem;
+}
+
+.upload-area {
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+  .upload-area.dragging {
+    border-color: #6366f1;
+    background: #eef2ff;
+  }
+
+.file-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.file-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f3f4f6;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+}
+
+.actions {
+  margin-top: 1.5rem;
+  text-align: right;
+}

@@ -33,17 +33,16 @@ export class AppMenuComponent implements OnInit {
               can('/forecast') && { label: 'Forecasting', icon: 'pi pi-chart-line', routerLink: ['/forecast'] },
               can('/patronage') && { label: 'Patronage', icon: 'pi pi-file', routerLink: ['/patronage'] },
               can('/payments') && { label: 'Payments', icon: 'pi pi-briefcase', routerLink: ['/payments'] },
-              can('/receivables') && { label: 'Receivables', icon: 'pi-list', routerLink: ['/receivables'] }
+                can('/receivables') && { label: 'Receivables', icon: 'pi-list', routerLink: ['/receivables'] },
+
+              can('/credits') && { label: 'Credits', icon: 'pi pi-dollar', routerLink: ['/credits']},
+              can('/vendor-billing') && { label: 'Vendor Billing', icon: 'pi pi-briefcase', routerLink: ['/vendor-billing'] },
             ]
           },
           can('/BRMdash') &&
             {
             label: 'BRM', icon: 'pi pi-user',
-            items:
-              [
-              { label: 'BRM Dash', icon: 'pi pi-tags', routerLink: ['/BRMdash'] }
-            ]
-          },
+            items:[{ label: 'BRM Dash', icon: 'pi pi-tags', routerLink: ['/BRMdash'] }]},
           can('/BRMdash') &&
           {
             label: 'Warehouse', icon: 'pi pi-map-marker',
