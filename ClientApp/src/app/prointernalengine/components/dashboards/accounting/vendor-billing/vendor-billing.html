@@ -120,10 +120,19 @@
           <div class="file-chip" *ngFor="let file of form.files; let i = index">
             <i class="pi pi-file"></i>
 
-            <a [href]="file.src" target="_blank">{{ file.name }}</a>
+            <!-- display name -->
+            <span class="file-name">
+              {{ file.originalName }}
+            </span>
 
-            <span>{{ file.size | number }} bytes</span>
+            <!-- open -->
+            <button pButton
+                    icon="pi pi-external-link"
+                    class="p-button-text p-button-sm"
+                    (click)="openFile(file)">
+            </button>
 
+            <!-- remove -->
             <button pButton
                     icon="pi pi-times"
                     class="p-button-text p-button-danger p-button-sm"
@@ -131,6 +140,10 @@
             </button>
           </div>
         </div>
+
+
+
+
       </div>
 
       <!-- QUEUE BUTTON -->

@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Playwright;
 using Microsoft.VisualBasic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using PdfSharp.Snippets.Drawing;
 using ProInternal.Models.Accounting;
 using ProInternal.Models.Accounts;
 using ProInternal.Models.Auth;
@@ -14,22 +16,13 @@ using ProInternal.Models.Patronage;
 using ProInternal.Models.SendInvoicesRequest;
 using ProInternal.Services;
 using Spire.Pdf;
-using Spire.Pdf.Fields;
-using Spire.Pdf.Graphics;
-using Spire.Pdf.Widget;
 using Spire.Xls;
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
-using System.Dynamic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using Spire.Pdf.Fields;
+using System.Net;
+using System.Net.Mail;
+using System.Text;
+using System.Text.RegularExpressions;
 
 
 namespace ProInternal.Controllers
@@ -42,6 +35,7 @@ namespace ProInternal.Controllers
         private IProDataAccess _proDataAccess;
         private IDRADataAccess _dradataAccess;
         private IEDADataAccess _edadataAccess;
+      
 
         public AccountingController(IProDataAccess proDataAccess, IDRADataAccess DRADataAccess, IEDADataAccess edadataAccess) 
         {
@@ -51,46 +45,121 @@ namespace ProInternal.Controllers
 
         }
 
+        private readonly string _uploadRoot =
+    @"\\10.0.1.161\e\Accounting\VendorInvoices\uploads";
+
+        public static string GetMimeType(string filePath)
+            {
+                var ext = Path.GetExtension(filePath).ToLowerInvariant();
+
+                return ext switch
+                {
+                    ".pdf" => "application/pdf",
+                    ".png" => "image/png",
+                    ".jpg" => "image/jpeg",
+                    ".jpeg" => "image/jpeg",
+                    ".gif" => "image/gif",
+                    ".xls" => "application/vnd.ms-excel",
+                    ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    _ => "application/octet-stream"
+                };
+            }
+      
+
+
+
+        [HttpGet("files/preview/{fileId}")]
+        public IActionResult Preview(string fileId)
+        {
+            var file = _proDataAccess.GetAccountingFile(fileId);
+            if (file == null) return NotFound();
+
+            var path = Path.Combine(
+                @"\\10.0.1.161\e\Accounting\VendorInvoices\uploads",
+                file.StoredName
+            );
+
+            return PhysicalFile(
+                path,
+                GetMimeType(path),
+                enableRangeProcessing: true
+            );
+        }
+
+
+
+        [HttpGet("invoice/preview/{invoiceNumber}")]
+        public IActionResult PreviewInvoice(string invoiceNumber)
+        {
+            var path = Path.Combine(
+                @"\\10.0.1.161\webserver_e",
+                $"{invoiceNumber}"
+            );
+
+            if (!System.IO.File.Exists(path))
+                return NotFound();
+
+            return PhysicalFile(
+                path,
+                "application/pdf",
+                enableRangeProcessing: true
+            );
+        }
+
+
+
 
 
 
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> UploadFiles(
-            [FromForm] List<IFormFile> files)
+        public async Task<IActionResult> UploadFiles([FromForm] List<IFormFile> files)
         {
             if (files == null || files.Count == 0)
                 return BadRequest("No files uploaded.");
-
-            var root = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "wwwroot",
-                "AutomationInvoice"
-            );
-
-            // ✅ ENSURE DIRECTORY EXISTS
-            Directory.CreateDirectory(root);
 
             var results = new List<object>();
 
             foreach (var file in files)
             {
-                var safeName = Path.GetFileName(file.FileName);
-                var fullPath = Path.Combine(root, safeName);
+                // 1️⃣ Compute hash (consume stream)
+                string hash;
+                using (var read = file.OpenReadStream())
+                {
+                    hash = Convert.ToHexString(
+                        System.Security.Cryptography.SHA256.HashData(read)
+                    ).ToLowerInvariant();
+                }
 
-                using var stream = new FileStream(fullPath, FileMode.Create);
-                await file.CopyToAsync(stream);
+                // 2️⃣ Build stored filename
+                var ext = Path.GetExtension(file.FileName);
+                var storedName = $"{hash}{ext}";
+                var fullPath = Path.Combine(_uploadRoot, storedName);
 
+                // 3️⃣ Write file + DB record ONCE
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    using var write = new FileStream(fullPath, FileMode.CreateNew);
+                    await file.CopyToAsync(write);
+
+                    _proDataAccess.UpsertAccountingFile(
+                        hash,
+                        storedName,
+                        file.FileName
+                    );
+                }
+
+                // 4️⃣ Return metadata
                 results.Add(new
                 {
-                    name = safeName,
-                    size = file.Length,
-                    src = "/AutomationInvoice/" + safeName
+                    fileId = hash,
+                    originalName = file.FileName
                 });
             }
 
             return Ok(results);
         }
+
 
 
 
@@ -100,13 +169,29 @@ namespace ProInternal.Controllers
             if (request?.OrderDetails == null || !request.OrderDetails.Any())
                 return BadRequest("No credits supplied.");
 
+
+            // ✅ CREATE BATCH GUID ONCE
+            var batchGuid = Guid.NewGuid();
+
             foreach (var credit in request.OrderDetails)
             {
+
+                credit.BatchGuid = batchGuid;
                 // 1️⃣ Insert credit (SQL)
                 var creditId = _proDataAccess.InsertAccountingCredit(credit);
 
-                // 2️⃣ Post to legacy API
-                var apiResult = await PostCreditToApi(creditId, credit);
+           
+                    foreach (var fileId in credit.FileIds)
+                    {
+                        _proDataAccess.LinkFileToCredit(
+                            creditId,
+                            credit.BatchGuid,
+                            fileId
+                        );
+                    }
+
+                    // 2️⃣ Post to legacy API
+                    var apiResult = await PostCreditToApi(creditId, credit);
 
                 if (!apiResult.Success)
                 {
@@ -115,10 +200,11 @@ namespace ProInternal.Controllers
                 }
 
                 // 3️⃣ Build invoice PDF (cover + attachments)
-                ProcessInvoiceFiles(
+                await ProcessInvoiceFiles(
                     apiResult.InvoiceNumber,
-                    credit,
-                    credit.FileNames
+                    credit.BatchGuid,
+                    creditId,
+                    credit
                 );
 
                 // 4️⃣ Mark success
@@ -239,64 +325,133 @@ namespace ProInternal.Controllers
 
 
 
-        private void ProcessInvoiceFiles(
-          string invoiceNumber,
-          CreditRequestDto credit,
-          List<string> fileNames
-      )
+        private async Task ProcessInvoiceFiles(
+       string invoiceNumber,
+       Guid batchGuid,
+       int creditId,
+       CreditRequestDto credit
+   )
         {
-            var templatePath = Path.Combine("wwwroot", "Templates", "invoice.pdf");
-            var processRoot = Path.Combine("wwwroot", "ProcessInvoice");
-
-            Directory.CreateDirectory(processRoot);
-
-            var coverPath = Path.Combine(processRoot, $"{invoiceNumber}_cover.pdf");
-            var finalPath = Path.Combine(processRoot, $"{invoiceNumber}.pdf");
-
-            // ----------------------------------
-            // 1️⃣ CREATE COVER FROM TEMPLATE
-            // ----------------------------------
-            PopulateCoverTemplate(
-                templatePath,
-                coverPath,
-                credit,
-                invoiceNumber
-            );
-
-            // ----------------------------------
-            // 2️⃣ MERGE COVER + ATTACHMENTS
-            // ----------------------------------
-            var finalDoc = new PdfDocument();
-
-            // 🔹 Add cover FIRST
-            var coverDoc = new PdfDocument();
-            coverDoc.LoadFromFile(coverPath);
-            finalDoc.AppendPage(coverDoc);
-
-            // 🔹 Add attachments
-            foreach (var file in fileNames ?? Enumerable.Empty<string>())
+            try
             {
-                var sourcePath = Path.Combine("wwwroot", "AutomationInvoice", file);
-                if (!System.IO.File.Exists(sourcePath))
-                    continue;
+                // -----------------------------
+                // Paths
+                // -----------------------------
+                var batchRoot = Path.Combine(
+                    @"\\10.0.1.161\e\Accounting\VendorInvoices\batches",
+                    batchGuid.ToString()
+                );
 
-                if (file.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                Directory.CreateDirectory(batchRoot);
+
+                // 🔍 PROOF FILE (do not remove yet)
+                System.IO.File.WriteAllText(
+                    Path.Combine(batchRoot, "step1_reached.txt"),
+                    DateTime.Now.ToString("O")
+                );
+
+                var coverPath = Path.Combine(batchRoot, $"{invoiceNumber}_cover.pdf");
+                var finalPath = Path.Combine(batchRoot, $"{invoiceNumber}.pdf");
+
+                // -----------------------------
+                // BUILD HTML
+                // -----------------------------
+                var html = BuildInvoiceHtml(credit, invoiceNumber);
+
+                System.IO.File.WriteAllText(
+                    Path.Combine(batchRoot, "step2_html_built.txt"),
+                    "HTML OK"
+                );
+
+                // -----------------------------
+                // PDF GENERATION (🔥 MOST LIKELY FAILURE)
+                // -----------------------------
+                await GenerateCoverPdfFromHtml(html, coverPath);
+
+                System.IO.File.WriteAllText(
+                    Path.Combine(batchRoot, "step3_pdf_created.txt"),
+                    "PDF OK"
+                );
+
+                // -----------------------------
+                // MERGE
+                // -----------------------------
+                var finalDoc = new PdfDocument();
+
+                var coverDoc = new PdfDocument();
+                coverDoc.LoadFromFile(coverPath);
+                finalDoc.AppendPage(coverDoc);
+
+                var files = _proDataAccess.GetFilesForCredit(creditId);
+
+                foreach (var file in files)
                 {
+                    var sourcePath = Path.Combine(_uploadRoot, file.StoredName);
+                    if (!System.IO.File.Exists(sourcePath)) continue;
+
                     var attachDoc = new PdfDocument();
                     attachDoc.LoadFromFile(sourcePath);
                     finalDoc.AppendPage(attachDoc);
                 }
-                else if (file.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-                {
-                    var tempPdf = ConvertExcelToPdf(sourcePath);
-                    var attachDoc = new PdfDocument();
-                    attachDoc.LoadFromFile(tempPdf);
-                    finalDoc.AppendPage(attachDoc);
-                }
-            }
 
-            finalDoc.SaveToFile(finalPath);
-            finalDoc.Close();
+                finalDoc.SaveToFile(finalPath);
+                finalDoc.Close();
+
+                // -----------------------------
+                // COPY TO WEB SERVER
+                // -----------------------------
+                var webServerFinalPath = Path.Combine(
+                    @"\\10.0.1.161\webserver_e",
+                    $"{invoiceNumber}.pdf"
+                );
+
+                System.IO.File.Copy(finalPath, webServerFinalPath, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                var failRoot = Path.Combine(
+                    @"\\10.0.1.161\e\Accounting\VendorInvoices\batches",
+                    batchGuid.ToString()
+                );
+
+                Directory.CreateDirectory(failRoot);
+
+                System.IO.File.WriteAllText(
+                    Path.Combine(failRoot, "ERROR.txt"),
+                    ex.ToString()
+                );
+
+                throw; // 🔥 rethrow so API logs it too
+            }
+        }
+
+
+
+
+        private string InlineCss(string html)
+        {
+            var cssPath = @"\\10.0.1.161\e\Accounting\VendorInvoices\Template\CSS\STYLE_CS.CSS";
+            var css = System.IO.File.ReadAllText(cssPath);
+
+            return html.Replace(
+                "</head>",
+                $"<style>{css}</style></head>"
+            );
+        }
+
+        private string InlineLogo(string html)
+        {
+            var imgPath = @"\\10.0.1.161\e\Accounting\VendorInvoices\Template\images\PRO.png";
+            var bytes = System.IO.File.ReadAllBytes(imgPath);
+
+            var base64 = Convert.ToBase64String(bytes);
+
+            return Regex.Replace(
+                html,
+                "<img[^>]+src=[\"'].*?PRO\\.png[\"'][^>]*>",
+                $"<img src=\"data:image/png;base64,{base64}\" alt=\"PRO Logo\" />",
+                RegexOptions.IgnoreCase
+            );
         }
 
 
@@ -304,90 +459,120 @@ namespace ProInternal.Controllers
 
 
 
-        private void PopulateCoverTemplate(
-            string templatePath,
-            string outputPath,
-            CreditRequestDto credit,
-            string invoiceNumber
+
+
+        private string BuildInvoiceHtml(
+           CreditRequestDto credit,
+           string invoiceNumber
+       )
+        {
+            var templatePath = @"\\10.0.1.161\e\Accounting\VendorInvoices\Template\PRO_INVOICE.html";
+            var html = System.IO.File.ReadAllText(templatePath);
+
+            // 1️⃣ Remove external CSS link (must be first)
+            html = html.Replace(
+                "<link rel=\"stylesheet\" type=\"text/css\" href=\"CSS/STYLE.CSS\">",
+                string.Empty
+            );
+
+            // 2️⃣ Core token replacements
+            html = html
+                .Replace("<!ACCOUNT>", credit.Account)
+                .Replace("<!DATE>", DateTime.Now.ToString("MM/dd/yyyy"))
+                .Replace("<!INVOICE>", invoiceNumber)
+                .Replace("<!VINVOICE>", invoiceNumber) // IMPORTANT
+                .Replace("<!TERMS>", "NET 30")
+                .Replace("<!PONUMBER>", credit.PO ?? "N/A")
+                .Replace("<!VENDOR>", "1320");
+
+
+
+            var member = _proDataAccess.GetMemberByAccount(credit.Account);
+
+            var billToHtml = member != null
+                ? BuildBillToHtml(member)
+                : "<p class='bold'>UNKNOWN ACCOUNT</p>";
+
+            html = html.Replace("<!BILLTO>", billToHtml);
+
+
+
+
+            // 4️⃣ Line items (tbody-safe)
+            html = html.Replace("<!DETAIL>", $@"
+            <tr>
+                <td>1</td>
+                <td>1320</td>
+                <td>Rebates, Credits &amp; Misc</td>
+                <td>{credit.Amount:0.00}</td>
+                <td>{credit.Amount:0.00}</td>
+            </tr>
+            ");
+
+            // 5️⃣ TOTAL DUE — STRUCTURED (prevents floating text)
+            html = html.Replace("<!TOTALDUE>", $"{credit.Amount:0.00}");
+
+            // 6️⃣ Inline assets (ORDER IS CRITICAL)
+            html = InlineCss(html);   // FIRST
+            html = InlineLogo(html);  // SECOND
+
+            return html;
+        }
+
+
+        private string BuildBillToHtml(MemberDto member)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine($"<p class='bold'>{WebUtility.HtmlEncode(member.Name)}</p>");
+
+            if (!string.IsNullOrWhiteSpace(member.Address1))
+                sb.AppendLine($"<p>{WebUtility.HtmlEncode(member.Address1)}</p>");
+
+            if (!string.IsNullOrWhiteSpace(member.Address2))
+                sb.AppendLine($"<p>{WebUtility.HtmlEncode(member.Address2)}</p>");
+
+            sb.AppendLine(
+                $"<p>{WebUtility.HtmlEncode(member.City)}, " +
+                $"{WebUtility.HtmlEncode(member.State)} " +
+                $"{WebUtility.HtmlEncode(member.Zip)}</p>"
+            );
+
+            return sb.ToString();
+        }
+
+
+
+        private async Task GenerateCoverPdfFromHtml(
+            string html,
+            string outputPdfPath
         )
         {
-            var doc = new PdfDocument();
-            doc.LoadFromFile(templatePath);
+            using var playwright = await Playwright.CreateAsync();
 
-            PdfFormWidget form = doc.Form as PdfFormWidget;
-            if (form == null)
-                throw new InvalidOperationException("PDF does not contain an AcroForm.");
-
-            // 🔑 WRITE TO WIDGETS, NOT FIELDS
-            foreach (PdfField field in form.Fields)
-            {
-                if (field is PdfTextBoxFieldWidget text)
+            await using var browser = await playwright.Chromium.LaunchAsync(
+                new BrowserTypeLaunchOptions
                 {
-                    switch (text.Name)
-                    {
-                        case "ACCOUNT":
-                            text.Text = credit.Account;
-                            break;
+                    Headless = true,
+           
+                });
 
-                        case "AccountName":
-                            text.Text =
-                                "Photographic Research Organization\n" +
-                                "240 Long Hill Cross Rd.\n" +
-                                "Shelton, CT 06484";
-                            break;
+            var page = await browser.NewPageAsync();
 
-                        case "DATE":
-                            text.Text = DateTime.Now.ToString("MM/dd/yyyy");
-                            break;
+            await page.SetContentAsync(
+                html,
+                new PageSetContentOptions
+                {
+                    WaitUntil = WaitUntilState.NetworkIdle
+                });
 
-                        case "INVOICE":
-                            text.Text = invoiceNumber;
-                            break;
-
-                        case "TERMS":
-                            text.Text = "NET 30";
-                            break;
-
-                        case "PONUMBER":
-                            text.Text = credit.PO ?? "N/A";
-                            break;
-
-                        case "VENDOR":
-                            text.Text = "1320";
-                            break;
-
-                        case "DESCRIPTION":
-                            text.Text =
-                                "Rebates, Credits & Misc\n\n" +
-                                "** Please pay to PRO **\n" +
-                                "See supporting vendor invoice on next page.";
-                            break;
-
-                        case "QUANTITYRow1":
-                            text.Text = "1";
-                            break;
-
-                        case "PRODUCT NORow1":
-                            text.Text = "1320";
-                            break;
-
-                        case "UNIT COSTRow1":
-                        case "TOTALRow1":
-                        case "TOTAL":
-                            text.Text = credit.Amount.ToString("0.00");
-                            break;
-                    }
-
-                    // ✅ ensure appearance refresh
-                    text.ReadOnly = false;
-                }
-            }
-
-            // 🔥 FORCE APPEARANCE GENERATION
-            form.IsFlatten = true;
-
-            doc.SaveToFile(outputPath);
-            doc.Close();
+            await page.PdfAsync(
+                new PagePdfOptions
+                {
+                    Path = outputPdfPath,
+                    Format = "Letter",
+                    PrintBackground = true
+                });
         }
 
 
@@ -511,6 +696,87 @@ namespace ProInternal.Controllers
             {
                 return (false, null, ex.Message);
             }
+        }
+
+
+
+
+        [HttpPost("InvoiceEmail")]
+        public async Task<IActionResult> SendInvoiceEmail(
+            [FromBody] InvoiceEmailRequest req,
+            [FromServices] IConfiguration config)
+        {
+            if (string.IsNullOrWhiteSpace(req.To) ||
+                string.IsNullOrWhiteSpace(req.InvoiceNumber))
+                return BadRequest("Missing data.");
+
+            var invoicePath = Path.Combine(
+                @"\\10.0.1.161\webserver_e",
+                $"{req.InvoiceNumber}.pdf"
+            );
+
+            if (!System.IO.File.Exists(invoicePath))
+                return NotFound("Invoice PDF not found.");
+
+            // -----------------------------
+            // Build email body
+            // -----------------------------
+            var noteHtml = string.IsNullOrWhiteSpace(req.Note)
+                ? ""
+                : $@"
+<div style=""border-left:4px solid #2563eb;
+            padding-left:12px;
+            margin-bottom:12px"">
+  {WebUtility.HtmlEncode(req.Note)}
+</div>";
+
+            var body = $@"
+<div style=""font:14px Segoe UI,Arial;color:#111827"">
+  {noteHtml}
+  <p>Please find the attached invoice.</p>
+</div>";
+
+            // -----------------------------
+            // SMTP (Gmail)
+            // -----------------------------
+            var msg = new MailMessage
+            {
+                From = new MailAddress(
+    "billing@yourdomain.com",   // 🔥 TEMP HARD CODE
+    "Accounting"
+),
+                Subject = $"Invoice {req.InvoiceNumber}",
+                Body = body,
+                IsBodyHtml = true
+            };
+
+            // Support comma-separated emails
+            foreach (var email in req.To.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                msg.To.Add(email.Trim());
+
+            // Attach invoice PDF
+            msg.Attachments.Add(
+                new Attachment(invoicePath, "application/pdf")
+            );
+
+
+
+
+            var smtpHost = config.GetValue<string>("Email:SmtpHost");
+            var smtpPort = config.GetValue<int>("Email:SmtpPort");
+            var useSsl = config.GetValue<bool>("Email:UseSsl");
+
+            using var smtp = new SmtpClient(smtpHost, smtpPort)
+            {
+                EnableSsl = useSsl,
+                Credentials = new NetworkCredential(
+                    config["Email:GmailUser"],
+                    config["Email:GmailAppPassword"]
+                )
+            };
+            await smtp.SendMailAsync(msg);
+
+            return Ok(new { success = true });
         }
 
 

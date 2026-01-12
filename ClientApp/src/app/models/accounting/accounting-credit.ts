@@ -1,3 +1,6 @@
+import { SafeResourceUrl } from '@angular/platform-browser';
+
+
 export interface APEntry {
   orderDetails: APOrderDetail[];
 }
@@ -13,8 +16,8 @@ export interface CreditRequestDto {
   Account: string;
   PO: string;
   VendorInvoice?: string;
+  FileIds: string[];
 
-  FileNames: string[];
   EZPay: boolean;
 }
 
@@ -61,11 +64,11 @@ export interface AccountingCredit {
 
 
 export interface UploadedFile {
-  name: string;
-  size: number;
-  src: string;      // returned by API
-  type: string;     // mime type
-  progress?: number;
+  fileId: string;              // 🔑 REQUIRED (backend identity)
+  originalName: string;        // display name
+  src?: string;                // computed URL
+  safeSrc?: SafeResourceUrl;   // sanitized iframe/img src
+  type?: string;               // mime hint
 }
 
 

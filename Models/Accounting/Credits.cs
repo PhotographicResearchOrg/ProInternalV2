@@ -1,5 +1,39 @@
-﻿namespace ProInternal.Models.Accounting
+﻿using System.Drawing;
+
+namespace ProInternal.Models.Accounting
 {
+
+
+    public class MemberDto
+    {
+        public string Account { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Address1 { get; set; } = "";
+        public string? Address2 { get; set; }
+        public string City { get; set; } = "";
+        public string State { get; set; } = "";
+        public string Zip { get; set; } = "";
+    }
+
+
+    public class EmailSettings
+    {
+        public string From { get; set; }
+        public string GmailUser { get; set; }
+        public string GmailAppPassword { get; set; }
+        public string SmtpHost { get; set; }
+        public int SmtpPort { get; set; }
+        public bool UseSsl { get; set; }
+    }
+
+    public class AccountingFile
+    {
+        public string FileId { get; set; }          // SHA256
+        public string StoredName { get; set; }      // {hash}.{ext}
+        public string OriginalName { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
 
 
     public class CreditBatchRequestDto
@@ -13,7 +47,9 @@
         // Set in controller, NOT from UI
         public int BatchID { get; set; }
 
-        
+
+        public Guid BatchGuid { get; set; }
+        public List<string> FileIds { get; set; } = new();
 
         public string Account { get; set; }
         // Required
@@ -29,7 +65,7 @@
         // Files
         public List<string> FileNames { get; set; } = new();
 
-        // Flags
+        // Flags  FileIds: string[];
         public bool EZPay { get; set; }
 
         public int  Module { get; set; } = 1;
@@ -58,8 +94,26 @@
         public string Description { get; set; }
     }
 
+
+    public class InvoiceEmailRequest
+    {
+        public string InvoiceNumber { get; set; }
+        public string To { get; set; }
+        public string Note { get; set; }
+    }
+
+
+    public class AccountingCreditFileDto
+    {
+        public string FileId { get; set; }
+        public string OriginalName { get; set; }
+    }
+
     public class AccountingCreditDto
     {
+
+        public List<AccountingCreditFileDto> Files { get; set; } = new();
+
         public int ID { get; set; }
         public int BatchID { get; set; }
         public string Module { get; set; }          // "1" = Credit, "2" = Vendor Billing

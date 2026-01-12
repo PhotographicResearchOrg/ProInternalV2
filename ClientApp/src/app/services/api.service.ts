@@ -127,6 +127,23 @@ export class ApiService {
   }
 
 
+  getWithAuthBlob(url: string): Observable<Blob> {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+
+    return this.http.get(
+      this.getUrl(url),
+      {
+        headers,
+        responseType: 'blob'
+      }
+    );
+  }
+
+
+
   deleteWithAuth<T>(url: string): Observable<T> {
     const token = localStorage.getItem('token');
     const headers = new HttpHeaders({

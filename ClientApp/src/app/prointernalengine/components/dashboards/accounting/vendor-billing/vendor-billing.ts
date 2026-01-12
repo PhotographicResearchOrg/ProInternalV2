@@ -1,14 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { AccountingService } from 'src/app/services/AccountingService'
 import { ConfirmationService } from 'primeng/api';
+import {  UploadedFile } from 'src/app/models/accounting/accounting-credit'
 
-
-interface UploadedFile {
-  name: string;
-  src: string;
-  size: number;
-  type?: string;   // 👈 add this
-}
 interface VendorBillingForm {
   vendorID: string;
   proID: string;
@@ -148,13 +142,25 @@ export class VendorBillingComponent implements OnInit {
 
 
   private handleFiles(fileList: FileList): void {
-    this.accountingService
-      .uploadFiles(fileList)
-      .subscribe((results: UploadedFile[]) => {
-        results.forEach(file => {
-          this.form.files.push(file);
-        });
-      });
+    this.accountingService.uploadFiles(fileList).subscribe(results => {
+
+      const uploaded: UploadedFile[] = results.map(r => ({
+        fileId: r.fileId,
+        originalName: r.originalName
+      }));
+
+      this.form = {
+        ...this.form,
+        files: [...this.form.files, ...uploaded]
+      };
+    });
+  }
+
+  openFile(file: UploadedFile): void {
+    window.open(
+      `/api/accounting/files/${file.fileId}`,
+      '_blank'
+    );
   }
 
 
@@ -163,7 +169,7 @@ export class VendorBillingComponent implements OnInit {
     const payload = {
       orderDetails: this.queue.map(row => ({
         ...row,
-        fileNames: row.files.map(f => f.name) // backend-friendly
+        fileIds: row.files.map(f => f.fileId)
       }))
     };
 
@@ -173,6 +179,7 @@ export class VendorBillingComponent implements OnInit {
         this.queue = [];
       });
   }
+
 
   uploadFile(file: File) {
     const fd = new FormData();

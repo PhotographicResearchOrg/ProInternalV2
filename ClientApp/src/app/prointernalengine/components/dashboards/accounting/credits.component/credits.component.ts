@@ -6,7 +6,8 @@ import * as XLSX from 'xlsx';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { saveAs } from 'file-saver';
 import { forkJoin } from 'rxjs';
-
+import { firstValueFrom } from 'rxjs';
+import { MessageService } from 'primeng/api';
 
 
 @Component({
@@ -16,7 +17,7 @@ import { forkJoin } from 'rxjs';
 })
 export class CreditsComponent implements OnInit {
 
-
+  @ViewChild('invoiceEmailOp') invoiceEmailOp!: any;
   @ViewChild('dt') dt!: any;
 
   // =====================
@@ -31,6 +32,15 @@ export class CreditsComponent implements OnInit {
   dateRange: Date[] | null = null;
   statusFilter: 'success' | 'failed' | null = null;
   selectedMember: { label: string; value: string } | null = null;
+
+
+  emailInvoiceNumber: string | null = null;
+  emailToList: string[] = [];
+  invalidEmails: string[] = [];
+  emailNote = '';
+  sendingEmail = false;
+  emailItems: any[] = [];
+
 
   // =====================
   // QUEUE + FORM
@@ -67,7 +77,8 @@ export class CreditsComponent implements OnInit {
     private confirmationService: ConfirmationService,
     private zone: NgZone,
     private cdr: ChangeDetectorRef,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private messageService: MessageService
   ) { }
 
   ngOnInit(): void {
@@ -91,12 +102,116 @@ export class CreditsComponent implements OnInit {
   }
 
 
+  openInvoiceEmail(row: any) {
+    this.emailInvoiceNumber = row.invoiceNumber;
+    this.emailToList = [];
+    this.invalidEmails = [];
+    this.emailNote = '';
+    this.invoiceEmailOp.show();
+  }
+
+
+  onEmailListChange(list: string[]) {
+    this.emailToList = list || [];
+
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    this.invalidEmails = this.emailToList.filter(
+      e => !emailRegex.test(e)
+    );
+  }
+
+
+
+  openEmailPanel(
+    event: Event,
+    panel: any,
+    row: any
+  ) {
+    event.stopPropagation();
+    // 🔑 THIS IS WHAT SEND USES
+    this.emailInvoiceNumber = row.invoiceNumber;
+
+    // reset state
+    this.emailToList = [];
+    this.invalidEmails = [];
+    this.emailNote = '';
+
+    panel.toggle(event);
+  }
+
+
+
+  async sendInvoiceEmail(panel: any) {
+
+    if (!this.emailInvoiceNumber || !this.emailToList.length) return;
+
+    this.sendingEmail = true;
+
+    try {
+      await firstValueFrom(
+        this.accountingService.emailInvoice({
+          invoiceNumber: this.emailInvoiceNumber,
+          to: this.emailToList.join(','),
+          note: this.emailNote
+        })
+      );
+
+      // ✅ SUCCESS MESSAGE
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Email Sent',
+        detail: `Invoice ${this.emailInvoiceNumber} was emailed successfully.`
+      });
+
+      panel.hide();
+
+      // reset state
+      this.emailToList = [];
+      this.emailNote = '';
+      this.emailInvoiceNumber = null;
+
+    } catch (err: any) {
+
+      // ❌ ERROR MESSAGE
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Email Failed',
+        detail: err?.error || 'Unable to send invoice email.'
+      });
+
+    } finally {
+      this.sendingEmail = false;
+    }
+  }
+
+
+
+
   openInvoice(invoiceNumber: string) {
     if (!invoiceNumber) return;
 
     const url = `/ProcessInvoice/${invoiceNumber}.pdf`;
     window.open(url, '_blank', 'noopener');
   }
+
+
+  openInvoicePreview(invoiceNumber: string): void {
+    this.accountingService.getInvoicePdf(invoiceNumber)
+      .subscribe((blob: Blob) => {
+
+        const blobUrl = URL.createObjectURL(blob);
+
+        this.previewFile = {
+          originalName: `Invoice_${invoiceNumber}.pdf`,
+          safeSrc: this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl)
+        } as any;
+
+        this.previewVisible = true;
+      });
+  }
+
 
   get filteredCredits() {
     if (!this.dateRange || this.dateRange.length !== 2) {
@@ -122,18 +237,9 @@ export class CreditsComponent implements OnInit {
   }
 
 
-
-  openHistoryFile(row: any): void {
-    if (!row.fileName) return;
-
-    const file: UploadedFile = {
-      name: row.fileName.trim(),
-      size: 0, //
-      src: `/AutomationInvoice/${row.fileName.trim()}`,
-      type: this.detectMime(row.fileName)
-    };
-
-    this.openPreview(file); // reuse your existing preview dialog
+  openHistoryFile(row: any) {
+    if (!row.fileId) return;
+    this.openPreview({ fileId: row.fileId, originalName: row.fileName });
   }
 
   onMemberSelect(event: any): void {
@@ -142,12 +248,22 @@ export class CreditsComponent implements OnInit {
   }
 
   openPreview(file: UploadedFile): void {
-    this.previewFile = {
-      ...file,
-      safeSrc: this.sanitizer.bypassSecurityTrustResourceUrl(file.src)
-    };
-    this.previewVisible = true;
+    this.accountingService.getFilePreview(file.fileId)
+      .subscribe(blob => {
+
+        const blobUrl = URL.createObjectURL(blob);
+
+        this.previewFile = {
+          ...file,
+          safeSrc: this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl)
+        };
+
+        this.previewVisible = true;
+      });
   }
+
+
+
 
 
   closePreview(): void {
@@ -213,7 +329,7 @@ export class CreditsComponent implements OnInit {
         Description: row.description,
         PO: row.po || 'N/A',
         VendorInvoice: row.vendorInv || undefined, // 🔥 FIXED
-        FileNames: row.files.map(f => f.name),
+        FileIds: row.files.map(f => f.fileId),
         EZPay: row.ezPay                  // boolean ✅
       }))
     };
@@ -285,13 +401,10 @@ export class CreditsComponent implements OnInit {
     if (!input.files?.length) return;
 
     this.accountingService.uploadFiles(input.files).subscribe(results => {
-      const uploaded = results.map(r => ({
-        name: r.name,
-        size: r.size,
-        src: r.src,
-        type: this.detectMime(r.name)
+      const uploaded: UploadedFile[] = results.map(r => ({
+        fileId: r.fileId,
+        originalName: r.originalName
       }));
-
       const item = this.queue[index];
 
       this.queue[index] = {
@@ -302,6 +415,18 @@ export class CreditsComponent implements OnInit {
       this.queue = [...this.queue]; // refresh
       input.value = '';
     });
+  }
+
+  getFileIcon(file: { originalName: string }): string {
+    const ext = file.originalName.split('.').pop()?.toLowerCase();
+
+    if (!ext) return 'pi-file';
+
+    if (ext === 'pdf') return 'pi-file-pdf text-red-500';
+    if (['png', 'jpg', 'jpeg', 'gif'].includes(ext)) return 'pi-image text-blue-500';
+    if (['xls', 'xlsx'].includes(ext)) return 'pi-file-excel text-green-500';
+
+    return 'pi-file';
   }
 
 
@@ -317,14 +442,13 @@ export class CreditsComponent implements OnInit {
 
         this.zone.run(() => {
 
+          // 🔥 FILE-ID BASED MODEL (NO src / name / size)
           const uploaded: UploadedFile[] = (results || []).map(r => ({
-            name: r.name,
-            size: r.size,
-            src: r.src,
-            type: this.detectMime(r.name)
+            fileId: r.fileId,
+            originalName: r.originalName
           }));
 
-          // 🔥 MUTATE VIA NEW REFERENCE
+          // 🔥 IMMUTABLE UPDATE (Angular change detection)
           this.form = {
             ...this.form,
             files: [...this.form.files, ...uploaded]
@@ -332,7 +456,7 @@ export class CreditsComponent implements OnInit {
 
           console.log('FILES AFTER UPDATE:', this.form.files);
 
-          // 🔥 FORCE UI REFRESH (IMPORTANT)
+          // 🔥 FORCE UI REFRESH
           this.cdr.detectChanges();
         });
       },
@@ -341,6 +465,7 @@ export class CreditsComponent implements OnInit {
       }
     });
   }
+
 
 
 

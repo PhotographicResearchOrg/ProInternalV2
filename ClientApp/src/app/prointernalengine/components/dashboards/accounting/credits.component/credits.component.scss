@@ -179,3 +179,39 @@ p-table {
   color: var(--brand-yellow);
   text-decoration: underline;
 }
+
+
+
+/* =========================================
+   Email Overlay Panel – Centered & Safe
+   ========================================= */
+
+.email-overlay-panel {
+  max-width: calc(100vw - 2rem);
+}
+
+  .email-overlay-panel .p-overlaypanel-content {
+    min-width: 420px;
+    max-width: 520px;
+    padding: 1rem 1.25rem;
+  }
+
+  /* 🔥 Force horizontal centering */
+  .email-overlay-panel.p-overlaypanel {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    right: auto !important;
+  }
+
+  /* 🔥 Keep vertically visible */
+  .email-overlay-panel.p-overlaypanel {
+    top: 15vh !important;
+  }
+
+/* Mobile safety */
+@media (max-width: 640px) {
+  .email-overlay-panel .p-overlaypanel-content {
+    min-width: unset;
+    width: calc(100vw - 2rem);
+  }
+}

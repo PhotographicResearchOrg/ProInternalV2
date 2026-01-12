@@ -20,6 +20,19 @@ export class AccountingService {
     return this.api.post<any>('API/Accounting/credits', payload);
   }
 
+  getFilePreview(fileId: string): Observable<Blob> {
+    return this.api.getWithAuthBlob(
+      `API/Accounting/files/preview/${fileId}`
+    );
+  }
+
+
+  //invoice/preview/
+  getInvoicePdf(invoiceNumber: string): Observable<Blob> {
+    return this.api.getWithAuthBlob(
+      `API/Accounting/invoice/preview/${invoiceNumber}.pdf`
+    );
+  }
 
 
 
@@ -38,7 +51,13 @@ export class AccountingService {
 
 
 
-
+  emailInvoice(req: {
+    invoiceNumber: string;
+    to: string;
+    note?: string;
+  }) {
+    return this.api.postWithAuth('API/Accounting/InvoiceEmail', req);
+  }
 
 
 

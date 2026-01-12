@@ -1,24 +1,25 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using System;
-using Microsoft.AspNetCore.Http.Features;
-using System.Text;
-using Microsoft.Extensions.FileProviders;
-using System.IO;
 using Microsoft.AspNetCore.Http;
-using System.Net.Http;
-using System.Runtime.InteropServices;
-using ProInternal.Services;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.SpaServices.AngularCli;
 using Microsoft.Data.SqlClient;
-using ProInternal;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
+using ProInternal;
+using ProInternal.Models.Accounting;
 using ProInternal.Models.Accounts;
+using ProInternal.Services;
+using System;
+using System.IO;
+using System.Net.Http;
+using System.Runtime.InteropServices;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +37,10 @@ builder.Services.Configure<AppConfigurations>(
 );
 
 
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("Email")
+);
+
 var configuration = builder.Configuration;
 
 //New
@@ -44,6 +49,9 @@ builder.Services.AddScoped<IProDataAccess>(provider => new ProDataAccess(builder
 builder.Services.AddScoped<IDRADataAccess>(provider => new DRADataAccess(builder.Configuration.GetConnectionString("DRAConnectionString")));
 builder.Services.AddScoped<INukeDataAccess>(provider => new NukeDataAccess(builder.Configuration.GetConnectionString("NukeConnectionString")));
 builder.Services.AddScoped<IEDADataAccess>(provider => new EDADataAccess(builder.Configuration.GetConnectionString("EDAConnectionString")));
+
+
+
 
 builder.Services.AddHttpClient<IUvicornDataAccess, UvicornDataAccess>(c =>
 {

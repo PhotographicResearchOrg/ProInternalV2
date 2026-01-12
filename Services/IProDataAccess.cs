@@ -33,6 +33,17 @@ namespace ProInternal.Services
 
 
 
+        void UpsertAccountingFile(string fileId, string storedName, string originalName);
+
+        void LinkFileToCredit(int creditId, Guid batchGuid, string fileId);
+
+        IEnumerable<AccountingFile> GetFilesForBatch(Guid batchGuid);
+
+        AccountingFile GetAccountingFile(string fileId);
+
+        IEnumerable<AccountingFile> GetFilesForCredit(int creditId);
+
+        MemberDto? GetMemberByAccount(string account);
 
         // --- Credits ---
         int InsertAccountingCredit(CreditRequestDto request);

@@ -47,9 +47,112 @@ namespace ProInternal.Services
    
         }
 
-        public int InsertVendorBilling(VendorBillingRequestDto dto)
+
+        // --------------------------------------------------
+        // UPSERT FILE (DEDUP SAFE)
+        // --------------------------------------------------
+        public void UpsertAccountingFile(string fileId, string storedName, string originalName)
         {
             using var conn = new SqlConnection(_connectionString);
+            //using var db = Connection;
+
+            conn.Execute(
+                "AccountingFiles_Upsert",
+                new
+                {
+                    FileId = fileId,
+                    StoredName = storedName,
+                    OriginalName = originalName
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        // --------------------------------------------------
+        // LINK FILE TO CREDIT + BATCH
+        // --------------------------------------------------
+        public void LinkFileToCredit(int creditId,  Guid batchGuid, string fileId)
+        {
+            //using var db = Connection;
+            using var conn = new SqlConnection(_connectionString);
+
+            conn.Execute(
+                "AccountingCreditFiles_Insert",
+                new
+                {
+                    CreditID = creditId,
+                    BatchGuid = batchGuid,
+                    FileId = fileId
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+        public IEnumerable<AccountingFile> GetFilesForCredit(int creditId)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.Query<AccountingFile>(
+                "AccountingFiles_GetByCredit",
+                new { CreditId = creditId },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+
+        public MemberDto? GetMemberByAccount(string account)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.QuerySingleOrDefault<MemberDto>(
+                "dbo.Member_GetBillToByAccount",
+                new { Account = account },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+
+        // --------------------------------------------------
+        // GET FILES FOR BATCH (INVOICE BUILD)
+        // --------------------------------------------------
+        public IEnumerable<AccountingFile> GetFilesForBatch(Guid batchGuid)
+        {
+            //using var db = Connection;
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.Query<AccountingFile>(
+                "AccountingFiles_GetByBatch",
+                new { BatchGuid = batchGuid },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        // --------------------------------------------------
+        // GET SINGLE FILE (PREVIEW)
+        // --------------------------------------------------
+        public AccountingFile GetAccountingFile(string fileId)
+        {
+            // using var db = Connection;
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.QueryFirstOrDefault<AccountingFile>(
+                "AccountingFiles_GetById",
+                new { FileId = fileId },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+
+
+        public int InsertVendorBilling(VendorBillingRequestDto dto)
+        {
+
+            using var conn = new SqlConnection(_connectionString);
+       
 
             return conn.QuerySingle<int>(
                 "PIV2_Accounting_InsertVendorBilling",
@@ -91,8 +194,9 @@ namespace ProInternal.Services
                 "PIV2Accounting_InsertCredit",
                 new
                 {
-                    BatchID = dto.BatchID,
+                    BatchID = 0,
 
+                    BatchGuid = dto.BatchGuid,
                     // SP expects CHAR(1)
                     Module = dto.Module.ToString(),
 
@@ -137,11 +241,32 @@ namespace ProInternal.Services
         public IEnumerable<AccountingCreditDto> GetCredits()
         {
             using var conn = new SqlConnection(_connectionString);
-            return conn.Query<AccountingCreditDto>(
+
+            using var multi = conn.QueryMultiple(
                 "PIV2AAccounting_GetCredits",
                 commandType: CommandType.StoredProcedure
             );
+
+            var credits = multi.Read<AccountingCreditDto>().ToList();
+            var files = multi.Read<(int CreditID, string FileId, string OriginalName)>();
+
+            var lookup = credits.ToDictionary(c => c.ID);
+
+            foreach (var f in files)
+            {
+                if (lookup.TryGetValue(f.CreditID, out var credit))
+                {
+                    credit.Files.Add(new AccountingCreditFileDto
+                    {
+                        FileId = f.FileId,
+                        OriginalName = f.OriginalName
+                    });
+                }
+            }
+
+            return credits;
         }
+
 
         public IEnumerable<AccountingCreditDto> GetVendorBilling()
         {
