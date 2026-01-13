@@ -32,7 +32,7 @@ namespace ProInternal.Services
     {
 
 
-
+        void MarkCreditInvoiceFailed(int creditId, string invoiceNumber, string error);
         void UpsertAccountingFile(string fileId, string storedName, string originalName);
 
         void LinkFileToCredit(int creditId, Guid batchGuid, string fileId);

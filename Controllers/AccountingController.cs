@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.Playwright;
 using Microsoft.VisualBasic;
 using Newtonsoft.Json;
@@ -122,7 +123,14 @@ namespace ProInternal.Controllers
 
             foreach (var file in files)
             {
-                // 1️⃣ Compute hash (consume stream)
+                // 🔒 PDF-ONLY GUARD (must be first)
+                if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) &&
+                    !file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Only PDF files are allowed.");
+                }
+
+                // 1️⃣ Compute hash
                 string hash;
                 using (var read = file.OpenReadStream())
                 {
@@ -131,12 +139,11 @@ namespace ProInternal.Controllers
                     ).ToLowerInvariant();
                 }
 
-                // 2️⃣ Build stored filename
-                var ext = Path.GetExtension(file.FileName);
-                var storedName = $"{hash}{ext}";
+                // 2️⃣ Stored filename
+                var storedName = $"{hash}.pdf";
                 var fullPath = Path.Combine(_uploadRoot, storedName);
 
-                // 3️⃣ Write file + DB record ONCE
+                // 3️⃣ Write file + DB record once
                 if (!System.IO.File.Exists(fullPath))
                 {
                     using var write = new FileStream(fullPath, FileMode.CreateNew);
@@ -169,6 +176,7 @@ namespace ProInternal.Controllers
             if (request?.OrderDetails == null || !request.OrderDetails.Any())
                 return BadRequest("No credits supplied.");
 
+            int duplicateCount = 0;
 
             // ✅ CREATE BATCH GUID ONCE
             var batchGuid = Guid.NewGuid();
@@ -178,10 +186,21 @@ namespace ProInternal.Controllers
 
                 credit.BatchGuid = batchGuid;
                 // 1️⃣ Insert credit (SQL)
-                var creditId = _proDataAccess.InsertAccountingCredit(credit);
+                int creditId;
 
-           
-                    foreach (var fileId in credit.FileIds)
+                try
+                {
+                    creditId = _proDataAccess.InsertAccountingCredit(credit);
+                }
+                catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
+                {
+                    duplicateCount++;
+                    continue;
+                }
+
+
+
+                foreach (var fileId in credit.FileIds)
                     {
                         _proDataAccess.LinkFileToCredit(
                             creditId,
@@ -200,18 +219,38 @@ namespace ProInternal.Controllers
                 }
 
                 // 3️⃣ Build invoice PDF (cover + attachments)
-                await ProcessInvoiceFiles(
-                    apiResult.InvoiceNumber,
-                    credit.BatchGuid,
-                    creditId,
-                    credit
-                );
+                try
+                {
+                    // 3️⃣ Build invoice PDF (cover + attachments)
+                    await ProcessInvoiceFiles(
+                        apiResult.InvoiceNumber,
+                        credit.BatchGuid,
+                        creditId,
+                        credit
+                    );
 
-                // 4️⃣ Mark success
-                _proDataAccess.MarkCreditSuccess(creditId, apiResult.InvoiceNumber);
+                    // ✅ Full success
+                    _proDataAccess.MarkCreditSuccess(creditId, apiResult.InvoiceNumber);
+                }
+                catch (Exception ex)
+                {
+                    // ⚠️ Credit posted, invoice failed
+                    _proDataAccess.MarkCreditInvoiceFailed(
+                        creditId,
+                        apiResult.InvoiceNumber,
+                        ex.Message
+                    );
+                }
+
+
+
             }
 
-            return Ok(new { success = true });
+            return Ok(new
+            {
+                success = true,
+                duplicatesSkipped = duplicateCount
+            });
         }
 
 
@@ -239,7 +278,6 @@ namespace ProInternal.Controllers
 
 
 
-                //ProcessInvoiceFiles(apiResult.InvoiceNumber, request.Description, request.FileNames ?? new List<string>());
 
 
 
@@ -265,7 +303,7 @@ namespace ProInternal.Controllers
                 {
                     ["apiid"] = creditId.ToString(),
                     ["member"] = request.Account?? request.ProID.Substring(0, 4),
-                    ["vendor"] = "1320",
+                    ["vendor"] = request.PostingAccount ?? "1320",
                     ["quan"] = "0",
                     ["po"] = string.IsNullOrWhiteSpace(request.PO) ? "N/A": request.PO,
                     ["amount"] = request.Amount.ToString("0.00"),
@@ -283,8 +321,8 @@ namespace ProInternal.Controllers
                 //    payload);
 
 
-                var response = await client.PostAsJsonAsync("http://sqlii:9191/PRO_DEMO/subroutine/*pro.demo*API.POST.CREDIT",  payload);
-
+                var response = await client.PostAsJsonAsync("http://10.0.1.216:9191/PRO_DEMO/subroutine/*pro.demo*API.POST.CREDIT",  payload);
+                                                        
 
                 // 🚨 ONLY transport failure here
                 if (!response.IsSuccessStatusCode)
@@ -325,12 +363,7 @@ namespace ProInternal.Controllers
 
 
 
-        private async Task ProcessInvoiceFiles(
-       string invoiceNumber,
-       Guid batchGuid,
-       int creditId,
-       CreditRequestDto credit
-   )
+        private async Task ProcessInvoiceFiles(string invoiceNumber,Guid batchGuid,int creditId,CreditRequestDto credit)
         {
             try
             {
@@ -363,10 +396,17 @@ namespace ProInternal.Controllers
                     "HTML OK"
                 );
 
+                    var localCoverPath = Path.Combine(
+                    batchRoot,
+                    $"{invoiceNumber}_cover.tmp.pdf"
+                    );
+
                 // -----------------------------
                 // PDF GENERATION (🔥 MOST LIKELY FAILURE)
                 // -----------------------------
-                await GenerateCoverPdfFromHtml(html, coverPath);
+                await GenerateCoverPdfFromHtml(html, localCoverPath);
+
+                System.IO.File.Move(localCoverPath,coverPath,overwrite: true);
 
                 System.IO.File.WriteAllText(
                     Path.Combine(batchRoot, "step3_pdf_created.txt"),
@@ -420,10 +460,11 @@ namespace ProInternal.Controllers
                     Path.Combine(failRoot, "ERROR.txt"),
                     ex.ToString()
                 );
-
-                throw; // 🔥 rethrow so API logs it too
+                throw;
             }
         }
+
+
 
 
 
@@ -483,7 +524,7 @@ namespace ProInternal.Controllers
                 .Replace("<!VINVOICE>", invoiceNumber) // IMPORTANT
                 .Replace("<!TERMS>", "NET 30")
                 .Replace("<!PONUMBER>", credit.PO ?? "N/A")
-                .Replace("<!VENDOR>", "1320");
+                .Replace("<!VENDOR>", credit.PostingAccount ?? "1320");
 
 
 
@@ -543,10 +584,7 @@ namespace ProInternal.Controllers
 
 
 
-        private async Task GenerateCoverPdfFromHtml(
-            string html,
-            string outputPdfPath
-        )
+        private async Task GenerateCoverPdfFromHtml(string html,string outputPdfPath)
         {
             using var playwright = await Playwright.CreateAsync();
 
@@ -554,7 +592,7 @@ namespace ProInternal.Controllers
                 new BrowserTypeLaunchOptions
                 {
                     Headless = true,
-           
+                   // ExecutablePath = @"C:\PlaywrightBrowsers\chrome-headless-shell.exe"
                 });
 
             var page = await browser.NewPageAsync();

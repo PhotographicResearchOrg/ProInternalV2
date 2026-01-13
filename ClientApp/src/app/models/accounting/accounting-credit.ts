@@ -17,7 +17,7 @@ export interface CreditRequestDto {
   PO: string;
   VendorInvoice?: string;
   FileIds: string[];
-
+  postingAccount: string;
   EZPay: boolean;
 }
 
@@ -39,6 +39,7 @@ export interface APOrderDetail {
 }
 
 export interface VendorCreditForm {
+  postingAccount: string;
   vendorID: string;
   proID: string;
   ezPay: boolean;

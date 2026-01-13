@@ -158,6 +158,11 @@
     <None Remove="ClientApp\src\app\services\data.service.ts" />
     <None Remove="ClientApp\src\app\services\strapi.service.ts" />
     <None Remove="ClientApp\src\app\services\theme.service.ts" />
+    <None Remove="license.elic.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="license.elic.xml" />
   </ItemGroup>
 
   <ItemGroup>

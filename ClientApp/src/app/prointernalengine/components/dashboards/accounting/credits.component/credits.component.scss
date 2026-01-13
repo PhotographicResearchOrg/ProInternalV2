@@ -180,7 +180,17 @@ p-table {
   text-decoration: underline;
 }
 
+/* CREDIT (negative) */
+:host ::ng-deep .credit-negative .p-inputnumber-input {
+  color: #dc2626 !important; // red
+  font-weight: 600;
+}
 
+/* DEBIT (positive) */
+:host ::ng-deep .credit-positive .p-inputnumber-input {
+  color: #16a34a !important; // green
+  font-weight: 600;
+}
 
 /* =========================================
    Email Overlay Panel – Centered & Safe
@@ -215,3 +225,45 @@ p-table {
     width: calc(100vw - 2rem);
   }
 }
+
+
+.submit-spinner {
+  width: 28px;
+  height: 28px;
+  margin-left: 12px;
+}
+
+
+.queue-total {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin-top: 12px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 15px;
+
+  .label {
+    color: #374151;
+  }
+
+  .amount {
+    font-weight: 600;
+    color: #111827;
+  }
+}
+.duplicate-row {
+  background-color: #fff7e6; // soft warning yellow
+}
+.duplicate-row {
+  background-color: #fff7ed; // subtle orange
+}
+
+.duplicate-row {
+  background-color: #fff7e6; // subtle amber
+}
+
+  .duplicate-row td {
+    border-top: 1px solid #f59e0b;
+  }

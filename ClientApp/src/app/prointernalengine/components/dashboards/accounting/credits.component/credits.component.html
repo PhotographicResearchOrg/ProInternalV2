@@ -5,7 +5,7 @@
   <!-- ================================================= -->
   <!-- APPLY CREDIT / DEBIT -->
   <!-- ================================================= -->
-  <div class="col-12 lg:col-5">
+  <div class="col-12">
     <div class="card">
 
       <!-- HEADER -->
@@ -14,163 +14,182 @@
         <span class="text-sm text-color-secondary">+ Debit / − Credit</span>
       </div>
 
-      <!-- MEMBER -->
-      <div class="field">
-        <label>Member *</label>
-        <p-autoComplete [(ngModel)]="selectedMember"
-                        [suggestions]="memberResults"
-                        (completeMethod)="searchMember($event)"
-                        field="label"
-                        [forceSelection]="true"
-                        (onSelect)="onMemberSelect($event)"
-                        placeholder="Member ID or Name"
-                        styleClass="w-full">
-        </p-autoComplete>
-
-
-
-
-        <small class="error-text" *ngIf="errors.proID">Member is required</small>
-      </div>
-
-      <!-- EZPAY -->
-      <div class="flex align-items-center gap-3 mb-3">
-        <label class="font-medium">EZPay</label>
-        <p-inputSwitch [(ngModel)]="form.ezPay"></p-inputSwitch>
-        <span class="text-sm text-color-secondary">
-          {{ form.ezPay ? 'Enabled' : 'Disabled' }}
-        </span>
-      </div>
-
-      <!-- PO / DATE -->
       <div class="grid">
-        <div class="col-12 md:col-6">
-          <div class="field">
-            <label>PO</label>
-            <input pInputText [(ngModel)]="form.po" class="w-full" />
+        <!-- MEMBER -->
+        <div class="field">
+          <div class="col-12 md:col-6">
+            <label>Member *</label>
+            <p-autoComplete [(ngModel)]="selectedMember"
+                            [suggestions]="memberResults"
+                            (completeMethod)="searchMember($event)"
+                            field="label"
+                            [forceSelection]="true"
+                            (onSelect)="onMemberSelect($event)"
+                            placeholder="Member ID or Name"
+                            styleClass="w-full">
+            </p-autoComplete>
+            <small class="error-text" *ngIf="errors.proID">Member is required</small>
           </div>
         </div>
 
-        <div class="col-12 md:col-6">
-          <div class="field">
-            <label>Date *</label>
-            <p-calendar [(ngModel)]="form.orderDate"
-                        [showIcon]="true"
-                        dateFormat="mm/dd/yy"
-                        styleClass="w-full">
-            </p-calendar>
+
+        <div class="field">
+          <div class="col-12 md:col-6">
+            <label>Post To Account</label>
+            <p-dropdown [options]="postingAccounts"
+                        optionLabel="label"
+                        optionValue="value"
+                        [(ngModel)]="form.postingAccount"
+                        placeholder="Select account"
+                        class="w-full">
+            </p-dropdown>
           </div>
         </div>
-      </div>
+        </div>
 
-      <!-- AMOUNT / DESCRIPTION -->
-      <div class="grid">
-        <div class="col-12 md:col-6">
-          <div class="field">
-            <label>Amount *</label>
-            <p-inputNumber [(ngModel)]="form.amount"
-                           mode="decimal"
-                           [minFractionDigits]="2"
-                           [maxFractionDigits]="2"
-                           styleClass="w-full"
-                           [ngClass]="{
-                           'p-invalid' : errors.amount,
-                           'credit-negative' : form.amount < 0
-  }">
+        <!-- EZPAY -->
+        <div class="flex align-items-center gap-3 mb-3">
+          <label class="font-medium">EZPay</label>
+          <p-inputSwitch [(ngModel)]="form.ezPay"></p-inputSwitch>
+          <span class="text-sm text-color-secondary">
+            {{ form.ezPay ? 'Enabled' : 'Disabled' }}
+          </span>
+        </div>
+
+        <!-- PO / DATE -->
+        <div class="grid">
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label>PO</label>
+              <input pInputText [(ngModel)]="form.po" class="w-full" />
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label>Date *</label>
+              <p-calendar [(ngModel)]="form.orderDate"
+                          [showIcon]="true"
+                          dateFormat="mm/dd/yy"
+                          styleClass="w-full">
+              </p-calendar>
+            </div>
+          </div>
+        </div>
+
+        <!-- AMOUNT / DESCRIPTION -->
+        <div class="grid">
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label>Amount *</label>
+              <p-inputNumber [(ngModel)]="form.amount"
+                             mode="decimal"
+                             [minFractionDigits]="2"
+                             [maxFractionDigits]="2"
+                             styleClass="w-full"
+                              [ngClass]="{
+                          'p-invalid': errors.amount,
+                          'credit-negative': form.amount < 0,
+                          'credit-positive': form.amount > 0
+                        }">
 </p-inputNumber>
-            <small class="text-color-secondary">
-              Positive = Debit, Negative = Credit
-            </small>
+              <small class="text-color-secondary">
+                Positive = Debit, Negative = Credit
+              </small>
+            </div>
           </div>
-        </div>
 
-        <div class="col-12 md:col-6">
-          <div class="field">
-            <label>Description *</label>
-            <textarea pInputTextarea
-                      rows="3"
-                      [(ngModel)]="form.description"
-                      class="w-full">
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label>Description *</label>
+              <textarea pInputTextarea
+                        rows="3"
+                        [(ngModel)]="form.description"
+                        class="w-full">
             </textarea>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- ATTACHMENTS -->
-      <div class="field">
-        <label>Attachments</label>
+        <!-- ATTACHMENTS -->
+        <div class="field">
+          <label>Attachments</label>
 
-        <div class="upload-box"
-             [class.has-files]="form.files.length"
-             [class.drag-active]="dragActive"
-             (dragover)="onDragOver($event)"
-             (drop)="onDrop($event)">
+          <div class="upload-box"
+               [class.has-files]="form.files.length"
+               [class.drag-active]="dragActive"
+               (dragover)="onDragOver($event)"
+               (drop)="onDrop($event)">
 
-          <input type="file"
-                 hidden
-                 multiple
-                 #fileInput
-                 (change)="onFileSelect($event); fileInput.value = ''" />
-
-          <button pButton
-                  type="button"
-                  icon="pi pi-upload"
-                  label="Add files"
-                  class="p-button-sm"
-                  (click)="fileInput.click()">
-          </button>
-
-          <div class="hint mt-2">Drag & drop files here</div>
-        </div>
-
-        <div class="text-xs mt-2">
-          Files attached: {{ form.files.length }}
-        </div>
-
-        <!-- FORM FILE PREVIEW -->
-        <div class="file-preview mt-2" *ngIf="form.files.length">
-          <div class="file-chip"
-               *ngFor="let f of form.files; let fi = index">
-
-            <i class="pi mr-1" [ngClass]="getFileIcon(f)"></i>
+            <input type="file"
+                   hidden
+                   multiple
+                   accept="application/pdf,.pdf"
+                   #fileInput
+                   (change)="onFileSelect($event); fileInput.value = ''" />
 
             <button pButton
                     type="button"
-                    class="p-button-text p-button-sm file-link"
-                    icon="pi pi-eye"
-                    (click)="openPreview(f)">
-              {{ f.originalName }}
+                    icon="pi pi-upload"
+                    label="Add files"
+                    class="p-button-sm"
+                    (click)="fileInput.click()">
             </button>
 
+            <div class="hint mt-2">Drag & drop files here</div>
+          </div>
+
+          <div class="text-xs mt-2">
+            Files attached: {{ form.files.length }}
+          </div>
+
+          <!-- FORM FILE PREVIEW -->
+          <div class="file-preview mt-2" *ngIf="form.files.length">
+            <div class="file-chip"
+                 *ngFor="let f of form.files; let fi = index">
+
+              <i class="pi mr-1" [ngClass]="getFileIcon(f)"></i>
+
+              <button pButton
+                      type="button"
+                      class="p-button-text p-button-sm file-link"
+                      icon="pi pi-eye"
+                      (click)="openPreview(f)">
+                {{ f.originalName }}
+              </button>
 
 
-            <button pButton
-                    icon="pi pi-times"
-                    class="p-button-text p-button-danger p-button-sm"
-                    (click)="removeFile(fi)">
-            </button>
+
+              <button pButton
+                      icon="pi pi-times"
+                      class="p-button-text p-button-danger p-button-sm"
+                      (click)="removeFile(fi)">
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- ADD TO QUEUE -->
-      <div class="text-right">
-        <button pButton
-                label="Add to Queue"
-                icon="pi pi-plus"
-                [disabled]="!form.proID || !form.amount || !form.description"
-                (click)="addToQueue()">
-        </button>
-      </div>
+        <!-- ADD TO QUEUE -->
+        <div class="text-right">
+          <button pButton
+                  label="Add to Queue"
+                  icon="pi pi-plus"
+                  [disabled]="!form.proID || !form.amount || !form.description"
+                  (click)="addToQueue()">
+          </button>
+        </div>
 
+      </div>
     </div>
-  </div>
 
   <!-- ================================================= -->
   <!-- QUEUED CREDITS -->
   <!-- ================================================= -->
-  <div class="col-12 lg:col-7" *ngIf="queue.length">
+  <div class="col-12" *ngIf="queue.length">
     <div class="card">
+
+
+
 
       <div class="flex align-items-center justify-content-between mb-3">
         <span class="text-900 text-lg font-semibold">Queued Credits</span>
@@ -179,10 +198,34 @@
         </span>
       </div>
 
+
+      <div class="queue-total">
+        <span class="label">Total Credits Ready to Post:</span>
+        <span class="amount">
+          {{ queuedTotal | currency:'USD':'symbol':'1.2-2' }}
+        </span>
+      </div>
+
+      <!-- DUPLICATE WARNINGS -->
+      <div *ngIf="getDuplicateCreditKeys().size"
+           class="text-orange-600 text-sm mt-1 flex align-items-center gap-2">
+        <i class="pi pi-exclamation-triangle"></i>
+        Possible duplicate credits detected in queue
+        (same member, PO, description, and amount)
+      </div>
+
+      <div *ngIf="hasAlreadyPostedInQueue()"
+           class="text-red-600 text-sm mt-1 flex align-items-center gap-2">
+        <i class="pi pi-ban"></i>
+        One or more credits already exist in history and will be skipped
+      </div>
+
+
       <p-table [value]="queue" responsiveLayout="scroll">
         <ng-template pTemplate="header">
           <tr>
             <th>Account #</th>
+            <th>Post Acct</th>
             <th>PO</th>
             <th>Date</th>
             <th>Amount</th>
@@ -192,8 +235,25 @@
         </ng-template>
 
         <ng-template pTemplate="body" let-row let-i="rowIndex">
-          <tr>
-            <td>{{ row.proID?.value || row.proID }}</td>
+          <tr [class.duplicate-row]="queueItemIsDuplicate(row) || isAlreadyPosted(row)">
+            <td>
+              {{ row.proID?.value || row.proID }}
+
+              <!-- DUP IN QUEUE -->
+              <i *ngIf="queueItemIsDuplicate(row)"
+                 class="pi pi-exclamation-triangle text-orange-500 ml-2"
+                 pTooltip="Duplicate credit in queue">
+              </i>
+
+              <!-- ALREADY POSTED -->
+              <i *ngIf="isAlreadyPosted(row)"
+                 class="pi pi-ban text-red-500 ml-2"
+                 pTooltip="Already posted — will be skipped">
+              </i>
+            </td>
+            <td>
+              {{ row.postingAccount || '—' }}
+            </td>
             <td>{{ row.po || '—' }}</td>
             <td>{{ row.orderDate | date }}</td>
             <td>{{ row.amount | currency }}</td>
@@ -231,6 +291,7 @@
               <div class="mt-1">
                 <input type="file"
                        hidden
+                       accept="application/pdf,.pdf"
                        multiple
                        #queueFileInput
                        (change)="addFilesToQueue(i, $event)" />
@@ -256,12 +317,19 @@
       </p-table>
 
       <div class="text-right mt-3">
+
         <button pButton
                 label="Apply Credits"
                 icon="pi pi-check"
-                class="p-button-success"
-                (click)="submitBatch()">
+                (click)="submitBatch()"
+                [disabled]="isSubmitting">
         </button>
+        <p-progressSpinner *ngIf="isSubmitting"
+                           styleClass="submit-spinner"
+                           strokeWidth="3">
+        </p-progressSpinner>
+
+
       </div>
 
     </div>
@@ -350,6 +418,10 @@
               Vendor PO <p-sortIcon field="vendorPO"></p-sortIcon>
             </th>
 
+            <th pSortableColumn="postingAccount">
+              Post Acct <p-sortIcon field="postingAccount"></p-sortIcon>
+            </th>
+
             <th pSortableColumn="amount">
               Amount <p-sortIcon field="amount"></p-sortIcon>
             </th>
@@ -385,6 +457,10 @@
 
             <td>{{ row.po || '—' }}</td>
             <td>{{ row.vendorPO || '—' }}</td>
+
+            <td>
+              {{ row.postingAccount || row.account || '—' }}
+            </td>
 
             <td [ngClass]="{
                 'text-red-500' : row.amount < 0,

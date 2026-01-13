@@ -47,6 +47,7 @@ namespace ProInternal.Models.Accounting
         // Set in controller, NOT from UI
         public int BatchID { get; set; }
 
+        public string PostingAccount { get; set; } = "1320";
 
         public Guid BatchGuid { get; set; }
         public List<string> FileIds { get; set; } = new();
@@ -112,7 +113,10 @@ namespace ProInternal.Models.Accounting
     public class AccountingCreditDto
     {
 
+
         public List<AccountingCreditFileDto> Files { get; set; } = new();
+
+        public string PostingAccount { get; set; }
 
         public int ID { get; set; }
         public int BatchID { get; set; }

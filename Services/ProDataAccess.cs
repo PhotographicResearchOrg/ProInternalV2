@@ -100,6 +100,25 @@ namespace ProInternal.Services
             );
         }
 
+        public void MarkCreditInvoiceFailed(
+    int creditId,
+    string invoiceNumber,
+    string error
+)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            conn.Execute(
+                "dbo.AccountingCredit_MarkInvoiceFailed",
+                new
+                {
+                    CreditId = creditId,
+                    InvoiceNumber = invoiceNumber,
+                    Error = error
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
 
 
         public MemberDto? GetMemberByAccount(string account)
@@ -205,6 +224,8 @@ namespace ProInternal.Services
 
                     // SP expects CHAR(4)
                     Account = dto.ProID.Substring(0, 4),
+
+                    PostingAccount = dto.PostingAccount ?? "1320",
 
                     Amount = dto.Amount,
                     OrderDate = dto.OrderDate,

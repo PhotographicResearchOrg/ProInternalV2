@@ -33,6 +33,11 @@ export class CreditsComponent implements OnInit {
   statusFilter: 'success' | 'failed' | null = null;
   selectedMember: { label: string; value: string } | null = null;
 
+  postingAccounts = [
+    { label: '1320 – Rebates / Credits', value: '1320' },
+    { label: '1310 – Adjustments', value: '1310' },
+    { label: '1350 – Misc Clearing', value: '1350' }
+  ];
 
   emailInvoiceNumber: string | null = null;
   emailToList: string[] = [];
@@ -40,6 +45,20 @@ export class CreditsComponent implements OnInit {
   emailNote = '';
   sendingEmail = false;
   emailItems: any[] = [];
+
+  isSubmitting = false;
+  readonly DEFAULT_POSTING_ACCOUNT = '1320';
+
+
+  private creditKey(item: VendorCreditForm): string {
+    return [
+      item.proID?.trim().toLowerCase(),          // MEMBER
+      (item.po ?? '').trim().toLowerCase(),      // PO
+      item.description?.trim().toLowerCase(),    // DESCRIPTION
+      Number(item.amount).toFixed(2)             // AMOUNT (normalized)
+    ].join('|');
+  }
+
 
 
   // =====================
@@ -53,7 +72,7 @@ export class CreditsComponent implements OnInit {
     proID: '',  
     ezPay: false,
     po: '',
-
+    postingAccount: '1320',
     vendorInv: '',
     orderDate: new Date(),
     description: '',
@@ -89,6 +108,59 @@ export class CreditsComponent implements OnInit {
     }
 
   }
+
+  hasAlreadyPostedInQueue(): boolean {
+    return this.queue.some(q => this.isAlreadyPosted(q));
+  }
+
+  isDuplicateOrPosted(row: VendorCreditForm): boolean {
+    return this.queueItemIsDuplicate(row) || this.isAlreadyPosted(row);
+  }
+
+  isAlreadyPosted(item: VendorCreditForm): boolean {
+    const key = this.creditKey(item);
+
+    return this.credits.some(c =>
+      [
+        String(c.proid).trim().toLowerCase(),
+        (c.po ?? '').trim().toLowerCase(),
+        c.description?.trim().toLowerCase(),
+        Number(c.amount).toFixed(2)
+      ].join('|') === key
+    );
+  }
+
+
+
+  get queuedTotal(): number {
+    return this.queue.reduce(
+      (sum, item) => sum + (item.amount || 0),
+      0
+    );
+  }
+
+
+  getDuplicateCreditKeys(): Set<string> {
+    const seen = new Set<string>();
+    const duplicates = new Set<string>();
+
+    for (const item of this.queue) {
+      const key = this.creditKey(item);
+      if (seen.has(key)) {
+        duplicates.add(key);
+      } else {
+        seen.add(key);
+      }
+    }
+
+    return duplicates;
+  }
+
+  queueItemIsDuplicate(item: VendorCreditForm): boolean {
+    return this.getDuplicateCreditKeys().has(this.creditKey(item));
+  }
+
+
 
   searchMember(event: any) {
     const term = event.query;
@@ -308,42 +380,65 @@ export class CreditsComponent implements OnInit {
 
 
   submitBatch(): void {
-    if (!this.queue.length) return;
+    if (!this.queue.length || this.isSubmitting) return;
 
     this.confirmationService.confirm({
       header: 'Apply Credits',
       message: `You are about to apply ${this.queue.length} credit(s). Continue?`,
       icon: 'pi pi-exclamation-triangle',
-      accept: () => this.executeSubmit()
+      accept: () => {
+        this.isSubmitting = true;
+        this.executeSubmit();
+      }
     });
   }
+
 
   private executeSubmit(): void {
 
     const payload: CreditBatchRequestDto = {
       OrderDetails: this.queue.map(row => ({
-        ProID: row.proID,                 // string ✅
+        ProID: row.proID,
         Amount: row.amount,
-        Account: row.proID,    
+        Account: row.proID,
         OrderDate: row.orderDate.toISOString(),
         Description: row.description,
         PO: row.po || 'N/A',
-        VendorInvoice: row.vendorInv || undefined, // 🔥 FIXED
+        VendorInvoice: row.vendorInv || undefined,
         FileIds: row.files.map(f => f.fileId),
-        EZPay: row.ezPay                  // boolean ✅
+        EZPay: row.ezPay,
+        postingAccount: row.postingAccount
       }))
     };
-
+ 
     this.accountingService.saveCredits(payload).subscribe({
-      next: () => {
+
+      next: (res: any) => {
         this.queue = [];
         this.loadCredits();
+        this.isSubmitting = false;
+        if (res?.duplicatesSkipped > 0) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'Duplicate Credits Skipped',
+            detail: `${res.duplicatesSkipped} credit(s) were already posted and were skipped.`
+          });
+        } else {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Credits Applied',
+            detail: 'All credits were processed successfully.'
+          });
+        }
       },
+
       error: err => {
         console.error('Credit submit failed', err);
+        this.isSubmitting = false;
       }
     });
   }
+
 
   getInvoiceUrl(invoiceNumber: string): string {
     return `/ProcessInvoice/${invoiceNumber}.pdf`;
@@ -359,6 +454,8 @@ export class CreditsComponent implements OnInit {
       complete: () => this.loading = false
     });
   }
+
+
 
   // =====================
   // FILE HANDLING
@@ -400,65 +497,167 @@ export class CreditsComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
 
-    this.accountingService.uploadFiles(input.files).subscribe(results => {
-      const uploaded: UploadedFile[] = results.map(r => ({
-        fileId: r.fileId,
-        originalName: r.originalName
-      }));
-      const item = this.queue[index];
+    const pdfFiles: File[] = [];
+    const rejected: string[] = [];
 
-      this.queue[index] = {
-        ...item,
-        files: [...item.files, ...uploaded]
-      };
+    // 🔒 PDF-only filter
+    Array.from(input.files).forEach(file => {
+      if (this.isPdf(file)) {
+        pdfFiles.push(file);
+      } else {
+        rejected.push(file.name);
+      }
+    });
 
-      this.queue = [...this.queue]; // refresh
-      input.value = '';
+    if (rejected.length) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Invalid File Type',
+        detail: `Only PDF files are allowed. Rejected: ${rejected.join(', ')}`
+      });
+    }
+
+    if (!pdfFiles.length) return;
+
+    this.accountingService.uploadFiles(pdfFiles as any).subscribe({
+      next: results => {
+
+        const uploaded: UploadedFile[] = results.map(r => ({
+          fileId: r.fileId,
+          originalName: r.originalName
+        }));
+
+        const item = this.queue[index];
+
+        // 🔁 De-dupe against QUEUE ITEM files
+        const { unique, duplicates } =
+          this.splitDuplicates(item.files, uploaded);
+
+        if (duplicates.length) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'Duplicate File Skipped',
+            detail: `Already attached to this credit: ${duplicates
+              .map(d => d.originalName)
+              .join(', ')}`
+          });
+        }
+
+        if (!unique.length) return;
+
+        this.queue[index] = {
+          ...item,
+          files: [...item.files, ...unique]
+        };
+
+        this.queue = [...this.queue]; // refresh UI
+        input.value = '';
+      },
+      error: err => {
+        console.error('UPLOAD FAILED:', err);
+      }
     });
   }
 
-  getFileIcon(file: { originalName: string }): string {
-    const ext = file.originalName.split('.').pop()?.toLowerCase();
 
-    if (!ext) return 'pi-file';
+  private splitDuplicates(
+    existing: UploadedFile[],
+    incoming: UploadedFile[]
+  ): { unique: UploadedFile[]; duplicates: UploadedFile[] } {
 
-    if (ext === 'pdf') return 'pi-file-pdf text-red-500';
-    if (['png', 'jpg', 'jpeg', 'gif'].includes(ext)) return 'pi-image text-blue-500';
-    if (['xls', 'xlsx'].includes(ext)) return 'pi-file-excel text-green-500';
+    const existingIds = new Set(existing.map(f => f.fileId));
+    const unique: UploadedFile[] = [];
+    const duplicates: UploadedFile[] = [];
 
-    return 'pi-file';
+    for (const f of incoming) {
+      if (existingIds.has(f.fileId)) {
+        duplicates.push(f);
+      } else {
+        unique.push(f);
+      }
+    }
+
+    return { unique, duplicates };
   }
+
+  private isPdf(file: File): boolean {
+    return (
+      file.type === 'application/pdf' ||
+      file.name.toLowerCase().endsWith('.pdf')
+    );
+  }
+
+
+
+
+  getFileIcon(_: any): string {
+    return 'pi-file-pdf text-red-500';
+  }
+
+
+
+
+
+
+
 
 
 
   private handleFiles(files: FileList): void {
     if (!files || !files.length) return;
 
-    console.log('HANDLE FILES CALLED:', files.length);
+    const pdfFiles: File[] = [];
+    const rejected: string[] = [];
 
-    this.accountingService.uploadFiles(files).subscribe({
-      next: (results) => {
-        console.log('UPLOAD RESULTS:', results);
+    // 🔒 PDF-only filter
+    Array.from(files).forEach(file => {
+      if (this.isPdf(file)) {
+        pdfFiles.push(file);
+      } else {
+        rejected.push(file.name);
+      }
+    });
 
-        this.zone.run(() => {
+    if (rejected.length) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Invalid File Type',
+        detail: `Only PDF files are allowed. Rejected: ${rejected.join(', ')}`
+      });
+    }
 
-          // 🔥 FILE-ID BASED MODEL (NO src / name / size)
-          const uploaded: UploadedFile[] = (results || []).map(r => ({
-            fileId: r.fileId,
-            originalName: r.originalName
-          }));
+    if (!pdfFiles.length) return;
 
-          // 🔥 IMMUTABLE UPDATE (Angular change detection)
-          this.form = {
-            ...this.form,
-            files: [...this.form.files, ...uploaded]
-          };
+    this.accountingService.uploadFiles(pdfFiles as any).subscribe({
+      next: results => {
 
-          console.log('FILES AFTER UPDATE:', this.form.files);
+        const uploaded: UploadedFile[] = results.map(r => ({
+          fileId: r.fileId,
+          originalName: r.originalName
+        }));
 
-          // 🔥 FORCE UI REFRESH
-          this.cdr.detectChanges();
-        });
+        // 🔁 De-dupe against FORM files
+        const { unique, duplicates } =
+          this.splitDuplicates(this.form.files, uploaded);
+
+        if (duplicates.length) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'Duplicate File Skipped',
+            detail: `Already added: ${duplicates
+              .map(d => d.originalName)
+              .join(', ')}`
+          });
+        }
+
+        if (!unique.length) return;
+
+        this.form = {
+          ...this.form,
+          files: [...this.form.files, ...unique]
+        };
+
+        this.cdr.detectChanges();
       },
       error: err => {
         console.error('UPLOAD FAILED:', err);
@@ -469,25 +668,6 @@ export class CreditsComponent implements OnInit {
 
 
 
-
-  detectMime(fileName: string): string {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-
-    switch (ext) {
-      case 'pdf':
-        return 'application/pdf';
-      case 'xls':
-      case 'xlsx':
-        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      case 'png':
-      case 'jpg':
-      case 'jpeg':
-      case 'gif':
-        return 'image/*';
-      default:
-        return 'application/octet-stream';
-    }
-  }
 
 
 
@@ -514,6 +694,7 @@ export class CreditsComponent implements OnInit {
           : '';
 
     const queuedItem: VendorCreditForm = {
+      
       vendorID: this.form.vendorID,
       proID: String(proId), // 🚨 ABSOLUTE STRING
       ezPay: this.form.ezPay,
@@ -522,7 +703,8 @@ export class CreditsComponent implements OnInit {
       orderDate: this.form.orderDate,
       description: this.form.description,
       amount: this.form.amount,
-      files: [...this.form.files]
+      postingAccount: this.form.postingAccount,
+      files: [...this.form.files],
     };
 
     console.log('QUEUED PROID:', queuedItem.proID, typeof queuedItem.proID);
@@ -554,13 +736,13 @@ export class CreditsComponent implements OnInit {
 
 
 
-
   // =====================
   // RESET
   // =====================
   private resetForm(): void {
     this.form = {
-      vendorID: '',        // ✅ REQUIRED
+      vendorID: '',
+      postingAccount: this.DEFAULT_POSTING_ACCOUNT,
       proID: '',
       ezPay: false,
       po: '',
@@ -568,7 +750,7 @@ export class CreditsComponent implements OnInit {
       orderDate: new Date(),
       description: '',
       amount: 0,
-      files: []
+      files: [],
     };
     this.selectedMember = null; // 🔥 REQUIRED
   }
