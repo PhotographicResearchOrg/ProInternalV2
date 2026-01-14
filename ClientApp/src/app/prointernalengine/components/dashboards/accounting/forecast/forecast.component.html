@@ -7,6 +7,9 @@
       <div class="text-xl font-semibold mb-3 text-900">
         <i class="pi pi-chart-line mr-2 text-primary"></i>
         Forecast Summary – {{ selectedWeekRange }}
+        <span *ngIf="useRollingForecast" class="text-sm text-color-secondary ml-2">
+          → Target Payment: {{ getExpectedPaymentDate() | date:'MM/dd/yyyy' }}
+        </span>
       </div>
 
       <div class="grid text-sm text-900">
@@ -145,14 +148,25 @@
           <div class="mb-2 md:mb-0">
             <div class="text-sm text-color-secondary mb-1">Forecasting for</div>
 
-            <p-dropdown [options]="availableWeekEndings"
-                        [(ngModel)]="selectedWeekEnding"
-                        (onChange)="updateForecasts()"
-                        placeholder="Select Week Ending"
-                        optionLabel="label"
-                        optionValue="value"
-                        styleClass="w-full md:w-15rem">
-            </p-dropdown>
+            <ng-container *ngIf="!useRollingForecast; else rollingLabel">
+              <p-dropdown [options]="availableWeekEndings"
+                          [(ngModel)]="selectedWeekEnding"
+                          (onChange)="updateForecasts()"
+                          optionLabel="label"
+                          optionValue="value"
+                          styleClass="w-full md:w-15rem">
+              </p-dropdown>
+            </ng-container>
+
+            <ng-template #rollingLabel>
+              <span class="text-sm font-medium text-900">
+                Week Ending {{ getExpectedPaymentDate() | date:'MM/dd/yyyy' }}
+              </span>
+            </ng-template>
+
+            <span *ngIf="useRollingForecast" class="text-xs text-color-secondary block mt-1">
+              As of {{ today | date:'MM/dd/yyyy' }}
+            </span>
 
             <span class="text-xs text-color-secondary mt-1 block">Week Range: {{ selectedWeekRange }}</span>
           </div>
@@ -175,7 +189,7 @@
         <div class="col-12 md:col-6 lg:col-4">
           <div class="mb-2 md:mb-0">
             <div class="text-sm text-color-secondary mb-1">Export</div>
-       
+
             <span class="text-xs text-color-secondary mt-1 block">
               <button pButton label="Export XLSX"
                       icon="pi pi-file-excel"
@@ -188,14 +202,23 @@
 
 
 
-        <!-- Export Button -->
-        <!--<div class="col-12 lg:col-4 text-right">
-          <button pButton label="Export XLSX"
-                  icon="pi pi-file-excel"
-                  class="p-button-sm p-button-outlined mt-3 lg:mt-0"
-                  (click)="Download(dt)">
-          </button>
-        </div>-->
+        <div class="col-12 md:col-6 lg:col-4">
+          <div class="mb-2 md:mb-0">
+            <div class="text-sm text-color-secondary mb-1">Forecast Window</div>
+            <span class="text-sm font-medium text-900">
+              Rolling (Mid-Week)
+            </span>
+            <span class="text-xs text-color-secondary mt-1 block">
+              <p-inputSwitch [(ngModel)]="useRollingForecast"
+                             (onChange)="updateForecasts()">
+              </p-inputSwitch>
+            </span>
+          </div>
+        </div>
+
+
+
+
 
       </div>
     </div>

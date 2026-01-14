@@ -52,6 +52,10 @@ export class ForecastComponent implements OnInit {
   recencyWeights = [5, 4, 3, 2, 1];
   showBehavioralForecast = false;
   useBehavioralForecast = false;
+  useRollingForecast = false;
+
+
+
 
 
   presetWeightOptions = [
@@ -71,7 +75,11 @@ export class ForecastComponent implements OnInit {
       return {
         label: validationFriday.toLocaleDateString(),
         value: billFriday
+
+
       };
+
+
     });
 
     this.selectedWeekEnding = this.availableWeekEndings[0]?.value || null;
@@ -89,45 +97,103 @@ export class ForecastComponent implements OnInit {
 
 
   updateForecasts(): void {
-    if (!this.selectedWeekEnding) return;
+    if (!this.useRollingForecast && !this.selectedWeekEnding) return;
 
     const thresholdDecimal = this.threshold / 100;
-    const billFriday = new Date(this.selectedWeekEnding);
+    const billFriday = new Date(
+      this.selectedWeekEnding ?? this.today
+    );
     billFriday.setHours(0, 0, 0, 0);
 
     const validationFriday = new Date(billFriday);
     validationFriday.setDate(billFriday.getDate() + 7);
 
-    const collectionStart = new Date(billFriday);
-    collectionStart.setDate(billFriday.getDate() - 4);
-    const collectionEnd = new Date(billFriday);
+    //const collectionStart = new Date(billFriday);
+    //collectionStart.setDate(billFriday.getDate() - 4);
+    //const collectionEnd = new Date(billFriday);
 
-    this.selectedWeekRange = `${collectionStart.toLocaleDateString()} - ${collectionEnd.toLocaleDateString()}`;
+    const today = this.today;
+
+    let collectionStart: Date;
+    let collectionEnd: Date;
+    let targetPaymentFriday: Date;
+
+    if (this.useRollingForecast) {
+      collectionStart = this.getStartOfWeek(today);
+      collectionEnd = today;
+      targetPaymentFriday = this.getNextFriday(today);
+
+      this.selectedWeekRange =
+        `${collectionStart.toLocaleDateString()} - ${collectionEnd.toLocaleDateString()} (Rolling)`;
+    } else {
+      collectionStart = new Date(billFriday);
+      collectionStart.setDate(billFriday.getDate() - 4);
+      collectionEnd = new Date(billFriday);
+      targetPaymentFriday = new Date(billFriday);
+      targetPaymentFriday.setDate(billFriday.getDate() + 7);
+
+      this.selectedWeekRange =
+        `${collectionStart.toLocaleDateString()} - ${collectionEnd.toLocaleDateString()}`;
+    }
+
+
+
+
+
+
+    const historyBaseDate = this.useRollingForecast ? today : billFriday;
+
 
     const history = this.showBehavioralForecast
-      ? this.calculateBehavioralLagForecast(billFriday)
-      : this.calculateHistoricalProbabilities(billFriday);
+      ? this.calculateBehavioralLagForecast(historyBaseDate)
+      : this.calculateHistoricalProbabilities(historyBaseDate);
 
-    //const invoices = this.showBehavioralForecast
-    //  ? this.invoiceData.filter(inv => inv.billDate <= collectionEnd)
-    //  : this.invoiceData.filter(inv => inv.billDate >= collectionStart && inv.billDate <= collectionEnd);
 
     const invoices = this.showBehavioralForecast
       ? this.invoiceData.filter(inv =>
-        inv.paidDate === undefined && inv.billDate <= collectionEnd
+        inv.paidDate === undefined &&
+        inv.billDate <= collectionEnd
       )
-      : this.invoiceData.filter(inv => inv.billDate >= collectionStart && inv.billDate <= collectionEnd);
+      : this.useRollingForecast
+        ? this.invoiceData.filter(inv =>
+          inv.billDate <= collectionEnd
+        )
+        : this.invoiceData.filter(inv =>
+          inv.billDate >= collectionStart &&
+          inv.billDate <= collectionEnd
+        );
 
 
 
     const map: { [key: number]: AggregatedForecast } = {};
 
     for (const inv of invoices) {
-      const p = history[inv.account]?.probability;
-      if (p === undefined) continue;
+      let p = history[inv.account]?.probability;
 
-      const adjustedThreshold = this.showBehavioralForecast ? 0.01 : thresholdDecimal;
-      if (p < adjustedThreshold) continue;
+      if (p === undefined) {
+        if (this.useRollingForecast) {
+          p = 1;
+        } else {
+          continue;
+        }
+      }
+
+      if (p < thresholdDecimal) continue;
+
+      let effectiveProbability = p;
+
+      if (this.useRollingForecast) {
+        // Scale probability by how complete the week is
+        const start = collectionStart.getTime();
+        const end = this.getStartOfWeek(targetPaymentFriday).getTime();
+        const now = today.getTime();
+
+        const maturity =
+          Math.min(1, Math.max(0, (now - start) / (end - start)));
+
+        effectiveProbability = p * maturity;
+      }
+
 
       if (!map[inv.account]) {
         map[inv.account] = {
@@ -139,9 +205,9 @@ export class ForecastComponent implements OnInit {
           actualAmount: 0,
           variance: 0,
           accuracyPercent: null,
-          historicalWeeksIncluded: history[inv.account]?.weeks,
-          paidCycles: history[inv.account]?.paidCycles,
-          totalCycles: history[inv.account]?.totalCycles,
+          historicalWeeksIncluded: history[inv.account]?.weeks ?? 0,
+          paidCycles: history[inv.account]?.paidCycles ?? 0,
+          totalCycles: history[inv.account]?.totalCycles ?? 0,
           confidencePercent: history[inv.account]?.confidencePercent ?? null
         };
 
@@ -180,13 +246,14 @@ export class ForecastComponent implements OnInit {
         map[inv.account].totalOutstanding += inv.amount;
       }
 
-        map[inv.account].forecastedAmount += inv.amount * p;
+      map[inv.account].forecastedAmount += inv.amount * effectiveProbability;
 
 
         // For actuals comparison
       const expectedPaymentDate = this.showBehavioralForecast
-        ? new Date(inv.billDate.getTime() + ((history[inv.account] as any)?.modalLag ?? 0) * 7 * 24 * 60 * 60 * 1000)
-        : new Date(billFriday.getTime() + 7 * 24 * 60 * 60 * 1000);
+        ? new Date(inv.billDate.getTime() +
+          ((history[inv.account] as any)?.modalLag ?? 0) * 7 * 86400000)
+        : targetPaymentFriday;
 
 
       expectedPaymentDate.setHours(0, 0, 0, 0);
@@ -218,12 +285,40 @@ export class ForecastComponent implements OnInit {
     });
   }
 
+
+
+  getFollowingFriday(d: Date): Date {
+    const firstFriday = this.getNextFriday(d);
+    const following = new Date(firstFriday);
+    following.setDate(firstFriday.getDate() + 7);
+    following.setHours(0, 0, 0, 0);
+    return following;
+  }
+
   getTooltipText(row: any): string {
     if (this.showBehavioralForecast) {
       return `This client pays with a lag of ${row.modalLag ?? '?'} week${(row.modalLag ?? 0) !== 1 ? 's' : ''} in ${(row.confidencePercent * 100).toFixed(0)}% of cases (±1 week band).`;
     } else {
       return `Probability based on ${row.paidCycles}/${row.totalCycles} historical payment events.`;
     }
+  }
+
+  getStartOfWeek(d: Date): Date {
+    const date = new Date(d);
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Monday
+    date.setDate(diff);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  getNextFriday(d: Date): Date {
+    const date = new Date(d);
+    const day = date.getDay();
+    const diff = (5 - day + 7) % 7 || 7;
+    date.setDate(date.getDate() + diff);
+    date.setHours(0, 0, 0, 0);
+    return date;
   }
 
 
@@ -383,11 +478,16 @@ export class ForecastComponent implements OnInit {
     return this.filteredForecastData.reduce((sum, f) => sum + f.totalOutstanding, 0);
   }
 
-
   getExpectedPaymentDate(): Date {
-    const expectedPaymentDate = new Date(this.selectedWeekEnding!);
-    expectedPaymentDate.setDate(expectedPaymentDate.getDate() + 7);
-    return expectedPaymentDate;
+    if (this.useRollingForecast) {
+      // Rolling mid-week always targets NEXT payment cycle
+      return this.getFollowingFriday(this.today);
+    }
+
+    // Normal weekly forecast
+    const d = new Date(this.selectedWeekEnding!);
+    d.setDate(d.getDate() + 7);
+    return d;
   }
 
   get totalVariance(): number {
