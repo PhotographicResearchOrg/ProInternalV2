@@ -20,6 +20,7 @@ using Spire.Pdf;
 using Spire.Xls;
 using System.Data;
 using System.Drawing;
+using System.IO.Pipelines;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
@@ -36,13 +37,14 @@ namespace ProInternal.Controllers
         private IProDataAccess _proDataAccess;
         private IDRADataAccess _dradataAccess;
         private IEDADataAccess _edadataAccess;
-      
+        private IInvoiceExtractionService _invoiceExtractionService;
 
-        public AccountingController(IProDataAccess proDataAccess, IDRADataAccess DRADataAccess, IEDADataAccess edadataAccess) 
+        public AccountingController(IProDataAccess proDataAccess, IDRADataAccess DRADataAccess, IEDADataAccess edadataAccess, IInvoiceExtractionService invoiceExtractionService) 
         {
             _proDataAccess = proDataAccess;
             _dradataAccess = DRADataAccess;
             _edadataAccess = edadataAccess;
+            _invoiceExtractionService = invoiceExtractionService;
 
         }
 
@@ -258,45 +260,51 @@ namespace ProInternal.Controllers
 
 
         [HttpPost("vendor-billing")]
-        public async Task<IActionResult> SaveVendorBilling([FromBody] VendorBillingRequestDto request)
+        public async Task<IActionResult> SaveVendorBilling([FromBody] VendorBillingBatchRequestDto request)
         {
-            if (request == null)
-                return BadRequest("Invalid payload.");
+            if (request?.OrderDetails == null || !request.OrderDetails.Any())
+                return BadRequest("No billing rows supplied.");
 
-            try
+            var creditBatch = new CreditBatchRequestDto
             {
-                var billingId = _proDataAccess.InsertVendorBilling(request);
-
-                var apiResult = await PostVendorBillingToApi(billingId, request);
-
-                if (!apiResult.Success)
+                OrderDetails = request.OrderDetails.Select(row => new CreditRequestDto
                 {
-                    _proDataAccess.MarkVendorBillingFailed(billingId, apiResult.Error);
-                    return BadRequest(apiResult.Error);
-                }
+                    // 🔑 REQUIRED BY CREDIT PIPELINE
+                    ProID = row.ProID,
+                    Amount = row.Amount,
+                    OrderDate = row.OrderDate ?? DateTime.Today,
+                    Description = string.IsNullOrWhiteSpace(row.Description)
+                        ? "Vendor Billing"
+                        : row.Description,
 
+                    // 🔑 VENDOR BILLING FLAGS
+                    Module = 2,                 // ← THIS was missing before
+                    Account = "1320",
+                    PostingAccount = "1320",
 
+                    PO = row.PO,
+                    VendorInvoice = row.VendorInv,
+                    EZPay = false,
 
+                    // files
+                    FileIds = row.FileNames
+                }).ToList()
+            };
 
-
-
-
-
-                _proDataAccess.MarkVendorBillingSuccess(billingId, apiResult.InvoiceNumber);
-
-                return Ok(new { invoice = apiResult.InvoiceNumber });
-            }
-            catch (Exception ex)
+            var result = await SaveCredits(creditBatch);
+            // 🧠 OPTIONAL: reinforce learning ONLY AFTER SUCCESS
+            foreach (var row in request.OrderDetails.Where(r => r.ExtractionPreview != null))
             {
-                return StatusCode(500, new
-                {
-                    error = "Vendor billing failed",
-                    details = ex.Message
-                });
+                _proDataAccess.TouchVendorInvoiceLearning(
+                    int.Parse(row.VendorID)
+                );
             }
+
+            return result;
         }
 
-   
+
+
 
 
         private async Task<(bool Success, string InvoiceNumber, string Error)> PostCreditToApi(int creditId, CreditRequestDto request)

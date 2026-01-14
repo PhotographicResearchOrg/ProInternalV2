@@ -167,43 +167,42 @@ namespace ProInternal.Services
 
 
 
-        public int InsertVendorBilling(VendorBillingRequestDto dto)
+        public int InsertVendorBilling(VendorBillingRequestDto dto, Guid batchGuid, int batchId)
         {
-
             using var conn = new SqlConnection(_connectionString);
-       
 
             return conn.QuerySingle<int>(
-                "PIV2_Accounting_InsertVendorBilling",
-                dto,
+                "PIV2Accounting_InsertCredit",
+                new
+                {
+                    BatchID = batchId,                 // legacy – can be 0 if unused
+                    BatchGuid = batchGuid,             // REQUIRED
+                    Module = "2",                      // 🔥 KEY DIFFERENCE
+                    ProID = int.Parse(dto.ProID),
+                    Account = "1320",                  // or whatever posting acct
+                    Amount = dto.Amount,
+                    OrderDate = dto.OrderDate,
+                    Description = dto.Description ?? "Vendor Billing",
+                    FileName = string.Join(",", dto.FileNames),
+                    ApplyEZPay = dto.EZPay ? "Y" : "N",
+                    PO = dto.PO,
+                    UserEntered = "UI",
+                    VendorID = int.Parse(dto.VendorID),
+                    Terms = dto.Terms,
+                    FutureBilling = dto.FutureBilling,
+                    VendorInv = dto.VendorInv,
+                    VendInvDate = dto.VendInvDate,
+                    VendorDueDate = dto.VendorDueDate,
+                    Discount = dto.Discount,
+                    PostingAccount = "1320"
+                },
                 commandType: CommandType.StoredProcedure
             );
         }
 
 
-        public void MarkVendorBillingFailed(int billingId, string error)
-        {
-            using var conn = new SqlConnection(_connectionString);
 
-            conn.Execute(
-                "PIV2_Accounting_MarkVendorBillingFailed",
-                new { BillingId = billingId, Error = error },
-                commandType: CommandType.StoredProcedure
-            );
-        }
-
-
-        public void MarkVendorBillingSuccess(int billingId, string invoiceNumber)
-        {
-            using var conn = new SqlConnection(_connectionString);
-
-            conn.Execute(
-                "PIV2_Accounting_MarkVendorBillingSuccess",
-                new { BillingId = billingId, InvoiceNumber = invoiceNumber },
-                commandType: CommandType.StoredProcedure
-            );
-        }
-
+  
 
         public int InsertAccountingCredit(CreditRequestDto dto)
         {
@@ -256,7 +255,16 @@ namespace ProInternal.Services
 
 
 
+        public IEnumerable<VendorLookupDto> SearchVendors(string term)
+        {
+            using var conn = new SqlConnection(_connectionString);
 
+            return conn.Query<VendorLookupDto>(
+                "Vendor_Search",
+                new { term },
+                commandType: CommandType.StoredProcedure
+            );
+        }
 
 
         public IEnumerable<AccountingCreditDto> GetCredits()
@@ -264,7 +272,39 @@ namespace ProInternal.Services
             using var conn = new SqlConnection(_connectionString);
 
             using var multi = conn.QueryMultiple(
+                  "PIV2AAccounting_GetCredits",
+                  new { Module = "1" },
+                  commandType: CommandType.StoredProcedure
+              );
+
+            var credits = multi.Read<AccountingCreditDto>().ToList();
+            var files = multi.Read<(int CreditID, string FileId, string OriginalName)>();
+
+            var lookup = credits.ToDictionary(c => c.ID);
+
+            foreach (var f in files)
+            {
+                if (lookup.TryGetValue(f.CreditID, out var credit))
+                {
+                    credit.Files.Add(new AccountingCreditFileDto
+                    {
+                        FileId = f.FileId,
+                        OriginalName = f.OriginalName
+                    });
+                }
+            }
+
+            return credits;
+        }
+
+
+        public IEnumerable<AccountingCreditDto> GetVendorBillingHistory()
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            using var multi = conn.QueryMultiple(
                 "PIV2AAccounting_GetCredits",
+                new { Module = "2" },
                 commandType: CommandType.StoredProcedure
             );
 
@@ -287,6 +327,7 @@ namespace ProInternal.Services
 
             return credits;
         }
+
 
 
         public IEnumerable<AccountingCreditDto> GetVendorBilling()
@@ -345,8 +386,47 @@ namespace ProInternal.Services
             );
         }
 
+        public IEnumerable<VendorInvoiceLearningDto>
+    GetVendorInvoiceLearning(int vendorId)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.Query<VendorInvoiceLearningDto>(
+                "VendorInvoiceLearning_GetByVendor",
+                new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure
+            );
+        }
 
 
+        public void TouchVendorInvoiceLearning(int id)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            conn.Execute(
+                "VendorInvoiceLearning_Touch",
+                new { Id = id },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public void UpsertVendorInvoiceLearning(
+    VendorInvoiceLearningDto dto)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            conn.Execute(
+                "VendorInvoiceLearning_Upsert",
+                new
+                {
+                    dto.VendorId,
+                    dto.FieldName,
+                    dto.Strategy,
+                    dto.Pattern
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
 
 
 

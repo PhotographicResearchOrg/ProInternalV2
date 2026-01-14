@@ -1,12 +1,15 @@
 import { Component, OnInit } from '@angular/core';
-import { AccountingService } from 'src/app/services/AccountingService'
-import { ConfirmationService } from 'primeng/api';
-import {  UploadedFile } from 'src/app/models/accounting/accounting-credit'
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { AccountingService } from 'src/app/services/AccountingService';
+import { UploadedFile, InvoiceExtractionPreview } from 'src/app/models/accounting/accounting-credit';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
-interface VendorBillingForm {
+
+export interface VendorBillingForm {
   vendorID: string;
   proID: string;
-  orderDates: Date | null;
+
+  billDate: Date | null;
 
   terms: string;
   futureBilling: string;
@@ -20,222 +23,464 @@ interface VendorBillingForm {
   discount: number;
 
   ezPay: boolean;
-  descriptions: string;
+  description: string;
 
   files: UploadedFile[];
-}
 
+  extractionPreview?: InvoiceExtractionPreview | null;
+
+
+
+}
 
 @Component({
   selector: 'app-vendor-billing',
   templateUrl: './vendor-billing.html',
-  styleUrls: ['./vendor-billing.scss'],
+  styleUrls: ['./vendor-billing.scss']
 })
-export class VendorBillingComponent implements OnInit {
+export class VendorBillingComponent {
 
-  billing: any[] = [];
-  loading = false;
   queue: VendorBillingForm[] = [];
   dragActive = false;
+  isSubmitting = false;
+  previewFile: (UploadedFile & { safeSrc?: SafeResourceUrl }) | null = null;
+  previewVisible = false;
+  extractionConfidence = 0;
+  missingFields: string[] = [];
+  memberResults: { label: string; value: string }[] = [];
+  selectedMember: { label: string; value: string } | null = null;
+  selectedVendor:
+    | { label: string; value: number; raw: any }
+    | null = null;
+  vendorResults: { label: string; value: number; raw: any }[] = [];
+  extractionPreview: InvoiceExtractionPreview | null = null;
 
-
-
-  form: VendorBillingForm = {
-    vendorID: '',
-    proID: '',
-    orderDates: null,
-
-    terms: '',
-    futureBilling: '',
-
-    vendorInv: '',
-    vendInvDate: null,
-    vendorDueDate: null,
-
-    po: '',
-    amount: 0,
-    discount: 0,
-
-    ezPay: true,
-    descriptions: '',
-
-    files: []
-  };
-
+  form: VendorBillingForm = this.emptyForm();
 
   termsOptions = [
-    { label: '0%', value: 0 },
-    { label: '2%', value: 2 }
+    { label: 'NET 30', value: 'NET30' },
+    { label: 'NET 60', value: 'NET60' }
   ];
 
-  futureBillingOptions = [
-    { label: 'N', value: 'N' },
-    { label: '1', value: '1' },
-    { label: '2', value: '2' },
-    { label: '3', value: '3' },
-    { label: '4', value: '4' },
-    { label: '5', value: '5' },
-    { label: '6', value: '6' },
-    { label: '7', value: '7' },
-    { label: '8', value: '8' },
-    { label: '9', value: '9' }
-  ];
+  futureBillingOptions = Array.from({ length: 10 }).map((_, i) => ({
+    label: i === 0 ? 'N' : String(i),
+    value: i === 0 ? 'N' : String(i)
+  }));
+
+  vendorDateRange: Date[] | null = null;
+  vendorBillingHistory: any[] = [];
 
 
 
   constructor(
-    private accountingService: AccountingService,
-    private confirmationService: ConfirmationService
+    private accounting: AccountingService,
+    private confirm: ConfirmationService,
+    private toast: MessageService,
+    private sanitizer: DomSanitizer
   ) { }
 
+
+
   ngOnInit(): void {
-    this.loadBilling();
+    this.loadVendorBillingHistory();
+
   }
 
-  loadBilling(): void {
-    this.loading = true;
-    this.accountingService.getVendorBilling().subscribe({
-      next: data => this.billing = data,
-      complete: () => this.loading = false
+  loadVendorBillingHistory() {
+    this.accounting
+      .getVendorBillingHistory()
+      .subscribe(res => this.vendorBillingHistory = res);
+
+  }
+
+
+  openInvoicePreview(invoiceNumber: string) {
+    // TODO: reuse credits preview logic
+    console.log('Open invoice preview:', invoiceNumber);
+  }
+
+
+
+  /* =========================
+     QUEUE + DUPES
+     ========================= */
+
+  private billingKey(row: VendorBillingForm): string {
+    return [
+      row.vendorID.trim().toLowerCase(),
+      row.proID.trim().toLowerCase(),
+      (row.vendorInv || '').trim().toLowerCase(),
+      (row.po || '').trim().toLowerCase(),
+      Number(row.amount).toFixed(2)
+    ].join('|');
+  }
+
+
+  searchVendor(event: any) {
+    const term = event.query;
+
+    this.accounting.searchVendor(term).subscribe(res => {
+      this.vendorResults = res.map((v: any) => {
+        const id = String(v.vendorId);
+        const name = v.name ?? '';
+
+        return {
+          label: `${id} – ${name}`,          // 👀 display
+          value: v.vendorId,                 // ✅ stored
+          searchText: `${id} ${name}`.toLowerCase(), // 🔍 searchable
+          raw: v
+        };
+      });
     });
   }
 
-  reload(): void {
-    this.loadBilling();
+
+  onVendorSelect(event: any) {
+    const selected = event.value;
+
+    // Always store as string if your form expects it
+    this.form.vendorID = String(selected.value);
+
+    // Optional auto-fill from vendor record
+    if (selected.raw?.BillingTerms) {
+      this.form.terms = selected.raw.BillingTerms;
+    }
+
+    if (selected.raw?.Address) {
+      // future: vendor learning hook
+    }
   }
 
-  submit(): void {
-    console.log('Submit clicked', this.form);
+  getDuplicateKeys(): Set<string> {
+    const seen = new Set<string>();
+    const dupes = new Set<string>();
+
+    for (const row of this.queue) {
+      const key = this.billingKey(row);
+      if (seen.has(key)) dupes.add(key);
+      else seen.add(key);
+    }
+    return dupes;
   }
 
-
-  onFileSelect(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (!input.files) return;
-
-    this.handleFiles(input.files);
-  }
-
-
-  onDragOver(event: DragEvent) {
-    event.preventDefault();
-  }
-
-
-
-  DragOver(event: DragEvent) {
-    event.preventDefault();
-    this.dragActive = true;
-  }
-
-  onDragLeave() {
-    this.dragActive = false;
-  }
-
-
-  onDrop(event: DragEvent): void {
-    event.preventDefault();
-    if (!event.dataTransfer?.files) return;
-
-    this.handleFiles(event.dataTransfer.files);
+  isDuplicate(row: VendorBillingForm): boolean {
+    return this.getDuplicateKeys().has(this.billingKey(row));
   }
 
 
-  private handleFiles(fileList: FileList): void {
-    this.accountingService.uploadFiles(fileList).subscribe(results => {
 
-      const uploaded: UploadedFile[] = results.map(r => ({
-        fileId: r.fileId,
-        originalName: r.originalName
+  onMemberSelect(event: any): void {
+    this.form.proID = String(event.value.value ?? event.value);
+  }
+
+
+
+  searchMember(event: any) {
+    const term = event.query;
+
+    this.accounting.searchMember(term).subscribe(res => {
+      this.memberResults = res.map((m: any) => ({
+        label: `${m.id} - ${m.hname}`,
+        value: m.id
+      }));
+    });
+  }
+
+
+
+  private prefillMemberFromCompany(company: string) {
+    if (!company || company.length < 3) return;
+
+    this.accounting.searchMember(company).subscribe(res => {
+      this.memberResults = res.map((m: any) => ({
+        label: `${m.id} - ${m.hname}`,
+        value: m.id
       }));
 
-      this.form = {
-        ...this.form,
-        files: [...this.form.files, ...uploaded]
-      };
+      // ✅ Auto-select ONLY when unambiguous
+      if (this.memberResults.length === 1) {
+        this.selectedMember = this.memberResults[0];
+        this.form.proID = this.memberResults[0].value;
+      }
     });
   }
 
-  openFile(file: UploadedFile): void {
-    window.open(
-      `/api/accounting/files/${file.fileId}`,
-      '_blank'
-    );
-  }
 
+  onInvoiceDrop(file: File) {
+    this.accounting.extractInvoicePreview(file)
+      .subscribe(preview => {
 
+        this.form.extractionPreview = preview; // 🔥 move it here
 
-  submitBatch() {
-    const payload = {
-      orderDetails: this.queue.map(row => ({
-        ...row,
-        fileIds: row.files.map(f => f.fileId)
-      }))
-    };
+        this.form.vendorInv = preview.invoiceNumber ?? '';
+        this.form.po = preview.poNumber ?? '';
+        this.form.billDate = preview.invoiceDate
+          ? new Date(preview.invoiceDate)
+          : null;
+        this.form.amount = preview.totalAmount ?? 0;
 
-    this.accountingService
-      .saveVendorBilling(payload)
-      .subscribe(() => {
-        this.queue = [];
+        if (preview.shippingCompany) {
+          this.prefillMemberFromCompany(preview.shippingCompany);
+        }
       });
   }
 
 
-  uploadFile(file: File) {
-    const fd = new FormData();
-    fd.append('file', file);
 
 
+
+  openPreview(file: UploadedFile): void {
+    this.accounting.getFilePreview(file.fileId)
+      .subscribe(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+
+        this.previewFile = {
+          ...file,
+          safeSrc: this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl)
+        };
+
+        this.previewVisible = true;
+      });
   }
 
+  closePreview(): void {
+    this.previewVisible = false;
+    this.previewFile = null;
+  }
 
+  get queuedTotal(): number {
+    return this.queue.reduce((s, q) => s + (q.amount || 0), 0);
+  }
 
-  addToQueue() {
-    this.queue.push({
+  /* =========================
+     FORM
+     ========================= */
+
+  addToQueue(): void {
+    console.log('ADD TO QUEUE CLICKED', this.form);
+
+    if (!this.validate()) return;
+
+    const snapshot: VendorBillingForm = {
       ...this.form,
-      files: [...this.form.files] // clone
+      files: [...this.form.files],
+      extractionPreview: this.form.extractionPreview ?? null
+    };
+
+    this.queue = [...this.queue, snapshot];
+
+    console.log('QUEUE AFTER PUSH', this.queue);
+
+    this.form = this.emptyForm();
+  }
+
+
+
+
+
+  removeFromQueue(i: number): void {
+    this.queue = this.queue.filter((_, idx) => idx !== i);
+  }
+
+  validate(): boolean {
+    console.log('VALIDATE FORM', this.form);
+
+    if (!this.form.vendorID) return this.warn('Vendor required');
+    if (!this.form.proID) return this.warn('Member required');
+
+    // 🔥 THIS IS THE FIX
+    if (this.form.amount === null || Number.isNaN(this.form.amount)) {
+      return this.warn('Amount required');
+    }
+
+    return true;
+  }
+
+  private warn(msg: string): false {
+    this.toast.add({
+      severity: 'warn',
+      summary: 'Missing Data',
+      detail: msg
     });
-
-    this.resetForm();
-  }
-
-  removeFile(index: number) {
-    this.form.files.splice(index, 1);
+    return false;
   }
 
 
-  resetForm() {
-    this.form = {
+
+
+  /* =========================
+     FILE HANDLING
+     ========================= */
+
+  onDragOver(e: DragEvent) {
+    e.preventDefault();
+    this.dragActive = true;
+  }
+  onDrop(e: DragEvent) {
+    e.preventDefault();
+    this.dragActive = false;
+
+    const files = e.dataTransfer?.files;
+    if (!files || !files.length) return;
+
+    const pdfs = Array.from(files).filter(
+      f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+    );
+
+    if (!pdfs.length) {
+      this.toast.add({
+        severity: 'warn',
+        summary: 'Invalid Files',
+        detail: 'Only PDF files are allowed.'
+      });
+      return;
+    }
+
+    // 🔥 STEP 1: extract from FIRST PDF
+    this.onInvoiceDrop(pdfs[0]);
+
+    // 🔥 STEP 2: upload & attach ALL PDFs
+    this.uploadFiles(pdfs as any);
+  }
+
+
+  onFileSelect(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (input.files) {
+      this.uploadFiles(input.files);
+      input.value = '';
+    }
+  }
+
+
+  get confidenceLevel(): 'high' | 'medium' | 'low' {
+    if (this.extractionConfidence >= 80) return 'high';
+    if (this.extractionConfidence >= 50) return 'medium';
+    return 'low';
+  }
+
+
+
+  uploadFiles(files: FileList) {
+    const pdfs = Array.from(files).filter(
+      f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+    );
+
+    if (!pdfs.length) {
+      this.toast.add({
+        severity: 'warn',
+        summary: 'Invalid Files',
+        detail: 'Only PDF files are allowed.'
+      });
+      return;
+    }
+
+    this.accounting.uploadFiles(pdfs as any).subscribe(res => {
+      const uploaded = res.map(r => ({
+        fileId: r.fileId,
+        originalName: r.originalName
+      }));
+
+      this.form.files = [...this.form.files, ...uploaded];
+    });
+  }
+
+  removeFile(i: number) {
+    this.form.files.splice(i, 1);
+  }
+
+
+
+  /* =========================
+     SUBMIT
+     ========================= */
+
+  submitBatch(): void {
+    if (!this.queue.length) return;
+
+    this.confirm.confirm({
+      header: 'Apply Vendor Billing',
+      message: `Apply ${this.queue.length} billing entries?`,
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => this.executeSubmit()
+    });
+  }
+
+  executeSubmit(): void {
+    this.isSubmitting = true;
+
+    const payload = {
+      orderDetails: this.queue.map(row => ({
+        VendorID: row.vendorID,
+        ProID: row.proID,
+        BillDate: row.billDate?.toISOString(),
+
+        Terms: row.terms,
+        FutureBilling: row.futureBilling,
+
+        VendorInv: row.vendorInv,
+        VendInvDate: row.vendInvDate,
+        VendorDueDate: row.vendorDueDate,
+
+        PO: row.po || 'N/A',
+        Amount: row.amount,
+        Discount: row.discount,
+
+        EZPay: row.ezPay,
+        Description: row.description,
+
+        FileIds: row.files.map(f => f.fileId),
+
+        // 🔥 ADD THIS
+        ExtractionPreview: row.extractionPreview
+      }))
+    };
+
+    this.accounting.saveVendorBilling(payload).subscribe({
+      next: () => {
+        this.queue = [];
+        this.extractionPreview = null; // reset
+        this.toast.add({
+          severity: 'success',
+          summary: 'Billing Applied',
+          detail: 'Vendor billing batch processed successfully.'
+        });
+      },
+      error: err => {
+        this.toast.add({
+          severity: 'error',
+          summary: 'Billing Failed',
+          detail: err?.error || 'Vendor billing failed.'
+        });
+      },
+      complete: () => (this.isSubmitting = false)
+    });
+  }
+
+
+  emptyForm(): VendorBillingForm {
+    return {
       vendorID: '',
       proID: '',
-      orderDates: null,
+      billDate: new Date(),
+
+      terms: '',
+      futureBilling: 'N',
+
+      vendorInv: '',
       vendInvDate: null,
       vendorDueDate: null,
-      terms: '',
-      futureBilling: '',
-      vendorInv: '',
+
       po: '',
       amount: 0,
       discount: 0,
-      ezPay: false,
-      descriptions: '',
-      files: []
+
+      ezPay: true,
+      description: '',
+
+      files: [],
+
+      extractionPreview: null
     };
-
-  }
-
-
-
-  removeFromQueue(index: number) {
-    this.queue.splice(index, 1);
-  }
-
-
-
-
-  submitBilling(payload: any): void {
-    this.accountingService.saveVendorBilling(payload).subscribe(() => {
-      this.reload();
-    });
   }
 }

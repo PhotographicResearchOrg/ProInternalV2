@@ -2,49 +2,72 @@
   display: block;
 }
 
+/* =========================
+   CARD BASE
+   ========================= */
 .card {
   border-radius: 12px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+  background: #ffffff;
 }
 
-.header-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
+/* =========================
+   HEADERS
+   ========================= */
 .section-title {
-  margin-bottom: 1rem;
+  font-size: 1.05rem;
   font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
 }
 
-.form-grid label {
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-  display: block;
+/* =========================
+   FORM FIELDS
+   ========================= */
+.field {
+  margin-bottom: 0.75rem;
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #374151;
+    display: block;
+    margin-bottom: 0.25rem;
+  }
 }
 
-.upload-wrapper {
-  margin-top: 1.5rem;
-}
-
-.upload-area {
-  border: 2px dashed #d1d5db;
+/* =========================
+   FILE UPLOAD (MATCH CREDITS)
+   ========================= */
+.upload-box {
+  border: 2px dashed var(--surface-border);
+  padding: 1rem;
   border-radius: 8px;
-  padding: 1.5rem;
   text-align: center;
   transition: all 0.2s ease;
-  cursor: pointer;
-}
 
-  .upload-area.dragging {
-    border-color: #6366f1;
-    background: #eef2ff;
+  &.drag-active {
+    border-color: var(--primary-color);
+    background: rgba(255, 209, 0, 0.08);
   }
 
+  &.has-files {
+    border-color: var(--green-500);
+    background: rgba(0, 200, 83, 0.06);
+  }
+
+  .hint {
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+}
+
+/* =========================
+   FILE PREVIEW
+   ========================= */
 .file-preview {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
@@ -53,12 +76,91 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #f3f4f6;
-  border-radius: 999px;
-  padding: 0.25rem 0.75rem;
+  padding: 0.4rem 0.6rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
 }
 
-.actions {
-  margin-top: 1.5rem;
-  text-align: right;
+.file-link {
+  cursor: pointer;
+  color: var(--primary-color);
+  text-decoration: underline;
+  font-weight: 500;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+/* =========================
+   QUEUE TOTAL BAR
+   ========================= */
+.queue-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 15px;
+
+  .label {
+    color: #374151;
+  }
+
+  .amount {
+    font-weight: 600;
+    color: #111827;
+  }
+}
+
+/* =========================
+   DUPLICATE WARNING ROW
+   ========================= */
+.duplicate-row {
+  background-color: #fff7e6; // soft amber
+}
+
+  .duplicate-row td {
+    border-top: 1px solid #f59e0b;
+  }
+
+/* =========================
+   TABLE TWEAKS
+   ========================= */
+p-table {
+  font-size: 0.9rem;
+}
+
+/* =========================
+   BUTTON ALIGNMENT
+   ========================= */
+.actions,
+.text-right {
+  margin-top: 1rem;
+}
+
+/* =========================
+   MOBILE SAFETY
+   ========================= */
+@media (max-width: 640px) {
+  .queue-total {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}
+.field.missing {
+  border-left: 3px solid #f59e0b; // amber
+  padding-left: .5rem;
+}
+
+.required-hint {
+  color: #f59e0b;
+  font-size: .75rem;
+  margin-left: .5rem;
 }

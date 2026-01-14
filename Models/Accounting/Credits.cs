@@ -74,26 +74,6 @@ namespace ProInternal.Models.Accounting
 
 
 
-    public class VendorBillingRequestDto
-    {
-
-        public string VendorInv { get; set; }         // 🔑 FIX #1
-        public DateTime? VendInvDate { get; set; }    // 🔑 FIX #2
-
-        public string VendorID { get; set; }
-        public string ProID { get; set; }
-        public decimal Amount { get; set; }
-        public DateTime OrderDate { get; set; }
-        public string Terms { get; set; }
-        public string FutureBilling { get; set; }
-        public string VendorInvoice { get; set; }
-        public DateTime? VendorInvoiceDate { get; set; }
-        public DateTime? VendorDueDate { get; set; }
-        public decimal Discount { get; set; }
-        public string PO { get; set; }
-        public List<string> FileNames { get; set; } = new();
-        public string Description { get; set; }
-    }
 
 
     public class InvoiceEmailRequest
@@ -159,6 +139,14 @@ namespace ProInternal.Models.Accounting
     {
         public string ID { get; set; }     // APMST.ID
         public string NAME { get; set; }   // APMST.NAME
+        public int VendorId { get; set; }
+        public string? Address { get; set; }
+        public string? City { get; set; }
+        public string? State { get; set; }
+        public string? Zip { get; set; }
+        public string? Phone { get; set; }
+        public string? Website { get; set; }
+
     }
 
 }

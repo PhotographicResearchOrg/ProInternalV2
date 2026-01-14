@@ -8,6 +8,8 @@ export interface APEntry {
 
 
 
+
+
 export interface CreditRequestDto {
   ProID: string;
   Amount: number;
@@ -88,4 +90,17 @@ export interface VendorBillingLineItem {
   description: string;
 
   files: UploadedFile[]; // 🔥 multiple files
+}
+export interface InvoiceExtractionPreview {
+  rawText: string;
+  shippingCompany?: string;
+  invoiceNumber?: string;
+  poNumber?: string;
+  invoiceDate?: string;   // ISO string
+  dueDate?: string;       // ISO string
+  orderDate?: string;     // ISO string;
+  totalAmount?: number;
+
+  confidence: number;
+  missingFields: string[];
 }

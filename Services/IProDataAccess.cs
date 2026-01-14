@@ -47,7 +47,7 @@ namespace ProInternal.Services
 
         // --- Credits ---
         int InsertAccountingCredit(CreditRequestDto request);
-        int InsertVendorBilling(VendorBillingRequestDto request);
+
 
 
         void MarkCreditSuccess(int creditId, string invoiceNumber);
@@ -55,12 +55,19 @@ namespace ProInternal.Services
 
 
 
-        // --- Vendor Billing ---
-  
-        void MarkVendorBillingSuccess(int billingId, string invoiceNumber);
-        void MarkVendorBillingFailed(int billingId, string error);
+        IEnumerable<VendorInvoiceLearningDto> GetVendorInvoiceLearning(int vendorId);
+
+        void TouchVendorInvoiceLearning(int id);
+
+        void UpsertVendorInvoiceLearning(VendorInvoiceLearningDto dto);
 
 
+
+
+        IEnumerable<VendorLookupDto> SearchVendors(string term);
+
+
+        IEnumerable<AccountingCreditDto> GetVendorBillingHistory();
         // --- Accounting (GETs) ---
         IEnumerable<AccountingCreditDto> GetCredits();
         IEnumerable<AccountingCreditDto> GetVendorBilling();
@@ -69,6 +76,7 @@ namespace ProInternal.Services
         IEnumerable<VendorLookupDto> SearchVendor(string term, string type);
 
 
+       
 
 
 

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs'
 import { ApiService } from "./api.service";
-import {  UploadedFile, CreditBatchRequestDto } from 'src/app/models/accounting/accounting-credit'
+import { UploadedFile, CreditBatchRequestDto, InvoiceExtractionPreview } from 'src/app/models/accounting/accounting-credit'
 
 
 
@@ -64,9 +64,10 @@ export class AccountingService {
   // =========================
   // Vendor Billing
   // =========================
-
-  getVendorBilling(): Observable<any[]> {
-    return this.api.get<any[]>('API/Accounting/vendor-billing');
+  getVendorBillingHistory(): Observable<any[]> {
+    return this.api.get<any[]>(
+      'API/vendor-billing/history'
+    );
   }
 
   saveVendorBilling(payload: any): Observable<any> {
@@ -76,8 +77,35 @@ export class AccountingService {
 
 
   // =========================
+  // Invoice Extraction (Preview)
+  // =========================
+  extractInvoicePreview(file: File): Observable<InvoiceExtractionPreview> {
+    const fd = new FormData();
+    fd.append('file', file, file.name); // MUST be 'file'
+
+    return this.api.postMultipartJson<InvoiceExtractionPreview>(
+      'API/vendor-billing/extract-preview',
+      fd
+    );
+  }
+
+
+  // =========================
   // Lookups
   // =========================
+
+
+
+
+
+
+
+  searchVendor(term: string): Observable<any[]> {
+    return this.api.get<any[]>(
+      `API/vendor-billing/search/vendor?term=${encodeURIComponent(term)}`
+    );
+  }
+
 
   searchMember(term: string): Observable<any[]> {
     return this.api.get<any[]>(
@@ -85,9 +113,6 @@ export class AccountingService {
     );
   }
 
-  searchVendor(term: string, type: string): Observable<any[]> {
-    return this.api.get<any[]>(
-      `API/Accounting/search/vendor?term=${encodeURIComponent(term)}&type=${encodeURIComponent(type)}`
-    );
-  }
 }
+
+

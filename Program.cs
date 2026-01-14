@@ -50,7 +50,7 @@ builder.Services.AddScoped<IDRADataAccess>(provider => new DRADataAccess(builder
 builder.Services.AddScoped<INukeDataAccess>(provider => new NukeDataAccess(builder.Configuration.GetConnectionString("NukeConnectionString")));
 builder.Services.AddScoped<IEDADataAccess>(provider => new EDADataAccess(builder.Configuration.GetConnectionString("EDAConnectionString")));
 
-
+builder.Services.AddScoped<IInvoiceExtractionService, InvoiceExtractionService>();
 
 
 builder.Services.AddHttpClient<IUvicornDataAccess, UvicornDataAccess>(c =>

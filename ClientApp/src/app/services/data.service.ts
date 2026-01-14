@@ -72,9 +72,6 @@ export class DataService {
     });
   }
 
-  //commitIR(body: { previewIds: number[]; dryRun?: boolean; overwriteDuplicates?: boolean; }) {
-  //  return this.api.post<CommitResult>('api/RebateIr/commit', body);
-  //}
 
   commitIR(payload: CommitRequest) {
     return this.api.post<CommitResult>('api/RebateIr/commit', payload);
@@ -84,14 +81,6 @@ export class DataService {
   getAllMapViolations(): Observable<MapViolation[]> {
     return this.api.get<MapViolation[]>('API/Product/mapviolations');
   }
-
-  //// data.service.ts
-  //submitMapViolation(violation: MapViolation): Observable<MapViolation[]> {
-  //  return this.api.post<MapViolation[]>(`API/Product/submitMapViolation`, violation);
-  //}
-
-
-
 
   private readonly productBase = 'API/Product';
   // Product edit
