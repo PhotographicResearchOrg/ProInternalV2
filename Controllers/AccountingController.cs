@@ -295,10 +295,31 @@ namespace ProInternal.Controllers
                 });
             }
         }
+
+   
+
+
         private async Task<(bool Success, string InvoiceNumber, string Error)> PostCreditToApi(int creditId, CreditRequestDto request)
         {
             try
             {
+
+
+                string vendInv;
+
+                if (!string.IsNullOrWhiteSpace(request.VendorInvoice))
+                {
+                    vendInv = request.EZPay
+                        ? $"NMC{request.VendorInvoice}"
+                        : request.VendorInvoice;
+                }
+                else
+                {
+                    vendInv = request.EZPay
+                        ? "NMCNoINV"
+                        : "";
+                }
+
                 var payload = new Dictionary<string, string>
                 {
                     ["apiid"] = creditId.ToString(),
@@ -307,7 +328,7 @@ namespace ProInternal.Controllers
                     ["quan"] = "0",
                     ["po"] = string.IsNullOrWhiteSpace(request.PO) ? "N/A": request.PO,
                     ["amount"] = request.Amount.ToString("0.00"),
-                    ["vendinv"] = string.IsNullOrWhiteSpace(request.VendorInvoice)? "": request.VendorInvoice
+                    ["vendinv"] = vendInv
                 };
 
 

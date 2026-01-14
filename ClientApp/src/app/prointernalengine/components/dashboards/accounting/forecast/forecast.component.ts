@@ -156,6 +156,7 @@ export class ForecastComponent implements OnInit {
       )
       : this.useRollingForecast
         ? this.invoiceData.filter(inv =>
+          inv.billDate >= collectionStart &&
           inv.billDate <= collectionEnd
         )
         : this.invoiceData.filter(inv =>
@@ -240,13 +241,19 @@ export class ForecastComponent implements OnInit {
 
 
       }
+
       if (this.showBehavioralForecast && !inv.paidDate) {
         map[inv.account].totalOutstanding += inv.amount;
       } else if (!this.showBehavioralForecast) {
         map[inv.account].totalOutstanding += inv.amount;
       }
 
-      map[inv.account].forecastedAmount += inv.amount * effectiveProbability;
+      if (this.useRollingForecast) {
+        // Rolling mode: ALWAYS include rows, scale later
+        map[inv.account].forecastedAmount += inv.amount * Math.max(effectiveProbability, 0.0001);
+      } else {
+        map[inv.account].forecastedAmount += inv.amount * effectiveProbability;
+      }
 
 
         // For actuals comparison

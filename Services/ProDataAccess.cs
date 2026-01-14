@@ -235,7 +235,7 @@ namespace ProInternal.Services
                     FileName = string.Join(",", dto.FileNames),
 
                     // SP expects CHAR(1)
-                    ApplyEZPay = dto.EZPay ? "Y" : "N",
+                    ApplyEZPay = dto.EZPay ? "1" : "2",
 
                     PO = dto.PO ?? "",
                     VendorPO = dto.VendorInvoice ?? "",
