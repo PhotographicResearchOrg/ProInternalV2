@@ -83,11 +83,11 @@ namespace ProInternal.Models.Accounting
 
         public int  Module { get; set; } = 1;
 
-        public string VendorID { get; set; }
+        public string? VendorID { get; set; }
 
         public DateTime? BillDate { get; set; }
-        public string Terms { get; set; }
-        public string FutureBilling { get; set; }
+        public string? Terms { get; set; }
+        public string? FutureBilling { get; set; }
 
         public DateTime? VendInvDate { get; set; }
         public DateTime? VendorDueDate { get; set; }
