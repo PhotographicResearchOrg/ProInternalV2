@@ -26,6 +26,11 @@ export class AccountingService {
     );
   }
 
+  getVendorById(id: number): Observable<any> {
+    return this.api.get<any>(`API/Accounting/vendor/${id}`);
+  }
+
+
 
   //invoice/preview/
   getInvoicePdf(invoiceNumber: string): Observable<Blob> {

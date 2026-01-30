@@ -2,7 +2,8 @@
 {
     public class DeclinedIR
     {
-        
+
+        public string productCode { get; set; }
         public string stringprogramweek { get; set; }
         public int OrderID { get; set; }
         public int Status { get; set; }

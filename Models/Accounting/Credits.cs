@@ -4,6 +4,10 @@ namespace ProInternal.Models.Accounting
 {
 
 
+
+
+
+
     public class MemberDto
     {
         public string Account { get; set; } = "";
@@ -35,6 +39,11 @@ namespace ProInternal.Models.Accounting
     }
 
 
+    public enum CreditSource
+    {
+        Standard = 1,
+        VendorBilling = 2
+    }
 
     public class CreditBatchRequestDto
     {
@@ -42,8 +51,11 @@ namespace ProInternal.Models.Accounting
     }
 
 
-    public class CreditRequestDto
+    public class CreditRequestDto   
+
     {
+
+        public CreditSource Source { get; set; } = CreditSource.Standard;
         // Set in controller, NOT from UI
         public int BatchID { get; set; }
 
@@ -56,7 +68,7 @@ namespace ProInternal.Models.Accounting
         // Required
         public string ProID { get; set; }
         public decimal Amount { get; set; }
-        public DateTime OrderDate { get; set; }
+        public DateTime? OrderDate { get; set; }
         public string Description { get; set; } = null!;
 
         // Optional
@@ -70,6 +82,18 @@ namespace ProInternal.Models.Accounting
         public bool EZPay { get; set; }
 
         public int  Module { get; set; } = 1;
+
+        public string VendorID { get; set; }
+
+        public DateTime? BillDate { get; set; }
+        public string Terms { get; set; }
+        public string FutureBilling { get; set; }
+
+        public DateTime? VendInvDate { get; set; }
+        public DateTime? VendorDueDate { get; set; }
+
+        public decimal Discount { get; set; }
+
     }
 
 
@@ -139,7 +163,7 @@ namespace ProInternal.Models.Accounting
     {
         public string ID { get; set; }     // APMST.ID
         public string NAME { get; set; }   // APMST.NAME
-        public int VendorId { get; set; }
+        public string VendorId { get; set; }
         public string? Address { get; set; }
         public string? City { get; set; }
         public string? State { get; set; }

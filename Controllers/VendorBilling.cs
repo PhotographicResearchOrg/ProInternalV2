@@ -8,15 +8,19 @@ public class VendorBillingController : ControllerBase
 {
     private readonly IInvoiceExtractionService _extractor;
     private IProDataAccess _proDataAccess;
+    private IUvicornDataAccess _Uvicorn;
 
     public VendorBillingController(
         IInvoiceExtractionService extractor,
         IProDataAccess proDataAccess,
         IDRADataAccess dradataAccess,
-        IEDADataAccess edadataAccess)
+        IEDADataAccess edadataAccess,
+        IUvicornDataAccess uvicornDataAccess
+        )
     {
         _extractor = extractor;
-        _proDataAccess = proDataAccess; ;
+        _proDataAccess = proDataAccess; 
+        _Uvicorn = uvicornDataAccess;
     }
 
     
@@ -59,8 +63,11 @@ public class VendorBillingController : ControllerBase
         if (file == null)
             return BadRequest("PDF required");
 
-        var dto = await _extractor.ExtractPreviewAsync(file);
+        //var dto = await _extractor.ExtractPreviewAsync(file);
 
+        // 🔥 This already calls Python via uvicorn
+       // var dto = await _Uvicorn.ExtractInvoicePreviewAsync(file);
+        var dto = await _extractor.ExtractPreviewAsync(file);
         if (vendorId.HasValue)
         {
             dto = _extractor.ApplyVendorLearning(

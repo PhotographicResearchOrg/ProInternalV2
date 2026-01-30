@@ -87,6 +87,7 @@
                 <ng-template pTemplate="header">
                   <tr>
                     <th>Model</th>
+                    <th>Prod Code</th>
                     <th>Cost</th>
                     <th>Units</th>
                   </tr>
@@ -95,6 +96,7 @@
 
                   <tr>
                     <td><i class="pi pi-box mr-2 text-gray-600"></i>{{ detail.model }}</td>
+                    <td>{{ detail.productCode }}</td>
                     <td>{{ detail.unitCost }}</td>
                     <td>{{ detail.quantity }}</td>
                   </tr>

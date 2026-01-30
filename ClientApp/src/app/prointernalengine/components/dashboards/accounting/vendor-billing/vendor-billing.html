@@ -49,19 +49,31 @@
         </div>
 
         <div class="col-12 md:col-4 field">
-          <label>Bill Date *</label>
-          <p-calendar [(ngModel)]="form.billDate" class="w-full"></p-calendar>
+          <!--<label>Bill Date *</label>
+          <p-calendar [(ngModel)]="form.billDate" dateFormat="mm/dd/yy" [showIcon]="true" class="w-full"> </p-calendar>-->
+
+          <label>Vendor Invoice Date</label>
+          <p-calendar [(ngModel)]="form.vendInvDate" dateFormat="mm/dd/yy" [showIcon]="true" class="w-full"> </p-calendar>
+
+
+          <label>Vendor Due Date</label>
+          <p-calendar [(ngModel)]="form.vendorDueDate" dateFormat="mm/dd/yy" [showIcon]="true" class="w-full">
+          </p-calendar>
+
+          <!--<label>Order Date</label>
+          <p-calendar [(ngModel)]="form.orderDate" dateFormat="mm/dd/yy" [showIcon]="true" class="w-full">
+          </p-calendar>-->
         </div>
 
-        <div class="col-12 md:col-3 field">
+        <!--<div class="col-12 md:col-3 field">
           <label>Terms</label>
           <p-dropdown [options]="termsOptions" [(ngModel)]="form.terms" class="w-full"></p-dropdown>
-        </div>
+        </div>-->
 
-        <div class="col-12 md:col-3 field">
+        <!--<div class="col-12 md:col-3 field">
           <label>Future Billing</label>
           <p-dropdown [options]="futureBillingOptions" [(ngModel)]="form.futureBilling" class="w-full"></p-dropdown>
-        </div>
+        </div>-->
 
         <div class="col-12 md:col-3 field">
           <label>Vendor Invoice</label>
@@ -78,15 +90,15 @@
           <p-inputNumber [(ngModel)]="form.amount" mode="decimal" class="w-full"></p-inputNumber>
         </div>
 
-        <div class="col-12 md:col-3 field">
+        <!--<div class="col-12 md:col-3 field">
           <label>Discount %</label>
           <p-inputNumber [(ngModel)]="form.discount" class="w-full"></p-inputNumber>
-        </div>
+        </div>-->
 
-        <div class="col-12 md:col-3 field flex align-items-center gap-2">
+        <!--<div class="col-12 md:col-3 field flex align-items-center gap-2">
           <label>EZPay</label>
           <p-inputSwitch [(ngModel)]="form.ezPay"></p-inputSwitch>
-        </div>
+        </div>-->
 
         <div class="col-12 field">
           <label>Description *</label>

@@ -48,6 +48,23 @@ namespace ProInternal.Services
         }
 
 
+
+        public VendorDto? GetVendorById(int vendorId)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.QueryFirstOrDefault<VendorDto>(@"
+        SELECT
+            VendorId,
+            Name,
+            BillingTerms,
+            Address
+        FROM Vendor
+        WHERE VendorId = @vendorId
+    ", new { vendorId });
+        }
+
+
         // --------------------------------------------------
         // UPSERT FILE (DEDUP SAFE)
         // --------------------------------------------------
@@ -232,7 +249,7 @@ namespace ProInternal.Services
 
                     // 🔥 FLATTEN FILE LIST → SINGLE VALUE
                     FileName = string.Join(",", dto.FileNames),
-
+                    
                     // SP expects CHAR(1)
                     ApplyEZPay = dto.EZPay ? "1" : "2",
 
@@ -241,12 +258,14 @@ namespace ProInternal.Services
                     UserEntered = "SYSTEM",
 
                     // Optional SP params
-                    VendorID = (int?)null,
+                    VendorID = dto.VendorID,
                     Terms = (string?)null,
                     FutureBilling = (string?)null,
                     VendorInv = dto.VendorInvoice,
-                    VendInvDate = (DateTime?)null,
-                    VendorDueDate = (DateTime?)null,
+                    VendInvDate = dto.VendInvDate,
+                    VendorDueDate = dto.VendorDueDate,
+
+
                     Discount = (decimal?)null
                 },
                 commandType: CommandType.StoredProcedure
@@ -398,6 +417,53 @@ namespace ProInternal.Services
             );
         }
 
+        public VendorMatchDto? FindVendorByName(string name)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.QueryFirstOrDefault<VendorMatchDto>(
+                "Vendor_FindByName",
+                new { Name = name },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public VendorMatchDto? FindVendorByAddress(string rawText)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.QueryFirstOrDefault<VendorMatchDto>(
+                "Vendor_FindByAddress",
+                new { RawText = rawText },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+        public MemberMatchDto? FindMemberByName(string name)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.QueryFirstOrDefault<MemberMatchDto>(
+                "Member_FindByName",
+                new { Name = name },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public MemberMatchDto? FindMemberByAddress(string rawText)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.QueryFirstOrDefault<MemberMatchDto>(
+                "Member_FindByAddress",
+                new { RawText = rawText },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+
 
         public void TouchVendorInvoiceLearning(int id)
         {
@@ -410,23 +476,23 @@ namespace ProInternal.Services
             );
         }
 
-        public void UpsertVendorInvoiceLearning(
-    VendorInvoiceLearningDto dto)
+        public void UpsertVendorInvoiceLearning(VendorInvoiceLearningDto dto)
         {
-            using var conn = new SqlConnection(_connectionString);
-
-            conn.Execute(
+            using var db = new SqlConnection(_connectionString);
+            db.Execute(
                 "VendorInvoiceLearning_Upsert",
                 new
                 {
                     dto.VendorId,
                     dto.FieldName,
                     dto.Strategy,
-                    dto.Pattern
+                    dto.Pattern,
+                    dto.ResolvedValue   // 🔥 THIS WAS MISSING
                 },
                 commandType: CommandType.StoredProcedure
             );
         }
+
 
 
 
@@ -905,15 +971,7 @@ namespace ProInternal.Services
             }
         }
 
-        //public void SaveUserExtraPermission(int userId, string permission)
-        //{
-        //    using (var connection = new SqlConnection(_connectionString))
-        //    {
-
-        //        connection.Execute("PIV2SetUserExtraPermissions", new { UserId = userId, Permission = permission }, commandType: CommandType.StoredProcedure);
-        //    }
-        //}
-
+        
         public void SaveUserExtraPermission(int userId, List<string> permissions)
         {
             using var conn = new SqlConnection(_connectionString);

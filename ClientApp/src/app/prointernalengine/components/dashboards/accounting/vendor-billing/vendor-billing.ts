@@ -4,33 +4,23 @@ import { AccountingService } from 'src/app/services/AccountingService';
 import { UploadedFile, InvoiceExtractionPreview } from 'src/app/models/accounting/accounting-credit';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
-
 export interface VendorBillingForm {
   vendorID: string;
   proID: string;
-
   billDate: Date | null;
-
   terms: string;
   futureBilling: string;
-
   vendorInv: string;
   vendInvDate: Date | null;
   vendorDueDate: Date | null;
-
+  orderDate: Date | null;
   po: string;
   amount: number;
   discount: number;
-
   ezPay: boolean;
   description: string;
-
   files: UploadedFile[];
-
   extractionPreview?: InvoiceExtractionPreview | null;
-
-
-
 }
 
 @Component({
@@ -210,8 +200,10 @@ export class VendorBillingComponent {
     this.accounting.extractInvoicePreview(file)
       .subscribe(preview => {
 
-        this.form.extractionPreview = preview; // 🔥 move it here
+        // Store preview
+        this.form.extractionPreview = preview;
 
+        // Populate basic fields
         this.form.vendorInv = preview.invoiceNumber ?? '';
         this.form.po = preview.poNumber ?? '';
         this.form.billDate = preview.invoiceDate
@@ -219,11 +211,61 @@ export class VendorBillingComponent {
           : null;
         this.form.amount = preview.totalAmount ?? 0;
 
-        if (preview.shippingCompany) {
+        // -----------------------------
+        // AUTO-SELECT VENDOR (by ID)
+        // -----------------------------
+        if (preview.suggestedVendorId) {
+          this.accounting.getVendorById(preview.suggestedVendorId)
+            .subscribe(v => {
+
+              const vendorOption = {
+                label: `${v.vendorId} – ${v.name}`,
+                value: v.vendorId,
+                raw: v
+              };
+
+              // 🔑 PrimeNG contract (non-negotiable)
+              this.vendorResults = [vendorOption];
+              this.selectedVendor = vendorOption;
+
+              // 🔑 Form value
+              this.form.vendorID = String(v.vendorId);
+            });
+        }
+        // -----------------------------
+        // AUTO-SELECT MEMBER (by ID)
+        // -----------------------------
+        if (preview.suggestedMemberId) {
+          this.accounting.searchMember(String(preview.suggestedMemberId))
+            .subscribe(res => {
+              this.memberResults = res.map((m: any) => ({
+                label: `${m.id} - ${m.hname}`,
+                value: m.id
+              }));
+
+              const match = this.memberResults.find(
+                m => String(m.value) === String(preview.suggestedMemberId)
+              );
+
+              if (match) {
+                this.selectedMember = match;
+                this.form.proID = String(match.value);
+              }
+            });
+        }
+
+        // -----------------------------
+        // FALLBACK: Shipping Company
+        // -----------------------------
+        if (!preview.suggestedMemberId && preview.shippingCompany) {
           this.prefillMemberFromCompany(preview.shippingCompany);
         }
       });
   }
+
+
+
+  
 
 
 
@@ -414,21 +456,17 @@ export class VendorBillingComponent {
         VendorID: row.vendorID,
         ProID: row.proID,
         BillDate: row.billDate?.toISOString(),
-
         Terms: row.terms,
         FutureBilling: row.futureBilling,
-
         VendorInv: row.vendorInv,
         VendInvDate: row.vendInvDate,
         VendorDueDate: row.vendorDueDate,
-
+        orderDate: row.orderDate,
         PO: row.po || 'N/A',
         Amount: row.amount,
         Discount: row.discount,
-
         EZPay: row.ezPay,
         Description: row.description,
-
         FileIds: row.files.map(f => f.fileId),
 
         // 🔥 ADD THIS
@@ -463,23 +501,18 @@ export class VendorBillingComponent {
       vendorID: '',
       proID: '',
       billDate: new Date(),
-
       terms: '',
       futureBilling: 'N',
-
       vendorInv: '',
       vendInvDate: null,
       vendorDueDate: null,
-
+      orderDate: null,
       po: '',
       amount: 0,
       discount: 0,
-
       ezPay: true,
       description: '',
-
       files: [],
-
       extractionPreview: null
     };
   }

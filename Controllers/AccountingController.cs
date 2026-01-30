@@ -20,6 +20,7 @@ using Spire.Pdf;
 using Spire.Xls;
 using System.Data;
 using System.Drawing;
+using System.Globalization;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Mail;
@@ -67,7 +68,18 @@ namespace ProInternal.Controllers
                     _ => "application/octet-stream"
                 };
             }
-      
+
+
+
+        [HttpGet("vendor/{id}")]
+        public IActionResult GetVendorById(int id)
+        {
+            var vendor = _proDataAccess.GetVendorById(id);
+            if (vendor == null)
+                return NotFound();
+
+            return Ok(vendor);
+        }
 
 
 
@@ -257,7 +269,13 @@ namespace ProInternal.Controllers
 
 
 
-
+        private static DateTime? SqlSafe(DateTime? d)
+        {
+            if (!d.HasValue) return null;
+            return d.Value < new DateTime(1753, 1, 1)
+                ? null
+                : d.Value;
+        }
 
         [HttpPost("vendor-billing")]
         public async Task<IActionResult> SaveVendorBilling([FromBody] VendorBillingBatchRequestDto request)
@@ -265,49 +283,100 @@ namespace ProInternal.Controllers
             if (request?.OrderDetails == null || !request.OrderDetails.Any())
                 return BadRequest("No billing rows supplied.");
 
+            DateTime today = DateTime.Now;
+            DateTime yesterday = today.AddDays(-1);
+
             var creditBatch = new CreditBatchRequestDto
             {
                 OrderDetails = request.OrderDetails.Select(row => new CreditRequestDto
                 {
-                    // 🔑 REQUIRED BY CREDIT PIPELINE
+                    // REQUIRED
                     ProID = row.ProID,
+                    VendorID = row.VendorID,
+                    
                     Amount = row.Amount,
-                    OrderDate = row.OrderDate ?? DateTime.Today,
-                    Description = string.IsNullOrWhiteSpace(row.Description)
-                        ? "Vendor Billing"
-                        : row.Description,
+                    Description = row.Description ?? "Vendor Billing",
 
-                    // 🔑 VENDOR BILLING FLAGS
-                    Module = 2,                 // ← THIS was missing before
-                    Account = "1320",
-                    PostingAccount = "1320",
+                    OrderDate = SqlSafe(yesterday),
+
+                    BillDate = SqlSafe(yesterday),
+                   
+
+                    Terms = row.Terms,
+                    FutureBilling = row.FutureBilling,
+                    Discount = row.Discount,
+                    VendInvDate = SqlSafe(row.VendInvDate),
+                    VendorDueDate = SqlSafe(row.VendorDueDate),
 
                     PO = row.PO,
                     VendorInvoice = row.VendorInv,
-                    EZPay = false,
 
-                    // files
-                    FileIds = row.FileNames
+                    EZPay = false,
+                    FileIds = row.FileNames,
+
+                    Module = 2,
+                    Account = "1320",
+                    PostingAccount = "1320",
+
+                    Source = CreditSource.VendorBilling
                 }).ToList()
             };
-
+            
             var result = await SaveCredits(creditBatch);
             // 🧠 OPTIONAL: reinforce learning ONLY AFTER SUCCESS
             foreach (var row in request.OrderDetails.Where(r => r.ExtractionPreview != null))
             {
-                _proDataAccess.TouchVendorInvoiceLearning(
-                    int.Parse(row.VendorID)
-                );
+                _invoiceExtractionService.DetectAndSaveVendorLearning(
+                     row.ExtractionPreview,
+                     row,
+                     int.Parse(row.VendorID),
+                     row.ExtractionPreview.RawText
+                 );
             }
 
             return result;
         }
 
 
+        private async Task<(bool Success, string InvoiceNumber, string Error)>
+        PostCreditToApi(int creditId, CreditRequestDto request)
+        {
+            return request.Source == CreditSource.VendorBilling
+                ? await PostVendorBillingToApi(creditId, request)
+                : await PostStandardCreditToApi(creditId, request);
+        }
 
+        private async Task<(bool Success, string InvoiceNumber, string Error)>
+        PostVendorBillingToApi(int billingId, CreditRequestDto request)
+        {
+            var payload = new Dictionary<string, string>
+            {
 
+                ["Vendor"] = request.VendorID.Substring(0, 4),                          //Needed 
+                ["Member"] = request.ProID.Substring(0, 4),                             //Needed 
+               // ["BillDate"] = request.BillDate?.ToString("MM/dd/yyyy") ?? "",          //Yesterday 
+                ["BillDate"] = (request.BillDate ?? DateTime.Today.AddDays(-1)).ToString("MM/dd/yyyy"),
+                ["Terms"] = request.Terms ?? "",            //Not used.                 //Not Used. 
+                ["FutureBilling"] = request.FutureBilling ?? "",
+                ["VendorInvoice"] = request.VendorInvoice ?? "",
+                ["VendorInvoiceDate"] = request.VendInvDate?.ToString("MM/dd/yyyy") ?? "",
+                ["VendorDueDate"] = request.VendorDueDate?.ToString("MM/dd/yyyy") ?? "",
+                ["Amount"] = request.Amount.ToString("0.00"),                           //needed
+                ["DiscountPercent"] = request.Discount.ToString(),                      //not needed
+                ["PurchaseOrderNum"] = string.IsNullOrWhiteSpace(request.PO)? "N/A": request.PO.Length > 8 ? request.PO.Substring(0, 8) : request.PO,
+                ["SequenceNum"] = billingId.ToString()
+            };
 
-        private async Task<(bool Success, string InvoiceNumber, string Error)> PostCreditToApi(int creditId, CreditRequestDto request)
+            using var client = new HttpClient();
+            var response = await client.PostAsJsonAsync(
+                "http://10.0.1.216:9191/PRO_DEMO/subroutine/*pro.demo*API.POST.NONPRO",
+                payload
+            );
+
+            return await ParseApiResponse(response);
+        }
+
+        private async Task<(bool Success, string InvoiceNumber, string Error)> PostStandardCreditToApi(int creditId, CreditRequestDto request)
         {
             try
             {
@@ -343,17 +412,14 @@ namespace ProInternal.Controllers
 
 
 
-
                 using var client = new HttpClient();
-                //var response = await client.PostAsJsonAsync(
-                //    "http://10.0.1.216:9191/AWS_PRO/subroutine/*pro*API.POST.CREDIT",
-                //    payload);
+                   var response = await client.PostAsJsonAsync("http://10.0.1.216:9191/AWS_PRO/subroutine/*pro*API.POST.CREDIT", payload);
 
 
-                var response = await client.PostAsJsonAsync("http://10.0.1.216:9191/PRO_DEMO/subroutine/*pro.demo*API.POST.CREDIT",  payload);
-                                                        
+                // var response = await client.PostAsJsonAsync("http://10.0.1.216:9191/PRO_DEMO/subroutine/*pro.demo*API.POST.CREDIT",  payload);
 
-                // 🚨 ONLY transport failure here
+
+ 
                 if (!response.IsSuccessStatusCode)
                     return (false, null, $"HTTP {response.StatusCode}");
 
@@ -389,6 +455,49 @@ namespace ProInternal.Controllers
             }
         }
 
+
+        private async Task<(bool Success, string InvoiceNumber, string Error)>
+ParseApiResponse(HttpResponseMessage response)
+        {
+            if (!response.IsSuccessStatusCode)
+                return (false, null, $"HTTP {response.StatusCode}");
+
+            var result =
+                await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+
+            if (result == null)
+                return (false, null, "Empty API response");
+
+            string? invoice = null;
+            string? error = null;
+
+            foreach (var kvp in result)
+            {
+                if (
+                    kvp.Key.Equals("Invoice", StringComparison.OrdinalIgnoreCase) ||
+                    kvp.Key.Equals("InvoiceNumber", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    invoice = kvp.Value;
+                }
+
+                if (
+                    kvp.Key.Equals("error", StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(kvp.Value)
+                )
+                {
+                    error = kvp.Value;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(invoice))
+                return (true, invoice, null);
+
+            if (!string.IsNullOrEmpty(error))
+                return (false, null, error);
+
+            return (false, null, "Unknown API response");
+        }
 
 
 
@@ -566,16 +675,19 @@ namespace ProInternal.Controllers
             html = html.Replace("<!BILLTO>", billToHtml);
 
 
+            var description = string.IsNullOrWhiteSpace(credit.Description)
+                ? "Rebates, Credits &amp; Misc"
+                : System.Net.WebUtility.HtmlEncode(credit.Description);
 
+            var amountFormatted = credit.Amount.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
 
-            // 4️⃣ Line items (tbody-safe)
             html = html.Replace("<!DETAIL>", $@"
             <tr>
                 <td>1</td>
                 <td>1320</td>
-                <td>Rebates, Credits &amp; Misc</td>
-                <td>{credit.Amount:0.00}</td>
-                <td>{credit.Amount:0.00}</td>
+                <td>{description}</td>
+                <td>{amountFormatted}</td>
+                <td>{amountFormatted}</td>
             </tr>
             ");
 
@@ -717,53 +829,6 @@ namespace ProInternal.Controllers
         }
 
 
-
-        private async Task<(bool Success, string InvoiceNumber, string Error)>
-    PostVendorBillingToApi(int billingId, VendorBillingRequestDto request)
-        {
-            try
-            {
-                var payload = new Dictionary<string, string>
-                {
-                    ["Vendor"] = request.VendorID.Substring(0, 4),
-                    ["Member"] = request.ProID.Substring(0, 4),
-                    ["BillDate"] = request.FutureBilling,
-                    ["Terms"] = request.Terms,
-                    ["FutureBilling"] = request.FutureBilling,
-                    ["VendorInvoice"] = request.VendorInv,
-                    ["VendorInvoiceDate"] = request.VendInvDate?.ToShortDateString(),
-                    ["VendorDueDate"] = request.VendorDueDate?.ToShortDateString(),
-                    ["Amount"] = request.Amount.ToString("0.00"),
-                    ["DiscountPercent"] = request.Discount.ToString(),
-                    ["PurchaseOrderNum"] = request.PO ?? "N/A",
-                    ["SequenceNum"] = billingId.ToString()
-                };
-
-                //using var client = new HttpClient();
-                //var response = await client.PostAsJsonAsync( "http://10.0.1.216:9191/AWS_PRO/subroutine/*pro*API.POST.CREDIT", payload
-                //);
-
-                using var client = new HttpClient();
-                var response = await client.PostAsJsonAsync("http://10.0.1.216:9191/PRO_DEMO/subroutine/*pro.demo*API.POST.CREDIT", payload
-                );
-
-                if (!response.IsSuccessStatusCode)
-                    return (false, null, "External API rejected vendor billing");
-
-                var result = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-
-                if (result.ContainsKey("error"))
-                    return (false, null, result["error"]);
-
-                var invoice = result.FirstOrDefault(x => x.Key.Contains("Invoice")).Value;
-
-                return (true, invoice, null);
-            }
-            catch (Exception ex)
-            {
-                return (false, null, ex.Message);
-            }
-        }
 
 
 

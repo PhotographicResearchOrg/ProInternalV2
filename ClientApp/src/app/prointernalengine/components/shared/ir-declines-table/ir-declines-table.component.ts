@@ -103,7 +103,9 @@ export class IrDeclinesTableComponent implements OnChanges, AfterViewInit {
       const child = {
         model: item.model || '[missing]',
         quantity: item.quantity ?? 0,
-        unitCost: item.unitCost || 0 // Set from source or fallback
+        unitCost: item.unitCost || 0, // Set from source or fallback
+        productCode: item.productCode || item.prodCode || '[missing]',
+
       };
 
       map.get(key)!.children.push(child);

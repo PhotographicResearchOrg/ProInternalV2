@@ -15,6 +15,10 @@ namespace ProInternal.Services
 {
     public interface IUvicornDataAccess
     {
+
+
+        Task<InvoiceExtractionPreviewDto> ExtractInvoicePreviewAsync(IFormFile pdf);
+
         Task<HttpResponseMessage> ProcessBatchAsync(CancellationToken ct);
         Task<HttpResponseMessage> ProcessInvoiceAsync(string invoiceNumber, CancellationToken ct); // NEW
         Task<HttpResponseMessage> PoSyncAsync(CancellationToken ct);                // NEW

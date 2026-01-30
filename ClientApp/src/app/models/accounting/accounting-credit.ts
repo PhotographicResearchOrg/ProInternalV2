@@ -100,6 +100,8 @@ export interface InvoiceExtractionPreview {
   dueDate?: string;       // ISO string
   orderDate?: string;     // ISO string;
   totalAmount?: number;
+  suggestedVendorId?: number | null;
+  suggestedMemberId?: number | null;
 
   confidence: number;
   missingFields: string[];

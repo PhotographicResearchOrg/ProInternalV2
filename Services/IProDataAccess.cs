@@ -31,6 +31,14 @@ namespace ProInternal.Services
     public interface IProDataAccess
     {
 
+        VendorDto? GetVendorById(int vendorId);
+        VendorMatchDto? FindVendorByName(string name);
+        VendorMatchDto? FindVendorByAddress(string rawText);
+
+        MemberMatchDto? FindMemberByName(string name);
+        MemberMatchDto? FindMemberByAddress(string rawText);
+
+
 
         void MarkCreditInvoiceFailed(int creditId, string invoiceNumber, string error);
         void UpsertAccountingFile(string fileId, string storedName, string originalName);

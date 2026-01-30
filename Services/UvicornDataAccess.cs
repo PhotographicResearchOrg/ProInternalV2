@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using ProInternal.Models.Accounting;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -10,6 +12,41 @@ namespace ProInternal.Services
     {
         private readonly HttpClient _http;
         private readonly ILogger<UvicornDataAccess> _logger;
+
+        public async Task<InvoiceExtractionPreviewDto> ExtractInvoicePreviewAsync(IFormFile pdf)
+        {
+            using var client = new HttpClient();
+
+            using var content = new MultipartFormDataContent();
+            using var fileStream = pdf.OpenReadStream();
+
+            content.Add(
+                new StreamContent(fileStream),
+                "file",
+                pdf.FileName
+            );
+
+            //var response = await client.PostAsync(
+            //    "http://10.0.1.216:8000/api/invoice/preview",
+            //    content
+            //);
+            var response = await _http.PostAsync(
+     "api/invoices/ai-preview",
+    content
+);
+
+
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<InvoiceExtractionPreviewDto>(json)!;
+        }
+
+
+
+
+
+
 
         // This HttpClient is the one you registered in Program.cs (typed client).
         public UvicornDataAccess(HttpClient http, ILogger<UvicornDataAccess> logger)

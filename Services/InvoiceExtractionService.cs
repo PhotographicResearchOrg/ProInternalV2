@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using ProInternal.Models.Accounting;
 using Spire.Pdf;
 using Spire.Pdf.Texts;
+using System.Data;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -12,50 +13,140 @@ namespace ProInternal.Services
     {
         private readonly ILogger<InvoiceExtractionService> _logger;
         private IProDataAccess _proDataAccess;
-        public InvoiceExtractionService(ILogger<InvoiceExtractionService> logger, IProDataAccess proDataAccess)
+        private IUvicornDataAccess _Uvicorn;
+
+        public InvoiceExtractionService(ILogger<InvoiceExtractionService> logger, IProDataAccess proDataAccess, IUvicornDataAccess uvicornDataAccess)
         {
             _logger = logger;
             _proDataAccess = proDataAccess;
+            _Uvicorn = uvicornDataAccess;
         }
+
+
+        private (string? VendorId, decimal VendorConfidence, string? VendorName)
+      ResolveVendor(string rawText)
+        {
+            // 1️⃣ Name match (strongest)
+            var match = _proDataAccess.FindVendorByName(rawText);
+            if (match != null)
+                return ( match.VendorId, 0.95m, match.Name);
+
+            // 2️⃣ Address match
+            var addressMatch = _proDataAccess.FindVendorByAddress(rawText);
+            if (addressMatch != null)
+                return (addressMatch.VendorId, 0.75m, addressMatch.Name);
+
+            return (null, 0m, null);
+        }
+
+
+        private (string? MemberId, decimal MemberConfidence, string? MemberName)
+  ResolveMember(string rawText)
+        {
+            // 1️⃣ Address match (strongest)
+            var byAddress = _proDataAccess.FindMemberByAddress(rawText);
+            if (byAddress != null)
+                return (byAddress.AccountNumber, 0.95m, byAddress.Company);
+
+            // 2️⃣ Name / DBA match
+            var byName = _proDataAccess.FindMemberByName(rawText);
+            if (byName != null)
+                return (byName.AccountNumber, 0.85m, byName.Company);
+
+            return (null, 0m, null);
+        }
+
+
+
+
+
+
+        private static string NormalizeVendorName(string vendorName)
+        {
+            if (string.IsNullOrWhiteSpace(vendorName))
+                return vendorName;
+
+            // Upper for consistency
+            var name = vendorName.ToUpperInvariant();
+
+            // Remove punctuation
+            name = Regex.Replace(name, @"[^\w\s]", " ");
+
+            // Remove legal suffixes
+            var stopWords = new[]
+            {
+       "PRO", "INC", "LLC", "LTD", "CORP", "CORPORATION", "CO", "COMPANY", "PROMASTER"
+    };
+
+            var tokens = name
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(t => !stopWords.Contains(t))
+                .ToList();
+
+            // Return first meaningful token (brand anchor)
+            return tokens.Count > 0
+               ? string.Join(" ", tokens)
+               : vendorName;
+        }
+
+
+
 
         public async Task<InvoiceExtractionPreviewDto> ExtractPreviewAsync(IFormFile file)
         {
-            if (file == null || file.Length == 0)
-                throw new ArgumentException("Invalid PDF file");
+            // 🔥 AI extraction via Python (uvicorn)
+            var dto = await _Uvicorn.ExtractInvoicePreviewAsync(file);
 
-            await using var stream = file.OpenReadStream();
+            // 🔍 Resolve vendor / member using existing tuple resolvers
+            var vendorName = !string.IsNullOrWhiteSpace(dto.VendorName)? NormalizeVendorName(dto.VendorName): dto.RawText;
 
-            var pdf = new PdfDocument();
-            pdf.LoadFromStream(stream);
+            var vendor = ResolveVendor(vendorName);
 
-            var sb = new StringBuilder();
-
-            foreach (PdfPageBase page in pdf.Pages)
+            string? memberSource = dto.MemberName;
+            if (!string.IsNullOrWhiteSpace(memberSource) &&
+            memberSource.Contains("Photographic Research", StringComparison.OrdinalIgnoreCase))
             {
-                var extractor = new PdfTextExtractor(page);
-                var options = new PdfTextExtractOptions { IsExtractAllText = true };
-                sb.AppendLine(extractor.ExtractText(options));
+                memberSource = null;
             }
 
-            pdf.Close();
+            // Prefer ShippingCompany if PRO was detected
+            memberSource ??= dto.ShippingCompany;
 
-            var rawText = Normalize(sb.ToString());
+            // Absolute fallback only
+            memberSource ??= dto.RawText;
 
-            var dto = new InvoiceExtractionPreviewDto
+            var member = ResolveMember(memberSource);
+
+            // ✅ SAFE numeric assignment (tuple → int?)
+            dto.SuggestedVendorId =int.TryParse(vendor.VendorId, out var vid) ? vid : null;
+            dto.VendorConfidence = vendor.VendorConfidence;
+
+
+
+            if (dto.SuggestedVendorId.HasValue)
             {
-                RawText = rawText,
-                InvoiceNumber = MatchAny(rawText, InvoiceNumberPatterns),
-                PONumber = MatchAny(rawText, PONumberPatterns),
-                InvoiceDate = MatchAnyDate(rawText, InvoiceDatePatterns),
-                DueDate = MatchAnyDate(rawText, DueDatePatterns),
-                OrderDate = MatchAnyDate(rawText, OrderDatePatterns),
-                TotalAmount = MatchAnyDecimal(rawText, TotalAmountPatterns),
-                ShippingCompany = ExtractCompany(rawText)
-            };
+                dto = ApplyVendorLearning(dto, dto.RawText, dto.SuggestedVendorId.Value);
+            }
+            // Only apply heuristic member if learning did NOT already set it
+            if (!dto.SuggestedMemberId.HasValue)
+            {
+                dto.SuggestedMemberId =
+                    int.TryParse(member.MemberId, out var mid) ? mid : null;
 
+                dto.MemberConfidence = member.MemberConfidence;
+            }
+
+
+            // 📊 Final confidence calculation
             dto.CalculateConfidence();
             return dto;
         }
+
+
+
+
+
+
 
         // =====================================================
         // PATTERN SETS (THE SAFETY NET)
@@ -110,6 +201,8 @@ namespace ProInternal.Services
         // EXTRACTION HELPERS
         // =====================================================
 
+
+
         private static string? MatchAny(string text, IEnumerable<string> patterns)
         {
             foreach (var pattern in patterns)
@@ -140,51 +233,38 @@ namespace ProInternal.Services
                         .Trim();
         }
 
-        // =====================================================
-        // SHIP / SOLD TO EXTRACTION (BROADER)
-        // =====================================================
-
-        private static string? ExtractCompany(string rawText)
-        {
-            foreach (var anchor in ShipToAnchors)
-            {
-                var match = Regex.Match(
-                    rawText,
-                    $"{anchor}:?\\s*(.+?)(?:Invoice|Total|Order|PO|$)",
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline
-                );
-
-                if (!match.Success)
-                    continue;
-
-                var lines = match.Groups[1].Value
-                    .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(l => l.Trim())
-                    .Where(l => l.Length > 2)
-                    .ToList();
-
-                // Heuristic:
-                // Prefer lines that look like company names
-                var candidate = lines.FirstOrDefault(l =>
-                    !Regex.IsMatch(l, @"\d") &&     // no street numbers
-                    !l.Contains(",") &&             // not a person
-                    l.Length >= 3
-                );
-
-                if (candidate != null)
-                    return candidate;
-            }
-
-            return null;
-        }
 
 
-        public InvoiceExtractionPreviewDto ApplyVendorLearning(InvoiceExtractionPreviewDto dto,string rawText,int vendorId)
+
+
+        public InvoiceExtractionPreviewDto ApplyVendorLearning(
+            InvoiceExtractionPreviewDto dto,
+            string rawText,
+            int vendorId
+        )
         {
             var rules = _proDataAccess.GetVendorInvoiceLearning(vendorId);
 
             foreach (var rule in rules)
             {
+                // 🔥 MEMBER LEARNING (vendor + pattern scoped)
+                if (rule.FieldName == "Member" && rule.Strategy == "Regex")
+                {
+                    var normalizedRaw = NormalizeVendorName(rawText);
+
+                    if (Regex.IsMatch(normalizedRaw, rule.Pattern, RegexOptions.IgnoreCase) &&
+                        int.TryParse(rule.ResolvedValue, out var memberId))
+                    {
+                        dto.SuggestedMemberId = memberId;
+                        dto.MemberConfidence = 0.95m;
+
+                        _proDataAccess.TouchVendorInvoiceLearning(rule.Id);
+                        continue;
+                    }
+                }
+
+
+                // 🔁 ALL OTHER FIELDS
                 string? value = rule.Strategy switch
                 {
                     "Regex" => MatchRegex(rawText, rule.Pattern),
@@ -197,12 +277,12 @@ namespace ProInternal.Services
                     continue;
 
                 ApplyField(dto, rule.FieldName, value);
-
                 _proDataAccess.TouchVendorInvoiceLearning(rule.Id);
             }
 
             return dto;
         }
+
 
         private static string? MatchRegex(string text, string pattern)
         {
@@ -251,6 +331,20 @@ namespace ProInternal.Services
                     if (decimal.TryParse(value.Replace(",", ""), out var d))
                         dto.TotalAmount ??= d;
                     break;
+
+                case "InvoiceDate":
+                    if (DateTime.TryParse(value, out var invDt))
+                        dto.InvoiceDate ??= invDt;
+                    break;
+
+                case "DueDate":
+                    if (DateTime.TryParse(value, out var dueDt))
+                        dto.DueDate ??= dueDt;
+                    break;
+
+
+
+
             }
         }
 
@@ -258,6 +352,8 @@ namespace ProInternal.Services
 
         public void DetectAndSaveVendorLearning(InvoiceExtractionPreviewDto extracted,VendorBillingRequestDto final,int vendorId,string rawText)
         {
+
+
             // Invoice #
             LearnIfChanged(
                 vendorId,
@@ -284,15 +380,62 @@ namespace ProInternal.Services
                 final.Amount.ToString("0.00"),
                 rawText
             );
+
+
+            // Invoice Date
+            LearnIfChanged(
+                vendorId,
+                "InvoiceDate",
+                extracted.InvoiceDate?.ToString("MM/dd/yyyy"),
+                final.VendInvDate?.ToString("MM/dd/yyyy"),
+                rawText
+            );
+
+            // Due Date
+            LearnIfChanged(
+                vendorId,
+                "DueDate",
+                extracted.DueDate?.ToString("MM/dd/yyyy"),
+                final.VendorDueDate?.ToString("MM/dd/yyyy"),
+                rawText
+            );
+
+            // -------------------------
+            // MEMBER learning (guarded)
+            // -------------------------
+
+            bool aiAlreadyCorrect =
+                extracted.SuggestedMemberId.HasValue &&
+                extracted.SuggestedMemberId.Value.ToString() == final.ProID;
+
+            if (aiAlreadyCorrect)
+                return; // ✅ exit ONLY member learning
+
+            if (!string.IsNullOrWhiteSpace(extracted.MemberName) &&
+                !string.IsNullOrWhiteSpace(final.ProID))
+            {
+                var normalized = NormalizeVendorName(extracted.MemberName);
+
+                _proDataAccess.UpsertVendorInvoiceLearning(new VendorInvoiceLearningDto
+                {
+                    VendorId = vendorId,
+                    FieldName = "Member",
+                    Strategy = "Regex",
+                    Pattern = Regex.Escape(normalized),
+                    ResolvedValue = final.ProID
+                });
+            }
+
+
         }
 
         private void LearnIfChanged(
-    int vendorId,
-    string field,
-    string? extracted,
-    string? corrected,
-    string rawText
-)
+            int vendorId,
+            string field,
+            string? extracted,
+            string? corrected,
+            string rawText
+        )
         {
             if (string.IsNullOrWhiteSpace(corrected))
                 return;
@@ -301,7 +444,6 @@ namespace ProInternal.Services
                 extracted.Trim().Equals(corrected.Trim(), StringComparison.OrdinalIgnoreCase))
                 return;
 
-            // 🔒 build a safe regex from corrected value
             var escaped = Regex.Escape(corrected.Trim());
 
             _proDataAccess.UpsertVendorInvoiceLearning(new VendorInvoiceLearningDto
@@ -309,9 +451,11 @@ namespace ProInternal.Services
                 VendorId = vendorId,
                 FieldName = field,
                 Strategy = "Regex",
-                Pattern = escaped
+                Pattern = escaped,
+                ResolvedValue = corrected   // 🔥 THIS WAS MISSING
             });
         }
+
 
 
 
