@@ -34,9 +34,11 @@ export class CreditsComponent implements OnInit {
   selectedMember: { label: string; value: string } | null = null;
 
   postingAccounts = [
-    { label: '1320 – Rebates / Credits', value: '1320' },
-    { label: '1310 – Adjustments', value: '1310' },
-    { label: '1350 – Misc Clearing', value: '1350' }
+    { label: '1320 – Generic', value: '1320' },
+    { label: '1322 – Vendor Rebates', value: '1322' },
+    { label: '1325 – Pass Through Billing', value: '1325' },
+    { label: '1330 – Other Rebates & Patr.', value: '1330' },
+    { label: '1335 – Misc ', value: '1335' }
   ];
 
   emailInvoiceNumber: string | null = null;
