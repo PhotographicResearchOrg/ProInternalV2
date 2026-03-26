@@ -1,20 +1,26 @@
-﻿using System;
+﻿using ProInternal.Models.Accounting;
+using ProInternal.Models.Dashboard;
+using ProInternal.Models.EzPaySummary;
+using ProInternal.Models.InstantRebates ;
+using ProInternal.Models.Vendor;
+using ProInternal.Models.WH;
+using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using ProInternal.Models.Accounting;
-using ProInternal.Models.Dashboard;
-using ProInternal.Models.InstantRebates ;
-using System;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using ProInternal.Models.Vendor;
-using ProInternal.Models.EzPaySummary;
 
 
 namespace ProInternal.Services
 {
     public interface IEDADataAccess
     {
+
+
+        IEnumerable<ShipmentEventRecord> GetShipmentEvents(string trackingNumber);
+
+        IEnumerable<ShipmentRecord> GetShipments();
 
         Task<PackingSlipData> GetPackingSlipData(int shippingErrorId);
         List<PanaRep> GetAllPanaReps();

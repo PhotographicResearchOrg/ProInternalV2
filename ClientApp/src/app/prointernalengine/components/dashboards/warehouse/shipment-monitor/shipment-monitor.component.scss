@@ -1,0 +1,26 @@
+.sla-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sla-ontime {
+  background: #e6ffe6;
+  color: #1b7f3b;
+}
+
+.sla-atrisk {
+  background: #fff4e5;
+  color: #b26a00;
+}
+
+.sla-late {
+  background: #ffe6e6;
+  color: #b00020;
+}
+
+.sla-delivered {
+  background: #f0f0f0;
+  color: #666;
+}

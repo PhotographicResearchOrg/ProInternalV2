@@ -166,6 +166,17 @@ export class DataService {
   {
     return this.api.get<ShippingErrorRecord[]>('API/Warehouse/shippingerrors');
   }
+
+  getShipments(): Observable<any[]> {
+    return this.api.get<any[]>('API/Warehouse/shipments');
+  }
+
+  getShipmentEvents(tracking: string): Observable<any[]> {
+    return this.api.get<any[]>(`API/Warehouse/shipments/${tracking}/events`);
+  }
+
+
+
   getPaymentTypes(): Observable<PaymentType[]> {
     return this.api.get<PaymentType[]>('API/Accounting/getPaymentTypes');
   }

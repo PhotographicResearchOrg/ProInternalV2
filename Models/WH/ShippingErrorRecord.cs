@@ -3,6 +3,34 @@
 namespace ProInternal.Models.WH
 {
 
+
+    public class ShipmentRecord
+    {
+        public string TrackingNumber { get; set; }
+        public DateTime? EntryDate { get; set; }
+        public DateTime? DeliveredDate { get; set; }
+        public string CurrentStatus { get; set; }
+        public int ExpectedDays { get; set; }
+        public int ActualDays { get; set; }
+        public string SLAStatus { get; set; }
+        public string DestinationState { get; set; }
+    }
+
+
+
+    public class ShipmentEventRecord
+    {
+        public string TrackingNumber { get; set; }
+        public string Status { get; set; }
+        public string StatusCode { get; set; }
+        public DateTime EventDateTime { get; set; }
+        public string City { get; set; }
+        public string State { get; set; }
+    }
+
+
+
+
     public class ShippingErrorRecord
     {
         public int Id { get; set; }

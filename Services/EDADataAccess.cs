@@ -13,7 +13,7 @@ using Microsoft.Data.SqlClient;
 using System.Reflection.Metadata;
 using ProInternal.Models.EzPaySummary;
 using System.Data.Common;
-
+using ProInternal.Models.WH;
 
 
 
@@ -50,6 +50,31 @@ namespace ProInternal.Services
                     return Enumerable.Empty<EzPaySummary>();
                 }
             }
+        }
+
+
+
+
+        public IEnumerable<ShipmentRecord> GetShipments()
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.Query<ShipmentRecord>(
+                "Warehouse_GetShipments",
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+        public IEnumerable<ShipmentEventRecord> GetShipmentEvents(string trackingNumber)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            return conn.Query<ShipmentEventRecord>(
+                "Warehouse_GetShipmentEvents",
+                new { TrackingNumber = trackingNumber },
+                commandType: CommandType.StoredProcedure
+            );
         }
 
 

@@ -267,3 +267,9 @@ p-table {
   .duplicate-row td {
     border-top: 1px solid #f59e0b;
   }
+.description-wrap {
+  max-width: 320px; /* adjust width as needed */
+  white-space: normal; /* allow wrapping */
+  word-break: break-word; /* break long words */
+  line-height: 1.35;
+}

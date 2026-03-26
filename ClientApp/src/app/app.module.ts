@@ -85,7 +85,7 @@ import { CreditsComponent } from './prointernalengine/components/dashboards/acco
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 
 import { InputNumberModule } from 'primeng/inputnumber';
-
+import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
 
 
 @NgModule({
@@ -123,7 +123,8 @@ import { InputNumberModule } from 'primeng/inputnumber';
     VendorGridComponent,
     ShippingerrorsComponent,
     ShippingerrorbrmComponent,
-    PaymentTypeComponent
+    PaymentTypeComponent,
+    ShipmentMonitorComponent
   ],
 
   imports: [

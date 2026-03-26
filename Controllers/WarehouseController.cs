@@ -50,6 +50,20 @@ namespace ProInternal.Controllers
             return Ok(records);
         }
 
+        [HttpGet("shipments")]
+        public IActionResult GetShipments()
+        {
+            var data = _edadataAccess.GetShipments();
+            return Ok(data);
+        }
+
+        [HttpGet("shipments/{tracking}/events")]
+        public IActionResult GetShipmentEvents(string tracking)
+        {
+            var data = _edadataAccess.GetShipmentEvents(tracking);
+            return Ok(data);
+        }
+
 
         [HttpPost("completeProduct")]
         public IActionResult CompleteProduct([FromBody] CompleteProductRequest request)

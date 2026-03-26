@@ -48,7 +48,9 @@ export class AppMenuComponent implements OnInit {
             label: 'Warehouse', icon: 'pi pi-map-marker',
             items:
               [
-                { label: 'Shipping Errors', icon: 'pi pi-flag', routerLink: ['/shippingerror'] }
+                { label: 'Shipping Errors', icon: 'pi pi-flag', routerLink: ['/shippingerror'] },
+
+                { label: 'Shipping Monitor', icon: 'pi pi-truck', routerLink: ['/shippingmonitor'] }
               ]
           }
 
