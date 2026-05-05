@@ -33,8 +33,12 @@ namespace ProInternal.Models.Patronage
     {
         public string? id { get; set; }
         public DateTime? issueDate { get; set; }
+
+        public DateTime? checkissueDate { get; set; }
         public float? totalAmount { get; set; }
         public bool active { get; set; }
+
+
     }
 
     public class DeletePatronageRequest

@@ -27,7 +27,7 @@ namespace ProInternal.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Route("[controller]")]
+ 
     public class WarehouseController : ControllerBase
     {
         private IProDataAccess _proDataAccess;
@@ -41,6 +41,69 @@ namespace ProInternal.Controllers
             _edadataAccess = edadataAccess;
 
         }
+
+        private int GetUserId()
+        {
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userId" || c.Type == "sub");
+
+            if (userIdClaim == null)
+                throw new Exception("UserId not found in token");
+
+            return int.Parse(userIdClaim.Value);
+        }
+
+
+        [HttpPost("subscriptions")]
+        public IActionResult SaveSubscription([FromBody] ShipmentSubscription model)
+        {
+            if (model == null)
+                return BadRequest();
+
+            // userId comes from frontend now
+            _edadataAccess.SaveSubscription(model);
+
+            return Ok();
+        }
+
+
+        [HttpGet("subscriptions")]
+        public IActionResult GetSubscriptions([FromQuery] int userId)
+        {
+            var result = _edadataAccess.GetSubscriptions(userId);
+            return Ok(result);
+        }
+
+
+
+        [HttpPost("shipments/{tracking}/retire")]
+        public IActionResult RetireShipment(string tracking)
+        {
+            _edadataAccess.RetireShipment(tracking);
+            return Ok();
+        }
+
+
+        [HttpPost("sendback")]
+        public async Task<IActionResult> SendBackToWarehouse([FromBody] SendBackRequest request)
+        {
+            try
+            {
+                await _proDataAccess.SendBackToWarehouse(
+                    request.ErrorId,
+                    request.ProductCode,
+                    request.Reason,
+                    request.Username
+                );
+
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+
 
 
         [HttpGet("shippingerrors")]

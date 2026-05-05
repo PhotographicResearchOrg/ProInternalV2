@@ -146,6 +146,19 @@ export class DataService {
     }
   }
 
+  saveWHSubscription(model: any) {
+    return this.api.post('api/warehouse/subscriptions', model);
+  }
+
+  retireShipment(tracking: string) {
+    return this.api.post(`api/warehouse/shipments/${tracking}/retire`, {});
+  }
+
+
+  getWHSubscriptions(userId: number) {
+    return this.api.get<any[]>(`api/warehouse/subscriptions?userId=${userId}`);
+  }
+
 
   getPoSync() {
     // Route is case-insensitive; keep consistent with your others.
@@ -166,6 +179,21 @@ export class DataService {
   {
     return this.api.get<ShippingErrorRecord[]>('API/Warehouse/shippingerrors');
   }
+
+
+  sendBackToWarehouse(payload: {
+    errorId: number;
+    productCode: string;
+    reason: string;
+    username: string;
+  }) {
+    return this.api.post<any>(
+      'API/Warehouse/sendback',
+      payload
+    );
+  }
+
+
 
   getShipments(): Observable<any[]> {
     return this.api.get<any[]>('API/Warehouse/shipments');
@@ -580,10 +608,13 @@ export class DataService {
     return this.api.get<{ token: string; embedUrl: string; reportId: string }>('API/PowerBI/token');
   }
 
-  uploadQuarterlyFile(file: File) {
+  uploadQuarterlyFile(file: File, issueDate: Date) {
+
     const formData: any = new FormData();
-    formData.append(`file`, file, file.name);
-    return this.api.postBlob(`API/Accounting/LoadQuarterFile`, formData)
+    formData.append('file', file, file.name);
+    formData.append('issueDate', issueDate?.toISOString());
+
+    return this.api.postBlob(`API/Accounting/LoadQuarterFile`, formData);
   }
 
 
@@ -596,12 +627,17 @@ export class DataService {
 
 
 
-  uploadPatronageFile(file: File) {
+  uploadPatronageFile(file: File, issueDate: Date) {
 
     const formData: any = new FormData();
-    formData.append(`file`, file, file.name);
-    return this.api.postBlob(`API/Accounting/LoadPatronageFile`, formData)
+    formData.append('file', file, file.name);
+    formData.append('issueDate', issueDate?.toISOString());
+
+    return this.api.postBlob(`API/Accounting/LoadPatronageFile`, formData);
   }
+
+
+
   
   GetInstantRebateBatches() {
     return this.api.get<Array<InstantRebate>>('API/InstantRebates/GetInstantRebateBatches');
@@ -667,6 +703,17 @@ export class DataService {
 
 
   /************* Mertics for Dash *************/
+
+
+  getDropShipThreshold() {
+    return this.api.get<number>('API/Metrics/getDropShipThreshold');
+  }
+
+  setDropShipThreshold(value: number) {
+    return this.api.post('API/Metrics/setDropShipThreshold', { value });
+  }
+
+
   getOrderMetrics()
   {
     return this.api.get<OrdersMetrics>(`API/Metrics/getOrderMetrics`);

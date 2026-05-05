@@ -14,6 +14,35 @@ namespace ProInternal.Models.WH
         public int ActualDays { get; set; }
         public string SLAStatus { get; set; }
         public string DestinationState { get; set; }
+
+        public string Account { get; set; }
+        public int? Zone { get; set; }
+
+        public int? Air { get; set; }
+
+        public string Accountname { get; set; }
+
+        
+    }
+
+
+
+
+    public class ShipmentSubscription
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+
+        public string Name { get; set; }
+
+        public string? Account { get; set; }
+        public int? Zone { get; set; }
+        public string? SLAStatus { get; set; }
+        public int? MinDays { get; set; }
+
+        public bool IsActive { get; set; } = true;
+
+        public DateTime CreatedAt { get; set; }
     }
 
 
@@ -46,8 +75,24 @@ namespace ProInternal.Models.WH
         public string ContactEmail { get; set; }
         public string ContactPhone { get; set; }
         public string RmaStatus { get; set; }
+
+        public string ReturnMessage { get; set; }
+        public string ReturnedBy { get; set; }
+        public DateTime? ReturnedDate { get; set; }
+
+
         public List<ShippingErrorProduct> Products { get; set; }
     }
+
+
+    public class SendBackRequest
+    {
+        public int ErrorId { get; set; }
+        public string ProductCode { get; set; }
+        public string Reason { get; set; }
+        public string Username { get; set; }
+    }
+
 
     public class ShippingErrorProduct
     {

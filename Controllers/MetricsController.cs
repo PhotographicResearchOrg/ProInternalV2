@@ -45,6 +45,29 @@ namespace ProInternal.Controllers
             return SARSummary;
         }
 
+
+
+        [HttpGet]
+        [Route("getDropShipThreshold")]
+        public decimal GetDropShipThreshold()
+        {
+            return _prodataAccess.GetDropShipThreshold();
+        }
+
+        [HttpPost]
+        [Route("setDropShipThreshold")]
+        public void SetDropShipThreshold([FromBody] ThresholdRequest req)
+        {
+            _prodataAccess.SetDropShipThreshold(req.Value);
+        }
+
+        public class ThresholdRequest
+        {
+            public decimal Value { get; set; }
+        }
+
+
+
         [HttpGet]
         [Route("getEDIMetrics")]
         public EDIMetrics DashEDIMetrics()

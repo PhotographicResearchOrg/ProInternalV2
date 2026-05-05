@@ -36,23 +36,17 @@ using ProInternal.Models.InstantRebates;
 
 namespace ProInternal.Services
 {
-    public class ProDataAccess : IProDataAccess
+    public class ProDataAccess : BaseDataAccess, IProDataAccess
     {
-        private string _connectionString { get; set; }
- 
-
-        public ProDataAccess(string connectionString)
+        public ProDataAccess(IConfiguration config, AwsSecretHelper helper)
+            : base(config, helper, "ProConnectionString")
         {
-            _connectionString = connectionString;
-   
         }
-
-
 
 
         public VendorDto? GetVendorById(int vendorId)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.QueryFirstOrDefault<VendorDto>(@"
         SELECT
@@ -66,12 +60,38 @@ namespace ProInternal.Services
         }
 
 
+
+        public decimal GetDropShipThreshold()
+        {
+            using (var conn = GetConnection())
+            {
+                return conn.QueryFirstOrDefault<decimal>(
+                    "SELECT DropShipThreshold FROM OrderProcessingConfig WHERE Id = 1"
+                );
+            }
+        }
+        public void SetDropShipThreshold(decimal value)
+        {
+            using (var conn = GetConnection())
+            {
+                conn.Execute(
+                    @"UPDATE OrderProcessingConfig
+              SET DropShipThreshold = @Value
+              WHERE Id = 1",
+                    new { Value = value }
+                );
+            }
+        }
+
+
+
+
         // --------------------------------------------------
         // UPSERT FILE (DEDUP SAFE)
         // --------------------------------------------------
         public void UpsertAccountingFile(string fileId, string storedName, string originalName)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             //using var db = Connection;
 
             conn.Execute(
@@ -92,7 +112,7 @@ namespace ProInternal.Services
         public void LinkFileToCredit(int creditId,  Guid batchGuid, string fileId)
         {
             //using var db = Connection;
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             conn.Execute(
                 "AccountingCreditFiles_Insert",
@@ -109,7 +129,7 @@ namespace ProInternal.Services
 
         public IEnumerable<AccountingFile> GetFilesForCredit(int creditId)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.Query<AccountingFile>(
                 "AccountingFiles_GetByCredit",
@@ -124,7 +144,7 @@ namespace ProInternal.Services
     string error
 )
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             conn.Execute(
                 "dbo.AccountingCredit_MarkInvoiceFailed",
@@ -141,7 +161,7 @@ namespace ProInternal.Services
 
         public MemberDto? GetMemberByAccount(string account)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.QuerySingleOrDefault<MemberDto>(
                 "dbo.Member_GetBillToByAccount",
@@ -158,7 +178,7 @@ namespace ProInternal.Services
         public IEnumerable<AccountingFile> GetFilesForBatch(Guid batchGuid)
         {
             //using var db = Connection;
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.Query<AccountingFile>(
                 "AccountingFiles_GetByBatch",
@@ -173,7 +193,7 @@ namespace ProInternal.Services
         public AccountingFile GetAccountingFile(string fileId)
         {
             // using var db = Connection;
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.QueryFirstOrDefault<AccountingFile>(
                 "AccountingFiles_GetById",
@@ -187,7 +207,7 @@ namespace ProInternal.Services
 
         public int InsertVendorBilling(VendorBillingRequestDto dto, Guid batchGuid, int batchId)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.QuerySingle<int>(
                 "PIV2Accounting_InsertCredit",
@@ -224,7 +244,7 @@ namespace ProInternal.Services
 
         public int InsertAccountingCredit(CreditRequestDto dto)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.ExecuteScalar<int>(
                 "PIV2Accounting_InsertCredit",
@@ -275,9 +295,10 @@ namespace ProInternal.Services
 
 
 
+
         public IEnumerable<VendorLookupDto> SearchVendors(string term)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.Query<VendorLookupDto>(
                 "Vendor_Search",
@@ -289,7 +310,7 @@ namespace ProInternal.Services
 
         public IEnumerable<AccountingCreditDto> GetCredits()
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             using var multi = conn.QueryMultiple(
                   "PIV2AAccounting_GetCredits",
@@ -320,7 +341,7 @@ namespace ProInternal.Services
 
         public IEnumerable<AccountingCreditDto> GetVendorBillingHistory()
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             using var multi = conn.QueryMultiple(
                 "PIV2AAccounting_GetCredits",
@@ -352,7 +373,7 @@ namespace ProInternal.Services
 
         public IEnumerable<AccountingCreditDto> GetVendorBilling()
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             return conn.Query<AccountingCreditDto>(
                 "PIV2Accounting_GetVendorBilling",
                 commandType: CommandType.StoredProcedure
@@ -363,7 +384,7 @@ namespace ProInternal.Services
 
         public IEnumerable<MemberLookupDto> SearchMember(string term)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.Query<MemberLookupDto>(
                 "Accounting_SearchMember",
@@ -375,7 +396,7 @@ namespace ProInternal.Services
 
         public IEnumerable<VendorLookupDto> SearchVendor(string term, string type)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.Query<VendorLookupDto>(
                 "Accounting_SearchVendor",
@@ -386,7 +407,7 @@ namespace ProInternal.Services
 
         public void MarkCreditSuccess(int creditId, string invoiceNumber)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             conn.Execute(
                 "PIV2_Accounting_MarkCreditSuccess",
@@ -397,7 +418,7 @@ namespace ProInternal.Services
 
         public void MarkCreditFailed(int creditId, string error)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             conn.Execute(
                 "PIV2_Accounting_MarkCreditFailed",
@@ -409,7 +430,7 @@ namespace ProInternal.Services
         public IEnumerable<VendorInvoiceLearningDto>
     GetVendorInvoiceLearning(int vendorId)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.Query<VendorInvoiceLearningDto>(
                 "VendorInvoiceLearning_GetByVendor",
@@ -420,7 +441,7 @@ namespace ProInternal.Services
 
         public VendorMatchDto? FindVendorByName(string name)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.QueryFirstOrDefault<VendorMatchDto>(
                 "Vendor_FindByName",
@@ -431,7 +452,7 @@ namespace ProInternal.Services
 
         public VendorMatchDto? FindVendorByAddress(string rawText)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.QueryFirstOrDefault<VendorMatchDto>(
                 "Vendor_FindByAddress",
@@ -443,7 +464,7 @@ namespace ProInternal.Services
 
         public MemberMatchDto? FindMemberByName(string name)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.QueryFirstOrDefault<MemberMatchDto>(
                 "Member_FindByName",
@@ -454,7 +475,7 @@ namespace ProInternal.Services
 
         public MemberMatchDto? FindMemberByAddress(string rawText)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.QueryFirstOrDefault<MemberMatchDto>(
                 "Member_FindByAddress",
@@ -465,10 +486,29 @@ namespace ProInternal.Services
 
 
 
+        public async Task SendBackToWarehouse(int errorId, string productCode, string reason, string username)
+        {
+            using var conn = GetConnection();
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@ErrorID", errorId);
+            parameters.Add("@ProductCode", productCode);
+            parameters.Add("@Reason", reason);
+            parameters.Add("@Username", username);
+
+            await conn.ExecuteAsync(
+                "ShippingError_SendBackToWarehouse",
+                parameters,
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+
 
         public void TouchVendorInvoiceLearning(int id)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             conn.Execute(
                 "VendorInvoiceLearning_Touch",
@@ -479,7 +519,7 @@ namespace ProInternal.Services
 
         public void UpsertVendorInvoiceLearning(VendorInvoiceLearningDto dto)
         {
-            using var db = new SqlConnection(_connectionString);
+            using var db = GetConnection();
             db.Execute(
                 "VendorInvoiceLearning_Upsert",
                 new
@@ -500,9 +540,9 @@ namespace ProInternal.Services
 
         public async Task<string> ProcessShippingErrors(List<ShippingErrorRequest> errorList)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = GetConnection())
             {
-                connection.Open();
+             //   connection.Open();
 
                 try
                 {
@@ -541,7 +581,7 @@ namespace ProInternal.Services
 
         public void SavePaymentType(PaymentType payment)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             using var command = new SqlCommand("Accounting_SavePaymentType", connection)
             {
                 CommandType = CommandType.StoredProcedure
@@ -559,7 +599,7 @@ namespace ProInternal.Services
 
         public IEnumerable<PaymentType> GetPaymentTypes()
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             return connection.Query<PaymentType>(
                 "Accounting_GetPaymentTypes",
                 commandType: CommandType.StoredProcedure
@@ -570,7 +610,7 @@ namespace ProInternal.Services
 
         public string? GetPrimaryProductDescriptionByProCode(int proCode)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             return conn.QueryFirstOrDefault<string>(
                 "PIV2GetPrimaryProductDescriptionByProCode",
                 new { ProCode = proCode },
@@ -581,7 +621,7 @@ namespace ProInternal.Services
 
         public IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors()
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             var errorDictionary = new Dictionary<int, ProInternal.Models.WH.ShippingErrorRecord>();
 
             var result = connection.Query<
@@ -619,7 +659,7 @@ namespace ProInternal.Services
 
         public IEnumerable<MemberAddress> GetMemberShipping(string accountId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             connection.Open();
             return connection.Query<MemberAddress>(
                 "GetMemberShipping",
@@ -630,7 +670,7 @@ namespace ProInternal.Services
 
         public ProInternal.Models.WH.ShippingErrorRecord GetShippingErrorDetails(int id)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             connection.Open();
 
             using var multi = connection.QueryMultiple(
@@ -650,7 +690,7 @@ namespace ProInternal.Services
 
         public void ProcessShippingError(int id, string type, string disposition)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             using var command = new SqlCommand("ProcessShippingError", connection)
             {
                 CommandType = CommandType.StoredProcedure
@@ -668,7 +708,7 @@ namespace ProInternal.Services
         {
             foreach (var error in errors)
             {
-                using var connection = new SqlConnection(_connectionString);
+                using var connection = GetConnection();
                 using var command = new SqlCommand("ProcessGridShippingError", connection)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -686,7 +726,7 @@ namespace ProInternal.Services
 
         public void ToggleVendorWebStatus(int vendorId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             using var command = new SqlCommand("ToggleVendorWebStatus", connection)
             {
                 CommandType = CommandType.StoredProcedure
@@ -702,7 +742,7 @@ namespace ProInternal.Services
 
         public IEnumerable<Subscription> GetSubscriptions()
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             connection.Open();
 
             var subscriptions = connection.Query<Subscription>(
@@ -717,7 +757,7 @@ namespace ProInternal.Services
 
         public void UpdateMemberImage(string accountNumber, string imageUrl)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             using var command = new SqlCommand("PIV2UpdateMemberImage", connection)
             {
                 CommandType = CommandType.StoredProcedure
@@ -734,7 +774,7 @@ namespace ProInternal.Services
 
         public IEnumerable<Member> GetMembers(int memberTypeId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             connection.Open();
 
             var members = connection.Query<Member>(
@@ -752,7 +792,7 @@ namespace ProInternal.Services
 
         public IEnumerable<Vendor> GetVendors()
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             connection.Open();
 
             var vendors = connection.Query<Vendor>(
@@ -773,7 +813,7 @@ namespace ProInternal.Services
 
         public async Task<IEnumerable<OutstandingAccount>> GetAccountsWithOutstanding()
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             // Stored procedure returns all accounts with gross outstanding
             var accounts = await connection.QueryAsync<OutstandingAccount>(
                 "PIV2_GetAccountsWithOutstanding",
@@ -783,7 +823,7 @@ namespace ProInternal.Services
 
         public async Task<IEnumerable<OutstandingInvoice>> GetInvoicesByAccount(string accountNumber)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
 
             var parameters = new DynamicParameters();
             parameters.Add("@AccountNumber", accountNumber);
@@ -799,7 +839,7 @@ namespace ProInternal.Services
 
         public async Task<bool> SendInvoicesToMemberEmail(string accountNumber, string email)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             var parameters = new DynamicParameters();
             parameters.Add("@AccountNumber", accountNumber);
             parameters.Add("@Email", email);
@@ -820,7 +860,7 @@ namespace ProInternal.Services
 
         public void UpdateVendorImage(int vendorId, string imageUrl)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             using var command = new SqlCommand("dbo.PIV2UpdateVendorImage", connection)
             {
                 CommandType = CommandType.StoredProcedure
@@ -837,7 +877,7 @@ namespace ProInternal.Services
 
         public List<UserWithRoles> GetUsersWithRoles()
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = GetConnection())
             {
                 var userDict = new Dictionary<int, UserWithRoles>();
 
@@ -872,7 +912,7 @@ namespace ProInternal.Services
 
         public void EnableUser(int userId)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             var parameters = new { UserId = userId };
             conn.Execute("PIV2_EnableUser", parameters, commandType: CommandType.StoredProcedure);
         }
@@ -880,40 +920,40 @@ namespace ProInternal.Services
 
         public void DisableUser(int userId)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             conn.Execute("PIV2_DisableUser", new { userId }, commandType: CommandType.StoredProcedure);
         }
 
         public void DeleteUser(int userId)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             conn.Execute("PIV2_DeleteUser", new { userId }, commandType: CommandType.StoredProcedure);
         }
 
 
         public void AssignRoleToUser(int userId, string roleName)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             conn.Execute("PIV2_AssignRoleToUser", new { userId, roleName }, commandType: CommandType.StoredProcedure);
         }
 
         public void RemoveRoleFromUser(int userId, string roleName)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             conn.Execute("PIV2_RemoveRoleFromUser", new { userId, roleName }, commandType: CommandType.StoredProcedure);
         }
 
 
         public List<UserWithRoles> GetUserRoles(int userId)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             return conn.Query<UserWithRoles>("PIV2_GetUserRoles", new { userId }, commandType: CommandType.StoredProcedure).ToList();
         }
 
 
         public List<RoleDto> GetAllRoles()
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = GetConnection())
             {
                 return connection.Query<RoleDto>(
                     "PIV2_GetAllRoles",
@@ -927,7 +967,7 @@ namespace ProInternal.Services
 
         public List<string> GetPermissionsByRole(string roleName)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 return connection.Query<string>(
                     "PIV2_GetPermissionsByRole",
@@ -939,7 +979,7 @@ namespace ProInternal.Services
 
         public void CreatePermission(string permissionName, string description, string? routePath)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             conn.Execute("dbo.CreatePermission", new { permissionName, description, routePath }, commandType: CommandType.StoredProcedure);
         }
 
@@ -947,7 +987,7 @@ namespace ProInternal.Services
 
         public void RenamePermission(string oldName, string newName, string description)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             conn.Execute("dbo.RenamePermission", new { oldName, newName, description }, commandType: CommandType.StoredProcedure);
         }
@@ -957,7 +997,7 @@ namespace ProInternal.Services
 
         public void DeletePermission(string permissionName)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             conn.Execute("dbo.DeletePermission", new { permissionName }, commandType: CommandType.StoredProcedure);
         }
 
@@ -966,7 +1006,7 @@ namespace ProInternal.Services
 
         public List<string> GetUserExtraPermissions(int userId)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = GetConnection())
             {
                 return connection.Query<string>("[PIV2_GetUserExtraPermissions]", new { UserId = userId }, commandType: CommandType.StoredProcedure).ToList();
             }
@@ -975,7 +1015,7 @@ namespace ProInternal.Services
         
         public void SaveUserExtraPermission(int userId, List<string> permissions)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             var table = new DataTable();
             table.Columns.Add("PermissionName", typeof(string));
@@ -994,7 +1034,7 @@ namespace ProInternal.Services
 
         public void RemoveUserExtraPermission(int userId, string permission)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = GetConnection())
             {
 
                 connection.Execute("RemoveUserExtraPermission", new { UserId = userId, Permission = permission }, commandType: CommandType.StoredProcedure);
@@ -1005,7 +1045,7 @@ namespace ProInternal.Services
 
         public void ReplaceUserRoles(int userId, List<string> roles)
         {
-            using (var connection = new SqlConnection(_connectionString))
+            using (var connection = GetConnection())
             {
                 var table = new DataTable();
                 table.Columns.Add("RoleName", typeof(string));
@@ -1030,7 +1070,7 @@ namespace ProInternal.Services
 
         public void AssignPermissionToRole(string roleName, List<string> permissionNames)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             foreach (var permission in permissionNames)
             {
                 conn.Execute("PIV2_AssignPermissionToRole",
@@ -1041,7 +1081,7 @@ namespace ProInternal.Services
 
         public void RemovePermissionFromRole(string roleName, List<string> permissionNames)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             foreach (var permission in permissionNames)
             {
                 conn.Execute("PIV2_RemovePermissionFromRole",
@@ -1054,14 +1094,14 @@ namespace ProInternal.Services
 
         public List<string> GetUserPermissions(int userId)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
             return conn.Query<string>("PIV2_GetUserPermissions", new { userId }, commandType: CommandType.StoredProcedure).ToList();
         }
 
 
         public void CreateRole(string roleName, string roleDescription)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute(
                     "PIV2_CreateRole",
@@ -1072,7 +1112,7 @@ namespace ProInternal.Services
 
         public void RenameRole(string oldName, string newName)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute(
                     "PIV2_RenameRole",
@@ -1083,7 +1123,7 @@ namespace ProInternal.Services
 
         public void DeleteRole(string roleName)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute(
                     "PIV2_DeleteRole",
@@ -1101,7 +1141,7 @@ namespace ProInternal.Services
 
         public List<QuarterlyRebate> GetQuarterRebateSummary()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<QuarterlyRebate>("StolenGoods_Get_Flat").ToList();
                 return output;
@@ -1112,7 +1152,7 @@ namespace ProInternal.Services
 
         public List<QuarterlyDataSummary> getCurrentQuarterlyData()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<QuarterlyDataSummary>("QuarterlyGetRecentFileUpload").ToList();
                 return output;
@@ -1122,7 +1162,7 @@ namespace ProInternal.Services
      
         public List<InvoiceRecord> GetInvoices()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<InvoiceRecord>("GetEzpayInvoices").ToList();
 
@@ -1134,7 +1174,7 @@ namespace ProInternal.Services
 
         public List<VendorStock> GetVendorStock()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<VendorStock>("GetAllVendorStock").ToList();
                
@@ -1145,7 +1185,7 @@ namespace ProInternal.Services
 
         public VendorUserResponse saveVendorUser(VendorUser user)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@CompanyID", user.CompanyId);
@@ -1176,7 +1216,7 @@ namespace ProInternal.Services
 
         public List<VendorSearch> getAllVendors()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<VendorSearch>("getAllVendors").ToList();
                 
@@ -1188,7 +1228,7 @@ namespace ProInternal.Services
         #region Authentication
         public LoginResponse login(string username, string password)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var response = new LoginResponse();
 
@@ -1238,7 +1278,7 @@ namespace ProInternal.Services
 
         public bool MarkProductComplete(int shippingErrorId, int productId, string updatedBy)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var result = connection.Execute("ShippingError_MarkProductComplete",
                     new { ShippingErrorId = shippingErrorId, ProductId = productId, UpdatedBy = updatedBy },
@@ -1252,7 +1292,7 @@ namespace ProInternal.Services
 
         public List<PermissionDto> GetAllPermissions()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 return connection.Query<PermissionDto>("PIV2_GetAllPermissions").ToList();
             }
@@ -1261,7 +1301,7 @@ namespace ProInternal.Services
 
         public List<QuarterlyDataHistorical> getHistoricalQRData()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<QuarterlyDataHistorical>("GetQRHistorical").ToList();
                 return output;
@@ -1270,7 +1310,7 @@ namespace ProInternal.Services
         
         public List<Notification> GetNotificationsForUser(int userId)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var parameters = new { UserId = userId };
                 var notifications = connection.Query<Notification>(
@@ -1286,13 +1326,13 @@ namespace ProInternal.Services
 
         public void MarkNotificationAsRead(int notificationId, int userId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             connection.Execute("MarkNotificationAsRead", new { Id = notificationId, UserId = userId }, commandType: CommandType.StoredProcedure);
         }
 
         public void DeleteNotification(int notificationId, int userId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = GetConnection();
             connection.Execute("ArchiveUserNotification", new { Id = notificationId, UserId = userId }, commandType: CommandType.StoredProcedure);
         }
 
@@ -1301,7 +1341,7 @@ namespace ProInternal.Services
 
         public List<GatedProducts> getGatedRetailers()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<GatedProducts>("getGatedRetailers").ToList();
                 return output;
@@ -1312,7 +1352,7 @@ namespace ProInternal.Services
 
         public List<MapViolation> GetExistingViolations(MapViolation violation)
         {
-            using (IDbConnection db = new SqlConnection(_connectionString))
+            using (IDbConnection db = GetConnection())
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@AccountNumber", violation.AccountNumber);
@@ -1334,7 +1374,7 @@ namespace ProInternal.Services
 
         public List<qrDetail> getQRBatchDetail(int batchID)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<qrDetail>("PullQRBatch @batchID", new { batchID = batchID }).ToList();
                 return output;
@@ -1350,7 +1390,7 @@ namespace ProInternal.Services
             int IntprogramID = Convert.ToInt32(values[1]);
 
 
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<qrDetail>("PullQRVendorBatch @batchID, @programID", new { batchID = IntbatchID, programID = IntprogramID }).ToList();
                 return output;
@@ -1361,7 +1401,7 @@ namespace ProInternal.Services
         
         public List<PatronageUpload> GetRecentPatronageLoad()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<PatronageUpload>("GetRecentPatronage").ToList();
 
@@ -1372,7 +1412,7 @@ namespace ProInternal.Services
 
         public List<PatronageHistorical> GetPatronageHistorical()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<PatronageHistorical>("GetPatronageHistorical").ToList();
 
@@ -1383,7 +1423,7 @@ namespace ProInternal.Services
 
         public bool activatePatronageBatch(string batchID, bool active)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 try
                 {
@@ -1407,7 +1447,7 @@ namespace ProInternal.Services
 
         public List<PatronageUpload> getPatronageBatchDetails(string batchID)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<PatronageUpload>("getPatronageBatchDetails @batchID", new { batchID = batchID }).ToList();
                 return output;
@@ -1420,7 +1460,7 @@ namespace ProInternal.Services
 
         public bool deletePatronageLoad(string id)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 bool status = true;
                 try
@@ -1436,7 +1476,7 @@ namespace ProInternal.Services
 
         public bool deleteQRUpload(int batchID)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 bool status = true;
                 try
@@ -1452,7 +1492,7 @@ namespace ProInternal.Services
 
         public bool activate(int batchID)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 bool status = true;
                 try
@@ -1481,7 +1521,7 @@ namespace ProInternal.Services
             return DBNull.Value;
         }
 
-        public void savePatronageData(List<PatronageUpload> data )
+        public void savePatronageData(List<PatronageUpload> data, DateTime issueDate)
         {
 
             var batchId = "PATR-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmm");
@@ -1503,6 +1543,7 @@ namespace ProInternal.Services
             table.Columns.Add("TaxWithholding", typeof(decimal));
             table.Columns.Add("Withdrawal", typeof(decimal));
             table.Columns.Add("EndingRetention", typeof(decimal));
+            table.Columns.Add("IssueDate", typeof(DateTime));
 
             foreach (var item in data)
             {
@@ -1526,7 +1567,8 @@ namespace ProInternal.Services
                     ToDbDecimal(item.stockValue),
                     ToDbDecimal(item.taxWithholding),
                     ToDbDecimal(item.withdrawal),
-                    ToDbDecimal(item.endingRetention)
+                    ToDbDecimal(item.endingRetention),
+                    issueDate
                 );
             }
 
@@ -1535,7 +1577,7 @@ namespace ProInternal.Services
             var p = new DynamicParameters();
             p.Add("@PatronageUploads", table.AsTableValuedParameter("PatronageUploadTableType"));
 
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 try
                 {
@@ -1551,7 +1593,7 @@ namespace ProInternal.Services
 
 
 
-        public QuarterlyRebates saveData(QuarterlyRebates data)
+        public QuarterlyRebates saveData(QuarterlyRebates data, DateTime issueDate)
         {
 
             DataTable Headers = new DataTable();
@@ -1584,8 +1626,9 @@ namespace ProInternal.Services
             var p = new DynamicParameters();
             p.Add("@QuarterlyFileData", data.FileData.AsTableValuedParameter("QuarterlyFileData"));
             p.Add("@Programs", Headers.AsTableValuedParameter("Programs"));
+            p.Add("@IssueDate", issueDate);
 
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 try
                 {
@@ -1604,9 +1647,15 @@ namespace ProInternal.Services
 
         public OrdersMetrics GetOrdersMetrics()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<OrdersMetrics>("InternalOrdersMetrics").FirstOrDefault();
+
+                if (output != null)
+                {
+                    output.dropShipThreshold = GetDropShipThreshold();
+                }
+
 
                 return output;
             }
@@ -1614,7 +1663,7 @@ namespace ProInternal.Services
 
         public EDIMetrics GetEDIMetrics()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<EDIMetrics>("InternalEDISMetrics").FirstOrDefault();
 
@@ -1625,7 +1674,7 @@ namespace ProInternal.Services
 
         public ShippingErrorMetrics getShippingErrorMetrics()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<ShippingErrorMetrics>("InternalShippingErrorMetrics").FirstOrDefault();
 
@@ -1636,7 +1685,7 @@ namespace ProInternal.Services
 
         public CommecntsMetrics getCommentsrMetrics()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<CommecntsMetrics>("InternalCommentsMetrics").FirstOrDefault();
                 return output;
@@ -1648,7 +1697,7 @@ namespace ProInternal.Services
 
         public List<MapViolation> GetAllMapViolations()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<MapViolation>("PIV2MapViolations_GetAll", commandType: CommandType.StoredProcedure).ToList();
                 return output;
@@ -1659,7 +1708,7 @@ namespace ProInternal.Services
 
         public List<ProInternal.Models.Accounts.ShippingErrorRecord> getAccounts()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<ProInternal.Models.Accounts.ShippingErrorRecord>("GetAccounts").ToList();
 
@@ -1669,7 +1718,7 @@ namespace ProInternal.Services
 
         public void ApplyCountryBrandExclusion(CountryBrandRequest data)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
 
                 var table = new DataTable();
@@ -1691,7 +1740,7 @@ namespace ProInternal.Services
 
         public List<Brands> GetExcludedBrandsByCountry(string country)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {         
                 var output = connection.Query<Brands>("GetExcludedBrandsByCountry", new { country = country }).ToList();
                 
@@ -1702,7 +1751,7 @@ namespace ProInternal.Services
 
         public List<string> GetUniqueCountries()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<string>("GetUniqueCountries").ToList();
 
@@ -1731,7 +1780,7 @@ namespace ProInternal.Services
             parameters.Add("@AccountNumber", assignment.AccountNumber);
             parameters.Add("@Brands", brandTable.AsTableValuedParameter("BrandIdListType"));
 
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute("InsertMemberBrandGating", parameters, commandType: CommandType.StoredProcedure);
             }
@@ -1741,7 +1790,7 @@ namespace ProInternal.Services
 
         public List<Products> getProducts(string searchCriteria)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<Products>("InternalGetProducts", new {searchCriteria =  searchCriteria }).ToList();
 
@@ -1751,7 +1800,7 @@ namespace ProInternal.Services
 
         public List<MemberGateSummary> GetMemberGateSummary(string searchCriteria)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<MemberGateSummary>("GetMemberGateSummarys", new { searchCriteria = searchCriteria }).ToList();
 
@@ -1762,7 +1811,7 @@ namespace ProInternal.Services
 
         public List<Products> QuickSearchProducts()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<Products>("GetProducts").ToList();
                 return output;
@@ -1772,7 +1821,7 @@ namespace ProInternal.Services
 
         public List<Brands> getBrands()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<Brands>("GetBrands").ToList();
                 return output;
@@ -1782,7 +1831,7 @@ namespace ProInternal.Services
 
         public List<SpecialOrdersSummary> getOrdersSnapshot()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<SpecialOrdersSummary>("InternalOrdersSnapshot").ToList();
 
@@ -1795,7 +1844,7 @@ namespace ProInternal.Services
 
 		#region Exclusions
         public int Exclusion_CreateGroup(string groupName) {
-			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+			using (IDbConnection connection = GetConnection()) {
 				var output = connection.Query<int>("Exclusions_CreateGroup @groupName", new { groupName = groupName}).FirstOrDefault();
 				return output;
 			}
@@ -1816,7 +1865,7 @@ namespace ProInternal.Services
 			p.Add("@ProductExclusionGroupID", productExclusionGroupID);
 			p.Add("@ProductCodes", productCodeTable.AsTableValuedParameter("ProductCodeList"));
 
-			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+			using (IDbConnection connection = GetConnection()) {
 				connection.Execute("Exclusions_AddProductsToGroup", p, commandType: CommandType.StoredProcedure);
 			}
 		}
@@ -1832,7 +1881,7 @@ namespace ProInternal.Services
             var p = new DynamicParameters();
             p.Add("@CompanyId", companyID);
             p.Add("@ProductExclusionGroupIDs", groupIds.AsTableValuedParameter("IdList"));
-			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+			using (IDbConnection connection = GetConnection()) {
 				connection.Execute("Exclusions_ExcludeCompanyGroups", p, commandType: CommandType.StoredProcedure);
 			}
 		}
@@ -1848,13 +1897,13 @@ namespace ProInternal.Services
 			var p = new DynamicParameters();
 			p.Add("@CompanyId", companyID);
 			p.Add("@BrandIds", brandIds.AsTableValuedParameter("BrandIdList"));
-			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+			using (IDbConnection connection = GetConnection()) {
 				connection.Execute("Exclusions_ExcludeCompanyBrands", p, commandType: CommandType.StoredProcedure);
 			}
 		}
 
         public List<CompanyBrandExclusion> Exclusions_GetCompanyBrandExclusions(int companyID) {
-			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+			using (IDbConnection connection = GetConnection()) {
 				var output = connection.Query<CompanyBrandExclusion>("Exclusions_GetCompanyBrandExclusions @CompanyID", new { CompanyID = companyID}).ToList();
 				return output;
 			}
@@ -1862,7 +1911,7 @@ namespace ProInternal.Services
 
         public List<CompanyDto> GetCompaniesAssignedToGroupAsync(int groupId)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<CompanyDto>(
                     "Exclusions_GetCompanyExclusions",
@@ -1878,7 +1927,7 @@ namespace ProInternal.Services
 
         public List<Products> GetUnassignedProductsAsync()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<Products>("GetUnassignedProducts").ToList();
               
@@ -1889,21 +1938,21 @@ namespace ProInternal.Services
 
 
         public List<ProductExclusionGroup> Exclusions_GetExclusionGroups() {
-			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+			using (IDbConnection connection = GetConnection()) {
 				var output = connection.Query<ProductExclusionGroup>("Exclusions_GetExclusionGroups").ToList();
 				return output;
 			}
         }
 
         public List<ProductExclusionGroupProduct> Exclusions_GetExclusionGroupProducts(int productExclusionGroupID) { 
- 			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+ 			using (IDbConnection connection = GetConnection()) {
 				var output = connection.Query<ProductExclusionGroupProduct>("Exclusions_GetExclusionGroupProducts @ProductExclusionGroupID", new { ProductExclusionGroupID = productExclusionGroupID }).ToList();
 				return output;
 			}
        }
 
         public List<CompanyGroupExclusion> Exclusions_GetCompanyGroupExclusions(int companyID) {
-			using (IDbConnection connection = new SqlConnection(_connectionString)) {
+			using (IDbConnection connection = GetConnection()) {
 				var output = connection.Query<CompanyGroupExclusion>("Exclusions_GetCompanyGroupExclusions @CompanyID", new { CompanyID = companyID }).ToList();
 				return output;
 			}

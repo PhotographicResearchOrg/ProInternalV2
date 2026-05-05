@@ -25,6 +25,8 @@ export class QtrRebatesComponent implements OnInit {
   subscription: Subscription;
   QuarterlyRebates: QuarterlyRebates[] = [];
 
+
+  public checkIssueDate: Date | null = null;
   public quarterlyrebates: Array<QuarterlyRebates> = [];
   public QRHistorical: Array<QuarterlyRebatesHistorical> = [];
   public QRBatchData: qrDetail[] = [];

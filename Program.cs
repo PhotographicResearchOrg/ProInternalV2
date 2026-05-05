@@ -11,7 +11,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
+using PdfSharp.Charting;
 using ProInternal;
+using ProInternal.Helpers;
 using ProInternal.Models.Accounting;
 using ProInternal.Models.Accounts;
 using ProInternal.Services;
@@ -43,12 +45,21 @@ builder.Services.Configure<EmailSettings>(
 
 var configuration = builder.Configuration;
 
+builder.Services.AddSingleton<AwsSecretHelper>();
+
 //New
+
+
 builder.Services.AddSingleton<PowerBIService>();
-builder.Services.AddScoped<IProDataAccess>(provider => new ProDataAccess(builder.Configuration.GetConnectionString("ProConnectionString")));
-builder.Services.AddScoped<IDRADataAccess>(provider => new DRADataAccess(builder.Configuration.GetConnectionString("DRAConnectionString")));
-builder.Services.AddScoped<INukeDataAccess>(provider => new NukeDataAccess(builder.Configuration.GetConnectionString("NukeConnectionString")));
-builder.Services.AddScoped<IEDADataAccess>(provider => new EDADataAccess(builder.Configuration.GetConnectionString("EDAConnectionString")));
+
+
+
+builder.Services.AddScoped<IProDataAccess, ProDataAccess>();
+builder.Services.AddScoped<IDRADataAccess, DRADataAccess>();
+builder.Services.AddScoped<INukeDataAccess, NukeDataAccess>();
+builder.Services.AddScoped<IEDADataAccess, EDADataAccess>();
+
+
 
 builder.Services.AddScoped<IInvoiceExtractionService, InvoiceExtractionService>();
 

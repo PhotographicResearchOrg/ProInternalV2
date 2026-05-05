@@ -17,6 +17,10 @@ namespace ProInternal.Services
     public interface IEDADataAccess
     {
 
+        void RetireShipment(string tracking);
+        void SetCreditEmailFlag(string invoiceNumber, bool include);
+        void SaveSubscription(ShipmentSubscription sub);
+        IEnumerable<ShipmentSubscription> GetSubscriptions(int userId);
 
         IEnumerable<ShipmentEventRecord> GetShipmentEvents(string trackingNumber);
 

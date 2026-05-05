@@ -37,6 +37,7 @@ export class ShippingerrorsComponent {
   filteredShippingErrors: ShippingErrorRecord[] = []; // This will hold the filtered results
   isExporting: boolean = false; // For controlling the spinner
   selectedErrorDetails: ShippingErrorProduct[] = [];
+  isBRMMode = false;
 
 
   public dispositionsMap: { [key: string]: any[] } = {
@@ -180,7 +181,7 @@ export class ShippingerrorsComponent {
     if (index === -1) return;
 
     const products = error.products || [];
-    const isEditable = error.status === 'Open';
+    const isEditable = error.status === 'Open' || error.status === 'BRM';
 
     products.forEach(p => {
       const dispositionValue = p.disposition != null ? String(p.disposition) : '';
@@ -205,7 +206,7 @@ export class ShippingerrorsComponent {
 
       (p as any).dispositions = normalizedOptions;
       (p as any).selectedDisposition = match ? dispositionValue : null;
-      (p as any).brmMessage = p.customMessage || '';
+      (p as any).brmMessage = '';
       (p as any).validationError = null;
       (p as any).isBRMDisposition = dispositionValue === '9' && !!p.customMessage?.trim();
       (p as any).readOnly = !isEditable;
@@ -531,6 +532,11 @@ export class ShippingerrorsComponent {
     date.setDate(date.getDate() + days);
     return date.toLocaleDateString();
   }
+
+  sendBackToWarehouse(errorId: number, product: any): void {
+    // base does nothing (BRM overrides this)
+  }
+
 
   exportErrors() {
 

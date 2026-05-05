@@ -442,7 +442,7 @@
             </th>
 
             <th>Send</th>
-
+            <th>Skip Notify</th>
           </tr>
         </ng-template>
 
@@ -529,6 +529,29 @@
                       (click)="openEmailPanel($event, emailOp, row)">
               </button>
             </td>
+
+            <td>
+              <div class="flex align-items-center gap-2">
+
+                <p-inputSwitch [(ngModel)]="row.includeInEmail"
+                               (onChange)="toggleInclude(row)">
+                </p-inputSwitch>
+
+                <span class="text-xs text-color-secondary">
+                  {{ row.includeInEmail ? 'Skip' : 'Auto' }}
+                </span>
+
+                <i *ngIf="row.includeInEmail"
+                   class="pi pi-exclamation-triangle text-orange-500"
+                   pTooltip="Skipped from the 6 PM email. Turn this off before 6 PM to include it."
+                   tooltipPosition="top">
+                </i>
+
+
+              </div>
+            </td>
+
+
 
           </tr>
         </ng-template>

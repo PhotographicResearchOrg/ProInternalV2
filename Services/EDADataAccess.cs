@@ -1,40 +1,37 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using System.Linq;
-using System.Threading.Tasks;
-using Dapper;
+﻿using Dapper;
+using Microsoft.Data.SqlClient;
+using ProInternal.Helpers;
 using ProInternal.Models.Accounting;
 using ProInternal.Models.Dashboard;
+using ProInternal.Models.EzPaySummary;
 using ProInternal.Models.InstantRebates;
 using ProInternal.Models.Vendor;
-using Microsoft.Data.SqlClient;
-using System.Reflection.Metadata;
-using ProInternal.Models.EzPaySummary;
-using System.Data.Common;
 using ProInternal.Models.WH;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Reflection.Metadata;
+using System.Threading.Tasks;
 
 
 
 namespace ProInternal.Services
 {
-    public class EDADataAccess : IEDADataAccess
+    public class EDADataAccess : BaseDataAccess, IEDADataAccess
     {
-
-        private string _connectionString { get; set; }
-
-
-        public EDADataAccess(string connectionString)
+        public EDADataAccess(IConfiguration config, AwsSecretHelper helper)
+            : base(config, helper, "EdaConnectionString")
         {
-            _connectionString = connectionString;
         }
 
 
 
         public async Task<IEnumerable<EzPaySummary>> GetEzPaySummary(DateTime daDate)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@daDate", daDate);
@@ -52,12 +49,32 @@ namespace ProInternal.Services
             }
         }
 
+        public void SetCreditEmailFlag(string invoiceNumber, bool include)
+        {
+            using var conn = GetConnection();
 
+                conn.Execute(@"
+            MERGE AccountingCreditInvoices AS target
+            USING (SELECT @InvoiceNumber AS InvoiceNumber) AS src
+            ON target.InvoiceNumber = src.InvoiceNumber
+
+            WHEN MATCHED THEN
+                UPDATE SET IncludeInEmail = @Include
+
+            WHEN NOT MATCHED THEN
+                INSERT (InvoiceNumber, IncludeInEmail)
+                VALUES (@InvoiceNumber, @Include);
+        ", new
+            {
+                InvoiceNumber = invoiceNumber,
+                Include = include
+            });
+        }
 
 
         public IEnumerable<ShipmentRecord> GetShipments()
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.Query<ShipmentRecord>(
                 "Warehouse_GetShipments",
@@ -66,9 +83,22 @@ namespace ProInternal.Services
         }
 
 
+        public void RetireShipment(string tracking)
+        {
+            using var conn = GetConnection();
+
+            conn.Execute(
+                "Warehouse_RetireShipment",
+                new { TrackingNumber = tracking },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+
         public IEnumerable<ShipmentEventRecord> GetShipmentEvents(string trackingNumber)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = GetConnection();
 
             return conn.Query<ShipmentEventRecord>(
                 "Warehouse_GetShipmentEvents",
@@ -79,10 +109,41 @@ namespace ProInternal.Services
 
 
 
+        public void SaveSubscription(ShipmentSubscription sub)
+        {
+            using var conn = GetConnection();
+
+            conn.Execute(
+                "Warehouse_SaveSubscription",
+                new
+                {
+                    sub.UserId,
+                    sub.Name,
+                    sub.Account,
+                    sub.Zone,
+                    sub.SLAStatus,
+                    sub.MinDays
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public IEnumerable<ShipmentSubscription> GetSubscriptions(int userId)
+        {
+            using var conn = GetConnection();
+
+            return conn.Query<ShipmentSubscription>(
+                "Warehouse_GetSubscriptions",
+                new { UserId = userId },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
 
         public async Task<PackingSlipData> GetPackingSlipData(int shippingErrorId)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@ShippingErrorId", shippingErrorId);
@@ -116,7 +177,7 @@ namespace ProInternal.Services
 
         public async Task<IEnumerable<EzPayDetail>> GetEzPayDetail(DateTime daDate)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@daDate", daDate);
@@ -142,7 +203,7 @@ namespace ProInternal.Services
 
         public List<PanaAccount> GetAllPanaAccounts()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<PanaAccount>("GetAllPanaAccounts").ToList();
                 return output;
@@ -151,7 +212,7 @@ namespace ProInternal.Services
 
         public List<PanaRep> GetAllPanaReps()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<PanaRep>("GetAllPanaReps").ToList();
                 return output;
@@ -162,7 +223,7 @@ namespace ProInternal.Services
 
         public async Task<PanaRep> SavePanaRep(PanaRep rep)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@RepName", rep.RepName);
@@ -190,7 +251,7 @@ namespace ProInternal.Services
 
         public async Task<bool> DeletePanaRep(int id)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@Id", id);
@@ -209,7 +270,7 @@ namespace ProInternal.Services
 
         public async Task<bool> DeletePanaAccount(string meca)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@Id", meca);
@@ -230,7 +291,7 @@ namespace ProInternal.Services
 
         public async Task<PanaAccount> SavePanaAccount(PanaAccount account)
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@Meca", account.Meca);

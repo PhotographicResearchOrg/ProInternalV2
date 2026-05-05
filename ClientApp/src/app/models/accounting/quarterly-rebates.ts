@@ -33,6 +33,10 @@ export class QuarterlyRebatesHistorical {
   public qrPeriod: string;
   public totalAmount: number;
   public issueDate: Date;
+  public checkIssueDate: Date;
+
+  
+
   public id: number;
   public active: boolean;
   constructor() {
@@ -40,6 +44,7 @@ export class QuarterlyRebatesHistorical {
     this.totalAmount = 0;
     this.id = 0;
     this.issueDate = new Date();
+    this.checkIssueDate = new Date();
     this.active = false;
   }
 

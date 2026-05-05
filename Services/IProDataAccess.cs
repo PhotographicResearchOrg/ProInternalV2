@@ -32,7 +32,8 @@ namespace ProInternal.Services
     {
 
 
-
+        decimal GetDropShipThreshold();
+        void SetDropShipThreshold(decimal value);
 
         VendorDto? GetVendorById(int vendorId);
         VendorMatchDto? FindVendorByName(string name);
@@ -42,7 +43,7 @@ namespace ProInternal.Services
         MemberMatchDto? FindMemberByAddress(string rawText);
 
 
-
+        Task SendBackToWarehouse(int errorI, string productCode, string reason, string username);
         void MarkCreditInvoiceFailed(int creditId, string invoiceNumber, string error);
         void UpsertAccountingFile(string fileId, string storedName, string originalName);
 
@@ -182,7 +183,8 @@ namespace ProInternal.Services
         
         List<Brands> getBrands();
 
-        QuarterlyRebates saveData(QuarterlyRebates saveData);
+        QuarterlyRebates saveData(QuarterlyRebates data, DateTime issueDate);
+
 
         List<QuarterlyDataSummary> getCurrentQuarterlyData();
 
@@ -216,7 +218,7 @@ namespace ProInternal.Services
         List<VendorStock> GetVendorStock();
         List<VendorSearch> getAllVendors();
         List<InvoiceRecord> GetInvoices();
-        void savePatronageData(List<PatronageUpload> data);
+        public void savePatronageData(List<PatronageUpload> data, DateTime issueDate);
         List<PatronageUpload>GetRecentPatronageLoad();
         List<PatronageHistorical> GetPatronageHistorical();
 

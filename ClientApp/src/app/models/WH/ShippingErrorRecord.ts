@@ -30,6 +30,10 @@ export interface ShippingErrorProduct {
   disposition?: string;
   BRMFollowUp?: number;
   customMessage?: string;
+  returnMessage?: string;
+  returnedBy?: string;
+  returnedDate?: string;
+
 
 }
 

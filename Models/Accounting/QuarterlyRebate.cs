@@ -42,6 +42,10 @@ namespace ProInternal.Models.Accounting
         public string qrPeriod { get; set; }
         public Double totalAmount { get; set; }
         public DateTime? issueDate { get; set; }
+
+        public DateTime? checkIssueDate { get; set; }
+
+
         public int id { get; set; }
         public bool  active { get; set; }
 

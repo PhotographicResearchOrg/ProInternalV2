@@ -6,6 +6,7 @@ export class OrdersMetrics {
   public lastRunTime: Date;
   public oldestOnHold: Date;
   public threshold: number;
+  public dropShipThreshold: number;     //  NEW (clear + correct
 
   constructor() {
     this.openOrders = 0; // Initializing in the constructor
@@ -15,6 +16,7 @@ export class OrdersMetrics {
     this.lastRunTime = new Date();
     this.oldestOnHold = new Date();
     this.threshold = 0;
+    this.dropShipThreshold = 0;
   }
 
 }

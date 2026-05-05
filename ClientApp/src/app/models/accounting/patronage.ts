@@ -22,6 +22,7 @@ export interface PatronageHistorical {
   issueDate: Date;
   totalAmount: number;
   active: boolean;
+  checkissueDate: Date;
 }
 
 export interface patronageDetail {

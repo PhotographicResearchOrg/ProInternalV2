@@ -10,6 +10,7 @@
         public DateTime OldestOnHold { get; set; }
         public int threshold { get; set; }
 
+        public decimal dropShipThreshold { get; set; } //  NEW (this is yours)
 
     }
 

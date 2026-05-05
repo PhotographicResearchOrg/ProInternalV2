@@ -1,7 +1,12 @@
 <p-toast></p-toast>
 
+<p-confirmDialog></p-confirmDialog>
+
+
 <div class="gray-background p-3 border-round">
   <div class="white-card">
+
+
 
     <!-- HEADER -->
     <div class="flex justify-content-between align-items-center mb-3">
@@ -9,6 +14,25 @@
         <i class="pi pi-truck mr-2 text-primary"></i>
         Shipment Monitor
       </div>
+
+      <button pButton
+              label="Create Alert"
+              icon="pi pi-bell"
+              class="p-button-text"
+              (click)="showAlertPanel = true">
+      </button>
+    </div>
+
+
+    <div class="mb-3 text-sm text-600">
+      <i class="pi pi-info-circle mr-2"></i>
+      Transit time starts when UPS receives the package (not when the label is created).
+    </div>
+
+    <div class="mb-3 text-sm text-600">
+      <i class="pi pi-calendar mr-2"></i>
+      <strong>Holiday Rule:</strong> For select Zone 7–8 accounts flagged for expedited shipping (AIR=3),
+      SLA is evaluated using a 3-day window during peak season (Nov–Jan).
     </div>
 
 
@@ -32,13 +56,6 @@
       </p-dropdown>
 
       <!-- REGION -->
-      <p-dropdown [options]="regionOptions"
-                  [(ngModel)]="selectedRegion"
-                  placeholder="Region"
-                  (onChange)="applyFilters()"
-                  styleClass="w-10rem">
-      </p-dropdown>
-
       <!-- CLEAR -->
       <button pButton
               label="Clear"
@@ -50,6 +67,44 @@
 
 
 
+    <div class="flex gap-2 flex-wrap mb-3">
+
+      <span class="filter-chip"
+            [ngClass]="{ active: selectedZone === null }"
+            (click)="setZone(null)">
+        All
+      </span>
+
+      <span *ngFor="let z of [2,3,4,5,6,7,8]"
+            class="filter-chip"
+            [ngClass]="{ active: selectedZone === z }"
+            (click)="setZone(z)">
+        Z{{ z }}
+      </span>
+
+      <!-- 🔥 UNKNOWN ZONE -->
+      <span class="filter-chip"
+            [ngClass]="{ active: selectedZone === 0 }"
+            (click)="setZone(0)">
+        Unknown
+      </span>
+
+    </div>
+
+
+
+    <div class="white-card p-2 mb-3 text-sm">
+      <strong>UPS Ground SLA (PA Origin)</strong><br />
+      Zone 2 → 1 day<br />
+      Zone 3 → 1–2 days<br />
+      Zone 4 → 2 days<br />
+      Zone 5 → 3 days<br />
+      Zone 6 → 3–4 days<br />
+      Zone 7 → 4 days<br />
+      Zone 8 → 4–5 days<br />
+      <small class="text-500">*PRO policy caps delivery at 4 days</small>
+    </div>
+
 
     <!-- TABLE -->
     <p-table #dt
@@ -57,66 +112,125 @@
              dataKey="trackingNumber"
              [paginator]="true"
              [rows]="50"
+             [loading]="loading"
              [globalFilterFields]="['trackingNumber','currentStatus','destinationState','slaStatus']"
              responsiveLayout="scroll">
+
+
+
+
+
+
 
       <!-- HEADER -->
       <ng-template pTemplate="header">
         <tr>
           <th style="width:3rem"></th>
           <th pSortableColumn="trackingNumber">Tracking <p-sortIcon field="trackingNumber"></p-sortIcon></th>
+          <th>Account</th>
           <th>Status</th>
           <th>SLA</th>
-          <th>Region</th>
+
+          <th>Zone</th>
           <th>Destination</th>
-          <th pSortableColumn="entryDate">Shipped</th>
-          <th pSortableColumn="deliveredDate">Expected</th>
+          <th pSortableColumn="entryDate">Start</th>
+          <th pSortableColumn="deliveredDate">Delivery / Expected</th>
         </tr>
       </ng-template>
 
       <!-- ROW -->
       <ng-template pTemplate="body" let-row>
         <tr>
+
+
           <td>
-            <i class="pi"
-               [ngClass]="expanded === row.trackingNumber ? 'pi-chevron-down' : 'pi-chevron-right'"
-               (click)="toggle(row)"
-               style="cursor:pointer"></i>
+            <div class="flex align-items-center gap-2">
+
+              <!-- expand -->
+              <i class="pi"
+                 [ngClass]="expanded === row.trackingNumber ? 'pi-chevron-down' : 'pi-chevron-right'"
+                 (click)="toggle(row)"
+                 style="cursor:pointer"></i>
+
+              <!-- retire -->
+              <button pButton
+                      icon="pi pi-times"
+                      class="p-button-text p-button-sm text-500"
+                      pTooltip="Retire shipment"
+                     (click)="confirmRetire(row)">
+              </button>
+
+            </div>
           </td>
 
           <td class="font-medium">{{ row.trackingNumber }}</td>
 
+
+
+          <td>
+            <div class="flex flex-column">
+              <span class="font-medium">#{{ row.account }}</span>
+              <small class="text-500">{{ row.accountname }}</small>
+            </div>
+          </td>
+
+
           <td>
             <p-tag [value]="row.currentStatus"
-                   [severity]="getStatusSeverity(row.currentStatus)">
+                   [severity]="getStatusSeverity(row.currentStatus)"
+                   styleClass="status-tag-compact">
             </p-tag>
           </td>
 
           <td>
-            <span class="sla-pill"
-                  [ngClass]="{
-                    'sla-ontime': row.slaStatus === 'OnTime',
-                    'sla-atrisk': row.slaStatus === 'AtRisk',
-                    'sla-late': row.slaStatus === 'Late'
-                  }">
-              {{ row.slaStatus }}
-            </span>
+            <div class="flex flex-column">
+              <span class="sla-pill"
+                    pTooltip="Based on UPS zone delivery expectations"
+                    tooltipPosition="top"
+                    [ngClass]="{
+        'sla-ontime': row.slaStatus === 'OnTime',
+        'sla-atrisk': row.slaStatus === 'AtRisk',
+        'sla-late': row.slaStatus === 'Late'
+      }">
+                {{ row.slaStatus }}
+              </span>
+
+              <i *ngIf="row.zone >= 7 && row.air === 3 && isHoliday(row)"
+                 class="pi pi-calendar text-orange-400"
+                 pTooltip="Holiday SLA rule applied">
+              </i>
+
+              <small class="text-500"
+                     pTooltip="Transit time based on UPS first scan"
+                     tooltipPosition="top">
+                {{ row.actualDays }} days in transit
+              </small>
+            </div>
           </td>
 
+
+
           <td>
-            <p-tag [value]="getRegion(row.destinationState)" severity="info"></p-tag>
+            <p-tag [value]="'Z' + (row.zone || '?')"
+                   [severity]="getZoneSeverity(row.zone)">
+            </p-tag>
           </td>
 
           <td>{{ row.destinationState }}</td>
 
-          <td>{{ row.entryDate | date:'MM-dd' }}</td>
+          <td>
+            <div class="flex flex-column">
+              <span>{{ row.entryDate | date:'MM-dd HH:mm' }}</span>
+              <small class="text-500">UPS Received</small>
+            </div>
+          </td>
 
           <td>{{ row.deliveredDate | date:'MM-dd' }}</td>
         </tr>
 
         <!-- EXPANDED TIMELINE -->
         <tr *ngIf="expanded === row.trackingNumber">
-          <td colspan="8">
+          <td colspan="9">
             <div class="p-3 gray-background border-round">
 
               <div class="white-card">
@@ -154,3 +268,170 @@
 
   </div>
 </div>
+
+
+
+
+<p-sidebar [(visible)]="showAlertPanel"
+           position="right"
+           styleClass="w-30rem">
+
+  <div class="p-3">
+
+    <!-- HEADER -->
+    <div class="text-lg font-bold mb-3">
+      <i class="pi pi-bell mr-2 text-primary"></i>
+      Create Alert
+    </div>
+    <div class="flex align-items-center gap-2 mb-2">
+
+      <span class="text-sm font-semibold text-600">
+        Directions
+      </span>
+
+      <button pButton
+              icon="pi pi-question-circle"
+              class="p-button-text p-button-sm"
+              (click)="showHelp = true">
+      </button>
+
+    </div>
+
+    <!-- FORM CARD -->
+    <div class="white-card p-3 mb-3">
+
+      <!-- NAME -->
+      <input [(ngModel)]="model.name"
+             placeholder="Alert Name"
+             class="w-full mb-2" />
+
+      <!-- ACCOUNT -->
+      <input [(ngModel)]="model.account"
+             placeholder="Account (optional)"
+             class="w-full mb-3" />
+
+      <!-- ZONE CHIPS -->
+      <div class="mb-2">
+        <div class="text-sm font-semibold mb-1">Zone</div>
+        <span *ngFor="let z of [2,3,4,5,6,7,8]"
+              class="chip"
+              [ngClass]="{ active: model.zone === z }"
+              (click)="model.zone = z">
+          Z{{ z }}
+        </span>
+
+        <span class="chip"
+              [ngClass]="{ active: model.zone === null }"
+              (click)="model.zone = null">
+          Any
+        </span>
+      </div>
+
+      <!-- SLA CHIPS -->
+      <div class="mb-2">
+        <div class="text-sm font-semibold mb-1">SLA</div>
+        <span *ngFor="let s of slaOptions"
+              class="chip"
+              [ngClass]="{ active: model.slaStatus === s.value }"
+              (click)="model.slaStatus = s.value">
+          {{ s.label }}
+        </span>
+
+        <span class="chip"
+              [ngClass]="{ active: model.slaStatus === null }"
+              (click)="model.slaStatus = null">
+          Any
+        </span>
+      </div>
+
+      <!-- DAYS -->
+      <div class="mb-3">
+        <div class="text-sm font-semibold mb-1">Min Days</div>
+        <input type="number"
+               [(ngModel)]="model.minDays"
+               class="w-full" />
+      </div>
+
+      <!-- SAVE -->
+      <button pButton
+              label="Save Alert"
+              class="w-full"
+              (click)="save()">
+      </button>
+
+    </div>
+
+    <!-- EXISTING ALERTS -->
+    <div class="white-card p-3">
+
+      <div class="text-md font-bold mb-2">
+        My Alerts
+      </div>
+
+      <div *ngFor="let a of subscriptions" class="alert-row">
+
+        <div class="font-medium">{{ a.name }}</div>
+
+        <div class="text-xs text-500">
+          <span *ngIf="a.zone">Z{{ a.zone }}</span>
+          <span *ngIf="a.slaStatus"> • {{ a.slaStatus }}</span>
+          <span *ngIf="a.minDays"> • {{ a.minDays }}+ days</span>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</p-sidebar>
+
+
+<p-dialog [(visible)]="showHelp"
+          header="How Alerts Work"
+          [modal]="true"
+          [style]="{width: '30rem'}"
+          [draggable]="false"
+          [resizable]="false">
+
+  <div class="text-sm line-height-3">
+
+    <div class="mb-3">
+      <strong>What is an Alert?</strong><br />
+      Alerts watch your shipments and show you when something needs attention.
+    </div>
+
+    <div class="mb-3">
+      <strong>How to Create One</strong>
+      <ul class="pl-3 mt-2">
+        <li>Name your alert</li>
+        <li>(Optional) Enter an account</li>
+        <li>Select a zone (distance)</li>
+        <li>Select an SLA status</li>
+        <li>Set minimum days in transit</li>
+      </ul>
+    </div>
+
+    <div class="mb-3">
+      <strong>What “Minimum Days” Means</strong><br />
+      Don’t alert until the shipment has been moving this many days.
+    </div>
+
+    <div class="mb-3">
+      <strong>Example</strong><br />
+      Zone 8 + OnTime + 3 days<br />
+      → Shows long-distance shipments that have been moving 3+ days
+    </div>
+
+    <div class="mb-2">
+      <strong>Notes</strong>
+      <ul class="pl-3 mt-2">
+        <li>Transit starts when UPS receives the package</li>
+        <li>Zones 7–8 take longer</li>
+        <li>Holiday rules may affect delivery timing</li>
+      </ul>
+    </div>
+
+  </div>
+
+</p-dialog>

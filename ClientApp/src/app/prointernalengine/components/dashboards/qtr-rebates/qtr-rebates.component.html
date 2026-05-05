@@ -37,9 +37,32 @@
 
 
 
+  <div class="col-12 md:col-4">
+    <div class="card p-3">
+      <label class="block text-900 font-medium mb-2">Check Issue Date</label>
+
+      <p-calendar [(ngModel)]="checkIssueDate"
+                  dateFormat="mm/dd/yy"
+                  [showIcon]="true"
+                  placeholder="Select issue date"
+                  appendTo="body">
+      </p-calendar>
+
+      <div *ngIf="!checkIssueDate" class="text-orange-500 mt-2">
+        Select a check issue date to enable upload
+      </div>
+    </div>
+  </div>
+
+
+
   <div class="col-12 md:col-6 lg:col-12">
     <div class="card h-full">
-      <app-file-uploader mode="rebate" (reload)="onReload()"></app-file-uploader>
+      <app-file-uploader mode="rebate"
+                         [issueDate]="checkIssueDate"
+                         [disabled]="!checkIssueDate"
+                         (reload)="onReload($event)">
+      </app-file-uploader>
     </div>
   </div>
 
@@ -56,6 +79,12 @@
             <th style="min-width:2rem" class="white-space-nowrap">Public </th>
 
             <th pSortableColumn="issueDate" style="min-width:2rem" class="white-space-nowrap">Issue Date <p-sortIcon field="issueDate"></p-sortIcon></th>
+
+
+            <th pSortableColumn="checkissueDate" style="min-width:2rem" class="white-space-nowrap">
+              Check Date <p-sortIcon field="checkissueDate"></p-sortIcon>
+            </th>
+
 
             <th pSortableColumn="totalAmount" style="min-width:2rem" class="white-space-nowrap">Gross Issued <p-sortIcon field="totalAmount"></p-sortIcon></th>
 
@@ -79,6 +108,18 @@
             <td>
               <span>{{QRHistorical.issueDate | date}}</span>
             </td>
+
+            <td>
+              <span *ngIf="QRHistorical.issueDate; else noDate">
+                {{QRHistorical.checkIssueDate | date:'shortDate'}}
+              </span>
+              <ng-template #noDate>
+                <span class="text-500">—</span>
+              </ng-template>
+            </td>
+
+
+
             <td>
               <span>{{QRHistorical.totalAmount | currency}}</span>
             </td>

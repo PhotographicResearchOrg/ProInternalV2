@@ -1,32 +1,29 @@
-﻿using System;
+﻿using Dapper;
+using Microsoft.Data.SqlClient;
+using ProInternal.Helpers;
+using ProInternal.Models.Dashboard;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
-using Dapper;
-using ProInternal.Models.Dashboard;
-using Microsoft.Data.SqlClient;
 
 namespace ProInternal.Services
 {
-    public class DRADataAccess : IDRADataAccess
+    public class DRADataAccess : BaseDataAccess, IDRADataAccess
     {
-
-        private string _connectionString { get; set; }
-
-        public DRADataAccess(string connectionString)
+        public DRADataAccess(IConfiguration config, AwsSecretHelper helper)
+            : base(config, helper, "DRAConnectionString")
         {
-            _connectionString = connectionString;
         }
-
 
 
         #region Metrics 
 
         public SARSMetrics GetSARSMetrics()
         {
-            using (IDbConnection connection = new SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<SARSMetrics>("InternalSARSMetrics").FirstOrDefault();
 

@@ -1,33 +1,34 @@
-﻿using System;
+﻿using Dapper;
+using Microsoft.AspNetCore.Mvc;
+using ProInternal.Helpers;
+using ProInternal.Models.Dashboard;
+using ProInternal.Models.InstantRebates;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
-using Dapper;
-using Microsoft.AspNetCore.Mvc;
-using ProInternal.Models.Dashboard;
-using ProInternal.Models.InstantRebates;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 
 namespace ProInternal.Services
 {
-    public class NukeDataAccess : INukeDataAccess
+
+    public class NukeDataAccess : BaseDataAccess, INukeDataAccess
     {
-
-        private string _connectionString { get; set; }
-
-        public NukeDataAccess(string connectionString)
+        public NukeDataAccess(IConfiguration config, AwsSecretHelper helper)
+            : base(config, helper, "NukeConnectionString")
         {
-            _connectionString = connectionString;
         }
+
+
 
 
 
         public int? GetDispositionModelId(string modelName)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 return connection.QueryFirstOrDefault<int?>(
                     "PIV2GetDispositionModelId",
@@ -39,7 +40,7 @@ namespace ProInternal.Services
 
         public string? GetStackForModel(int modelId)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 // Returns the aggregated stack string (or null if none)
                 var stack = connection.QueryFirstOrDefault<string?>(
@@ -53,7 +54,7 @@ namespace ProInternal.Services
 
         public int UpdatePreviewProposedName(int previewId, string proposed)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var rows = connection.Execute(
                     "PIV2UpdateRebateIRPreviewProposedName",
@@ -68,7 +69,7 @@ namespace ProInternal.Services
 
         public int InsertRebatePreviewRow(RebateIRRowDto row, DateTime expireDate)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var previewId = connection.QuerySingle<int>(
                     "PIV2InsertRebateIRPreviewRow",
@@ -109,7 +110,7 @@ namespace ProInternal.Services
 
         public CommitResult CommitRebateIRPreviewRows(CommitRequest req, string? committedBy = null)
         {
-            using var conn = new Microsoft.Data.SqlClient.SqlConnection(_connectionString);
+            using var conn =  GetConnection(); 
             conn.Open();
             using var tx = conn.BeginTransaction();
 
@@ -162,7 +163,7 @@ namespace ProInternal.Services
         {
 
 
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<IRMetrics>("InternalIRMetrics").FirstOrDefault();
 
@@ -175,7 +176,7 @@ namespace ProInternal.Services
 
         public   List<IR> GetInstantRebateBatches()
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<IR>("GetInstantRebateBatches").ToList();
                 return output;
@@ -185,7 +186,7 @@ namespace ProInternal.Services
 
         public List<DeclinedIR> GetDeclinedInstantRebates()
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<DeclinedIR>("GetIRDeclines").ToList();
                 return output;
@@ -194,7 +195,7 @@ namespace ProInternal.Services
 
         public void ResubmitOrderToQueue(int orderId)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute("ResubmitRebateOrder",
                     new { orderId = orderId },
@@ -205,7 +206,7 @@ namespace ProInternal.Services
 
         public void ConfirmDecline(int orderId)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute("ConfirmDecline",
                     new { orderId = orderId },
@@ -219,7 +220,7 @@ namespace ProInternal.Services
 
         public IRBatchExport getIRBatchDetail(int batchID)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 using (var output = connection.QueryMultiple("getIRBatchDetail @batchID", new { batchID }, commandType: CommandType.Text))
                 {
@@ -239,7 +240,7 @@ namespace ProInternal.Services
 
         public bool activateIRBatch(int batchID)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 bool status = true;
                 try
@@ -257,7 +258,7 @@ namespace ProInternal.Services
 
         public List<ParentIRCompany> GetAllParentIRCompanies()
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<ParentIRCompany>("GetAllParentIRCompanies").ToList();
                 return output;
@@ -266,7 +267,7 @@ namespace ProInternal.Services
 
         public int AddParentIRCompany(string name, string imageUrl)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
 
                 var parameters = new DynamicParameters();
@@ -284,7 +285,7 @@ namespace ProInternal.Services
 
         public void DeleteRebateProofFile(int orderId, string filename)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 var parameters = new DynamicParameters();
                 parameters.Add("@OrderId", orderId);
@@ -300,7 +301,7 @@ namespace ProInternal.Services
             var p = new DynamicParameters();
             p.Add("@OrderId", orderId);
             p.Add("@FileName", filename);
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute("InsertRebateAdditionalFile", p, commandType: CommandType.StoredProcedure);
             }
@@ -310,7 +311,7 @@ namespace ProInternal.Services
             var p = new DynamicParameters();
             p.Add("@OrderId", orderId);
   
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute("MarkAsHasAdditionalFiles", p, commandType: CommandType.StoredProcedure);
             }
@@ -320,7 +321,7 @@ namespace ProInternal.Services
 
         public void UpdateParentIRCompany(int id, string name, string imageUrl)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute("UpdateParentIRCompany", new { ID = id, Name = name, ImageUrl = imageUrl }, commandType: CommandType.StoredProcedure);
             }
@@ -328,7 +329,7 @@ namespace ProInternal.Services
 
         public IEnumerable<RebateVendor> GetAllRebateVendors()
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 return connection.Query<RebateVendor>("GetAllRebateVendors", commandType: CommandType.StoredProcedure);
             }
@@ -336,7 +337,7 @@ namespace ProInternal.Services
 
         public void DeleteParentIRCompany(int id)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute("DeleteParentIRCompany", new { ID = id }, commandType: CommandType.StoredProcedure);
             }
@@ -344,7 +345,7 @@ namespace ProInternal.Services
 
         public int AddRebateVendor(RebateVendor vendor)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 return connection.QuerySingle<int>("InsertRebateVendor", new
                 {
@@ -362,7 +363,7 @@ namespace ProInternal.Services
 
         public void UpdateRebateVendor(int Id,RebateVendor vendor)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute("UpdateRebateVendor", new
                 {
@@ -381,7 +382,7 @@ namespace ProInternal.Services
 
         public void DeleteRebateVendor(int id)
         {
-            using (IDbConnection connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString))
+            using (IDbConnection connection = GetConnection())
             {
                 connection.Execute("DeleteRebateVendor", new { ID = id }, commandType: CommandType.StoredProcedure);
             }

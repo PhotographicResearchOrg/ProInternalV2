@@ -1,7 +1,7 @@
 <div class="grid">
 
   <p-toast></p-toast>
-
+  <p-confirmDialog></p-confirmDialog>
   <!-- Top Header Info -->
   <div class="col-12">
     <div class="card h-full p-3">
@@ -66,6 +66,9 @@
   </div>
 
 
+
+
+
   <div *ngIf="showDrillDown" class="col-12 mt-2">
     <p-table #dt
              [value]="PatronageUploads"
@@ -124,10 +127,29 @@
 
 
 
+  <div class="col-12 md:col-4">
+    <div class="card p-3">
+      <label class="block text-900 font-medium mb-2">Check Issue Date</label>
+
+      <p-calendar [(ngModel)]="issueDate"
+                  dateFormat="mm/dd/yy"
+                  [showIcon]="true"
+                  placeholder="Select issue date"
+                  appendTo="body">
+      </p-calendar>
+    </div>
+  </div>
 
   <div class="col-12 md:col-6 lg:col-12">
     <div class="card h-full">
-      <app-file-uploader mode="patronage" (reload)="onReload($event)"></app-file-uploader>
+
+      <app-file-uploader mode="patronage" [issueDate]="issueDate" [disabled]="!issueDate" (reload)="onReload($event)"></app-file-uploader>
+
+      <div *ngIf="!issueDate" class="text-red-500 mt-2">
+        Please select a check issue date before uploading.
+      </div>
+
+
     </div>
   </div>
 
@@ -141,8 +163,14 @@
         <ng-template pTemplate="header">
           <tr>
             <th pSortableColumn="id" style="min-width:2rem" class="white-space-nowrap">Batch ID <p-sortIcon field="id"></p-sortIcon></th>
+
             <th style="min-width:2rem" class="white-space-nowrap">Public</th>
             <th pSortableColumn="issueDate" style="min-width:2rem" class="white-space-nowrap">Loaded Date <p-sortIcon field="issueDate"></p-sortIcon></th>
+
+            <th pSortableColumn="checkissueDate" style="min-width:2rem" class="white-space-nowrap">
+              Check Date <p-sortIcon field="checkissueDate"></p-sortIcon>
+            </th>
+
             <th pSortableColumn="totalAmount" style="min-width:2rem" class="white-space-nowrap">Total Value <p-sortIcon field="totalAmount"></p-sortIcon></th>
             <th style="width:8rem"></th>
           </tr>
@@ -164,6 +192,17 @@
             <td>
               <span>{{patronage.issueDate | date}}</span>
             </td>
+            <td>
+
+              <span *ngIf="patronage.checkissueDate; else noCheckDate">
+                {{ patronage.checkissueDate | date:'shortDate' }}
+              </span>
+              <ng-template #noCheckDate>
+                <span class="text-500">—</span>
+              </ng-template>
+            </td>
+
+
             <td>
               <span>{{patronage.totalAmount | currency}}</span>
             </td>

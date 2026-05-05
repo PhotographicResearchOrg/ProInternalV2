@@ -5,7 +5,10 @@
       <div class="flex align-items-center justify-content-between mb-2">
         <span class="text-lg font-semibold text-900">
           <i class="pi pi-box mr-2 text-primary"></i>
-          <a href="/ecommerce/order-history" class="text-primary no-underline hover:underline">Orders</a>
+          <a (click)="openDsConfig()"
+             class="text-primary no-underline hover:underline cursor-pointer">
+            Orders
+          </a>
         </span>
         <i class="pi pi-forward text-color-secondary"></i>
       </div>
@@ -14,6 +17,12 @@
         <div>Hold: {{ OrderMetrics.onHoldOrders }} </div>
         <div>Specials: {{ OrderMetrics.specialsOrders }} </div>
         <div>Drop Ship: {{ OrderMetrics.dropShipOrders }}</div>
+        <div class="mt-1 text-xs text-color-secondary">
+     
+          <div class="mt-1 text-xs text-color-secondary">
+            -  Threshold: {{ OrderMetrics.dropShipThreshold | currency }}
+          </div>
+        </div>
         <div class="mt-2"><i class="pi pi-clock mr-1"></i>Last Run: {{ OrderMetrics.lastRunTime | date : "EEEE MM-dd-yyyy hh:mm" }}</div>
       </div>
     </div>
@@ -1339,3 +1348,33 @@
       </div>
     </div>-->
   </div>
+
+
+  <p-sidebar [(visible)]="showDsConfig"
+             position="right"
+             [style]="{ width: '400px' }"
+             header="Drop Ship Configuration">
+
+    <div class="p-fluid">
+
+      <div class="mb-3 text-sm text-color-secondary">
+        Define the maximum dollar amount for Drop Ship orders to process automatically.
+        Orders above this threshold will be held for manual review.
+      </div>
+
+      <div class="field">
+        <label class="mb-1">Threshold ($)</label>
+        <input type="number" pInputText [(ngModel)]="dsThreshold" />
+      </div>
+
+      <div class="flex gap-2 mt-4">
+        <button pButton label="Save" (click)="saveDsConfig()"></button>
+        <button pButton label="Cancel"
+                class="p-button-text"
+                (click)="showDsConfig = false">
+        </button>
+      </div>
+
+    </div>
+
+  </p-sidebar>

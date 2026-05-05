@@ -184,6 +184,21 @@ namespace ProInternal.Controllers
 
 
 
+        [HttpPost("credit-email-toggle")]
+        public IActionResult SetCreditEmailFlag([FromBody] CreditEmailToggleRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.InvoiceNumber))
+                return BadRequest("Invoice number required");
+
+            _edadataAccess.SetCreditEmailFlag(
+                req.InvoiceNumber,
+                req.IncludeInEmail
+            );
+
+            return Ok(new { success = true });
+        }
+
+
         [HttpPost("credits")]
         public async Task<IActionResult> SaveCredits([FromBody] CreditBatchRequestDto request)
         {
@@ -192,7 +207,7 @@ namespace ProInternal.Controllers
 
             int duplicateCount = 0;
 
-            // ✅ CREATE BATCH GUID ONCE
+            //  CREATE BATCH GUID ONCE
             var batchGuid = Guid.NewGuid();
 
             foreach (var credit in request.OrderDetails)
@@ -243,8 +258,14 @@ namespace ProInternal.Controllers
                         credit
                     );
 
-                    // ✅ Full success
+                    // Full success
                     _proDataAccess.MarkCreditSuccess(creditId, apiResult.InvoiceNumber);
+
+
+              
+                
+
+
                 }
                 catch (Exception ex)
                 {
@@ -438,15 +459,15 @@ namespace ProInternal.Controllers
                         error = kvp.Value;
                 }
 
-                // ✅ Success = invoice exists
+                // Success = invoice exists
                 if (!string.IsNullOrEmpty(invoice))
                     return (true, invoice, null);
 
-                // ❌ Business failure
+                // Business failure
                 if (!string.IsNullOrEmpty(error))
                     return (false, null, error);
 
-                // ⚠ Edge case
+                //  Edge case
                 return (false, null, "Unknown API response");
             }
             catch (Exception ex)
@@ -1006,16 +1027,21 @@ ParseApiResponse(HttpResponseMessage response)
 
         [HttpPost, DisableRequestSizeLimit]
         [Route("LoadQuarterFile")]
-        public async Task<ActionResult> Result(IFormFile file)
+        public async Task<ActionResult> Result([FromForm] IFormFile file, [FromForm] string issueDate)
         {
+
+
+            var parsedIssueDate = DateTime.Parse(issueDate);
+
+           
             QuarterlyRebates Loadeddata = await LoadQuarterlyData(file);
 
             if (Loadeddata != null)
             {
-                this._proDataAccess.saveData(Loadeddata);
+                this._proDataAccess.saveData(Loadeddata, parsedIssueDate);
             }
 
-            return Ok(new { success = true }); // ✅ ensures Angular receives a response
+            return Ok(new { success = true }); //  ensures Angular receives a response
         }
 
 
@@ -1088,11 +1114,11 @@ ParseApiResponse(HttpResponseMessage response)
         [HttpPost, DisableRequestSizeLimit]
         [Route("LoadPatronageFile")]
         // public async Task<IEnumerable<SellThroughUploadError>> UploadSellThrough([FromForm] string date)
-        public async Task<ActionResult> PatronageResult(IFormFile file)
+        public async Task<ActionResult> PatronageResult( [FromForm] IFormFile file, [FromForm] string issueDate)
         {
 
 
-
+            var parsedIssueDate = DateTime.Parse(issueDate);
 
 
             List<PatronageUpload> Loadeddata = await LoadPatronageFile(file);
@@ -1102,8 +1128,8 @@ ParseApiResponse(HttpResponseMessage response)
             }
             else
             {
-       
-                   this._proDataAccess.savePatronageData(Loadeddata);
+
+                this._proDataAccess.savePatronageData(Loadeddata, parsedIssueDate);
 
             }
 

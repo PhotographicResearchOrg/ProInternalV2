@@ -37,7 +37,7 @@ export class CreditsComponent implements OnInit {
     { label: '1320 – IR', value: '1320' },
     { label: '1322 – SARS', value: '1322' },
     { label: '1325 – Pass Through Billing', value: '1325' },
-    { label: '1327 – Other Rebates & Patr.', value: '1327' },
+    { label: '1328 – Other Rebates & Patr.', value: '1328' },
     { label: '1335 – Misc ', value: '1335' }
   ];
 
@@ -130,6 +130,32 @@ export class CreditsComponent implements OnInit {
         Number(c.amount).toFixed(2)
       ].join('|') === key
     );
+  }
+
+
+  toggleInclude(row: any) {
+    this.accountingService
+      .setCreditEmailFlag(row.invoiceNumber, row.includeInEmail)
+      .subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Updated',
+            detail: `Invoice ${row.invoiceNumber} ${row.includeInEmail ? 'excluded' : 'included'
+              } from email`
+          });
+        },
+        error: () => {
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to update email setting'
+          });
+
+          // 🔥 rollback UI
+          row.includeInEmail = !row.includeInEmail;
+        }
+      });
   }
 
 
@@ -728,7 +754,7 @@ export class CreditsComponent implements OnInit {
   validateForm(): boolean {
     this.errors.proID = !this.form.proID;
     this.errors.amount =
-      !this.form.amount || Math.abs(this.form.amount) > 50000;
+      !this.form.amount || Math.abs(this.form.amount) > 95000;
     this.errors.description = !this.form.description;
 
     return !Object.values(this.errors).some(Boolean);

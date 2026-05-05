@@ -5,7 +5,11 @@ namespace ProInternal.Models.Accounting
 
 
 
-
+    public class CreditEmailToggleRequest
+    {
+        public string InvoiceNumber { get; set; }
+        public bool IncludeInEmail { get; set; }
+    }
 
 
     public class MemberDto
@@ -117,6 +121,8 @@ namespace ProInternal.Models.Accounting
     public class AccountingCreditDto
     {
 
+
+        public bool IncludeInEmail { get; set; }
 
         public List<AccountingCreditFileDto> Files { get; set; } = new();
 

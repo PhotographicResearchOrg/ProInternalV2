@@ -14,6 +14,8 @@ import { AuthService } from 'src/app/services/auth.service';
 
 export class ShippingerrorbrmComponent extends ShippingerrorsComponent {
 
+  override isBRMMode = true;
+
   @Output() errorCountChanged = new EventEmitter<number>();
 
   constructor(
@@ -45,6 +47,44 @@ export class ShippingerrorbrmComponent extends ShippingerrorsComponent {
       },
       error: (err) => {
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load shipping errors.' });
+      }
+    });
+  }
+
+
+
+  override  sendBackToWarehouse(errorId: number, product: any): void {
+
+    const username = this.authService.getUsername();
+
+    if (!product.brmMessage?.trim()) {
+      product.validationError = 'brm';
+      return;
+    }
+
+    const payload = {
+      errorId: errorId,
+      productCode: product.productCode,
+      reason: product.brmMessage,
+      username: username
+    };
+
+    this.dataService.sendBackToWarehouse(payload).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Returned',
+          detail: 'Sent back to warehouse.'
+        });
+
+        this.loadShippingErrors();
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to return item.'
+        });
       }
     });
   }

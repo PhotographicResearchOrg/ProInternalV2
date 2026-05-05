@@ -30,6 +30,12 @@ export class AccountingService {
     return this.api.get<any>(`API/Accounting/vendor/${id}`);
   }
 
+  setCreditEmailFlag(invoiceNumber: string, include: boolean) {
+    return this.api.post('API/accounting/credit-email-toggle', {
+      invoiceNumber,
+      includeInEmail: include
+    });
+  }
 
 
   //invoice/preview/

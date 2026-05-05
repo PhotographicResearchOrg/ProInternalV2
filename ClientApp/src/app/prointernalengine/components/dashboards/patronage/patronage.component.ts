@@ -10,6 +10,7 @@ import { MessageService } from 'primeng/api';
 import { FormsModule } from '@angular/forms';
 import { InputSwitchModule } from 'primeng/inputswitch'; // Also needed for p-inputSwitc
 import { PaymentTypeComponent } from 'src/app/prointernalengine/components/shared/payment-type/payment-type.component';
+import { ConfirmationService } from 'primeng/api';
 
 
 @Component({
@@ -32,6 +33,9 @@ export class PatronageComponent implements OnInit {
   public paymentCardVisible: boolean = false;
 
   public selectedBatchId: number | null = null;
+
+  public issueDate: Date | null = null;
+
 
 
   public batchSummary = {
@@ -57,6 +61,7 @@ export class PatronageComponent implements OnInit {
     http: HttpClient,
     private dataService: DataService,
     public layoutService: LayoutService,
+    private confirmationService: ConfirmationService,
     private messageService: MessageService  // << add this
   ) { }
 
@@ -252,9 +257,35 @@ downloadFullBatchExcel() {
 
 
   Delete(item: any) {
-    alert(item.id)
-    this.dataService.deletePatronageUpload(item.id).subscribe((resp) => {
-      window.location.reload();
+    this.confirmationService.confirm({
+      header: 'Delete Patronage Batch',
+      icon: 'pi pi-exclamation-triangle',
+      message: `
+      You are about to permanently delete batch 
+      <b>${item.batchID || item.id}</b>.
+      <br/><br/>
+      This action cannot be undone.
+    `,
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      acceptButtonStyleClass: 'p-button-danger',
+      rejectButtonStyleClass: 'p-button-text',
+
+      accept: () => {
+        this.dataService.deletePatronageUpload(item.id).subscribe(() => {
+
+          // Refresh properly (no full reload)
+          this.onReload({ reloadHistorical: true, reloadCurrent: true });
+
+          // Clean success message
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Deleted',
+            detail: `Batch ${item.batchID || item.id} removed`
+          });
+
+        });
+      }
     });
   }
 

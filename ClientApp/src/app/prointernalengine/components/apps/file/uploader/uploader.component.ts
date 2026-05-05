@@ -22,7 +22,13 @@ interface Image {
 })
 export class UploaderComponent {
 
+
+
   @Input() mode: 'rebate' | 'patronage' = 'rebate';   
+
+  @Input() issueDate: Date | null = null;
+
+  @Input() disabled: boolean = false;
 
   @Output() reload = new EventEmitter<{ reloadHistorical: boolean; reloadCurrent: boolean }>();
 
@@ -86,9 +92,13 @@ export class UploaderComponent {
         };
 
         if (this.mode === 'rebate') {
-          this.dataService.uploadQuarterlyFile(fileData).subscribe(onComplete);
-        } else if (this.mode === 'patronage') {
-          this.dataService.uploadPatronageFile(fileData).subscribe(onComplete);
+          this.dataService.uploadQuarterlyFile(fileData, this.issueDate!).subscribe(onComplete);
+
+        }
+        else if (this.mode === 'patronage')
+        {
+          this.dataService.uploadPatronageFile(fileData, this.issueDate!).subscribe(onComplete);
+
         }
       } catch (error) {
         console.error('Error reading file:', error);

@@ -112,6 +112,10 @@ export class DashboardLandingComponent implements OnInit {
   shopifyAllSummary = '';
 
 
+  showDsConfig = false;
+  dsThreshold: number = 0;
+
+
     items!: MenuItem[];
     cols: any[] = [];
     subscription!: Subscription;
@@ -135,12 +139,12 @@ export class DashboardLandingComponent implements OnInit {
 
       ngOnInit()
       {
-      this.penaltyOptions = [
-        { name: '30 Days', value: 30 },
-        { name: '45 Days', value: 45 },
-        { name: '60 Days', value: 60 },
-        { name: 'Indefinite', value: 9999 },
-      ];
+        this.penaltyOptions = [
+          { name: '30 Days', value: 30 },
+          { name: '45 Days', value: 45 },
+          { name: '60 Days', value: 60 },
+          { name: 'Indefinite', value: 9999 },
+        ];
 
 
         this.loadSubmittedMapViolations(); 
@@ -157,16 +161,8 @@ export class DashboardLandingComponent implements OnInit {
       });
 
       
-
-      this.dataService.getOrderMetrics().subscribe((resp: any) => {
-      this.OrderMetrics.openOrders = resp.openOrders,
-      this.OrderMetrics.onHoldOrders = resp.onHoldOrders,
-      this.OrderMetrics.specialsOrders = resp.specialsOrders,
-      this.OrderMetrics.dropShipOrders = resp.dropShipOrders,
-      this.OrderMetrics.lastRunTime = resp.lastRunTime
-      this.OrderMetrics.oldestOnHold = resp.oldestOnHold,
-      this.OrderMetrics.threshold = resp.threshold
-    });
+      this.loadMetrics();
+     
 
       this.dataService.getSARSMetrics().subscribe((resp: any) => {
       this.SARMetrics.memCreditsInQueue = resp.memCreditsInQueue,
@@ -214,6 +210,43 @@ export class DashboardLandingComponent implements OnInit {
         { header: 'Status', field: 'status' }
         ];
     this.chartInit();
+  }
+
+
+  openDsConfig() {
+    this.showDsConfig = true;
+
+    this.dataService.getDropShipThreshold().subscribe((res: any) => {
+      this.dsThreshold = res;
+    });
+  }
+
+  saveDsConfig() {
+    this.dataService.setDropShipThreshold(this.dsThreshold).subscribe(() => {
+      this.toast.add({
+        severity: 'success',
+        summary: 'Saved',
+        detail: 'Drop Ship threshold updated'
+      });
+
+      this.showDsConfig = false;
+      this.loadMetrics();
+    });
+  }
+
+  loadMetrics() {
+    this.dataService.getOrderMetrics().subscribe((resp: any) => {
+      this.OrderMetrics.openOrders = resp.openOrders;
+      this.OrderMetrics.onHoldOrders = resp.onHoldOrders;
+      this.OrderMetrics.specialsOrders = resp.specialsOrders;
+      this.OrderMetrics.dropShipOrders = resp.dropShipOrders;
+      this.OrderMetrics.lastRunTime = resp.lastRunTime;
+      this.OrderMetrics.oldestOnHold = resp.oldestOnHold;
+      this.OrderMetrics.dropShipThreshold = resp.dropShipThreshold;
+
+      // keep drawer in sync
+      this.dsThreshold = resp.dropShipThreshold;
+    });
   }
 
 

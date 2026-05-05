@@ -180,13 +180,15 @@
                       <td colspan="6">
                         <div class="p-2 border-round shadow-1 mt-2">
                           <div class="grid">
+
+
                             <div class="col-12 md:col-6">
                               <strong>Disposition:</strong>
 
                               <p-dropdown [options]="product.dispositions"
                                           [(ngModel)]="product.selectedDisposition"
                                           optionLabel="label"
-                                           [disabled]="product.readOnly"
+                                          [disabled]="product.closed || isBRMMode"
                                           optionValue="value"
                                           (onChange)="product.validationError = null"
                                           [ngClass]="{ 'p-invalid': product.validationError === 'disposition' }"
@@ -197,12 +199,34 @@
                               <small *ngIf="product.validationError === 'disposition'" class="p-error">Disposition is required.</small>
                             </div>
 
-                            <div *ngIf="product.selectedDisposition === '9'" class="col-12 md:col-6">
-                              <strong>BRM Message:</strong>
+
+                            <div class="col-12 md:col-6" *ngIf="isBRMMode || product.selectedDisposition === '9'">
+                              <div *ngIf="product.customMessage" class="mb-2 p-2 border-round" style="background:#f5f5f5;">
+                                <strong>Warehouse Message:</strong>
+                                <div class="text-sm mt-1">
+                                  {{ product.customMessage }}
+
+                                  <div *ngIf="product.returnMessage"
+                                       class="mt-2 p-2 border-round"
+                                       style="background:#fff8e1;">
+                                    <strong>Returned by BRM:</strong>
+                                    <div class="text-sm mt-1">
+                                      {{ product.returnMessage }}
+                                    </div>
+                                  </div>
+
+                                </div>
+                              </div>
+
+                              <strong>
+                                {{ isBRMMode ? 'Reply to Warehouse:' : 'BRM Message:' }}
+                              </strong>
+
                               <input pInputText [(ngModel)]="product.brmMessage"
+                                     placeholder="Enter message back to warehouse..."
                                      (input)="product.validationError = null"
                                      [ngClass]="{'p-invalid': product.validationError === 'brm'}"
-                                     [disabled]="product.readOnly"
+                                     [disabled]="product.closed"
                                      class="w-full"
                                      placeholder="Enter message" />
                               <small *ngIf="product.validationError === 'brm'" class="p-error">Message required for BRM Soft Touch.</small>
@@ -212,9 +236,19 @@
                                       icon="pi pi-check"
                                       label="Complete"
                                       class="p-button-success p-button-sm mt-2"
-                                     [disabled]="product.closed || !product.isBRMProduct"
+                                      [disabled]="product.closed || !product.isBRMProduct"
                                       (click)="markProductComplete(error.id, product.productCode)">
                               </button>
+
+                              <button *ngIf="product.isBRMProduct"
+                                      pButton
+                                      icon="pi pi-replay"
+                                      label="Return"
+                                      class="p-button-warning p-button-sm mt-2 ml-2"
+                                      [disabled]="product.closed || !product.brmMessage?.trim()"
+                                      (click)="sendBackToWarehouse(error.id, product)">
+                              </button>
+
 
                               <p-tag *ngIf="product.closed" value="Completed" severity="success" class="ml-2 mt-2"></p-tag>
 

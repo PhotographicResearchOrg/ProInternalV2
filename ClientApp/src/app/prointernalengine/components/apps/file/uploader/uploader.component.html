@@ -2,6 +2,7 @@
 <div class="card">
     <!--<p-fileUpload #fileUploader name="demo[]" url="./upload.php" accept=".xlsx" (onUpload)="onUpload($event)" [customUpload]="true"-->
                    <p-fileUpload #fileUploader
+                                  [disabled]="disabled"
                                  accept=".xlsx"
                                  (onUpload)="onUpload($event)"  [multiple]="false" (onSelect)="onUpload($event)"  [showUploadButton]="true"
                     [showCancelButton]="false" [auto]="true" class="w-full">

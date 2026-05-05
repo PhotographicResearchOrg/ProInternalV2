@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using ProInternal.Models.Dashboard;
 using Microsoft.Data.SqlClient;
+using ProInternal.Helpers;
+using ProInternal.Models.Dashboard;
 using ProInternal.Services;
 using System.Security.Cryptography;
 using System.Text;
@@ -13,19 +14,24 @@ namespace ProInternal.Controllers
     [Route("api/[controller]")]
     public class CommentsController : ControllerBase
     {
-
+        private readonly AwsSecretHelper _secretHelper;
         private readonly IConfiguration _configuration;
 
-        public CommentsController(IConfiguration configuration)
+        public CommentsController(IConfiguration configuration, AwsSecretHelper secretHelper)
         {
             _configuration = configuration;
+            _secretHelper = secretHelper;
         }
 
         [HttpGet("monitor")]
         public async Task<IActionResult> GetMonitoredComments()
         {
             var comments = new List<Comment>();
-            string connStr = _configuration.GetConnectionString("SQLII");
+            var baseConn = _configuration.GetConnectionString("SQLII");
+            var connStr = await _secretHelper.GetConnectionString(baseConn);
+
+
+
 
             using (var conn = new SqlConnection(connStr))
             {
