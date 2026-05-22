@@ -57,6 +57,45 @@ export class DataService {
 
 
 
+
+  getShopifyTaxonomyAudit() {
+    return this.api.get<any[]>(
+      'api/Marketing/shopify-taxonomy-audit'
+    );
+  }
+
+  shopifyTaxonomyReview(
+    id: number,
+    disposition: string
+  ) {
+    return this.api.post(
+      'api/marketing/shopify-taxonomy-review',
+      {
+        id,
+        disposition
+      }
+    );
+  }
+
+
+  resolveGovernanceIssue(
+    id: number
+  ) {
+
+    return this.api.post(
+      'api/marketing/shopify-governance-resolve',
+      id
+    );
+  }
+
+
+  getShopifyGovernance() {
+    return this.api.get<any[]>(
+      'api/marketing/shopify-governance'
+    );
+  }
+
+
   uploadIRFile(file: File, expireDate: Date) {
     const fd = new FormData();
     fd.append('file', file, file.name);                    // MUST be 'file'

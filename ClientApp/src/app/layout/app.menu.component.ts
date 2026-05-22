@@ -39,6 +39,23 @@ export class AppMenuComponent implements OnInit {
               can('/vendor-billing') && { label: 'Vendor Billing', icon: 'pi pi-briefcase', routerLink: ['/vendor-billing'] },
             ]
           },
+
+          can('/shopify-admin') &&
+          {
+            label: 'Marketing',
+            icon: 'pi pi-megaphone',
+            items:
+              [
+                {
+                  label: 'Shopify Admin',
+                  icon: 'pi pi-shopify',
+                  routerLink: ['/shopify-admin']
+                }
+              ]
+          },
+
+
+
           can('/BRMdash') &&
             {
             label: 'BRM', icon: 'pi pi-user',

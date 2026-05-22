@@ -32,7 +32,7 @@ namespace ProInternal.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Route("[controller]")]
+
     public class AccountingController : ControllerBase
     {
         private IProDataAccess _proDataAccess;

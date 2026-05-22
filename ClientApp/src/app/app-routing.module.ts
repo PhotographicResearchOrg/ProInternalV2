@@ -30,6 +30,8 @@ import { ReceivablesComponent } from './prointernalengine/components/dashboards/
 import { ShippingerrorsComponent } from './prointernalengine/components/dashboards/warehouse/shippingerrors/shippingerrors.component'; 
 import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component';
 
+import { ShopifyAdminComponent } from './prointernalengine/components/dashboards/Marketing/shopify-admin/shopify-admin.component';
+
 import { CreditsComponent } from './prointernalengine/components/dashboards/accounting/credits.component/credits.component';
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 
@@ -75,15 +77,11 @@ const routes: Routes = [
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
       { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },
       { path: 'shippingmonitor', component: ShipmentMonitorComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Monitor' } },
-      
-      
       { path: 'productedit', component: ProductEditComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Edit' } },
-
       { path: 'credits', component: CreditsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Credits' }},
-      {path: 'vendor-billing', component: VendorBillingComponent,canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Vendor Billing' } },
-
-      
-
+      { path: 'vendor-billing', component: VendorBillingComponent,canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Vendor Billing' } },
+      { path: 'shopify-admin', component: ShopifyAdminComponent, canActivate: [AuthGuard],data: { breadcrumb: 'Shopify Admin' }
+      },
       {
         path: 'ecommerce',
         children: [
@@ -99,6 +97,7 @@ const routes: Routes = [
 
     ]
   },
+
 
   // Auth & misc modules
   { path: 'auth', loadChildren: () => import('./prointernalengine/components/auth/auth.module').then(m => m.AuthModule), data: { breadcrumb: 'Auth' } },

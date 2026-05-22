@@ -1,30 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using Azure.Core;
+using Dapper;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using ProInternal.Models;
 using ProInternal.Models.Accounting;
-using ProInternal.Models.Dashboard;
 using ProInternal.Models.Accounts;
 using ProInternal.Models.Auth;
-using ProInternal.Models.WH;
+using ProInternal.Models.Dashboard;
+using ProInternal.Models.EditProduct;
+using ProInternal.Models.Exclusions;
+using ProInternal.Models.InstantRebates;
+using ProInternal.Models.InvoiceRecord;
+using ProInternal.Models.Outstanding;
+using ProInternal.Models.Patronage;
+using ProInternal.Models.Products;
+using ProInternal.Models.Shared;
+using ProInternal.Models.Marketing;
 using ProInternal.Models.Vendor;
+using ProInternal.Models.WH;
 using ProInternal.Services;
 using System;
-using ProInternal.Models.Products;
+using System;
+using System.Collections.Generic;
 using System.Data;
-using Dapper;
-using Microsoft.Data.SqlClient;
-using ProInternal.Models.Exclusions;
-using Microsoft.AspNetCore.Mvc;
-using ProInternal.Models.InvoiceRecord;
-using ProInternal.Models.Patronage;
-using ProInternal.Models.InstantRebates;
-using ProInternal.Models;
+using System.Linq;
+using System.Threading.Tasks;
 using static ProInternal.Controllers.AuthController;
-using Azure.Core;
-using ProInternal.Models.Outstanding;
-using ProInternal.Models.EditProduct;
-using ProInternal.Models.Shared;
 
 namespace ProInternal.Services
 {
@@ -32,6 +33,10 @@ namespace ProInternal.Services
     {
 
 
+        void ResolveGovernanceIssue(int id);
+
+        IEnumerable<ShopifyGovernanceIssueDto> GetShopifyGovernanceIssues();
+        void ShopifyTaxonomyReview( int id, string disposition);
         decimal GetDropShipThreshold();
         void SetDropShipThreshold(decimal value);
 
@@ -225,26 +230,7 @@ namespace ProInternal.Services
 
         string? GetPrimaryProductDescriptionByProCode(int proCode);
 
-
-        //// Product edit
-        //ProdDto? GetProductEnvelopeByCode(string productCode);
-        //Result UpdateProductEnvelope(ProdDto dto);
-
-        //ProductInfoLookupDto? LookupProductInfo(string code, string type, int parentId);
-        //List<IQPromptDto> GetIQPrompts();
-
-        //Result AddTag(int productId, string tag);
-        //Result RemoveTag(int productId, string tag);
-
-        //Result AddToGroup(string productCode, string groupCode, string? colorName, string? colorHex, string? size);
-        //Result RemoveFromGroup(string productCode);
-
-        //List<ProductAttributeDto> GetTechSpecs(string code);
-        //Result SaveTechSpecs(string code, IEnumerable<ProductAttributeDto> attrs);
-
-        //// Common
-        //List<CategoryNodeDto> GetSubCategories(int parentCatId);
-
+        IEnumerable<ShopifyTaxonomyAuditDto> GetShopifyTaxonomyAudit();
 
     }
 

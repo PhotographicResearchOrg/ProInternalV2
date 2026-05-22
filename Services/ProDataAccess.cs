@@ -1,37 +1,38 @@
-﻿using ProInternal.Models.Accounting;
+﻿using Dapper;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using ProInternal.Helpers;
+using ProInternal.Models;
+using ProInternal.Models.Accounting;
+using ProInternal.Models.Accounts;
+using ProInternal.Models.Auth;
+using ProInternal.Models.Dashboard;
+using ProInternal.Models.Exclusions;
+using ProInternal.Models.InstantRebates;
+using ProInternal.Models.InvoiceRecord;
+using ProInternal.Models.Outstanding;
+using ProInternal.Models.Patronage;
+using ProInternal.Models.Products;
+using ProInternal.Models.Marketing;
+using ProInternal.Models.Vendor;
+using ProInternal.Models.WH;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Threading.Tasks;
-using Dapper;
-using ProInternal.Models.Dashboard;
-using ProInternal.Models.Auth;
-using ProInternal.Models.Accounts;
-using ProInternal.Models.WH;
-using ProInternal.Models.Products;
-using ProInternal.Models.Vendor;
-using Microsoft.AspNetCore.Identity;
-using ProInternal.Helpers;
-using Microsoft.Data.SqlClient;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using ProInternal.Models.Exclusions;
-using System.ComponentModel.Design;
-using System.Security;
-using Microsoft.AspNetCore.Mvc;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using Microsoft.EntityFrameworkCore;
 using System.Numerics;
-using Microsoft.AspNetCore.OutputCaching;
-using ProInternal.Models.InvoiceRecord;
-using ProInternal.Models.Patronage;
-using System.Reflection.PortableExecutable;
-using ProInternal.Models;
 using System.Reflection;
-using ProInternal.Models.Outstanding;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using ProInternal.Models.InstantRebates;
+using System.Reflection.PortableExecutable;
+using System.Security;
+using System.Threading.Tasks;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace ProInternal.Services
@@ -1958,8 +1959,64 @@ namespace ProInternal.Services
 			}
 
         }
-		#endregion
+        #endregion
 
-	}
+
+
+
+        public IEnumerable<ShopifyTaxonomyAuditDto> GetShopifyTaxonomyAudit()
+        {
+            using var conn = GetConnection();
+
+            return conn.Query<ShopifyTaxonomyAuditDto>(
+                "Shopify_GetTaxonomyAudit",
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public void ShopifyTaxonomyReview(int id,string disposition)
+        {
+            using var conn = GetConnection();
+
+            conn.Execute(
+                "Shopify_TaxonomyReview",
+                new
+                {
+                    Id = id,
+                    Disposition = disposition
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+
+        public void ResolveGovernanceIssue(int id)
+        {
+            using var conn = GetConnection();
+
+            conn.Execute(
+                "Shopify_ResolveGovernanceIssue",
+                new
+                {
+                    Id = id
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+        public IEnumerable<ShopifyGovernanceIssueDto>
+GetShopifyGovernanceIssues()
+        {
+            using var conn = GetConnection();
+
+            return conn.Query<ShopifyGovernanceIssueDto>(
+                "Shopify_GetGovernanceIssues",
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+    }
 }
 #endregion

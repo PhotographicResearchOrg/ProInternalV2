@@ -1,0 +1,270 @@
+.shopify-admin-card {
+  position: relative;
+  background: linear-gradient( to bottom right, #ffffff, #f8fafc );
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.25rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.03);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: #d8dee4;
+    box-shadow: 0 10px 24px rgba(0,0,0,.07), 0 2px 6px rgba(0,0,0,.04);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient( 90deg, #95bf47, #6d9e42 );
+  }
+}
+
+.shopify-admin-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.shopify-admin-title {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111827;
+
+  i {
+    font-size: 1rem;
+    color: #5e8e3e;
+  }
+}
+
+.shopify-admin-subtitle {
+  margin-top: .3rem;
+  font-size: .85rem;
+  line-height: 1.45;
+  color: #6b7280;
+}
+
+.shopify-operation-card {
+  background: #ffffff;
+  border: 1px solid #edf0f2;
+  border-radius: 10px;
+  padding: 1rem;
+  height: 100%;
+  transition: all .16s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,.03);
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: #d9e0e6;
+    box-shadow: 0 8px 18px rgba(0,0,0,.05);
+  }
+}
+
+.shopify-operation-header {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  margin-bottom: .9rem;
+}
+
+.shopify-operation-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: .9rem;
+}
+
+.shopify-operation-title {
+  font-size: .95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.shopify-operation-desc {
+  margin-top: .1rem;
+  font-size: .78rem;
+  color: #6b7280;
+}
+
+.shopify-status-section {
+  margin-top: .9rem;
+}
+
+.shopify-status-row {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  margin-top: .45rem;
+  font-size: .78rem;
+  color: #6b7280;
+
+  &.success {
+    color: #15803d;
+    font-weight: 500;
+  }
+
+  &.error {
+    color: #dc2626;
+    font-weight: 500;
+  }
+
+  i {
+    font-size: .75rem;
+  }
+}
+
+.shopify-json-preview {
+  margin-top: .7rem;
+  padding: .8rem;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  font-size: .75rem;
+  line-height: 1.45;
+  color: #334155;
+  overflow: auto;
+  max-height: 15rem;
+}
+
+.shopify-health-tile {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: .75rem .95rem;
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: all .14s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,.03);
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0,0,0,.05);
+  }
+}
+
+.shopify-health-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #111827;
+}
+
+.shopify-health-label {
+  margin-top: .32rem;
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #6b7280;
+}
+
+:host ::ng-deep .shopify-action-btn .p-button {
+  width: 100%;
+  justify-content: flex-start;
+  border-radius: 10px;
+  font-weight: 600;
+  padding: .75rem .9rem;
+}
+
+:host ::ng-deep .shopify-action-btn .p-button-icon {
+  margin-right: .65rem;
+}
+
+:host ::ng-deep .p-datatable {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #edf0f2;
+}
+
+:host ::ng-deep .p-datatable-wrapper {
+  overflow-x: auto;
+}
+
+:host ::ng-deep .p-datatable table {
+  min-width: 1200px;
+}
+
+:host ::ng-deep .p-datatable th {
+  white-space: nowrap;
+  background: #f8fafc;
+  color: #374151;
+  font-size: .8rem;
+  font-weight: 600;
+  padding: .75rem .85rem;
+  border-color: #edf0f2;
+}
+
+:host ::ng-deep .p-datatable td {
+  white-space: nowrap;
+  vertical-align: middle;
+  font-size: .84rem;
+  color: #374151;
+  padding: .72rem .85rem;
+  border-color: #edf0f2;
+}
+
+:host ::ng-deep .p-tag {
+  font-size: .68rem;
+  font-weight: 600;
+}
+
+:host ::ng-deep .p-inputtext {
+  border-radius: 10px;
+}
+
+:host ::ng-deep .p-button {
+  border-radius: 10px;
+}
+
+@media (max-width: 768px) {
+
+  .shopify-admin-card {
+    padding: 1rem;
+  }
+
+  .shopify-admin-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .shopify-health-value {
+    font-size: 1.3rem;
+  }
+
+  :host ::ng-deep .p-datatable table {
+    min-width: 950px;
+  }
+}
+.governance-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+:host ::ng-deep .governance-chip {
+  cursor: pointer;
+}
+
+  :host ::ng-deep .governance-chip .p-tag {
+    border-radius: 999px;
+    padding: .35rem .75rem;
+    font-size: .72rem;
+    font-weight: 500;
+  }

@@ -89,28 +89,6 @@ export class DashboardLandingComponent implements OnInit {
   manualEmail = '';
   showManualRaw: boolean = false;
 
-  // OLD SYNC
-  shopifyOldRunning = false;
-  shopifyOldLastAt: Date | null = null;
-  shopifyOldResult: any = null;
-  shopifyOldOk = false;
-  shopifyOldSummary = '';
-  shopifyOldShowRaw = false;
-
-  // NEW SYNC
-  shopifyNewRunning = false;
-  shopifyNewLastAt: Date | null = null;
-  shopifyNewResult: any = null;
-  shopifyNewOk = false;
-  shopifyNewSummary = '';
-  shopifyNewShowRaw = false;
-
-  shopifyAllRunning = false;
-  shopifyAllLastRun: Date | null = null;
-  shopifyAllResult: any = null;
-  shopifyAllOk = false;
-  shopifyAllSummary = '';
-
 
   showDsConfig = false;
   dsThreshold: number = 0;
@@ -348,95 +326,6 @@ export class DashboardLandingComponent implements OnInit {
       }
     });
   }
-
-
-
-  runShopifyAll() {
-    this.shopifyAllRunning = true;
-    this.shopifyAllLastRun = new Date();
-    this.shopifyAllResult = null;
-    this.shopifyAllOk = false;
-    this.shopifyAllSummary = '';
-
-    forkJoin([
-      this.dataService.getShopifySync(),
-      this.dataService.getShopifyNewProducts()
-    ]).subscribe({
-      next: ([syncRes, newRes]) => {
-        this.shopifyAllRunning = false;
-        this.shopifyAllOk = true;
-        this.shopifyAllResult = { syncRes, newRes };
-
-        const synced = syncRes?.count ?? 0;
-        const newItems = newRes?.added ?? 0;
-        const err1 = syncRes?.errors ?? 0;
-        const err2 = newRes?.errors ?? 0;
-
-        this.shopifyAllSummary = `Sync OK. Synced: ${synced}, New: ${newItems}${(err1 || err2) ? `, Errors: ${err1 + err2}` : ''}`;
-        this.toast.add({ severity: 'success', summary: 'Shopify Sync', detail: this.shopifyAllSummary, life: 6000 });
-      },
-      error: (err) => {
-        this.shopifyAllRunning = false;
-        this.shopifyAllOk = false;
-        this.shopifyAllResult = err;
-        this.shopifyAllSummary = err?.message || 'Shopify full sync failed';
-        this.toast.add({ severity: 'error', summary: 'Shopify Sync', detail: this.shopifyAllSummary, life: 8000 });
-      }
-    });
-  }
-
-
-
-  runShopifyOld() {
-    this.shopifyOldRunning = true;
-    this.shopifyOldResult = null;
-    this.shopifyOldSummary = '';
-    this.shopifyOldOk = false;
-
-    this.dataService.getShopifySync().subscribe({
-      next: (res) => {
-        this.shopifyOldRunning = false;
-        this.shopifyOldLastAt = new Date();
-        this.shopifyOldResult = res;
-        this.shopifyOldOk = true;
-        this.shopifyOldSummary = res?.status ?? 'Legacy sync completed';
-      },
-      error: (err) => {
-        this.shopifyOldRunning = false;
-        this.shopifyOldLastAt = new Date();
-        this.shopifyOldResult = err?.error ?? err;
-        this.shopifyOldOk = false;
-        this.shopifyOldSummary = err?.message || 'Legacy sync failed';
-      }
-    });
-  }
-
-  runShopifyNew() {
-    this.shopifyNewRunning = true;
-    this.shopifyNewResult = null;
-    this.shopifyNewSummary = '';
-    this.shopifyNewOk = false;
-
-    this.dataService.getShopifyNewProducts().subscribe({
-      next: (res) => {
-        this.shopifyNewRunning = false;
-        this.shopifyNewLastAt = new Date();
-        this.shopifyNewResult = res;
-        this.shopifyNewOk = true;
-        this.shopifyNewSummary = res?.status ?? 'New product sync completed';
-      },
-      error: (err) => {
-        this.shopifyNewRunning = false;
-        this.shopifyNewLastAt = new Date();
-        this.shopifyNewResult = err?.error ?? err;
-        this.shopifyNewOk = false;
-        this.shopifyNewSummary = err?.message || 'New sync failed';
-      }
-    });
-  }
-
-
-
 
 
 
