@@ -45,6 +45,126 @@ namespace ProInternal.Services
         }
 
 
+
+        public List<SellThroughExportDto>
+    GetSellThroughExportData(List<string> weeks,List<int> accounts)
+        {
+            using var conn = GetConnection();
+
+            return conn.Query<SellThroughExportDto>(
+                "SellThrough_GetExportData",
+                new
+                {
+                    Weeks =
+                        string.Join(",", weeks),
+
+                    Accounts =
+                        accounts == null
+                            ? ""
+                            : string.Join(",", accounts)
+                },
+                commandType:
+                    CommandType.StoredProcedure
+            ).ToList();
+        }
+
+
+
+        public List<SellThroughRequestAuditDto>
+    GetSellThroughRequestHistory(int account)
+        {
+            using var conn = GetConnection();
+
+            return conn.Query<SellThroughRequestAuditDto>(
+                "SellThrough_GetRequestHistory",
+                new
+                {
+                    Account = account
+                },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+
+        public void InsertSellThroughRequestAudit(
+    int vendorId,
+    int account,
+    DateTime weekEnding,
+    string contactEmail,
+    string requestedBy)
+        {
+            using var conn = GetConnection();
+
+            conn.Execute(
+                "SellThrough_InsertRequestAudit",
+                new
+                {
+                    VendorId = vendorId,
+                    Account = account,
+                    WeekEnding = weekEnding,
+                    ContactEmail = contactEmail,
+                    RequestedBy = requestedBy
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+        public void InsertSellThroughSubmissionAudit(
+    int vendorId,
+    int account,
+    DateTime weekEnding,
+    string fileName,
+    string sentToBRMEmail,
+    string sentBy,
+    string comments)
+        {
+            using var conn = GetConnection();
+
+            conn.Execute(
+                "SellThrough_InsertSubmissionAudit",
+                new
+                {
+                    VendorId = vendorId,
+                    Account = account,
+                    WeekEnding = weekEnding,
+                    FileName = fileName,
+                    SentToBRMEmail = sentToBRMEmail,
+                    SentBy = sentBy,
+                    Comments = comments
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
+        public List<SellThroughSubmissionAuditDto> GetSellThroughSubmissionHistory(int account)
+        {
+            using var conn = GetConnection();
+
+            return conn.Query<SellThroughSubmissionAuditDto>(
+                "SellThrough_GetSubmissionHistory",
+                new
+                {
+                    Account = account
+                },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+
+
+        public IEnumerable<SellThroughComplianceDto> GetSellThroughCompliance()
+        {
+            using var conn = GetConnection();
+
+            return conn.Query<SellThroughComplianceDto>(
+                "SellThrough_Compliance",
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+
         public VendorDto? GetVendorById(int vendorId)
         {
             using var conn = GetConnection();

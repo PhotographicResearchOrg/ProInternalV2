@@ -29,13 +29,11 @@ import { AccountManagementComponent } from './prointernalengine/components/Membe
 import { ReceivablesComponent } from './prointernalengine/components/dashboards/accounting/receivables/receivables.component';
 import { ShippingerrorsComponent } from './prointernalengine/components/dashboards/warehouse/shippingerrors/shippingerrors.component'; 
 import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component';
-
 import { ShopifyAdminComponent } from './prointernalengine/components/dashboards/Marketing/shopify-admin/shopify-admin.component';
-
 import { CreditsComponent } from './prointernalengine/components/dashboards/accounting/credits.component/credits.component';
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
-
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
+import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
 
 
 
@@ -79,9 +77,9 @@ const routes: Routes = [
       { path: 'shippingmonitor', component: ShipmentMonitorComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Monitor' } },
       { path: 'productedit', component: ProductEditComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Edit' } },
       { path: 'credits', component: CreditsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Credits' }},
-      { path: 'vendor-billing', component: VendorBillingComponent,canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Vendor Billing' } },
-      { path: 'shopify-admin', component: ShopifyAdminComponent, canActivate: [AuthGuard],data: { breadcrumb: 'Shopify Admin' }
-      },
+      { path: 'vendor-billing', component: VendorBillingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Vendor Billing' } },
+      { path: 'sellthrough', component: VendorSellthroughComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor - Vendor Sellthrough' } },
+      { path: 'shopify-admin', component: ShopifyAdminComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shopify Admin' }},
       {
         path: 'ecommerce',
         children: [

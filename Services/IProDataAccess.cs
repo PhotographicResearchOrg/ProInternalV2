@@ -33,6 +33,42 @@ namespace ProInternal.Services
     {
 
 
+
+        List<SellThroughExportDto>
+GetSellThroughExportData(
+    List<string> weeks,
+    List<int> accounts
+);
+
+
+        void InsertSellThroughRequestAudit(
+    int vendorId,
+    int account,
+    DateTime weekEnding,
+    string contactEmail,
+    string requestedBy
+);
+
+
+
+        List<SellThroughSubmissionAuditDto> GetSellThroughSubmissionHistory(int account);
+
+        void InsertSellThroughSubmissionAudit(
+    int vendorId,
+    int account,
+    DateTime weekEnding,
+    string fileName,
+    string sentToBRMEmail,
+    string sentBy,
+    string comments
+);
+
+
+        List<SellThroughRequestAuditDto>
+        GetSellThroughRequestHistory(int account);
+
+        IEnumerable<SellThroughComplianceDto> GetSellThroughCompliance();
+
         void ResolveGovernanceIssue(int id);
 
         IEnumerable<ShopifyGovernanceIssueDto> GetShopifyGovernanceIssues();

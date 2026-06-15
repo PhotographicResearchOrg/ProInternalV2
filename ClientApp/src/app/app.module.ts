@@ -81,12 +81,12 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; 
 import { ChipsModule } from 'primeng/chips';
 import { CalendarModule } from 'primeng/calendar'; // If PrimeNG 17+, use DatePickerModule instead
 /* Components */
+
 import { CreditsComponent } from './prointernalengine/components/dashboards/accounting/credits.component/credits.component';
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
-
 import { InputNumberModule } from 'primeng/inputnumber';
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
-
+import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
 
 @NgModule({
   declarations:
@@ -124,7 +124,8 @@ import { ShipmentMonitorComponent } from './prointernalengine/components/dashboa
     ShippingerrorsComponent,
     ShippingerrorbrmComponent,
     PaymentTypeComponent,
-    ShipmentMonitorComponent
+    ShipmentMonitorComponent,
+    VendorSellthroughComponent
   ],
 
   imports: [

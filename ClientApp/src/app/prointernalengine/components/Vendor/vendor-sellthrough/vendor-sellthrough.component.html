@@ -1,0 +1,740 @@
+
+<p-toast></p-toast>
+<div class="sellthrough-container">
+
+  <div class="page-header">
+
+    <div>
+      <h2>Sony Sell Through Compliance</h2>
+      <p class="subtitle">
+        Monitor dealer reporting compliance and missing submissions.
+      </p>
+    </div>
+
+    <button pButton
+            icon="pi pi-refresh"
+            label="Refresh"
+            (click)="loadData()">
+    </button>
+
+    <button pButton
+            icon="pi pi-file-excel"
+            label="Export Submitted Data"
+            class="p-button-success ml-2"
+           (click)="openExportDialog()">
+    </button>
+
+
+  </div>
+
+  <!-- KPI CARDS -->
+
+  <div class="summary-cards">
+
+    <div class="summary-card">
+
+      <div class="card-value">
+        {{missingDealers}}
+      </div>
+
+      <div class="card-label">
+        Dealers Missing
+      </div>
+
+    </div>
+
+    <div class="summary-card">
+
+      <div class="card-value">
+        {{totalMissingWeeks}}
+      </div>
+
+      <div class="card-label">
+        Total Missing Weeks
+      </div>
+
+    </div>
+
+    <div class="summary-card">
+
+      <div class="card-value">
+        {{filteredComplianceData.length}}
+      </div>
+
+      <div class="card-label">
+        Filtered Results
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- FILTERS -->
+
+  <p-card styleClass="mb-3">
+
+    <div class="filters-row">
+
+      <div class="p-inputgroup dealer-search">
+
+        <span class="p-inputgroup-addon">
+          <i class="pi pi-search"></i>
+        </span>
+
+        <input pInputText
+               placeholder="Search Dealer"
+               [(ngModel)]="dealerFilter"
+               (ngModelChange)="applyFilters()">
+
+      </div>
+
+      <p-dropdown [options]="missingWeekOptions"
+                  [(ngModel)]="missingWeeksFilter"
+                  optionLabel="label"
+                  optionValue="value"
+                  (onChange)="applyFilters()"
+                  placeholder="Missing Weeks">
+      </p-dropdown>
+
+      <p-dropdown [options]="weekOptions"
+                  [(ngModel)]="selectedWeekFilter"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Week Ending"
+                  (onChange)="applyFilters()">
+      </p-dropdown>
+
+      <div class="checkbox-container">
+
+        <p-checkbox [(ngModel)]="showOnlyMissing"
+                    [binary]="true"
+                    (onChange)="applyFilters()">
+        </p-checkbox>
+
+        <label>
+          Show Missing Only
+        </label>
+
+      </div>
+
+    </div>
+
+  </p-card>
+
+  <!-- GRID -->
+
+  <p-card>
+
+    <ng-template pTemplate="header">
+
+      <div class="table-header">
+
+        <span class="table-title">
+          Dealer Compliance
+        </span>
+
+      </div>
+
+    </ng-template>
+
+    <p-table [value]="filteredComplianceData"
+             [loading]="loading"
+             [paginator]="true"
+             [rows]="25"
+             responsiveLayout="scroll"
+             sortField="missingWeekCount"
+             [sortOrder]="-1">
+
+
+
+
+      <ng-template pTemplate="header">
+
+        <tr>
+
+          <th>Dealer</th>
+
+          <th>Missing</th>
+
+          <th>Missing Weeks</th>
+
+          <th>Last Submission</th>
+
+          <th>Dealer Contact</th>
+
+          <th>BRM</th>
+          <th>Status</th>
+
+          <th style="width:140px">
+            Actions
+          </th>
+
+        </tr>
+
+      </ng-template>
+
+      <ng-template pTemplate="body" let-row>
+
+        <tr>
+
+          <td>
+
+            <strong>
+              {{row.memberName}}
+            </strong>
+
+          </td>
+          <td>
+
+            <p-tag [severity]="getMissingSeverity(row.missingWeekCount)"
+                   [value]="row.missingWeekCount + ' Weeks'">
+            </p-tag>
+
+          </td>
+
+          <td>
+
+            <div class="week-chip-container">
+
+              <span class="week-chip"
+                   *ngFor="let week of getVisibleWeeks(row)">
+
+                {{ week.trim() }}
+
+              </span>
+
+            </div>
+
+          </td>
+
+
+
+
+          <td>
+
+            {{row.lastSubmission | date:'MM/dd/yyyy'}}
+
+          </td>
+
+          <td>
+
+            <div>
+              {{row.contactName}}
+            </div>
+
+            <small>
+              {{row.contactEmail}}
+            </small>
+
+          </td>
+
+          <td>
+
+            <div>
+              {{row.brmName}}
+            </div>
+
+            <small>
+              {{row.brmEmail}}
+            </small>
+
+          </td>
+
+          <td>
+
+            <p-tag [severity]="getStatusSeverity(row.status)"
+                   [value]="row.status">
+            </p-tag>
+
+          </td>
+
+
+          <td>
+
+            <button pButton
+                    icon="pi pi-envelope"
+                    class="p-button-text"
+                    pTooltip="Request File"
+                    (click)="openRequestDialog(row)">
+            </button>
+
+
+            <button pButton
+                    icon="pi pi-upload"
+                    class="p-button-text"
+                    pTooltip="Submit File"
+                    (click)="openSubmissionDialog(row)">
+            </button>
+
+
+            <button pButton
+                    icon="pi pi-history"
+                    class="p-button-text"
+                    pTooltip="View Missing Weeks"
+                    (click)="viewHistory(row)">
+            </button>
+
+          </td>
+
+        </tr>
+
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+
+        <tr>
+
+          <td colspan="7">
+
+            <div class="p-4 text-center">
+
+              <i class="pi pi-check-circle text-green-500"></i>
+
+              <div class="mt-2">
+
+                No compliance issues found.
+
+              </div>
+
+            </div>
+
+          </td>
+
+        </tr>
+
+      </ng-template>
+
+    </p-table>
+
+  </p-card>
+
+</div>
+
+
+
+
+<p-dialog header="Submit Sell Through File"
+          [(visible)]="showSubmissionDialog"
+          [modal]="true"
+          [draggable]="false"
+          [resizable]="false"
+          [style]="{width:'650px'}">
+
+  <div *ngIf="selectedDealer">
+
+    <div class="dealer-header">
+
+      <h2>
+        {{selectedDealer.memberName}}
+      </h2>
+
+      <div class="dealer-meta">
+
+        <div>
+          <strong>Contact:</strong>
+          {{selectedDealer.contactEmail}}
+        </div>
+
+        <div>
+          <strong>BRM:</strong>
+          {{selectedDealer.brmName}}
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="dialog-section">
+
+      <label class="section-title">
+
+        Missing Reporting Weeks
+
+      </label>
+
+      <div class="week-selector">
+
+        <div *ngFor="let week of getMissingWeekList(selectedDealer)"
+             class="week-pill"
+             [class.selected]="selectedWeeks.includes(week)"
+             (click)="toggleWeek(week)">
+
+          {{week}}
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="dialog-section">
+
+      <label class="section-title">
+
+        Attach Sell Through File
+
+      </label>
+
+      <p-fileUpload #sellThroughUploader
+                    mode="basic"
+                    chooseLabel="Select Files"
+                    [multiple]="true"
+                    [auto]="false"
+                    (onSelect)="onFileSelected($event)">
+      </p-fileUpload>
+
+      <div *ngIf="selectedFiles.length > 0">
+
+        <div *ngFor="let file of selectedFiles"
+             class="selected-file">
+
+          {{file.name}}
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="dialog-section">
+
+      <label class="section-title">
+
+        Comments
+
+      </label>
+
+      <textarea pInputTextarea
+                rows="3"
+                style="width:100%"
+                [(ngModel)]="submissionComments"
+                placeholder="Optional comments for the BRM">
+            </textarea>
+
+    </div>
+
+  </div>
+
+  <ng-template pTemplate="footer">
+
+    <button pButton
+            label="Cancel"
+            class="p-button-text"
+            (click)="showSubmissionDialog = false">
+    </button>
+
+    <button pButton
+            label="Send To BRM"
+            icon="pi pi-send"
+            [loading]="sendingFile"
+            [disabled]="sendingFile ||
+            selectedWeeks.length === 0 ||
+            selectedFiles.length === 0"
+            (click)="submitFile()">
+    </button>
+
+  </ng-template>
+
+</p-dialog>
+<p-dialog header="BRM Submission History"
+          [(visible)]="showHistoryDialog"
+          [modal]="true"
+          [style]="{width:'900px'}">
+
+
+  <h3>Dealer Requests</h3>
+
+  <p-table [value]="requestHistoryData">
+
+    <ng-template pTemplate="header">
+
+      <tr>
+
+        <th>Week Ending</th>
+
+        <th>Requested Date</th>
+
+        <th>Requested By</th>
+
+        <th>Contact Email</th>
+
+      </tr>
+
+    </ng-template>
+
+    <ng-template pTemplate="body" let-row>
+
+      <tr>
+
+        <td>
+          {{row.weekEnding | date:'MM/dd/yyyy'}}
+        </td>
+
+        <td>
+          {{row.requestedDate | date:'MM/dd/yyyy h:mm a'}}
+        </td>
+
+        <td>
+          {{row.requestedBy}}
+        </td>
+
+        <td>
+          {{row.contactEmail}}
+        </td>
+
+      </tr>
+
+    </ng-template>
+
+  </p-table>
+
+  <br />
+
+  <h3>Files Sent To BRM</h3>
+
+
+  <p-table [value]="historyData"
+           responsiveLayout="scroll">
+
+    <ng-template pTemplate="header">
+
+      <tr>
+
+        <th>Week Ending</th>
+
+        <th>Sent Date</th>
+
+        <th>File</th>
+
+        <th>Sent By</th>
+
+        <th>BRM Email</th>
+
+      </tr>
+
+    </ng-template>
+
+    <ng-template pTemplate="body" let-row>
+
+      <tr>
+
+        <td>
+          {{row.weekEnding | date:'MM/dd/yyyy'}}
+        </td>
+
+        <td>
+          {{row.sentDate | date:'MM/dd/yyyy h:mm a'}}
+        </td>
+
+        <td>
+          {{row.fileName}}
+        </td>
+
+        <td>
+          {{row.sentBy}}
+        </td>
+
+        <td>
+          {{row.sentToBRMEmail}}
+        </td>
+
+      </tr>
+
+    </ng-template>
+
+  </p-table>
+
+</p-dialog>
+
+<p-dialog header="Request Missing Sell Through File"
+          [(visible)]="showRequestDialog"
+          [modal]="true"
+          [draggable]="false"
+          [resizable]="false"
+          [style]="{width:'650px'}">
+
+  <div *ngIf="selectedDealer">
+
+    <div class="dealer-header">
+
+      <h2>
+        {{selectedDealer.memberName}}
+      </h2>
+
+      <div class="dealer-meta">
+
+        <div>
+          <strong>Contact:</strong>
+          {{selectedDealer.contactEmail}}
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="dialog-section">
+
+      <label class="section-title">
+
+        Missing Reporting Weeks
+
+      </label>
+
+      <div class="week-selector">
+
+        <div *ngFor="let week of getMissingWeekList(selectedDealer)"
+             class="week-pill"
+             [class.selected]="requestWeeks.includes(week)"
+             (click)="toggleRequestWeek(week)">
+
+          {{week}}
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <ng-template pTemplate="footer">
+
+    <button pButton
+            label="Cancel"
+            class="p-button-text"
+            (click)="showRequestDialog = false">
+    </button>
+
+    <button pButton
+            label="Send Request"
+            icon="pi pi-envelope"
+            [loading]="sendingRequest"
+            [disabled]="sendingRequest ||
+                    requestWeeks.length === 0"
+            (click)="submitRequest()">
+    </button>
+
+  </ng-template>
+
+</p-dialog>
+
+<p-dialog header="Export Submitted Sell Through Data"
+          [(visible)]="showExportDialog"
+          [modal]="true"
+          [style]="{width:'700px'}">
+
+  <div class="dialog-section">
+
+    <label class="section-title">
+      Week Ending
+    </label>
+
+
+    <div class="dialog-section">
+
+      <label class="section-title">
+
+        Dealers (Optional)
+
+      </label>
+
+      <small>
+        Leave blank to export all dealers.
+      </small>
+
+      <div class="week-selector">
+
+        <div class="week-pill"
+             [class.selected]="selectedExportAccounts.length === 0"
+             (click)="selectedExportAccounts = []">
+
+          ALL DEALERS
+
+        </div>
+
+
+        <div *ngFor="let row of getSortedExportDealers()"
+             class="week-pill"
+             [class.selected]="selectedExportAccounts.includes(row.account)"
+             (click)="toggleExportAccount(row.account)">
+
+          {{row.memberName}}
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div class="week-selector">
+
+      <ng-container *ngFor="let week of weekOptions">
+
+        <div *ngIf="week.value"
+             class="week-pill"
+             [class.selected]="exportWeeks.includes(week.value)"
+             (click)="toggleExportWeek(week.value)">
+
+          {{ week.label }}
+
+        </div>
+
+      </ng-container>
+
+    </div>
+
+  </div>
+
+
+
+  <div class="dialog-section">
+
+
+
+    <div class="dialog-section">
+
+      <label>Notes</label>
+
+      <textarea pInputTextarea
+                rows="4"
+                style="width:100%"
+                [(ngModel)]="exportComments"
+                placeholder="Optional notes to include in the email">
+      </textarea>
+
+    </div>
+
+    <label>Email To</label>
+    <input pInputText
+           [(ngModel)]="exportEmail"
+           style="width:100%" />
+
+  </div>
+
+  <ng-template pTemplate="footer">
+
+    <button pButton
+            label="Cancel"
+            class="p-button-text"
+            (click)="showExportDialog = false">
+    </button>
+
+    <button pButton
+            label="Download Excel"
+            icon="pi pi-file-excel"
+            [disabled]="sendingExport"
+            (click)="generateExport(false)">
+    </button>
+
+    <button pButton
+            label="Download & Email"
+            icon="pi pi-send"
+            [loading]="sendingExport"
+            [disabled]="sendingExport"
+            (click)="generateExport(true)">
+    </button>
+
+  </ng-template>
+
+</p-dialog>

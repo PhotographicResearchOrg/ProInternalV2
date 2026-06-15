@@ -48,7 +48,7 @@ import { SendInvoicesRequest } from 'src/app/models/accounting/SendInvoicesReque
 import { ShippingErrorRecord, ShippingErrorProduct, PackingSlipData, ProcessShippingErrorResponse } from 'src/app/models/WH/ShippingErrorRecord';
 import { BatchRunResponse, PoSyncResult } from 'src/app/models/Uvicorn/PassThroughInvoice';
 import { Prod, Result, ProductInfoType, ProductInfoLookup, IQPrompt, CategoryNode } from 'src/app/models/Product/EditProduct'; 
-
+import { SellThroughCompliance } from 'src/app/models/vendor/SellThroughCompliance';
 
 @Injectable()
 export class DataService {
@@ -56,6 +56,60 @@ export class DataService {
   constructor(private api: ApiService, private http: HttpClient) { }
 
 
+  emailSellThroughExport(
+    request: any
+  ) {
+    return this.api.post<any>(
+      'API/Vendor/sellthrough/export-email',
+      request
+    );
+  }
+
+
+  exportSellThrough(request: any) {
+    return this.api.post<any>(
+      'API/Vendor/sellthrough/export',
+      request
+    );
+  }
+
+
+  getSellThroughRequestHistory(account: number) {
+    return this.api.get<any[]>(
+      `API/Vendor/sellthrough/request-history/${account}`
+    );
+  }
+
+
+  sendSellThroughRequest(request: any) {
+    return this.api.post<any>(
+      'API/Vendor/sellthrough/request',
+      request
+    );
+  }
+
+
+  getSellThroughSubmissionHistory(account: number) {
+    return this.api.get<any[]>(
+      `API/Vendor/sellthrough/history/${account}`
+    );
+  }
+
+
+
+  getSellThroughCompliance() {
+    return this.api.get<SellThroughCompliance[]>(
+      'API/Vendor/sellthrough'
+    );
+  }
+
+
+  sendSellThroughFile(formData: FormData) {
+    return this.api.postMultipartJson<any>(
+      'API/Vendor/sellthrough/send',
+      formData
+    );
+  }
 
 
   getShopifyTaxonomyAudit() {
