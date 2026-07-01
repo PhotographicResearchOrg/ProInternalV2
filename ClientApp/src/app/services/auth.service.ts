@@ -68,12 +68,12 @@ export class AuthService {
 
   getPermissions(): { permissionName: string; routePath: string }[] {
     const raw = localStorage.getItem('permissions');
-    console.log('[getPermissions] Raw:', raw);
+    
 
     try {
       const firstParse = JSON.parse(raw ?? '[]');
       const final = typeof firstParse === 'string' ? JSON.parse(firstParse) : firstParse;
-      console.log('[getPermissions] Final parsed:', final);
+ 
       return final;
     } catch (e) {
       console.error('[getPermissions] Parse error:', e);

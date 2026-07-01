@@ -34,7 +34,9 @@ export interface ShippingErrorProduct {
   returnedBy?: string;
   returnedDate?: string;
 
-
+  // NEW
+  raIssuedDate?: string;
+  raReceivedDate?: string;
 }
 
 export interface PackingSlipData {

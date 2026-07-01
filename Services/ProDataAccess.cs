@@ -624,7 +624,22 @@ namespace ProInternal.Services
             );
         }
 
+        public bool ProductReceived(int shippingErrorId, string productCode)
+        {
+            using (IDbConnection connection = GetConnection())
+            {
+                var result = connection.Execute(
+                    "ShippingError_ProductReceived",
+                    new
+                    {
+                        ShippingErrorId = shippingErrorId,
+                        ProductCode = productCode
+                    },
+                    commandType: CommandType.StoredProcedure);
 
+                return result > 0;
+            }
+        }
 
 
         public void TouchVendorInvoiceLearning(int id)
@@ -738,6 +753,7 @@ namespace ProInternal.Services
                 commandType: CommandType.StoredProcedure
             );
         }
+
 
 
         public IEnumerable<ProInternal.Models.WH.ShippingErrorRecord> GetShippingErrors()

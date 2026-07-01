@@ -47,6 +47,27 @@
           <input type="file" (change)="onFileSelect($event)" hidden #fileInput />
         </div>
 
+
+        <div class="top-actions">
+
+          <button pButton
+                  label="Download Template"
+                  icon="pi pi-file-excel"
+                  severity="success"
+                  (click)="downloadTemplate()">
+          </button>
+
+          <button pButton
+                  label="Instructions"
+                  icon="pi pi-question-circle"
+                  severity="info"
+                  (click)="showInstructions=true">
+          </button>
+
+        </div>
+
+
+
         <div class="p-mt-3" *ngIf="selectedFile">
           <p class="file-name"><strong>Selected File:</strong> {{ selectedFile.name }}</p>
 
@@ -63,6 +84,7 @@
             </div>
 
             <div class="row btn-row">
+
               <button pButton
                       label="Upload & Preview"
                       icon="pi pi-search"
@@ -79,13 +101,16 @@
                       (click)="clearFile()">
               </button>
 
+
+
               <button pButton
-                      label="Download Excel"
+                      label="Export Preview"
                       icon="pi pi-download"
                       size="small"
-                      severity="help"
+                      severity="contrast"
                       (click)="exportGrid()">
               </button>
+
             </div>
           </div>
         </div>
@@ -96,13 +121,27 @@
     </p-card>
   </div>
 
-  <div class="density-toggle">
-    <div class="density-toggle">
-      <p-button label="Comfortable" [outlined]="density!=='comfortable'" (click)="density='comfortable'"></p-button>
-      <p-button label="Compact" [outlined]="density!=='compact'" (click)="density='compact'"></p-button>
-    </div>
-  </div>
+  <div class="p-col-12">
 
+    <div class="density-toggle">
+
+      <span class="muted">
+        Density:
+      </span>
+
+      <p-button label="Comfortable"
+                [outlined]="density !== 'comfortable'"
+                (click)="density='comfortable'">
+      </p-button>
+
+      <p-button label="Compact"
+                [outlined]="density !== 'compact'"
+                (click)="density='compact'">
+      </p-button>
+
+    </div>
+
+  </div>
 
   <div class="p-col-12" *ngIf="previewRows.length > 0">
     <p-card>
@@ -123,18 +162,18 @@
               <colgroup>
                 <col style="width:100px" />  <!-- Vendor / Brand -->
                 <col style="width:100px" />  <!-- Prod Des -->
-                <col style="width:280px" />  <!-- Proposed Model Name -->
+                <col style="width:220px" />  <!-- Proposed Model Name -->
                 <col style="width:120px" />  <!-- PRO Code_(Primary) -->
                 <col style="width:120px" />  <!-- Instant Rebate -->
                 <col style="width:100px" />  <!-- Reimbursement -->
                 <col style="width:100px" />  <!-- MAP -->
-                <col style="width:140px" />  <!-- Start Date -->
-                <col style="width:140px" />  <!-- End Date -->
+                <col style="width:95px" />  <!-- Start Date -->
+                <col style="width:95px" />  <!-- End Date -->
                 <col style="width:160px" />  <!-- Stack Code(s) -->
-                <col style="width:220px" />  <!-- Stack Product (Desc) -->
+                <col style="width:160px" />  <!-- Stack Product (Desc) -->
                 <col style="width:90px" />  <!-- Rebate Type -->
                 <col style="width:120px" />  <!-- Disposition -->
-                <col style="width:240px" />  <!-- Notes -->
+                <col style="width:150px" />  <!-- Notes -->
                 <col style="width:40px" />  <!-- Status -->
               </colgroup>
             </ng-template>
@@ -205,12 +244,12 @@
 
                 <td class="mono">
                   <div class="ell" [title]="(r.startDate | date:'M/d/yyyy h:mm:ss a')">
-                    {{ r.startDate | date:'M/d/yyyy h:mm:ss a' }}
+                    {{ r.startDate | date:'M/d/yyyy' }}
                   </div>
                 </td>
                 <td class="mono">
                   <div class="ell" [title]="(r.endDate | date:'M/d/yyyy h:mm:ss a')">
-                    {{ r.endDate | date:'M/d/yyyy h:mm:ss a' }}
+                    {{ r.endDate | date:'M/d/yyyy' }}
                   </div>
                 </td>
 
@@ -257,3 +296,53 @@
     </p-card>
   </div>
 </div>
+
+
+
+
+
+<p-dialog header="Rebate Upload Instructions"
+          [(visible)]="showInstructions"
+          [modal]="true"
+          [style]="{width:'900px'}">
+
+  <h3>Workflow</h3>
+
+  <ol>
+    <li>Download Template</li>
+    <li>Populate PRO Codes</li>
+    <li>Upload & Preview</li>
+    <li>Review Generated Names</li>
+    <li>Submit IRs</li>
+  </ol>
+
+  <h3>Description Rules</h3>
+
+  <table class="rules-table">
+    <tr>
+      <td>IR</td>
+      <td>PRIMARY PRODUCT DESCRIPTION</td>
+    </tr>
+
+    <tr>
+      <td>Bundle</td>
+      <td>PRIMARY PRODUCT DESCRIPTION WITH STACK PRODUCT DESCRIPTION</td>
+    </tr>
+
+    <tr>
+      <td>Coupon</td>
+      <td>PRIMARY PRODUCT DESCRIPTION WITH COUPON CODE</td>
+    </tr>
+
+    <tr>
+      <td>Social Media</td>
+      <td>PRIMARY PRODUCT DESCRIPTION WITH SOCIAL MEDIA</td>
+    </tr>
+
+    <tr>
+      <td>Trade-In</td>
+      <td>PRIMARY PRODUCT DESCRIPTION TRADE-IN TRADE-UP</td>
+    </tr>
+  </table>
+
+</p-dialog>

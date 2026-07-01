@@ -286,6 +286,17 @@ export class DataService {
     );
   }
 
+  productReceived(payload: {
+    shippingErrorId: number;
+    productCode: string;
+  }) {
+    return this.api.post<any>(
+      'API/Warehouse/productreceived',
+      payload
+    );
+  }
+
+
 
 
   getShipments(): Observable<any[]> {

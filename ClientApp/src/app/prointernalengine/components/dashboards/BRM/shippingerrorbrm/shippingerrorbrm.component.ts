@@ -35,11 +35,11 @@ export class ShippingerrorbrmComponent extends ShippingerrorsComponent {
   loadShippingErrors() {
     this.dataService.getShippingErrors().subscribe({
       next: (data) => {
-        this.shippingErrors = data.filter(error =>
+        this.shippingErrors = data;
+
+        this.filteredShippingErrors = this.shippingErrors.filter(error =>
           error.products?.some(p => (p as any).isBRMProduct)
         );
-        this.filteredShippingErrors = this.shippingErrors;
-
 
         // Emit count to parent
         this.errorCountChanged.emit(this.filteredShippingErrors.length);

@@ -106,6 +106,18 @@ export class ShippingerrorsComponent {
   }
 
 
+  isWaitingForReturn(product: any): boolean {
+    return product.disposition == 7 &&
+      product.raIssuedDate &&
+      !product.raReceivedDate;
+  }
+
+  isReturnReceived(product: any): boolean {
+    return product.disposition == 7 &&
+      product.raReceivedDate;
+  }
+
+
   hasBRMProduct(error: ShippingErrorRecord): boolean {
     return error.products?.some(p => (p as any).isBRMProduct) ?? false;
   }
@@ -291,17 +303,20 @@ export class ShippingerrorsComponent {
       const payload = error.products?.map((product: any) => {
 
 
-      const customMessage = product.brmMessage && product.selectedDisposition === '9' ? product.brmMessage.trim() : "NA"; // Only set if selectedDisposition is "9"
+        const customMessage =
+          product.selectedDisposition === '9'
+            ? (product.brmMessage?.trim() || null)
+            : null;
 
      
 
 
-      return {
-        productCode: product.productCode,
-        Disposition: product.selectedDisposition,
-        customMessage: customMessage, 
-        errorID: error.id     
-      };
+        return {
+          productCode: product.productCode,
+          disposition: product.selectedDisposition,
+          customMessage,
+          errorID: error.id
+        };
     }) || []; // Default to an empty array if no products are present
 
 
@@ -536,6 +551,32 @@ export class ShippingerrorsComponent {
   sendBackToWarehouse(errorId: number, product: any): void {
     // base does nothing (BRM overrides this)
   }
+
+  showConversation(product: any): boolean {
+    return this.isBRMMode ||
+      !!product.customMessage ||
+      !!product.returnMessage;
+  }
+
+
+
+  productReceived(errorId: number, product: any): void {
+
+    this.dataService.productReceived({
+      shippingErrorId: errorId,
+      productCode: product.productCode
+    }).subscribe(() => {
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Returned product received.'
+      });
+      this.loadData();
+    });
+
+  }
+
+
 
 
   exportErrors() {

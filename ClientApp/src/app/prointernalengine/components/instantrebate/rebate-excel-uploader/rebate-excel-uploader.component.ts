@@ -26,6 +26,8 @@ export class RebateExcelUploaderComponent {
   selectedRows: RebateIRRowDto[] = [];
   density: 'comfortable' | 'compact' = 'compact';
   commitResult?: CommitResult;
+  public showInstructions = false;
+
 
  REBATE_TYPES: Record<number, { label: string; severity: TagSeverity }> = {
   2: { label: 'IR', severity: 'success' },
@@ -321,6 +323,10 @@ rebateTypeSeverity(t ?: number | null): TagSeverity {
     return (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()) - epoch) / 86400000;
   }
 
+
+  downloadTemplate() {
+    window.open('/assets/RebateIRTemplate.xlsx', '_blank');
+  }
 
 
 }

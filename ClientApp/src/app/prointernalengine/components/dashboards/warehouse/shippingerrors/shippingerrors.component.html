@@ -182,13 +182,41 @@
                           <div class="grid">
 
 
+
                             <div class="col-12 md:col-6">
                               <strong>Disposition:</strong>
+
+
+                              <div *ngIf="isWaitingForReturn(product)"
+                                   class="p-3 mb-3 border-round"
+                                   style="background:#e3f2fd;
+            border-left:5px solid #2196f3;">
+
+                                <div class="text-lg font-bold mb-2">
+                                  📦 Return Authorization Issued
+                                </div>
+
+                                <div>
+                                  <strong>RA Issued:</strong>
+                                  {{ product.raIssuedDate | date:'short' }}
+                                </div>
+
+                                <div class="mt-2">
+                                  Customer has been instructed to return the merchandise.
+                                </div>
+
+                                <div class="mt-2">
+                                  <strong>Status:</strong>
+                                  Waiting for customer return.
+                                </div>
+
+                              </div>
+
 
                               <p-dropdown [options]="product.dispositions"
                                           [(ngModel)]="product.selectedDisposition"
                                           optionLabel="label"
-                                          [disabled]="product.closed || isBRMMode"
+                                          [disabled]="product.closed || isBRMMode || isWaitingForReturn(product)"
                                           optionValue="value"
                                           (onChange)="product.validationError = null"
                                           [ngClass]="{ 'p-invalid': product.validationError === 'disposition' }"
@@ -197,33 +225,52 @@
                                           appendTo="body">
                               </p-dropdown>
                               <small *ngIf="product.validationError === 'disposition'" class="p-error">Disposition is required.</small>
+
+                              <button *ngIf="isWaitingForReturn(product)"
+                                      pButton
+                                      icon="pi pi-box"
+                                      label="Product Received"
+                                      class="p-button-warning mt-2"
+                                      (click)="productReceived(error.id, product)">
+                              </button>
+
                             </div>
 
 
-                            <div class="col-12 md:col-6" *ngIf="isBRMMode || product.selectedDisposition === '9'">
-                              <div *ngIf="product.customMessage" class="mb-2 p-2 border-round" style="background:#f5f5f5;">
-                                <strong>Warehouse Message:</strong>
-                                <div class="text-sm mt-1">
-                                  {{ product.customMessage }}
+                            <div class="col-12 md:col-6">
 
-                                  <div *ngIf="product.returnMessage"
-                                       class="mt-2 p-2 border-round"
-                                       style="background:#fff8e1;">
-                                    <strong>Returned by BRM:</strong>
-                                    <div class="text-sm mt-1">
-                                      {{ product.returnMessage }}
-                                    </div>
+
+
+                              <div *ngIf="product.customMessage || product.returnMessage">
+
+                                <div *ngIf="product.customMessage"
+                                     class="mb-2 p-2 border-round"
+                                     style="background:#f5f5f5;">
+                                  <strong>Warehouse Request:</strong>
+                                  <div class="text-sm mt-1">
+                                    {{ product.customMessage }}
                                   </div>
-
                                 </div>
+
+                                <div *ngIf="product.returnMessage"
+                                     class="mb-2 p-2 border-round"
+                                     style="background:#fff8e1;">
+                                  <strong>BRM Response:</strong>
+                                  <div class="text-sm mt-1">
+                                    {{ product.returnMessage }}
+                                  </div>
+                                </div>
+
                               </div>
 
                               <strong>
-                                {{ isBRMMode ? 'Reply to Warehouse:' : 'BRM Message:' }}
+                                {{ isBRMMode ? 'BRM Reply:' : 'Warehouse Reply:' }}
                               </strong>
 
                               <input pInputText [(ngModel)]="product.brmMessage"
-                                     placeholder="Enter message back to warehouse..."
+                                     [placeholder]="isBRMMode
+                                      ? 'Enter reply back to Warehouse...'
+                                      : 'Enter reply back to BRM...'"
                                      (input)="product.validationError = null"
                                      [ngClass]="{'p-invalid': product.validationError === 'brm'}"
                                      [disabled]="product.closed"
@@ -232,18 +279,19 @@
                               <small *ngIf="product.validationError === 'brm'" class="p-error">Message required for BRM Soft Touch.</small>
 
 
-                              <button pButton
+                              <button *ngIf="isBRMMode"
+                                      pButton
                                       icon="pi pi-check"
-                                      label="Complete"
+                                      label="Complete Claim"
                                       class="p-button-success p-button-sm mt-2"
                                       [disabled]="product.closed || !product.isBRMProduct"
                                       (click)="markProductComplete(error.id, product.productCode)">
                               </button>
 
-                              <button *ngIf="product.isBRMProduct"
+                              <button *ngIf="isBRMMode && product.isBRMProduct"
                                       pButton
                                       icon="pi pi-replay"
-                                      label="Return"
+                                      label="Send Back to Warehouse"
                                       class="p-button-warning p-button-sm mt-2 ml-2"
                                       [disabled]="product.closed || !product.brmMessage?.trim()"
                                       (click)="sendBackToWarehouse(error.id, product)">
@@ -260,10 +308,15 @@
                   </ng-template>
                 </p-table>
 
-                <div class="text-right mt-3">
+
+      
+
+
+                <div class="text-right mt-3"
+                     *ngIf="!isBRMMode && !error.products.some(isWaitingForReturn)">
                   <button pButton label="Process"
                           icon="pi pi-check"
-                             [disabled]="allProductsClosed(error)"
+                          [disabled]="allProductsClosed(error)"
                           class="p-button-success p-button-sm"
                           (click)="processShippingError(error)">
                   </button>
@@ -346,8 +399,6 @@
             </tbody>
           </table>
 
-
-
           <!-- Error Product Details -->
           <h4 class="mt-4 mb-2">Error Products</h4>
           <table class="packing-slip-products">
@@ -357,7 +408,6 @@
                 <th>Desc</th>
                 <th style="width: 90px;">Quan</th>
                 <th>Error</th>
-          
               </tr>
             </thead>
             <tbody>

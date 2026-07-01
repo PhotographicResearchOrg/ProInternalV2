@@ -107,6 +107,17 @@ namespace ProInternal.Models.WH
         public string Disposition { get; set; }
         public int? BRMFollowUp { get; set; }
         public string CustomMessage { get; set; }
+
+
+        public string ReturnMessage { get; set; }
+        public string ReturnedBy { get; set; }
+        public DateTime? ReturnedDate { get; set; }
+
+
+        public DateTime? RAIssuedDate { get; set; }
+        public DateTime? RAReceivedDate { get; set; }
+
+
     }
 
 
@@ -159,6 +170,13 @@ public class PackingSlipProduct
     public int QuantityOrdered { get; set; }
     public int QuantityShipped { get; set; }
     public string Description { get; set; }
+}
+
+
+public class ProductReceivedRequest
+{
+    public int ShippingErrorId { get; set; }
+    public string ProductCode { get; set; }
 }
 
 

@@ -207,6 +207,19 @@ namespace ProInternal.Controllers
             return Ok();
         }
 
+
+        [HttpPost("productreceived")]
+        public IActionResult ProductReceived([FromBody] ProductReceivedRequest request)
+        {
+            var success = _proDataAccess.ProductReceived(
+                request.ShippingErrorId,
+                request.ProductCode);
+
+            return Ok(success);
+        }
+
+
+
         [HttpPost("process-grid")]
         public IActionResult ProcessGridShippingErrors([FromBody] List<ShippingErrorRecord> errors)
         {

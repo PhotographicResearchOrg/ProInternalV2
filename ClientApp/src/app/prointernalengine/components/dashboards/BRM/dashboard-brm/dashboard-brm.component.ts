@@ -90,11 +90,15 @@ export class DashboardBrmComponent implements OnInit {
   onAccountFilter(accountNumbers: string[]) {
    this.SelectedAccountNumbers = accountNumbers;
     if (!accountNumbers || accountNumbers.length === 0) {
-      this.declinedIRs = [...this.declinedIRsOriginal];
+      this.declinedIRs = this.declinedIRsOriginal.filter(
+        ir => ir.status === this.statusFilter
+      );
     }
     else {
-      this.declinedIRs = this.declinedIRsOriginal.filter(ir => ir.status === 3 && 
-        accountNumbers.includes(ir.memberID?.toString())
+      this.declinedIRs = this.declinedIRsOriginal.filter(
+        ir =>
+          ir.status === this.statusFilter &&
+          accountNumbers.includes(ir.memberID?.toString())
       );
     }
   }
@@ -105,6 +109,11 @@ export class DashboardBrmComponent implements OnInit {
     this.ReloadDeclinedIRs();     
     this.topbar?.triggerFlashBadge?.(); // safe call if method exists
   }
+
+
+
+
+
 
   getFilterKeys(): string[] {
     return this.declinesTable?.activeFilters

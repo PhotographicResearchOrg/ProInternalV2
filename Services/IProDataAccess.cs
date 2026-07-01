@@ -63,6 +63,7 @@ GetSellThroughExportData(
     string comments
 );
 
+        bool ProductReceived(int shippingErrorId, string productCode);
 
         List<SellThroughRequestAuditDto>
         GetSellThroughRequestHistory(int account);
