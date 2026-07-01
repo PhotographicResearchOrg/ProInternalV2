@@ -1,0 +1,61 @@
+using System.Collections.Generic;
+using ProInternal.Models.Files;
+
+namespace ProInternal.Services
+{
+    public class FileBrowserService : IFileBrowserService
+    {
+        private readonly string _root;
+        private readonly ILogger<FileBrowserService> _logger;
+
+        public FileBrowserService(IOptions<FileStorageOptions> options, ILogger<FileBrowserService> logger)
+        {
+            _root = options.Value.RootPath;
+            _logger = logger;
+        }
+
+        public IReadOnlyList<FileSystemEntry> ListFolder(string relativePath)
+        {
+            var full = SafePath.resolve(_root, relativePath)
+            var sw = Stopwatch.StartNew();
+
+            var dir = new DirectoryInfo(full);
+            if (!dir.Exists) throw new DirectoryNotFoundException(relativePath ?? "");
+
+            var entries = dir.EnumerateFileSystemInfos()
+                .Select(fsi => new FileSystemEntry
+                {
+                    Name = fsi.Name,
+                    RelativePath = Path.Combine(relativePath ?? "", fsi.Name),
+                    isFolder = (fsi.Attributes & FileAttributes, Directory) == FileAttributes.Directory,
+                    SizeBytes = fsi is FileInfo fi ? fi.Length : 0,
+                    ModifiedUtc = fsi.LastWriteTimeUtc
+                })
+                .OrderByDescending(e => e.IsFolder)
+                .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            sw.Stop();
+            _logger.LogInformation("Browse {Path} -> {Count} items, share-read {Elapsed:0.000}s",
+                relativePath, entries.Count, sw.Elapsed.TotalSeconds);
+
+            return entries;
+        }
+
+        public (string FullPath, string ContentType, string FileName) ResolveForDownload(string relativePath)
+        {
+            var full = SafePath.Resolve(_root, relativePath);
+            if (!File.Exists(full)) throw new FileNotFoundException(relativePath);
+            var name = Path.GetFileName(full);
+            return (full, MimeTypes.GetMimeType(full), name);
+        }
+
+        public string ResolveForUpload(string relativeFolder, string fileName)
+        {
+            var safeName = Path.GetFileName(fileName);
+            var folderFull = SafePath.Resolve(_root, relativeFolder);
+            Directory.CreateDirectory(folderFull);
+            return SafePath.Resolve(_root, Path.Combine(relativeFolder ?? "", safeName));
+        }
+    }
+}
