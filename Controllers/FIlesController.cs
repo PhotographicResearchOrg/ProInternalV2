@@ -14,8 +14,8 @@ namespace ProInternal.Controllers
     [ApiController]
     [Route("/[Controller]")]
     public class FilesController : ControllerBase
-    { 
-        private readonly IFileBrowserService _files:
+    {
+        private readonly IFileBrowserService _files;
         private readonly ILogger<FilesController> _logger;
 
         public FilesController(IFileBrowserService files, ILogger<FilesController> logger)
@@ -81,4 +81,3 @@ namespace ProInternal.Controllers
         }
     }
 }
-    }

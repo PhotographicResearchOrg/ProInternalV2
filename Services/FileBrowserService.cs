@@ -16,7 +16,7 @@ namespace ProInternal.Services
 
         public IReadOnlyList<FileSystemEntry> ListFolder(string relativePath)
         {
-            var full = SafePath.resolve(_root, relativePath)
+            var full = SafePath.resolve(_root, relativePath);
             var sw = Stopwatch.StartNew();
 
             var dir = new DirectoryInfo(full);
