@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { UploaderModule } from './uploader/uploader.module'
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -28,7 +29,7 @@ import { FileAppComponent } from './file.app.component';
     ChartModule,
     BreadcrumbModule
   ],
-  declarations: [FileAppComponent, UploaderComponent],
+  declarations: [FileAppComponent],
   providers: [FileAppService]
 })
 export class FileAppModule { }

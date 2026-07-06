@@ -59,7 +59,7 @@ export class QtrRebatesComponent implements OnInit {
     this.vendorDownload = event
   }
 
-  onReload(payload?: { reloadHistorical: boolean; reloadCurrent: boolean }) {
+  onReload(payload?: any ) {
     const reloadHistorical = payload?.reloadHistorical ?? true;
     const reloadCurrent = payload?.reloadCurrent ?? true;
 

@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { UploaderModule } from './prointernalengine/components/apps/file/uploader/uploader.module';
 import { HashLocationStrategy, LocationStrategy } from '@angular/common';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -17,10 +18,8 @@ import { InputTextareaModule } from 'primeng/inputtextarea';
 import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
 import { FileUploadModule } from 'primeng/fileupload';
-import { DataService } from "src/app/services/data.service";
+import { DataService } from "./services/data.service";
 import { HttpClientModule } from '@angular/common/http';
-import { UploaderComponent } from './prointernalengine/components/apps/file/uploader/uploader.component';
-import { FileAppComponent } from './prointernalengine/components/apps/file/file.app.component';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { DashboardAccountingComponent } from './prointernalengine/components/dashboards/accounting/dashboardaccounting.component';
 import { AutoCompleteModule } from 'primeng/autocomplete';
@@ -113,8 +112,6 @@ import { VendorSellthroughComponent } from './prointernalengine/components/Vendo
     VendorConfigurationComponent,
     RebateExcelUploaderComponent,
     ForecastComponent,
-    UploaderComponent,
-    FileAppComponent,
     PatronageComponent,
     PaymentsComponent,
     HubspotCompanyComponent,
@@ -129,6 +126,7 @@ import { VendorSellthroughComponent } from './prointernalengine/components/Vendo
   ],
 
   imports: [
+    UploaderModule,
     InputNumberModule,
     BrowserModule,                 // <-- required
     BrowserAnimationsModule,       // <-- required for PrimeNG

@@ -111,7 +111,7 @@ export class FileAppComponent implements OnInit {
     return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
   }
 
-  onUpload(event: { files: globalThis.File[] }) {
+  onUpload(event: any) {
     const path = this.currentRelativePath;
     for (const file of event.files) {
       this.fileService.upload(path, file).subscribe((ev) => {
