@@ -6,12 +6,29 @@ import { RippleModule } from 'primeng/ripple';
 import { TableModule } from 'primeng/table';
 import { MenuModule } from 'primeng/menu';
 import { ChartModule } from 'primeng/chart';
+import { ToastModule } from 'primeng/toast';
+import { FileUploadModule } from 'primeng/fileupload';
+import { BreadcrumbModule } from 'primeng/breadcrumb';
 import { UploaderComponent } from './uploader/uploader.component';
 import { FileAppService } from './service/file.app.service';
-import { ToastModule } from 'primeng/toast';
 import { FileAppRoutingModule } from './file.app-routing.module';
 import { FileAppComponent } from './file.app.component';
-import { FileUploadModule } from primeng/fileupload';
-import { BreadcrumbModule } from 'primeng/breadcrumb';
 
+@NgModule({
+  imports: [
+    CommonModule,
+    FileAppRoutingModule,
+    FormsModule,
+    ButtonModule,
+    RippleModule,
+    ToastModule,
+    TableModule,
+    MenuModule,
+    FileUploadModule,
+    ChartModule,
+    BreadcrumbModule
+  ],
+  declarations: [FileAppComponent, UploaderComponent],
+  providers: [FileAppService]
+})
 export class FileAppModule { }

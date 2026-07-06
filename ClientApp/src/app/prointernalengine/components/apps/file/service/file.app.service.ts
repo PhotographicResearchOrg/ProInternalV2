@@ -7,6 +7,15 @@ import { QuarterlyRebates } from "src/app/models/accounting/quarterly-rebates";
 import { Observable } from "rxjs";
 
 
+export interface FileSystemEntry {
+  name: string;
+  relativePath: string;
+  isFolder: boolean;
+  sizeBytes: number;
+  modifiedUtc: string;
+}
+
+
 @Injectable()
 export class FileAppService {
 

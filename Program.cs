@@ -46,13 +46,13 @@ builder.Services.AddScoped<IFileBrowserService, FileBrowserService>();
 
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);
 
-builder.services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
 {
     o.MultipartBodyLengthLimit = long.MaxValue; // if IFormFile upload > 128 MB
 });
 
-builder.Services.Configure<Microsoft.AspNetCore.Server.IIS.IISServerOptions>(
-    o => o.MaxRequestBodySize = null);
+//builder.Services.Configure<Microsoft.AspNetCore.Server.IIS.IISServerOptions>(
+//    o => o.MaxRequestBodySize = null);
 
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("Email")

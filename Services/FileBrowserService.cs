@@ -1,4 +1,11 @@
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using ProInternal.Helpers;
 using ProInternal.Models.Files;
 
 namespace ProInternal.Services
@@ -16,7 +23,7 @@ namespace ProInternal.Services
 
         public IReadOnlyList<FileSystemEntry> ListFolder(string relativePath)
         {
-            var full = SafePath.resolve(_root, relativePath);
+            var full = SafePath.Resolve(_root, relativePath);
             var sw = Stopwatch.StartNew();
 
             var dir = new DirectoryInfo(full);
@@ -27,7 +34,7 @@ namespace ProInternal.Services
                 {
                     Name = fsi.Name,
                     RelativePath = Path.Combine(relativePath ?? "", fsi.Name),
-                    isFolder = (fsi.Attributes & FileAttributes, Directory) == FileAttributes.Directory,
+                    IsFolder = (fsi.Attributes & FileAttributes.Directory) == FileAttributes.Directory,
                     SizeBytes = fsi is FileInfo fi ? fi.Length : 0,
                     ModifiedUtc = fsi.LastWriteTimeUtc
                 })

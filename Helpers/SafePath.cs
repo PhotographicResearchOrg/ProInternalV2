@@ -7,7 +7,7 @@ namespace ProInternal.Helpers
     {
         public static string Resolve(string root, string? relativePath)
         {
-            var fullRoot = Path.getFullPath(root);
+            var fullRoot = Path.GetFullPath(root);
             if (!fullRoot.EndsWith(Path.DirectorySeparatorChar))
                 fullRoot += Path.DirectorySeparatorChar;
 
@@ -17,16 +17,14 @@ namespace ProInternal.Helpers
 
             var combined = Path.GetFullPath(Path.Combine(fullRoot, relativePath));
 
-
             var rootNoSep = fullRoot.TrimEnd(Path.DirectorySeparatorChar);
-            var isRootItself = string.equals(combined, rootNoSep, StringComparison.OrdinalIgnoreCase);
+            var isRootItself = string.Equals(combined, rootNoSep, StringComparison.OrdinalIgnoreCase);
             var isInside = combined.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase);
 
             if (!isRootItself && !isInside)
                 throw new UnauthorizedAccessException("Path escapes the configured root.");
 
             return combined;
-        
         }
     }
 }
