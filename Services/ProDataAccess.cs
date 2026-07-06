@@ -880,11 +880,9 @@ namespace ProInternal.Services
         public IEnumerable<Subscription> GetSubscriptions()
         {
             using var connection = GetConnection();
-            connection.Open();
+            //connection.Open();
 
-            var subscriptions = connection.Query<Subscription>(
-            "PIV2GetSubscriptions",     
-            commandType: CommandType.StoredProcedure
+            var subscriptions = connection.Query<Subscription>("PIV2GetSubscriptions", commandType: CommandType.StoredProcedure
         ).ToList();
 
         return subscriptions;
@@ -912,7 +910,7 @@ namespace ProInternal.Services
         public IEnumerable<Member> GetMembers(int memberTypeId)
         {
             using var connection = GetConnection();
-            connection.Open();
+    
 
             var members = connection.Query<Member>(
                 "PIV2GetMembers",
@@ -930,7 +928,7 @@ namespace ProInternal.Services
         public IEnumerable<Vendor> GetVendors()
         {
             using var connection = GetConnection();
-            connection.Open();
+        
 
             var vendors = connection.Query<Vendor>(
                 "PIV2GetVendors",

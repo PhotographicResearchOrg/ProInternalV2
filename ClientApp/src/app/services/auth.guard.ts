@@ -24,8 +24,7 @@ export class AuthGuard implements CanActivate {
     const rawPath = route.routeConfig?.path ?? '';
     const requestedPath = '/' + rawPath.toLowerCase();
 
-    console.log('Requested:', requestedPath);
-    console.log('Allowed:', allowedRoutes);
+
 
     if (!allowedRoutes.includes(requestedPath)) {
       this.router.navigate(['/auth/access']);
