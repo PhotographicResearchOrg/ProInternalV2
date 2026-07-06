@@ -79,5 +79,13 @@ namespace ProInternal.Controllers
 
             return Ok(new { uploaded = saved });
         }
+        // GET /api/files/size?path=FORMS
+        [HttpGet("size")]
+        public IActionResult Size([FromQuery] string? path)
+        {
+            var (bytes, count) = _files.GetFolderSize(path ?? "");
+            return Ok(new { totalBytes = bytes, fileCount = count });
+        }
+
     }
 }

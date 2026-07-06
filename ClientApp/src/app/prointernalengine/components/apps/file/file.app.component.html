@@ -1,88 +1,100 @@
 <div class="grid">
-
+  <!-- LEFT: storage + upload -->
   <div class="col-12 md:col-5 xl:col-3">
     <div class="card">
-      <div class="text-900 text-xl font-semibold mb-3">Account Storage</div>
-      <p-chart type="doughnut" [plugins]="chartPlugins" id="country-chart" [data]="fileChart" [options]="fileChartOptions" [style]="{'width': '75%'}"></p-chart>
-      <div class="mt-5 flex gap-3">
-        <button pButton pRipple icon="pi pi-search" class="p-button-outlined flex-1" label="Details"></button>
-        <button pButton pRipple icon="pi pi-upload" class="flex-1" label="Upgrade"></button>
+      <div class="text-900 text-xl font-semibold mb-1">Storage</div>
+      <div class="text-600 text-sm mb-3">
+        {{ currentRelativePath ? currentRelativePath : 'PM5 (root)' }}
       </div>
-    </div>
 
-    <div class="card">
-      <p-fileUpload #fileUploader
-                    mode="advanced"
-                    [customUpload]="true"
-                    [multiple]="true"
-                    (uploadHandler)="onUpload($event)"
-                    chooseLabel="Upload">
-      </p-fileUpload>
-    </div>
-  </div>
-
-  <div class="col-12 md:col-7 xl:col-9">
-    <!-- breadcrumb -->
-    <div class="card">
-      <p-breadcrumb [model]="breadcrumbItems" [home]="breadcrumbHome"></p-breadcrumb>
-    </div>
-
-    <!-- folders in the current directory -->
-    <div class="card">
-      <div class="text-900 text-xl font-semibold mb-3">Folders</div>
-      <div *ngIf="!folders.length" class="text-600">No sub-folders here.</div>
-      <div class="grid">
-        <div *ngFor="let folder of folders" class="col-12 md:col-6 xl:col-4">
-          <div class="p-3 border-1 surface-border flex align-items-center justify-content-between hover:surface-100 cursor-pointer border-round"
-               (click)="openFolder(folder)">
-            <div class="flex align-items-center">
-              <i class="pi pi-folder text-2xl mr-3"></i>
-              <span class="text-900 text-lg font-medium">{{ folder.name }}</span>
-            </div>
-            <i class="pi pi-chevron-right text-600"></i>
-          </div>
+      <div class="relative flex justify-content-center align-items-center" style="min-height: 220px">
+        <p-chart type="doughnut" [data]="fileChart" [options]="fileChartOptions"
+                 [style]="{'width':'80%'}"></p-chart>
+        <div class="absolute flex flex-column align-items-center">
+          <span *ngIf="storageLoading" class="text-600 text-sm">Calculating…</span>
+          <ng-container *ngIf="!storageLoading">
+            <span class="text-900 text-2xl font-bold">{{ formatBytes(storageBytes) }}</span>
+            <span class="text-600 text-sm">{{ storageFileCount }} files</span>
+            <span class="text-500 text-xs mt-1">{{ usedPercent }}% of share</span>
+          </ng-container>
         </div>
       </div>
     </div>
 
-    <!-- files in the current directory -->
     <div class="card">
-      <div class="text-900 text-xl font-semibold mb-3">Files</div>
-      <p-table responsiveLayout="scroll" #dt [value]="files" [rows]="8" [paginator]="files.length > 8">
-        <ng-template pTemplate="header">
-          <tr>
-            <th pSortableColumn="name" style="min-width:12rem" class="white-space-nowrap">Name <p-sortIcon field="name"></p-sortIcon></th>
-            <th pSortableColumn="modifiedUtc" style="min-width:12rem" class="white-space-nowrap">Modified <p-sortIcon field="modifiedUtc"></p-sortIcon></th>
-            <th pSortableColumn="sizeBytes" style="min-width:12rem" class="white-space-nowrap">Size <p-sortIcon field="sizeBytes"></p-sortIcon></th>
-            <th style="width:10rem"></th>
-          </tr>
-        </ng-template>
-
-        <ng-template pTemplate="body" let-file>
-          <tr>
-            <td>
-              <div class="flex align-items-center">
-                <i class="text-xl text-primary mr-2 pi pi-file"></i>
-                <span>{{ file.name }}</span>
-              </div>
-            </td>
-            <td><span>{{ file.modifiedUtc | date:'short' }}</span></td>
-            <td><span>{{ formatSize(file.sizeBytes) }}</span></td>
-            <td class="text-center">
-              <a pButton pRipple icon="pi pi-eye"
-                 class="p-button-text p-button-rounded mr-2"
-                 [href]="viewUrl(file)" target="_blank" rel="noopener"></a>
-              <a pButton pRipple icon="pi pi-download"
-                 class="p-button-text p-button-rounded"
-                 [href]="downloadUrl(file)"></a>
-            </td>
-          </tr>
-        </ng-template>
-
-        <ng-template pTemplate="emptymessage">
-          <tr><td colspan="4" class="text-600">No files here.</td></tr>
-        </ng-template>
-      </p-table>
+      <div class="text-900 text-lg font-semibold mb-3">Upload</div>
+      <p-fileUpload #fileUploader mode="advanced" [customUpload]="true" [multiple]="true"
+                    (uploadHandler)="onUpload($event)" chooseLabel="Choose files"></p-fileUpload>
     </div>
+  </div>
+
+  <!-- RIGHT: breadcrumb + folders + files -->
+  <div class="col-12 md:col-7 xl:col-9">
+    <div class="card flex align-items-center justify-content-between py-2">
+      <p-breadcrumb [model]="breadcrumbItems" [home]="breadcrumbHome" styleClass="border-none p-0"></p-breadcrumb>
+      <button pButton pRipple icon="pi pi-refresh" class="p-button-text p-button-rounded"
+              (click)="refresh()" pTooltip="Refresh"></button>
+    </div>
+
+    <!-- loading -->
+    <div *ngIf="loading" class="card flex justify-content-center py-6">
+      <p-progressSpinner styleClass="w-3rem h-3rem" strokeWidth="4"></p-progressSpinner>
+    </div>
+
+    <ng-container *ngIf="!loading">
+      <!-- folders -->
+      <div class="card" *ngIf="folders.length">
+        <div class="text-900 text-xl font-semibold mb-3">Folders</div>
+        <div class="grid">
+          <div *ngFor="let folder of folders" class="col-12 md:col-6 xl:col-4">
+            <div class="p-3 border-1 surface-border border-round flex align-items-center justify-content-between cursor-pointer transition-colors transition-duration-150 hover:surface-100 hover:border-primary"
+                 (click)="openFolder(folder)">
+              <div class="flex align-items-center gap-2 overflow-hidden">
+                <i class="pi pi-folder text-2xl text-primary"></i>
+                <span class="text-900 font-medium white-space-nowrap overflow-hidden text-overflow-ellipsis">{{ folder.name }}</span>
+              </div>
+              <i class="pi pi-chevron-right text-500"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- files -->
+      <div class="card">
+        <div class="text-900 text-xl font-semibold mb-3">Files</div>
+        <p-table [value]="files" [rows]="10" [paginator]="files.length > 10"
+                 responsiveLayout="scroll" styleClass="p-datatable-sm">
+          <ng-template pTemplate="header">
+            <tr>
+              <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
+              <th pSortableColumn="modifiedUtc" style="width:12rem">Modified <p-sortIcon field="modifiedUtc"></p-sortIcon></th>
+              <th pSortableColumn="sizeBytes" style="width:8rem">Size <p-sortIcon field="sizeBytes"></p-sortIcon></th>
+              <th style="width:7rem"></th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-file>
+            <tr>
+              <td>
+                <div class="flex align-items-center gap-2">
+                  <i class="pi pi-file text-primary"></i>
+                  <span>{{ file.name }}</span>
+                </div>
+              </td>
+              <td class="text-600">{{ file.modifiedUtc | date:'short' }}</td>
+              <td class="text-600">{{ formatBytes(file.sizeBytes) }}</td>
+              <td class="text-right">
+                <a pButton pRipple icon="pi pi-eye" class="p-button-text p-button-rounded"
+                   [href]="viewUrl(file)" target="_blank" rel="noopener" pTooltip="View"></a>
+                <a pButton pRipple icon="pi pi-download" class="p-button-text p-button-rounded"
+                   [href]="downloadUrl(file)" pTooltip="Download"></a>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="4" class="text-center text-600 py-4">This folder has no files.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </ng-container>
   </div>
 </div>

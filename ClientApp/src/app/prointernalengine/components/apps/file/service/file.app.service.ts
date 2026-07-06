@@ -15,6 +15,11 @@ export interface FileSystemEntry {
   modifiedUtc: string;
 }
 
+export interface FolderSize {
+  totalBytes: number;
+  fileCount: number;
+}
+
 
 @Injectable()
 export class FileAppService {
@@ -89,6 +94,10 @@ export class FileAppService {
       reportProgress: true,
       observe: 'events',
     });
+  }
+
+  folderSize(path: string = ''): Observable<FolderSize> {
+    return this.http.get<FolderSize>('Files/size', { params: { path } });
   }
 
 }

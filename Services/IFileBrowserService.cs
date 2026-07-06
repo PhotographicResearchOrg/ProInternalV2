@@ -13,6 +13,6 @@ namespace ProInternal.Services
         //returns safe absolute destination path for upload.
         string ResolveForUpload(string relativeFolder, string fileName);
 
-        (long totalBytes, long FileCount) GetFolderSize(string relativePath);
+        (long TotalBytes, long FileCount) GetFolderSize(string relativePath);
     }
 }

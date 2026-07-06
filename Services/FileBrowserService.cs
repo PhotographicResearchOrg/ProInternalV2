@@ -64,5 +64,23 @@ namespace ProInternal.Services
             Directory.CreateDirectory(folderFull);
             return SafePath.Resolve(_root, Path.Combine(relativeFolder ?? "", safeName));
         }
+
+        public (long TotalBytes, long FileCount) GetFolderSize(string relativePath)
+        {
+            var full = SafePath.Resolve(_root, relativePath);
+            if (!Directory.Exists(full)) throw new DirectoryNotFoundException(relativePath ?? "");
+
+            var sw = Stopwatch.StartNew();
+            long total = 0, count = 0;
+            foreach(var fi in new DirectoryInfo(full).EnumerateFiles("*",SearchOption.AllDirectories))
+            {
+                total += fi.Length;
+                count++;
+            }
+            sw.Stop();
+            _logger.LogInformation("Size {Path} -> {Bytes} bytes, {Count} files, share-read {Elapsed:0.000}s",
+                   relativePath, total, count, sw.Elapsed.TotalSeconds);
+            return (total, count);
+        }
     }
 }

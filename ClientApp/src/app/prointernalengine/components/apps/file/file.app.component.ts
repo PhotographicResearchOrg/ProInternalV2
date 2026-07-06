@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { Metric } from 'src/app/prointernalengine/api/metric';
-import { FileAppService, FileSystemEntry } from './service/file.app.service';
+import { FileAppService, FileSystemEntry, FolderSize } from './service/file.app.service';
 import { MenuItem } from 'primeng/api';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
 import { Subscription, debounceTime } from 'rxjs';
@@ -11,14 +11,6 @@ import { HttpEventType } from '@angular/common/http';
   styleUrls: ['./file.app.component.scss'],
 })
 export class FileAppComponent implements OnInit {
-  // demo decoration (chart + top metric cards) — leave as-is for Step 1
-  fileChart: any;
-  fileChartOptions: any;
-  chartPlugins: any;
-  metrics: Metric[] = [];
-  menuitems: MenuItem[] = [];
-  subscription: Subscription;
-
   // real file-browser state
   currentRelativePath = '';
   folders: FileSystemEntry[] = [];
@@ -27,27 +19,29 @@ export class FileAppComponent implements OnInit {
   breadcrumbHome: MenuItem = { icon: 'pi pi-home', command: () => this.navigateTo('') };
   loading = false;
 
+  storageBytes = 0;
+  storageFileCount = 0;
+  storageLoading = false;
+  rootBytes = 0;
+  private sizeCache = new Map<string, FolderSize>();
+
+  fileChart: any;
+  fileChartOptions: any;
+  chartPlugins: any;
+  subscription: Subscription;
+
   @ViewChild('fileUploader') fileUploader: any;
 
-  constructor(
-    private fileService: FileAppService,
-    private layoutService: LayoutService
-  ) {
+  constructor(private fileService: FileAppService, private layoutService: LayoutService) {
     this.subscription = this.layoutService.configUpdate$
-      .pipe(debounceTime(25))
-      .subscribe((config) => {
-        this.initChart();
-      });
+      .pipe(debounceTime(25)).subscribe(() => this.renderChart());
   }
 
   ngOnInit() {
-    this.fileService.getMetrics().then((data) => (this.metrics = data));
-    this.initChart();
-    this.menuitems = [
-      { label: 'View', icon: 'pi pi-search' },
-      { label: 'Refresh', icon: 'pi pi-refresh' },
-    ];
-
+    this.fileService.folderSize('').subscribe({
+      next: (s) => { this.rootBytes = s.totalBytes || 1; this.renderChart(); },
+      error: () => { this.rootBytes = 1; },
+    });
     this.loadFolder('');
   }
 
@@ -60,6 +54,7 @@ export class FileAppComponent implements OnInit {
         this.files = entries.filter((e) => !e.isFolder);
         this.buildBreadcrumb();
         this.loading = false;
+        this.loadFolderSize(path);
       },
       error: () => {
         this.folders = [];
@@ -67,6 +62,22 @@ export class FileAppComponent implements OnInit {
         this.loading = false;
       },
     });
+  }
+
+  loadFolderSize(path: string) {
+    const cached = this.sizeCache.get(path);
+    if (cached) { this.applySize(cached); return; }
+    this.storageLoading = true;
+    this.fileService.folderSize(path).subscribe({
+      next: (s) => { this.sizeCache.set(path, s); this.applySize(s); this.storageLoading = false; },
+      error: () => { this.storageLoading = false; },
+    });
+  }
+
+  private applySize(s: FolderSize) {
+    this.storageBytes = s.totalBytes;
+    this.storageFileCount = s.fileCount;
+    this.renderChart();
   }
 
   openFolder(folder: FileSystemEntry) {
@@ -77,9 +88,7 @@ export class FileAppComponent implements OnInit {
     this.loadFolder(path);
   }
 
-  refresh() {
-    this.loadFolder(this.currentRelativePath);
-  }
+  refresh() { this.sizeCache.delete(this.currentRelativePath); this.loadFolder(this.currentRelativePath); }
 
   private buildBreadcrumb() {
     const segments = this.currentRelativePath.split(/[\\/]/).filter((s) => s.length);
@@ -99,19 +108,14 @@ export class FileAppComponent implements OnInit {
     return this.fileService.downloadUrl(entry.relativePath);
   }
 
-  formatSize(bytes: number): string {
-    if (!bytes) return '';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    let n = bytes;
-    let i = 0;
-    while (n >= 1024 && i < units.length - 1) {
-      n /= 1024;
-      i++;
-    }
-    return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
+  formatBytes(bytes: number): string {
+    if (!bytes) return '0 B';
+    const u = ['B', 'KB', 'MB', 'GB', 'TB']; let n = bytes, i = 0;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
   }
 
-  onUpload(event: any) {
+  onUpload(event:any) {
     const path = this.currentRelativePath;
     for (const file of event.files) {
       this.fileService.upload(path, file).subscribe((ev) => {
@@ -124,67 +128,25 @@ export class FileAppComponent implements OnInit {
       });
     }
   }
+  get usedPercent(): number {
+    if (!this.rootBytes) return 0;
+    return Math.min(100, Math.round((this.storageBytes / this.rootBytes) * 100));
+  }
 
-  initChart() {
-    const documentStyle = getComputedStyle(document.documentElement);
-    const textColor = documentStyle.getPropertyValue('--text-color');
-
-    this.chartPlugins = [
-      {
-        beforeDraw: function (chart: any) {
-          let ctx = chart.ctx;
-          let width = chart.width;
-          let height = chart.height;
-          let fontSize = 1.5;
-          let oldFill = ctx.fillStyle;
-
-          ctx.restore();
-          ctx.font = fontSize + 'rem sans-serif';
-          ctx.textBaseline = 'middle';
-
-          let text = 'Free Space';
-          let text2 = 50 + 'GB / ' + 80 + 'GB';
-          let textX = Math.round((width - ctx.measureText(text).width) / 2);
-          let textY = (height + chart.chartArea.top) / 2.25;
-
-          let text2X = Math.round((width - ctx.measureText(text).width) / 2.1);
-          let text2Y = (height + chart.chartArea.top) / 1.75;
-
-          ctx.fillStyle = chart.config.data.datasets[0].backgroundColor[0];
-          ctx.fillText(text, textX, textY);
-          ctx.fillText(text2, text2X, text2Y);
-          ctx.fillStyle = oldFill;
-          ctx.save();
-        },
-      },
-    ];
-
+  private renderChart() {
+    const ds = getComputedStyle(document.documentElement);
+    const used = this.usedPercent;
     this.fileChart = {
-      datasets: [
-        {
-          data: [300, 100],
-          backgroundColor: [
-            documentStyle.getPropertyValue('--primary-600'),
-            documentStyle.getPropertyValue('--primary-100'),
-          ],
-          hoverBackgroundColor: [
-            documentStyle.getPropertyValue('--primary-700'),
-            documentStyle.getPropertyValue('--primary-200'),
-          ],
-          borderColor: 'transparent',
-          fill: true,
-        },
-      ],
+      datasets: [{
+        data: [used, 100 - used],
+        backgroundColor: [ds.getPropertyValue('--primary-500'), ds.getPropertyValue('--surface-200')],
+        borderColor: 'transparent',
+      }],
     };
-
     this.fileChartOptions = {
-      animation: { duration: 0 },
-      cutout: '90%',
-      plugins: {
-        legend: {
-          labels: { color: textColor },
-        },
-      },
+      animation: { duration: 400 },
+      cutout: '80%',
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
     };
   }
 }

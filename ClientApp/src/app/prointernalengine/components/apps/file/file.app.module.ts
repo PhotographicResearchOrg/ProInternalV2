@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
-import { UploaderModule } from './uploader/uploader.module'
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { TooltipModule } from 'primeng/tooltip';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -17,6 +18,8 @@ import { FileAppComponent } from './file.app.component';
 
 @NgModule({
   imports: [
+    ProgressSpinnerModule,
+    TooltipModule,
     CommonModule,
     FileAppRoutingModule,
     FormsModule,
