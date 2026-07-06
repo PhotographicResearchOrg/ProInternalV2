@@ -180,6 +180,17 @@ app.UseSpa(spa =>
         spa.UseAngularCliServer(npmScript: "start");
     }
 });
-// Enable Angular routing fallback
-app.MapFallbackToFile("index.html");
+app.MapFallback(async context =>
+{
+    var path = context.Request.Path;
+    if (path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/Files", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+    context.Response.ContentType = "text/html";
+    await context.Response.SendFileAsync(
+        Path.Combine(app.Environment.WebRootPath, "index.html"));
+});
 app.Run();

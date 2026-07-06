@@ -54,7 +54,9 @@ export class FileAppComponent implements OnInit {
         this.files = entries.filter((e) => !e.isFolder);
         this.buildBreadcrumb();
         this.loading = false;
-        this.loadFolderSize(path);
+        const cached = this.sizeCache.get(path);
+        if (cached) { this.applySize(cached); }
+        else { this.storageBytes = 0; this.storageFileCount = 0; this.storageLoading = false; }
       },
       error: () => {
         this.folders = [];
@@ -99,13 +101,23 @@ export class FileAppComponent implements OnInit {
       return { label: seg, command: () => this.navigateTo(target) } as MenuItem;
     });
   }
-
-  viewUrl(entry: FileSystemEntry): string {
-    return this.fileService.viewUrl(entry.relativePath);
+  download(file: FileSystemEntry) {
+    this.fileService.downloadFile(file.relativePath).subscribe(resp => {
+      const blob = resp.body as Blob;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    });
   }
 
-  downloadUrl(entry: FileSystemEntry): string {
-    return this.fileService.downloadUrl(entry.relativePath);
+  view(file: FileSystemEntry) {
+    this.fileService.viewFile(file.relativePath).subscribe(blob => {
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    });
   }
 
   formatBytes(bytes: number): string {

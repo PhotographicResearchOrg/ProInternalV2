@@ -17,6 +17,12 @@
             <span class="text-600 text-sm">{{ storageFileCount }} files</span>
             <span class="text-500 text-xs mt-1">{{ usedPercent }}% of share</span>
           </ng-container>
+
+          <button *ngIf="!storageLoading && storageFileCount === 0"
+                  pButton pRipple label="Calculate size" icon="pi pi-calculator"
+                  class="p-button-sm p-button-outlined"
+                  (click)="loadFolderSize(currentRelativePath)"></button>
+         <!--new button so that it doesn't automatically calculate size, only upon request'-->
         </div>
       </div>
     </div>
@@ -83,10 +89,10 @@
               <td class="text-600">{{ file.modifiedUtc | date:'short' }}</td>
               <td class="text-600">{{ formatBytes(file.sizeBytes) }}</td>
               <td class="text-right">
-                <a pButton pRipple icon="pi pi-eye" class="p-button-text p-button-rounded"
-                   [href]="viewUrl(file)" target="_blank" rel="noopener" pTooltip="View"></a>
-                <a pButton pRipple icon="pi pi-download" class="p-button-text p-button-rounded"
-                   [href]="downloadUrl(file)" pTooltip="Download"></a>
+                <button pButton pRipple icon="pi pi-eye" class="p-button-text p-button-rounded"
+                        (click)="view(file)" pTooltip="View"></button>
+                <button pButton pRipple icon="pi pi-download" class="p-button-text p-button-rounded"
+                        (click)="download(file)" pTooltip="Download"></button>
               </td>
             </tr>
           </ng-template>

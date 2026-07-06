@@ -78,11 +78,18 @@ export class FileAppService {
     return this.http.get<FileSystemEntry[]>('Files/list', { params: { path } });
   }
 
-  downloadUrl(path: string): string {
-    return `/api/files/download?path=${encodeURIComponent(path)}`;
+  downloadFile(path: string) {
+    return this.http.get(`Files/download`, {
+      params: { path },
+      responseType: 'blob',
+      observe: 'response',
+    });
   }
-  viewUrl(path: string): string {
-    return `/api/files/view?path=${encodeURIComponent(path)}`;
+  viewFile(path: string) {
+    return this.http.get(`Files/view`, {
+      params: { path },
+      responseType: 'blob',
+    });
   }
 
   // UPLOAD 
