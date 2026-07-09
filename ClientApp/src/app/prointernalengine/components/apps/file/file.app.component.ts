@@ -1,10 +1,8 @@
 import { Component, OnInit, ViewChild, OnDestroy, ElementRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Metric } from 'src/app/prointernalengine/api/metric';
 import { FileAppService, FileSystemEntry, FolderSize } from './service/file.app.service';
 import { MenuItem } from 'primeng/api';
-import { LayoutService } from 'src/app/layout/service/app.layout.service';
-import { Subscription, debounceTime } from 'rxjs';
+import { Subscription, } from 'rxjs';
 import { HttpEventType } from '@angular/common/http';
 
 @Component({
@@ -34,18 +32,14 @@ export class FileAppComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   private sizeCache = new Map<string, FolderSize>();
-
   private routeSub?: Subscription;
   constructor(
     private fileService: FileAppService,
-    private layoutService: LayoutService,
     private route: ActivatedRoute,
     private router: Router,
   ) { }
 
   ngOnInit() {
-    // No automatic full-share size walk on load — the storage card is on-demand
-    // (loadFolderSize fetches the root denominator lazily, served from server cache).
     this.routeSub = this.route.queryParams.subscribe(p => this.loadFolder(p['path'] || ''));
   }
 
