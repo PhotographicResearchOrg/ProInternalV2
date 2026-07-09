@@ -29,7 +29,7 @@
 
     <div class="card">
       <div class="text-900 text-lg font-semibold mb-3">Upload</div>
-      <p-fileUpload #fileUploader mode="advanced" [customUpload]="true" [multiple]="true"
+      <p-fileUpload #fileUploader mode="advanced" [customUpload]="true" [multiple]="true" [auto]="true"
                     (uploadHandler)="onUpload($event)" chooseLabel="Choose files"></p-fileUpload>
     </div>
   </div>

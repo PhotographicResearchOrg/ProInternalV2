@@ -19,7 +19,8 @@ import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
 import { FileUploadModule } from 'primeng/fileupload';
 import { DataService } from "./services/data.service";
-import { HttpClientModule } from '@angular/common/http';
+import { AuthInterceptor } from './services/auth.interceptor';
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { DashboardAccountingComponent } from './prointernalengine/components/dashboards/accounting/dashboardaccounting.component';
 import { AutoCompleteModule } from 'primeng/autocomplete';
@@ -179,6 +180,7 @@ import { VendorSellthroughComponent } from './prointernalengine/components/Vendo
  
   providers:
     [
+      { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi:true },
       FileAppService,
       DataService,
       MessageService,

@@ -95,7 +95,7 @@ export class FileAppService {
   // UPLOAD 
   upload(path: string, file: globalThis.File): Observable<any> {
     const fd = new FormData();
-    fd.append('file', file, file.name);
+    fd.append('files', file, file.name);
     return this.http.post('Files/upload', fd, {
       params: { path },
       reportProgress: true,

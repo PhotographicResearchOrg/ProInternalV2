@@ -82,6 +82,12 @@ export class FileAppComponent implements OnInit {
     const cached = this.sizeCache.get(path);
     if (cached) { this.applySize(cached); return; }
     this.storageLoading = true;
+    if (!this.rootBytes) {
+      this.fileService.folderSize('').subscribe({
+        next: (r) => { this.rootBytes = r.totalBytes || 1; this.renderChart(); },
+        error: () => { this.rootBytes = 1; },
+      });
+    }
     this.fileService.folderSize(path).subscribe({
       next: (s) => { this.sizeCache.set(path, s); this.applySize(s); this.storageLoading = false; },
       error: () => { this.storageLoading = false; },

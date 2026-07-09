@@ -100,3 +100,5 @@ namespace ProInternal.Services
                 relativePath, total, count, sw.Elapsed.TotalSeconds);
             return (total, count);
         }
+    }
+}
