@@ -1,12 +1,16 @@
+using Amazon.Runtime.Internal.Util;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using ProInternal.Helpers;
+using ProInternal.Models.Files;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using ProInternal.Helpers;
-using ProInternal.Models.Files;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ProInternal.Services
 {
@@ -14,11 +18,13 @@ namespace ProInternal.Services
     {
         private readonly string _root;
         private readonly ILogger<FileBrowserService> _logger;
+        private readonly IMemoryCache _cache;
 
-        public FileBrowserService(IOptions<FileStorageOptions> options, ILogger<FileBrowserService> logger)
+        public FileBrowserService(IOptions<FileStorageOptions> options, ILogger<FileBrowserService> logger, IMemoryCache cache)
         {
             _root = options.Value.RootPath;
             _logger = logger;
+            _cache = cache;
         }
 
         public IReadOnlyList<FileSystemEntry> ListFolder(string relativePath)
@@ -67,16 +73,21 @@ namespace ProInternal.Services
 
         public (long TotalBytes, long FileCount) GetFolderSize(string relativePath)
         {
+            relativePath ??= "";
+            var cacheKey = $"foldersize::{relativePath.ToLowerInvariant()}";
+            if (_cache.TryGetValue(cacheKey, out (long TotalBytes, long FileCount) hit))
+                return hit;
+
             var full = SafePath.Resolve(_root, relativePath);
-            if (!Directory.Exists(full)) throw new DirectoryNotFoundException(relativePath ?? "");
+            if (!Directory.Exists(full)) throw new DirectoryNotFoundException(relativePath);
 
             var sw = Stopwatch.StartNew();
             long total = 0, count = 0;
 
-            foreach (var fi in new DirectoryInfo(full).EnumerateFiles())   // top-level files
+            foreach (var fi in new DirectoryInfo(full).EnumerateFiles())
             {
-                Interlocked.Add(ref total, fi.Length);
-                Interlocked.Increment(ref count);
+                total += fi.Length;
+                count++;
             }
 
             Parallel.ForEach(
@@ -88,9 +99,14 @@ namespace ProInternal.Services
                     try
                     {
                         foreach (var fi in new DirectoryInfo(dir).EnumerateFiles("*", SearchOption.AllDirectories))
-                        { lt += fi.Length; lc++; }
+                        {
+                            lt += fi.Length;
+                            lc++;
+                        }
                     }
                     catch (UnauthorizedAccessException) { /* skip protected subtrees */ }
+                    catch (DirectoryNotFoundException) { /* skip vanished dirs      */ }
+
                     Interlocked.Add(ref total, lt);
                     Interlocked.Add(ref count, lc);
                 });
@@ -98,7 +114,10 @@ namespace ProInternal.Services
             sw.Stop();
             _logger.LogInformation("Size {Path} -> {Bytes} bytes, {Count} files, share-read {Elapsed:0.000}s",
                 relativePath, total, count, sw.Elapsed.TotalSeconds);
-            return (total, count);
+
+            var result = (total, count);
+            _cache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
+            return result;
         }
     }
 }

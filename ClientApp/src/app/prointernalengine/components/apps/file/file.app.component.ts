@@ -45,10 +45,8 @@ export class FileAppComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.fileService.folderSize('').subscribe({
-      next: (s) => { this.rootBytes = s.totalBytes || 1; this.renderChart(); },
-      error: () => { this.rootBytes = 1; },
-    });
+    // No automatic full-share size walk on load — the storage card is on-demand
+    // (loadFolderSize fetches the root denominator lazily, served from server cache).
     this.routeSub = this.route.queryParams.subscribe(p => this.loadFolder(p['path'] || ''));
   }
 

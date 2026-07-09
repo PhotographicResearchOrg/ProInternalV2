@@ -66,10 +66,14 @@ namespace ProInternal.Controllers
                 var dest = _files.ResolveForUpload(path ?? "", file.FileName);
 
                 var sw = Stopwatch.StartNew();
-                await using (var stream = new FileStream(dest, FileMode.Create, FileAccess.Write,
-                    FileShare.None, bufferSize: 1 << 16, FileOptions.Asynchronous))
+                var buffer = new byte[1 << 20]; // 1 MB
+                await using (var target = new FileStream(dest, FileMode.Create, FileAccess.Write,
+                    FileShare.None, bufferSize: 1 << 20, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                using (var source = file.OpenReadStream())
                 {
-                    await file.CopyToAsync(stream, ct);
+                    int read;
+                    while ((read = await source.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
+                        await target.WriteAsync(buffer, 0, read, ct);
                 }
                 sw.Stop();
 

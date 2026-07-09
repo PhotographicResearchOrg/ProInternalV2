@@ -44,6 +44,8 @@ builder.Services.Configure<FileStorageOptions>(
 
 builder.Services.AddScoped<IFileBrowserService, FileBrowserService>();
 
+builder.Services.AddMemoryCache();
+
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);
 
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
