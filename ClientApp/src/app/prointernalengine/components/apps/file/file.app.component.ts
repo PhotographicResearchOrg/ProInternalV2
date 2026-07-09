@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy, ElementRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Metric } from 'src/app/prointernalengine/api/metric';
 import { FileAppService, FileSystemEntry, FolderSize } from './service/file.app.service';
@@ -20,29 +20,28 @@ export class FileAppComponent implements OnInit {
   breadcrumbHome: MenuItem = { icon: 'pi pi-home', command: () => this.navigateTo('') };
   loading = false;
 
-  storageBytes = 0;
-  storageFileCount = 0;
+  directBytes = 0;
+  directCount = 0;
+
+  deepBytes = 0;
+  deepFileCount = 0;
+  deepCalculated = false;
   storageLoading = false;
-  rootBytes = 0;
+  isDragging = false;
+  uploading = false;
+  uploadProgress = 0;
+
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
   private sizeCache = new Map<string, FolderSize>();
 
-  fileChart: any;
-  fileChartOptions: any;
-  chartPlugins: any;
-  subscription: Subscription;
   private routeSub?: Subscription;
-
-  @ViewChild('fileUploader') fileUploader: any;
-
   constructor(
     private fileService: FileAppService,
     private layoutService: LayoutService,
     private route: ActivatedRoute,
     private router: Router,
-  ) {
-    this.subscription = this.layoutService.configUpdate$
-      .pipe(debounceTime(25)).subscribe(() => this.renderChart());
-  }
+  ) { }
 
   ngOnInit() {
     // No automatic full-share size walk on load — the storage card is on-demand
@@ -51,7 +50,6 @@ export class FileAppComponent implements OnInit {
   }
 
   ngOnDestroy() {
-    this.subscription.unsubscribe();
     this.routeSub?.unsubscribe();
   }
 
@@ -64,38 +62,41 @@ export class FileAppComponent implements OnInit {
         this.files = entries.filter((e) => !e.isFolder);
         this.buildBreadcrumb();
         this.loading = false;
+
+        // instant direct-folder size from the listing we already have 
+        this.directBytes = this.files.reduce((sum, f) => sum + (f.sizeBytes || 0), 0);
+        this.directCount = this.files.length;
+
+        // reset the recursive total, reuse cache if this folder was calculated before
         const cached = this.sizeCache.get(path);
-        if (cached) { this.applySize(cached); }
-        else { this.storageBytes = 0; this.storageFileCount = 0; this.storageLoading = false; }
+        if (cached) { this.applyDeep(cached); }
+        else { this.deepBytes = 0; this.deepFileCount = 0; this.deepCalculated = false; this.storageLoading = false; }
       },
       error: () => {
         this.folders = [];
         this.files = [];
+        this.directBytes = 0; this.directCount = 0;
+        this.deepCalculated = false;
         this.loading = false;
       },
     });
   }
 
-  loadFolderSize(path: string) {
+  calculateDeepSize() {
+    const path = this.currentRelativePath;
     const cached = this.sizeCache.get(path);
-    if (cached) { this.applySize(cached); return; }
+    if (cached) { this.applyDeep(cached); return; }
     this.storageLoading = true;
-    if (!this.rootBytes) {
-      this.fileService.folderSize('').subscribe({
-        next: (r) => { this.rootBytes = r.totalBytes || 1; this.renderChart(); },
-        error: () => { this.rootBytes = 1; },
-      });
-    }
     this.fileService.folderSize(path).subscribe({
-      next: (s) => { this.sizeCache.set(path, s); this.applySize(s); this.storageLoading = false; },
+      next: (s) => { this.sizeCache.set(path, s); this.applyDeep(s); this.storageLoading = false; },
       error: () => { this.storageLoading = false; },
     });
   }
 
-  private applySize(s: FolderSize) {
-    this.storageBytes = s.totalBytes;
-    this.storageFileCount = s.fileCount;
-    this.renderChart();
+  private applyDeep(s: FolderSize) {
+    this.deepBytes = s.totalBytes;
+    this.deepFileCount = s.fileCount;
+    this.deepCalculated = true;
   }
 
   openFolder(folder: FileSystemEntry) {
@@ -120,6 +121,7 @@ export class FileAppComponent implements OnInit {
       return { label: seg, command: () => this.navigateTo(target) } as MenuItem;
     });
   }
+
   download(file: FileSystemEntry) {
     const start = performance.now();
     this.fileService.downloadFile(file.relativePath).subscribe(resp => {
@@ -149,38 +151,40 @@ export class FileAppComponent implements OnInit {
     return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
   }
 
-  onUpload(event:any) {
+  onDragOver(e: DragEvent) { e.preventDefault(); e.stopPropagation(); this.isDragging = true; }
+  onDragLeave(e: DragEvent) { e.preventDefault(); e.stopPropagation(); this.isDragging = false; }
+
+  onDrop(e: DragEvent) {
+    e.preventDefault(); e.stopPropagation();
+    this.isDragging = false;
+    const files = e.dataTransfer?.files;
+    if (files && files.length) this.uploadFiles(Array.from(files));
+  }
+
+  onBrowse() { this.fileInput.nativeElement.click(); }
+
+  onFileInputChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (input.files && input.files.length) this.uploadFiles(Array.from(input.files));
+    input.value = ''; 
+  }
+
+  uploadFiles(files: File[]) {
     const path = this.currentRelativePath;
-    for (const file of event.files) {
-      this.fileService.upload(path, file).subscribe((ev) => {
-        if (ev.type === HttpEventType.UploadProgress && ev.total) {
-          // ev.loaded / ev.total -> progress bar if you add one
-        } else if (ev.type === HttpEventType.Response) {
-          this.refresh();
-          this.fileUploader?.clear();
-        }
+    this.uploading = true;
+    this.uploadProgress = 0;
+    let remaining = files.length;
+    for (const file of files) {
+      this.fileService.upload(path, file).subscribe({
+        next: (ev) => {
+          if (ev.type === HttpEventType.UploadProgress && ev.total) {
+            this.uploadProgress = Math.round((ev.loaded / ev.total) * 100);
+          } else if (ev.type === HttpEventType.Response) {
+            if (--remaining === 0) { this.uploading = false; this.refresh(); }
+          }
+        },
+        error: () => { if (--remaining === 0) this.uploading = false; },
       });
     }
   }
-  get usedPercent(): number {
-    if (!this.rootBytes) return 0;
-    return Math.min(100, Math.round((this.storageBytes / this.rootBytes) * 100));
-  }
-
-  private renderChart() {
-    const ds = getComputedStyle(document.documentElement);
-    const used = this.usedPercent;
-    this.fileChart = {
-      datasets: [{
-        data: [used, 100 - used],
-        backgroundColor: [ds.getPropertyValue('--primary-500'), ds.getPropertyValue('--surface-200')],
-        borderColor: 'transparent',
-      }],
-    };
-    this.fileChartOptions = {
-      animation: { duration: 400 },
-      cutout: '80%',
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-    };
-  }
-}
+} 

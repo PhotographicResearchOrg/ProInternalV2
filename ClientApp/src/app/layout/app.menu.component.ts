@@ -75,13 +75,19 @@ export class AppMenuComponent implements OnInit {
       }]
     });
 
+    can('/apps/files') && rawModel.push({
+      label: 'File Management',
+      icon: 'pi pi-folder-open',
+      items: [
+        { label: 'File Interface', icon: 'pi pi-fw pi-folder-open', routerLink: ['/apps/files'] }
+      ]
+    });
+
     rawModel.push({
-      items: [{
-        label: 'Reporting', icon: 'pi pi-chart-bar',
+      label: 'Reporting',
         items: [
           can('/powerbi') && { label: 'PRO Report Hub', icon: 'pi pi-chart-bar', routerLink: ['/powerbi'] }
         ]
-      }]
     });
 
     can('/rebatesupport') && rawModel.push({
