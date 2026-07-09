@@ -8,9 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using ProInternal.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ProInternal.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("/[Controller]")]
     public class FilesController : ControllerBase

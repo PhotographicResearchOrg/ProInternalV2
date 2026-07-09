@@ -72,15 +72,31 @@ namespace ProInternal.Services
 
             var sw = Stopwatch.StartNew();
             long total = 0, count = 0;
-            foreach(var fi in new DirectoryInfo(full).EnumerateFiles("*",SearchOption.AllDirectories))
+
+            foreach (var fi in new DirectoryInfo(full).EnumerateFiles())   // top-level files
             {
-                total += fi.Length;
-                count++;
+                Interlocked.Add(ref total, fi.Length);
+                Interlocked.Increment(ref count);
             }
+
+            Parallel.ForEach(
+                Directory.EnumerateDirectories(full),
+                new ParallelOptions { MaxDegreeOfParallelism = 8 },
+                dir =>
+                {
+                    long lt = 0, lc = 0;
+                    try
+                    {
+                        foreach (var fi in new DirectoryInfo(dir).EnumerateFiles("*", SearchOption.AllDirectories))
+                        { lt += fi.Length; lc++; }
+                    }
+                    catch (UnauthorizedAccessException) { /* skip protected subtrees */ }
+                    Interlocked.Add(ref total, lt);
+                    Interlocked.Add(ref count, lc);
+                });
+
             sw.Stop();
             _logger.LogInformation("Size {Path} -> {Bytes} bytes, {Count} files, share-read {Elapsed:0.000}s",
-                   relativePath, total, count, sw.Elapsed.TotalSeconds);
+                relativePath, total, count, sw.Elapsed.TotalSeconds);
             return (total, count);
         }
-    }
-}

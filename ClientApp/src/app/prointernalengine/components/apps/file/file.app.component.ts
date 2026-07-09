@@ -1,4 +1,5 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Metric } from 'src/app/prointernalengine/api/metric';
 import { FileAppService, FileSystemEntry, FolderSize } from './service/file.app.service';
 import { MenuItem } from 'primeng/api';
@@ -29,10 +30,16 @@ export class FileAppComponent implements OnInit {
   fileChartOptions: any;
   chartPlugins: any;
   subscription: Subscription;
+  private routeSub?: Subscription;
 
   @ViewChild('fileUploader') fileUploader: any;
 
-  constructor(private fileService: FileAppService, private layoutService: LayoutService) {
+  constructor(
+    private fileService: FileAppService,
+    private layoutService: LayoutService,
+    private route: ActivatedRoute,
+    private router: Router,
+  ) {
     this.subscription = this.layoutService.configUpdate$
       .pipe(debounceTime(25)).subscribe(() => this.renderChart());
   }
@@ -42,7 +49,12 @@ export class FileAppComponent implements OnInit {
       next: (s) => { this.rootBytes = s.totalBytes || 1; this.renderChart(); },
       error: () => { this.rootBytes = 1; },
     });
-    this.loadFolder('');
+    this.routeSub = this.route.queryParams.subscribe(p => this.loadFolder(p['path'] || ''));
+  }
+
+  ngOnDestroy() {
+    this.subscription.unsubscribe();
+    this.routeSub?.unsubscribe();
   }
 
   loadFolder(path: string) {
@@ -83,11 +95,14 @@ export class FileAppComponent implements OnInit {
   }
 
   openFolder(folder: FileSystemEntry) {
-    this.loadFolder(folder.relativePath);
+    this.navigateTo(folder.relativePath);
   }
 
   navigateTo(path: string) {
-    this.loadFolder(path);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { path: path || null },
+    });
   }
 
   refresh() { this.sizeCache.delete(this.currentRelativePath); this.loadFolder(this.currentRelativePath); }
@@ -102,19 +117,22 @@ export class FileAppComponent implements OnInit {
     });
   }
   download(file: FileSystemEntry) {
+    const start = performance.now();
     this.fileService.downloadFile(file.relativePath).subscribe(resp => {
+      const secs = ((performance.now() - start) / 1000).toFixed(3);
+      console.log(`Download ${file.name} (${file.sizeBytes} bytes) total ${secs}s`);
       const blob = resp.body as Blob;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      a.click();
+      a.href = url; a.download = file.name; a.click();
       window.URL.revokeObjectURL(url);
     });
   }
 
   view(file: FileSystemEntry) {
+    const start = performance.now();
     this.fileService.viewFile(file.relativePath).subscribe(blob => {
+      console.log(`View ${file.name} total ${((performance.now() - start) / 1000).toFixed(3)}s`);
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
     });

@@ -249,3 +249,6 @@ appsettings.KLASSDESKTOP.json
 /appsettings.json
 /appsettings.json
 /appsettings.json
+
+# proxy.conf.json
+ClientApp/proxy.conf.json
