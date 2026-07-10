@@ -1,0 +1,462 @@
+<p-toast></p-toast>
+
+<div class="dash">
+
+  <!-- ============ HOME (landing cards) ============ -->
+  <ng-container *ngIf="view === 'home'">
+
+    <header class="dash-head">
+      <div>
+        <div class="eyebrow">ProMaster · Rebate Ops</div>
+        <h1>Instant Rebate Setup</h1>
+        <p class="sub">Search a vendor to configure terms, or jump into uploads, batches, declines and corrections.</p>
+      </div>
+      <span class="dev-tag">Reverse-compatible · writes light up as APIs flow through</span>
+    </header>
+
+    <!-- stat cards -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <span class="ic teal"><i class="pi pi-building"></i></span>
+        <div><div class="k">IR-Vendors</div><div class="v">{{ vendorCount }}</div></div>
+      </div>
+      <div class="stat-card">
+        <span class="ic green"><i class="pi pi-check-circle"></i></span>
+        <div><div class="k">Active</div><div class="v">{{ activeCount }}</div></div>
+      </div>
+      <div class="stat-card">
+        <span class="ic blue"><i class="pi pi-bolt"></i></span>
+        <div><div class="k">Instant Rebate</div><div class="v">{{ irCount }}</div></div>
+      </div>
+      <div class="stat-card">
+        <span class="ic amber"><i class="pi pi-shield"></i></span>
+        <div><div class="k">Price Protection</div><div class="v">{{ ppCount }}</div></div>
+      </div>
+    </div>
+
+    <!-- hero search card -->
+    <div class="search-card">
+      <div class="search-head">
+        <span class="ic teal"><i class="pi pi-search"></i></span>
+        <div>
+          <div class="title">Find a vendor / brand</div>
+          <div class="hint">Search, then click through to configure that brand's IR terms & pads.</div>
+        </div>
+      </div>
+      <span class="p-input-icon-left search-input">
+        <i class="pi pi-search"></i>
+        <input pInputText type="text" [(ngModel)]="vendorSearch" placeholder="Type a brand, parent, or APMSTID…" />
+      </span>
+
+      <div class="results" *ngIf="filteredVendors.length">
+        <button class="result" *ngFor="let v of filteredVendors" (click)="selectVendor(v)">
+          <span class="logo" *ngIf="v.imageUrl"><img [src]="v.imageUrl" /></span>
+          <span class="logo mono" *ngIf="!v.imageUrl">{{ initials(v.vendorName) }}</span>
+          <span class="rname">
+            <span class="n">{{ v.vendorName }}</span>
+            <span class="p">{{ v.parentCompany }}<span *ngIf="v.apmstid"> · {{ v.apmstid }}</span></span>
+          </span>
+          <span class="rtags">
+            <p-tag [value]="v.active ? 'Active' : 'Inactive'" [styleClass]="v.active ? 'chip-clients' : 'chip-muted'"></p-tag>
+            <p-tag [value]="v.isInstantRebate ? 'IR' : 'PP'" [styleClass]="v.isInstantRebate ? 'chip-members' : 'chip-amber'"></p-tag>
+          </span>
+          <i class="pi pi-chevron-right go"></i>
+        </button>
+      </div>
+      <div class="results-empty" *ngIf="vendorSearch && !filteredVendors.length">No vendors match "{{ vendorSearch }}".</div>
+    </div>
+
+    <!-- entry cards -->
+    <div class="entry-grid">
+
+      <button class="entry" (click)="open('corrections')">
+        <div class="entry-top"><span class="ic violet"><i class="pi pi-pencil"></i></span><i class="pi pi-chevron-right go"></i></div>
+        <div class="entry-title">IR Management & Corrections</div>
+        <div class="entry-sub">Modify a whole batch or correct a single IR — with full audit.</div>
+        <div class="entry-foot"><span class="mono">{{ batchCount }}</span> batches · <span class="mono">{{ activeBatchCount }}</span> active</div>
+      </button>
+
+      <button class="entry" (click)="open('batches')">
+        <div class="entry-top"><span class="ic teal"><i class="pi pi-server"></i></span><i class="pi pi-chevron-right go"></i></div>
+        <div class="entry-title">Batch Deployments</div>
+        <div class="entry-sub">Turn batches on/off, review programs, download detail.</div>
+        <div class="entry-foot"><span class="mono">{{ activeBatchCount }}</span> live now</div>
+      </button>
+
+      <button class="entry" (click)="open('upload')">
+        <div class="entry-top"><span class="ic green"><i class="pi pi-upload"></i></span><i class="pi pi-chevron-right go"></i></div>
+        <div class="entry-title">Upload & Trial Run</div>
+        <div class="entry-sub">Drop an IR template, preview, dry-run, then commit.</div>
+        <div class="entry-foot">dry-run supported</div>
+      </button>
+
+      <button class="entry" (click)="open('declines')">
+        <div class="entry-top"><span class="ic red"><i class="pi pi-times-circle"></i></span><i class="pi pi-chevron-right go"></i></div>
+        <div class="entry-title">Instant Rebate Declines</div>
+        <div class="entry-sub">Rejected redemptions with reasons.</div>
+        <div class="entry-foot"><span class="mono">{{ declineCount }}</span> declines</div>
+      </button>
+
+      <button class="entry" (click)="open('purgatory')">
+        <div class="entry-top"><span class="ic amber"><i class="pi pi-inbox"></i></span><i class="pi pi-chevron-right go"></i></div>
+        <div class="entry-title">Purgatory · Kick-outs</div>
+        <div class="entry-sub">Rows that fell out of template format — fix &amp; resubmit.</div>
+        <div class="entry-foot">from commit skip/error rows</div>
+      </button>
+
+    </div>
+  </ng-container>
+
+  <!-- ============ VENDOR (setup) ============ -->
+  <ng-container *ngIf="view === 'vendor' && selectedVendor as v">
+    <button class="back" (click)="back()"><i class="pi pi-arrow-left"></i> All vendors</button>
+
+    <div class="ws-head">
+      <span class="logo lg" *ngIf="v.imageUrl"><img [src]="v.imageUrl" /></span>
+      <span class="logo lg mono" *ngIf="!v.imageUrl">{{ initials(v.vendorName) }}</span>
+      <div>
+        <h1>{{ v.vendorName }}</h1>
+        <div class="ws-meta">
+          <span>{{ v.parentCompany }}</span><span *ngIf="v.apmstid">APMSTID {{ v.apmstid }}</span>
+          <p-tag [value]="v.isInstantRebate ? 'Instant Rebate' : 'Price Protection'" [styleClass]="v.isInstantRebate ? 'chip-members' : 'chip-amber'"></p-tag>
+        </div>
+      </div>
+      <div class="active-toggle">
+        <button class="toggle" (click)="toggleActive()">
+          <span class="track" [class.on]="v.active"><span class="knob"></span></span>
+          <span class="tlabel">{{ v.active ? 'Active' : 'Inactive' }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Upload Template · Format -->
+      <section class="card">
+        <header class="card-head">
+          <span class="ci green-bg"><i class="pi pi-file-excel"></i></span><h3>Upload Template · Format</h3>
+          <button class="iconbtn" (click)="openFormat()"><i class="pi pi-pencil"></i> Edit format</button>
+        </header>
+        <div class="card-body">
+          <p class="muted-p">The stored file the batch uploader parses for <b>this brand</b> — downloadable and emailable to the vendor to fill in.</p>
+
+          <div class="tpl-file">
+            <i class="pi pi-file-excel fx"></i>
+            <div class="tpl-file-meta">
+              <div class="fn">{{ templateFileName || 'No template stored' }}</div>
+              <div class="fm"><span *ngIf="templateUpdatedOn">updated {{ templateUpdatedOn | date:'M/d/yyyy h:mm a' }}</span><span *ngIf="!templateUpdatedOn">upload an .xlsx to store it</span></div>
+            </div>
+            <span class="tpl-state" [class.on]="templateFileName || templateUrl">{{ (templateFileName || templateUrl) ? 'Stored' : 'Empty' }}</span>
+          </div>
+
+          <div class="tpl-actions">
+            <label class="upl">
+              <i class="pi pi-upload"></i> {{ templateFileName ? 'Replace' : 'Upload' }}
+              <input type="file" accept=".xlsx" hidden (change)="uploadTemplateFile($event)" />
+            </label>
+            <button pButton label="Download" icon="pi pi-download" class="p-button-sm" [disabled]="!templateUrl && !templateFileName" (click)="downloadVendorTemplate()"></button>
+            <button pButton label="Email" icon="pi pi-envelope" class="p-button-sm p-button-secondary" [disabled]="!templateFileName && !templateUrl" (click)="openEmailTemplate()"></button>
+          </div>
+
+          <div class="tpl-cols">
+            <span class="tpl-col" *ngFor="let c of templateColumns; let i = index" [class.computed]="c.computed">
+              <span class="tpl-idx mono">{{ i + 1 }}</span>{{ c.name }}<span class="cbadge" *ngIf="c.computed">computed</span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Program Template · Defaults -->
+      <section class="card">
+        <header class="card-head">
+          <span class="ci"><i class="pi pi-sliders-h"></i></span><h3>Program Template · Defaults</h3>
+          <button class="iconbtn" (click)="saveDefaults()"><i class="pi pi-check"></i> Save</button>
+        </header>
+        <div class="card-body">
+          <p class="muted-p">Vendor defaults stamped on every batch at ingest. The reimbursement % is the formula input — the dollar amount is resolved per program.</p>
+          <div class="term-row"><label>Default reimbursement %</label><span class="affix"><input pInputText type="number" [(ngModel)]="defReimbPct" placeholder="80" /><em>%</em></span></div>
+          <div class="term-row"><label>Default PRO pad % <span class="tiny">excluded from debit memo</span></label><span class="affix"><input pInputText type="number" [(ngModel)]="defPadPct" placeholder="5" /><em>%</em></span></div>
+          <div class="term-row"><label>Expire window</label><span class="affix"><input pInputText type="number" [(ngModel)]="expireDays" placeholder="60" /><em>days</em></span></div>
+          <div class="term-row"><label>Default rebate type</label><select class="nsel" [(ngModel)]="defRebateType"><option *ngFor="let t of rebateTypes" [value]="t.value">{{ t.label }}</option></select></div>
+          <div class="term-row"><label>Rolling weeks</label><span class="affix"><input pInputText type="number" [(ngModel)]="rollingWeeks" placeholder="0" /><em>wks</em></span></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <!-- Single program setup -->
+      <section class="card">
+        <header class="card-head">
+          <span class="ci"><i class="pi pi-plus-circle"></i></span><h3>Programs</h3>
+          <button class="iconbtn" (click)="openProgram()"><i class="pi pi-plus"></i> Set up one program</button>
+        </header>
+        <div class="card-body">
+          <p class="muted-p">Create a single IR program — enter PRO code, IR and dates; reimbursement auto-computes and the % is overridable right in the form. Bulk changes live in IR Management &amp; Corrections.</p>
+          <div class="empty">No single programs added this session.</div>
+        </div>
+      </section>
+
+      <!-- Custom fields -->
+      <section class="card">
+        <header class="card-head">
+          <span class="ci violet-bg"><i class="pi pi-tags"></i></span><h3>Custom Fields</h3>
+          <button class="iconbtn" (click)="openAddField()"><i class="pi pi-plus"></i> Add field</button>
+        </header>
+        <div class="card-body">
+          <ng-container *ngIf="customFields.length; else noCf">
+            <div class="term-row" *ngFor="let f of customFields">
+              <label>{{ f.label }} <span class="tiny">{{ f.type }}</span></label>
+              <span class="cf-val">{{ f.value || '—' }} <i class="pi pi-times rm" (click)="removeField(f.id)"></i></span>
+            </div>
+          </ng-container>
+          <ng-template #noCf><div class="empty">No custom fields yet — defined here they attach to this vendor. Wire the custom-field API to persist &amp; reuse across vendors.</div></ng-template>
+        </div>
+      </section>
+    </div>
+
+    <!-- Audit -->
+    <section class="card">
+      <header class="card-head"><span class="ci"><i class="pi pi-history"></i></span><h3>Audit · who / what / when</h3></header>
+      <div class="card-body">
+        <div class="empty" *ngIf="!auditLog.length">No changes yet this session. Every edit here logs actor, action and timestamp — wire to your audit table to persist across sessions and users.</div>
+        <div class="arow" *ngFor="let a of auditLog">
+          <span class="av">ME</span>
+          <div class="amain">
+            <div class="alead"><b>{{ a.who }}</b> {{ a.action }} <b>{{ a.detail }}</b></div>
+          </div>
+          <span class="awhen">{{ a.when | date:'M/d/yyyy h:mm a' }}</span>
+        </div>
+      </div>
+    </section>
+  </ng-container>
+
+  <!-- ============ DECLINES ============ -->
+  <ng-container *ngIf="view === 'declines'">
+    <button class="back" (click)="back()"><i class="pi pi-arrow-left"></i> Back</button>
+    <section class="card">
+      <header class="card-head"><span class="ci red-bg"><i class="pi pi-times-circle"></i></span><h3>Instant Rebate Declines</h3></header>
+      <div class="card-body">
+        <span class="p-input-icon-left search-input mb">
+          <i class="pi pi-search"></i>
+          <input pInputText type="text" [(ngModel)]="declineSearch" placeholder="Search declines…" />
+        </span>
+        <p-table [value]="filteredDeclines" [paginator]="true" [rows]="10" responsiveLayout="scroll" class="p-datatable-sm">
+          <ng-template pTemplate="header">
+            <tr><th>Order</th><th>Date</th><th>Total</th><th>Reason</th><th>Member</th><th>Model</th><th>Qty</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-d>
+            <tr>
+              <td class="mono">{{ d.orderID }}</td>
+              <td class="mono">{{ d.processDate | date:'M/d/yyyy' }}</td>
+              <td class="mono">{{ d.total | currency:'USD':'symbol':'1.2-2' }}</td>
+              <td>{{ d.rejectReason }}</td>
+              <td class="mono">{{ d.memberID }}</td>
+              <td>{{ d.model }}</td>
+              <td class="mono">{{ d.quantity }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="7" class="empty">No declines.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </section>
+  </ng-container>
+
+  <!-- ============ BATCHES (fully wired) ============ -->
+  <ng-container *ngIf="view === 'batches'">
+    <button class="back" (click)="back()"><i class="pi pi-arrow-left"></i> Back</button>
+    <section class="card">
+      <header class="card-head"><span class="ci"><i class="pi pi-server"></i></span><h3>Batch Deployments</h3></header>
+      <div class="card-body">
+        <span class="p-input-icon-left search-input mb">
+          <i class="pi pi-search"></i>
+          <input pInputText type="text" (input)="globalFilter(dt, $event)" placeholder="Search batches…" />
+        </span>
+        <p-table #dt [value]="batches" [paginator]="true" [rows]="8" responsiveLayout="scroll" class="p-datatable-sm"
+                 [globalFilterFields]="['batchID','vendorName','units','programStart','programEnd','irtypeName']">
+          <ng-template pTemplate="header">
+            <tr><th>Batch</th><th>Public</th><th>Vendor</th><th>Models</th><th>Start</th><th>End</th><th>IR Type</th><th></th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-b>
+            <tr>
+              <td class="mono"><i class="pi pi-key t"></i> {{ b.batchID }}</td>
+              <td><p-inputSwitch [ngModel]="batchActive(b)" (onChange)="activateBatch(b)"></p-inputSwitch></td>
+              <td>{{ b.vendorName }}</td>
+              <td class="mono">{{ b.units }}</td>
+              <td class="mono">{{ b.programStart | date:'M/d/yyyy' }}</td>
+              <td class="mono">{{ b.programEnd | date:'M/d/yyyy' }}</td>
+              <td>{{ b.irtypeName }}</td>
+              <td class="center">
+                <button pButton icon="pi pi-file-excel" class="p-button-text p-button-rounded" (click)="downloadBatch(b.batchID)"></button>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="8" class="empty">No batches.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </section>
+  </ng-container>
+
+  <!-- ============ stubs: corrections / upload / purgatory ============ -->
+  <ng-container *ngIf="view === 'corrections'">
+    <button class="back" (click)="back()"><i class="pi pi-arrow-left"></i> Back</button>
+    <section class="card">
+      <header class="card-head"><span class="ci violet-bg"><i class="pi pi-pencil"></i></span><h3>IR Management & Corrections</h3><p-tag value="Next" styleClass="chip-amber"></p-tag></header>
+      <div class="card-body">
+        <p class="muted-p">This is the edit surface we deepen next. Two modes over the same IR data, both writing to one audit spine:</p>
+        <div class="ph-cards">
+          <div class="ph-card"><i class="pi pi-clone"></i> Batch modify — select many IRs, change dates / reimbursement / expire at once</div>
+          <div class="ph-card"><i class="pi pi-pencil"></i> Single correction — fix one IR's rebate, MAP, dates, disposition</div>
+          <div class="ph-card"><i class="pi pi-history"></i> Full audit — batch event parents row-level entries (old → new, who, when)</div>
+        </div>
+      </div>
+    </section>
+  </ng-container>
+
+  <ng-container *ngIf="view === 'upload'">
+    <button class="back" (click)="back()"><i class="pi pi-arrow-left"></i> Back</button>
+    <section class="card">
+      <header class="card-head"><span class="ci green-bg"><i class="pi pi-upload"></i></span><h3>Upload & Trial Run</h3><p-tag value="Next" styleClass="chip-amber"></p-tag></header>
+      <div class="card-body">
+        <p class="muted-p">Your existing uploader drops in here, restyled — with a Trial Run button wired to <code>commitIR(dryRun:true)</code>, and reimbursement computed from the resolved vendor terms instead of the file column.</p>
+        <button pButton label="Open current uploader" icon="pi pi-external-link" class="p-button-sm" (click)="stub('Wire to your RebateExcelUploaderComponent route')"></button>
+      </div>
+    </section>
+  </ng-container>
+
+  <ng-container *ngIf="view === 'purgatory'">
+    <button class="back" (click)="back()"><i class="pi pi-arrow-left"></i> Back</button>
+    <section class="card">
+      <header class="card-head"><span class="ci amber-bg"><i class="pi pi-inbox"></i></span><h3>Purgatory · Kick-outs</h3><p-tag value="Next" styleClass="chip-amber"></p-tag></header>
+      <div class="card-body">
+        <p class="muted-p">Rows that fall out of template format land here instead of vanishing — split by <b>why</b>, because the fix differs. Day one this reads the <b>skipped/error</b> rows your <code>commitIR</code> already returns; later a real <code>RebatePurgatory</code> table gives them a durable home with fix &amp; resubmit.</p>
+        <div class="ph-cards">
+          <div class="ph-card"><i class="pi pi-link"></i> <b>Unable to map</b> — SKU didn't resolve to a PRO code · fix the cross-ref or SKU normalization, then resubmit</div>
+          <div class="ph-card"><i class="pi pi-exclamation-circle"></i> <b>Unable to build program</b> — mapped fine, but the data is invalid (missing dates, bad reimbursement)</div>
+        </div>
+        <div class="empty">No kick-outs loaded — run an upload to populate.</div>
+      </div>
+    </section>
+  </ng-container>
+
+</div>
+
+<!-- ============ dialogs ============ -->
+<p-dialog header="Add custom field" [(visible)]="showAddField" [modal]="true" [style]="{width:'420px'}" [draggable]="false" [resizable]="false">
+  <div class="dlg">
+    <label class="fl">Field name<input pInputText [(ngModel)]="newField.label" placeholder="e.g. Buy-in deadline" /></label>
+    <label class="fl">Type<select class="nsel" [(ngModel)]="newField.type"><option *ngFor="let t of fieldTypes" [value]="t">{{ t }}</option></select></label>
+    <label class="fl">Value <span class="tiny">optional</span><input pInputText [(ngModel)]="newField.value" placeholder="—" /></label>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="showAddField=false"></button>
+    <button pButton label="Add field" icon="pi pi-check" (click)="addField()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Email template" [(visible)]="showEmail" [modal]="true" [style]="{width:'520px'}" [draggable]="false" [resizable]="false">
+  <div class="dlg">
+    <label class="fl">To<input pInputText [(ngModel)]="emailForm.to" placeholder="vendor@brand.com" /></label>
+    <label class="fl">Subject<input pInputText [(ngModel)]="emailForm.subject" /></label>
+    <label class="fl">Message<textarea class="ta" rows="5" [(ngModel)]="emailForm.body"></textarea></label>
+    <div class="attach"><i class="pi pi-paperclip"></i> {{ templateFileName || templateName }}</div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="showEmail=false"></button>
+    <button pButton label="Send" icon="pi pi-send" (click)="sendTemplateEmail()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Set up one program" [(visible)]="showProgram" [modal]="true" [style]="{width:'540px'}" [draggable]="false" [resizable]="false">
+  <div class="dlg">
+    <div class="fg-row">
+      <label class="fl">PRO code<input pInputText [(ngModel)]="program.proCode" placeholder="4329" /></label>
+      <label class="fl">Model / description<input pInputText [(ngModel)]="program.model" placeholder="X-T3 Body - Black" /></label>
+    </div>
+    <div class="fg-row">
+      <label class="fl">Instant Rebate ($)<input pInputText type="number" [(ngModel)]="program.ir" placeholder="500" /></label>
+      <label class="fl">MAP<input pInputText type="number" [(ngModel)]="program.map" placeholder="1499.95" /></label>
+    </div>
+    <div class="fg-row">
+      <label class="fl">Start<input pInputText type="date" [(ngModel)]="program.start" /></label>
+      <label class="fl">End<input pInputText type="date" [(ngModel)]="program.end" /></label>
+    </div>
+    <div class="fg-row">
+      <label class="fl">Reimbursement % <span class="tiny">override · inherits {{ defReimbPct ?? '—' }}</span><span class="affix"><input pInputText type="number" [(ngModel)]="program.reimbPct" [placeholder]="(defReimbPct ?? '—') + ''" /><em>%</em></span></label>
+      <label class="fl">PRO pad % <span class="tiny">override · inherits {{ defPadPct ?? '—' }}</span><span class="affix"><input pInputText type="number" [(ngModel)]="program.padPct" [placeholder]="(defPadPct ?? '—') + ''" /><em>%</em></span></label>
+    </div>
+    <div class="auto-reimb">
+      Reimbursement (claimable): <b>{{ (program.ir || 0) | currency:'USD':'symbol':'1.2-2' }} × {{ progReimbPct ?? 0 }}%</b> = <span class="amt">{{ programReimb | currency:'USD':'symbol':'1.2-2' }}</span> → debit memo
+      <div class="tiny">PRO pad {{ programPad | currency:'USD':'symbol':'1.2-2' }} — funded by us, excluded from claim · member receives {{ programMember | currency:'USD':'symbol':'1.2-2' }}</div>
+      <div class="tiny" *ngIf="progReimbPct == null">Set a reimbursement % (here or as a vendor default) to compute.</div>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="showProgram=false"></button>
+    <button pButton label="Create program" icon="pi pi-check" (click)="saveProgram()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Edit upload format" [(visible)]="showFormat" [modal]="true" [style]="{width:'660px'}" [draggable]="false" [resizable]="false">
+  <div class="dlg">
+    <p class="muted-p" *ngIf="!detectedColumns.length"><i class="pi pi-info-circle"></i> Upload a template file on the card first to auto-detect sheets &amp; columns — or type source column names manually.</p>
+
+    <div class="fg-row">
+      <label class="fl">
+        Sheet
+        <select class="nsel" [(ngModel)]="fmt.sheet" (ngModelChange)="detectColumns()">
+          <option *ngIf="!detectedSheets.length" value="">(no file parsed)</option>
+          <option *ngFor="let s of detectedSheets" [value]="s">{{ s }}</option>
+        </select>
+      </label>
+      <label class="fl" style="max-width:160px">
+        Header row <span class="tiny">1-based</span>
+        <input pInputText type="number" [(ngModel)]="fmt.headerRow" (ngModelChange)="detectColumns()" />
+      </label>
+    </div>
+
+    <div class="automap">
+      <button pButton label="Auto-map with AI" icon="pi pi-bolt" class="p-button-sm" [disabled]="!detectedColumns.length || mappingBusy" (click)="aiAutoMap()"></button>
+      <button pButton label="Name match" icon="pi pi-list" class="p-button-sm p-button-secondary" [disabled]="!detectedColumns.length" (click)="autoMap()"></button>
+      <span class="am-busy" *ngIf="mappingBusy"><i class="pi pi-spin pi-spinner"></i> thinking…</span>
+    </div>
+
+    <div class="fsub">Column mapping <span class="tiny">our field ← their column</span></div>
+    <div class="map-grid">
+      <div class="map-row" *ngFor="let f of mapFields">
+        <span class="map-target">{{ f.label }}<span class="tiny" *ngIf="f.req"> · req</span></span>
+        <i class="pi pi-arrow-left map-arrow"></i>
+        <select class="nsel" *ngIf="detectedColumns.length" [(ngModel)]="fmt.map[f.key]"><option value="">— none —</option><option *ngFor="let c of detectedColumns" [value]="c">{{ c }}</option></select>
+        <input pInputText *ngIf="!detectedColumns.length" [(ngModel)]="fmt.map[f.key]" placeholder="source column" />
+        <span class="conf" *ngIf="mappingConfidence[f.key] != null" [class.low]="mappingConfidence[f.key] < 70">{{ mappingConfidence[f.key] }}%</span>
+      </div>
+    </div>
+
+    <div class="fsub">SKU → PRO code normalization</div>
+    <p class="muted-p">Transform the vendor's SKU before the product-table lookup.</p>
+    <div class="fg-row">
+      <label class="fl">Strip prefix<input pInputText [(ngModel)]="fmt.norm.stripPrefix" placeholder="DZO-" /></label>
+      <label class="fl">Add prefix<input pInputText [(ngModel)]="fmt.norm.addPrefix" /></label>
+      <label class="fl">Strip suffix<input pInputText [(ngModel)]="fmt.norm.stripSuffix" placeholder="-0H0" /></label>
+      <label class="fl">Add suffix<input pInputText [(ngModel)]="fmt.norm.addSuffix" /></label>
+    </div>
+    <div class="norm-preview">
+      <input pInputText [(ngModel)]="fmt.sampleSku" placeholder="paste a sample SKU" />
+      <i class="pi pi-arrow-right"></i>
+      <span class="norm-out mono">{{ normalizedSku }}</span>
+    </div>
+
+    <div class="fsub">Reimbursement source</div>
+    <div class="seg-inline">
+      <button class="segb" [class.on]="fmt.reimb==='computed'" (click)="fmt.reimb='computed'">Compute at vendor %</button>
+      <button class="segb" [class.on]="fmt.reimb==='column'" (click)="fmt.reimb='column'">Read from column</button>
+    </div>
+    <label class="fl" *ngIf="fmt.reimb==='column'" style="margin-top:10px">
+      Reimbursement column
+      <select class="nsel" *ngIf="detectedColumns.length" [(ngModel)]="fmt.reimbColumn"><option value="">— none —</option><option *ngFor="let c of detectedColumns" [value]="c">{{ c }}</option></select>
+      <input pInputText *ngIf="!detectedColumns.length" [(ngModel)]="fmt.reimbColumn" placeholder="source column" />
+    </label>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="showFormat=false"></button>
+    <button pButton label="Save format" icon="pi pi-check" (click)="saveFormat()"></button>
+  </ng-template>
+</p-dialog>

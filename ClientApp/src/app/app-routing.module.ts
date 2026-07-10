@@ -34,8 +34,8 @@ import { CreditsComponent } from './prointernalengine/components/dashboards/acco
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
-
-
+import { VendorCardComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-card/vendor-card.component';
+import { IrSetupDashboardComponent } from './prointernalengine/components/instantrebate/ir-setup-dashboard/ir-setup-dashboard.component';
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -62,6 +62,8 @@ const routes: Routes = [
       { path: 'instantrebate', component: RebatesupportComponent, canActivate: [AuthGuard] },
       { path: 'rebatesetup', component: RebateSetupComponent, canActivate: [AuthGuard] },
       { path: 'uploadrebates', component: RebateExcelUploaderComponent, canActivate: [AuthGuard] },
+      { path: 'rebatemanagement', component: IrSetupDashboardComponent, canActivate: [AuthGuard] },
+
       { path: 'gating', component: GatingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Gating' } },
       { path: 'stock', component: VendorStockComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor Stock' } },
       { path: 'forecast', component: ForecastComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Forcasting' } },
@@ -73,6 +75,7 @@ const routes: Routes = [
       { path: 'exclusion/group/company', component: ExclusionGroupCompanyComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Company Exclusion Groups' } },
       { path: 'accountmanagement', component: AccountManagementComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Account Management' } },
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
+      { path: 'vendor-card', component: VendorCardComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor' } },
       { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },
       { path: 'shippingmonitor', component: ShipmentMonitorComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Monitor' } },
       { path: 'productedit', component: ProductEditComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Edit' } },
@@ -80,6 +83,8 @@ const routes: Routes = [
       { path: 'vendor-billing', component: VendorBillingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Vendor Billing' } },
       { path: 'sellthrough', component: VendorSellthroughComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor - Vendor Sellthrough' } },
       { path: 'shopify-admin', component: ShopifyAdminComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shopify Admin' }},
+
+
       {
         path: 'ecommerce',
         children: [

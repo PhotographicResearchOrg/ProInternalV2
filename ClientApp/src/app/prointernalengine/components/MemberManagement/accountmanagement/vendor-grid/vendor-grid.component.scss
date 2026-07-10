@@ -218,3 +218,11 @@ input[pInputText],
     align-items: stretch;
   }
 }
+.vendor-row {
+  cursor: pointer;
+  transition: background .15s ease;
+}
+
+  .vendor-row:hover {
+    background: #f5f8fb;
+  }

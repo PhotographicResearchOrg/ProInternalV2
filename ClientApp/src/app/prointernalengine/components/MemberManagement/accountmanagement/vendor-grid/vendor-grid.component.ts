@@ -1,9 +1,9 @@
-// src/app/accountmanagement/vendor-grid/vendor-grid.component.ts
-
 import { Component, OnInit } from '@angular/core';
 import { DataService } from 'src/app/services/data.service';
 import { Vendor } from 'src/app/models/accounts/vendor';
 import { MessageService } from 'primeng/api';
+import { Router } from '@angular/router';
+
 
 @Component({
   selector: 'app-vendor-grid',
@@ -30,11 +30,16 @@ export class VendorGridComponent implements OnInit {
 
   constructor(
     private dataService: DataService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private router: Router
   ) { }
 
   ngOnInit(): void {
     this.loadVendors();
+  }
+
+  openVendor(vendor: Vendor) {
+    this.router.navigate(['/vendor-card']);
   }
 
   applyFilter() {

@@ -1,0 +1,418 @@
+<div class="app">
+
+  <!-- ===================== Left rail ===================== -->
+  <nav class="rail">
+    <div class="brandmark">
+      <span class="box"><i class="pi pi-box"></i></span>
+      <span>Vendor Desk</span>
+    </div>
+    <button *ngFor="let n of navSections"
+            class="rail-btn" [class.active]="activeSection === n.id"
+            (click)="setSection(n.id)">
+      <i [class]="n.icon"></i><span>{{ n.label }}</span>
+    </button>
+    <div class="rail-foot">
+      <div class="k">Managed by</div>
+      <div class="v">{{ vendor.rep }}</div>
+    </div>
+  </nav>
+
+  <!-- ===================== Right column ===================== -->
+  <div class="col">
+
+    <!-- Header -->
+    <header class="vhead">
+      <div class="vhead-top">
+        <div class="logo">{{ vendor.initials }}</div>
+        <div style="min-width:0;flex:1">
+          <div class="vtitle">
+            <h1>{{ vendor.name }}</h1>
+            <span class="badge" [ngStyle]="{color: live ? P.green : P.faint, background: live ? P.greenSoft : P.muted}">
+              <span class="dot" [ngStyle]="{background: live ? P.green : P.faint}"></span>{{ live ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+          <div class="vmeta">
+            <span>{{ vendor.id }}</span><span>Acct {{ vendor.acct }}</span><span class="sans">{{ vendor.legal }}</span>
+          </div>
+
+          <div class="vbrands">
+
+            <span class="lab">Brand family</span>
+            TimberLine, StormGuard, Cascade Pro and IronOak
+          
+
+          </div>
+
+
+
+        </div>
+        <div class="toggles">
+          <div class="togline">
+            <i class="pi pi-power-off"></i>
+            <button class="toggle" (click)="toggleLive()">
+              <span class="track" [class.on]="live"><span class="knob"></span></span>
+              <span class="tlabel" [ngStyle]="{color: live ? P.ink : P.faint}">{{ live ? 'Vendor active' : 'Vendor off' }}</span>
+            </button>
+          </div>
+          <div class="togline">
+            <i class="pi pi-globe"></i>
+            <button class="toggle" (click)="toggleWeb()">
+              <span class="track teal" [class.on]="onWeb"><span class="knob"></span></span>
+              <span class="tlabel" [ngStyle]="{color: onWeb ? P.ink : P.faint}">{{ onWeb ? 'Live on web' : 'Hidden on web' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stripe">
+        <div class="stat"><div class="k">Payable terms</div><div class="v">Net 30</div></div>
+        <div class="stat"><div class="k">PRO discount</div><div class="v" [style.color]="P.teal">32%</div></div>
+        <div class="stat"><div class="k">Member discount</div><div class="v" [style.color]="P.violet">18%</div></div>
+        <div class="stat"><div class="k">Active contracts</div><div class="v">3</div></div>
+        <div class="stat"><div class="k">Price lists</div><div class="v">5</div></div>
+        <div class="stat"><div class="k">Contacts</div><div class="v">8</div></div>
+        <div class="stat"><div class="k">Last change</div><div class="v">2d ago</div></div>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <main>
+
+      <!-- ---------- Overview ---------- -->
+      <div *ngIf="activeSection === 'overview'" class="stack">
+        <div *ngIf="!live || !onWeb" class="warn">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ !live ? 'This vendor is inactive — nothing from it will publish or purchase.' : 'Vendor is active but hidden from the web storefront.' }}
+        </div>
+
+        <div class="tiles">
+          <button *ngFor="let t of overviewTiles" class="tile" (click)="setSection(t.id)">
+            <div class="tile-top">
+              <span class="tile-ic" [ngStyle]="{background: brand(t.color).bg, color: brand(t.color).fg}"><i [class]="t.icon"></i></span>
+              <span class="t">{{ t.title }}</span>
+              <i class="pi pi-chevron-right" [style.color]="P.faint" style="margin-left:auto"></i>
+            </div>
+            <div class="tile-lines">
+              <div *ngFor="let l of t.lines; let i = index" [class.l0]="i === 0" [class.l]="i !== 0">{{ l }}</div>
+            </div>
+          </button>
+        </div>
+
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-history"></i></span><h3>Recent activity</h3>
+            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-arrow-right"></i> Full log</button></div>
+          </header>
+          <div class="card-body">
+            <ng-container *ngFor="let a of recent(); let last = last">
+              <ng-container *ngTemplateOutlet="auditRow; context: { a: a, last: last }"></ng-container>
+            </ng-container>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------- Terms & Financials ---------- -->
+      <div *ngIf="activeSection === 'terms'" class="grid fit">
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-percentage"></i></span><h3>Discount split</h3>
+            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+          </header>
+          <div class="card-body">
+            <p class="muted-p">How this vendor's list price is split between PRO (contractor) pricing and standard member pricing.</p>
+            <div class="splitbar">
+              <div style="width:64%" [style.background]="P.teal">PRO 32%</div>
+              <div style="flex:1" [style.background]="P.violet">Member 18%</div>
+            </div>
+            <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:16px">
+              <div class="splitstat"><div class="k">PRO discount</div><div class="v" [style.color]="P.teal">32%</div><div class="s">off list · contractor tier</div></div>
+              <div class="splitstat"><div class="k">Member discount</div><div class="v" [style.color]="P.violet">18%</div><div class="s">off list · standard member</div></div>
+            </div>
+            <div class="note">Spread: <b>14 pts</b> PRO advantage · applied at cart before promotions</div>
+          </div>
+        </section>
+
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-dollar"></i></span><h3>Payable terms</h3>
+            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+          </header>
+          <div class="card-body">
+            <div class="field"><span class="k">Payment terms</span><span class="v mono strong">Net 30</span></div>
+            <div class="field"><span class="k">Terms basis</span><span class="v mono">Invoice date</span></div>
+            <div class="field"><span class="k">Early-pay discount</span><span class="v mono">2% / 10 days</span></div>
+            <div class="field"><span class="k">Credit limit</span><span class="v mono">$250,000</span></div>
+            <div class="field"><span class="k">Currency</span><span class="v mono">USD</span></div>
+            <div class="field"><span class="k">Tax status</span><span class="v">Resale exempt</span></div>
+            <div class="field"><span class="k">Remit method</span><span class="v">ACH</span></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-box"></i></span><h3>Ordering & margin</h3>
+            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+          </header>
+          <div class="card-body">
+            <div class="field"><span class="k">Minimum order</span><span class="v mono">$500</span></div>
+            <div class="field"><span class="k">FOB point</span><span class="v">Origin</span></div>
+            <div class="field"><span class="k">Default markup</span><span class="v mono">1.45×</span></div>
+            <div class="field"><span class="k">Volume rebate</span><span class="v mono">3% over $1M/yr</span></div>
+            <div class="field"><span class="k">Price protection</span><span class="v">60 days</span></div>
+            <div class="field"><span class="k">Drop-ship</span><span class="v mono">Enabled</span></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-building"></i></span><h3>Brand family & catalog</h3>
+            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-plus"></i> Add brand</button></div>
+          </header>
+          <div class="card-body">
+            <div class="vbrands" style="margin:0 0 12px">
+              <span *ngFor="let b of brands; let i = index" class="badge" [ngStyle]="{color: brand(i).fg, background: brand(i).bg}">{{ b }}</span>
+            </div>
+            <div class="field"><span class="k">Catalog SKUs</span><span class="v mono">1,842</span></div>
+            <div class="field"><span class="k">Web-published</span><span class="v mono">1,610</span></div>
+            <div class="field"><span class="k">Primary category</span><span class="v">Building materials</span></div>
+            <div class="field"><span class="k">Country of origin</span><span class="v">US / CA</span></div>
+          </div>
+        </section>
+
+        <ng-container *ngTemplateOutlet="customCard; context: { section: 'terms' }"></ng-container>
+      </div>
+
+      <!-- ---------- Contacts ---------- -->
+      <div *ngIf="activeSection === 'contacts'" class="stack">
+        <section class="card" *ngFor="let grp of contacts">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: brand(grp.color).bg, color: brand(grp.color).fg}"><i class="pi pi-users"></i></span>
+            <h3>{{ grp.group }}</h3>
+            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-plus"></i> Add contact</button></div>
+          </header>
+          <div class="card-body">
+            <div class="people">
+              <div class="person" *ngFor="let p of grp.people">
+                <div class="person-top">
+                  <span class="avatar" [ngStyle]="{background: brand(grp.color).bg, color: brand(grp.color).fg}">{{ initials(p.name) }}</span>
+                  <div style="min-width:0">
+                    <div class="name">{{ p.name }}<i *ngIf="p.primary" class="pi pi-star-fill" [style.color]="P.amber"></i></div>
+                    <div class="title">{{ p.title }}</div>
+                  </div>
+                </div>
+                <div class="lines">
+                  <span class="row email"><i class="pi pi-envelope"></i> {{ p.email }}</span>
+                  <span class="row phone"><i class="pi pi-phone"></i> {{ p.phone }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------- Contracts ---------- -->
+      <div *ngIf="activeSection === 'contracts'" class="stack">
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-file"></i></span><h3>Contracts</h3>
+            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-plus"></i> New contract</button></div>
+          </header>
+          <div class="card-body flush">
+            <div class="tbl-head contracts-cols"><span>Contract</span><span>Type</span><span>Term</span><span>Value</span><span>Status</span><span></span></div>
+            <div class="tbl-row contracts-cols" *ngFor="let c of contracts">
+              <span style="font-weight:600" [style.color]="P.ink">{{ c.name }}</span>
+              <span [style.color]="P.sub">{{ c.type }}</span>
+              <span class="mono" [style.color]="P.sub" style="font-size:11.5px">{{ c.start }} → {{ c.end }}</span>
+              <span class="mono" style="font-weight:600">{{ c.value }}</span>
+              <span><span class="badge" [ngStyle]="{color: status(c.status).fg, background: status(c.status).bg}"><i [class]="status(c.status).icon"></i> {{ status(c.status).label }}</span></span>
+              <span style="text-align:right;cursor:pointer" [style.color]="P.faint" (click)="stub()"><i class="pi pi-external-link"></i></span>
+            </div>
+          </div>
+        </section>
+        <ng-container *ngTemplateOutlet="customCard; context: { section: 'contracts' }"></ng-container>
+      </div>
+
+      <!-- ---------- Price Lists ---------- -->
+      <div *ngIf="activeSection === 'pricelists'" class="stack">
+        <div style="display:flex;justify-content:flex-end">
+          <button class="iconbtn" (click)="stub()"><i class="pi pi-plus"></i> Import / new price list</button>
+        </div>
+        <div class="pl-grid">
+          <div class="pl" *ngFor="let l of lists">
+            <div class="pl-top">
+              <div class="pl-title"><span class="ic"><i class="pi pi-tag"></i></span>{{ l.name }}</div>
+              <span class="badge" [ngStyle]="{color: status(l.status).fg, background: status(l.status).bg}">{{ status(l.status).label }}</span>
+            </div>
+            <div class="pl-body">
+              <div class="field"><span class="k">Effective</span><span class="v mono">{{ l.eff }}</span></div>
+              <div class="field"><span class="k">Expires</span><span class="v mono">{{ l.exp }}</span></div>
+              <div class="field"><span class="k">SKUs priced</span><span class="v mono">{{ l.skus | number }}</span></div>
+              <div class="field"><span class="k">Currency</span><span class="v mono">{{ l.cur }}</span></div>
+            </div>
+          </div>
+        </div>
+        <ng-container *ngTemplateOutlet="customCard; context: { section: 'pricelists' }"></ng-container>
+      </div>
+
+      <!-- ---------- Policies ---------- -->
+      <div *ngIf="activeSection === 'policies'" class="grid fit">
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-truck"></i></span><h3>Freight policy</h3>
+            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+          </header>
+          <div class="card-body">
+            <div class="field"><span class="k">Freight terms</span><span class="v mono strong">Prepaid & add</span></div>
+            <div class="field"><span class="k">FOB point</span><span class="v">Origin</span></div>
+            <div class="field"><span class="k">Carrier</span><span class="v">Vendor's choice</span></div>
+            <div class="field"><span class="k">Prepaid threshold</span><span class="v mono">$2,500</span></div>
+            <div class="field"><span class="k">Fuel surcharge</span><span class="v mono">Pass-through</span></div>
+            <div class="field"><span class="k">Lead time</span><span class="v mono">5–7 business days</span></div>
+          </div>
+        </section>
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-shield"></i></span><h3>Free shipping</h3>
+            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+          </header>
+          <div class="card-body">
+            <div class="freehero"><div class="k">Free freight over</div><div class="v">$2,500</div></div>
+            <div class="field"><span class="k">Applies to</span><span class="v">Contiguous US</span></div>
+            <div class="field"><span class="k">PRO tier override</span><span class="v mono">$1,500</span></div>
+            <div class="field"><span class="k">Excludes</span><span class="v">Oversize / LTL freight</span></div>
+            <div class="field"><span class="k">Stacks with promos</span><span class="v mono">No</span></div>
+          </div>
+        </section>
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-replay"></i></span><h3>Return policy</h3>
+            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+          </header>
+          <div class="card-body">
+            <div class="field"><span class="k">Return window</span><span class="v mono strong">30 days</span></div>
+            <div class="field"><span class="k">Restocking fee</span><span class="v mono">15%</span></div>
+            <div class="field"><span class="k">RMA required</span><span class="v mono">Yes</span></div>
+            <div class="field"><span class="k">Return freight</span><span class="v">Buyer pays</span></div>
+            <div class="field"><span class="k">Defective handling</span><span class="v">Replace or credit</span></div>
+            <div class="field"><span class="k">Non-returnable</span><span class="v">Custom / cut orders</span></div>
+          </div>
+        </section>
+        <ng-container *ngTemplateOutlet="customCard; context: { section: 'policies' }"></ng-container>
+      </div>
+
+      <!-- ---------- Instant Rebates ---------- -->
+      <div *ngIf="activeSection === 'rebates'" class="stack">
+        <div class="rb-head">
+          <div>
+            <h2 class="rb-title">Instant rebates</h2>
+            <p class="rb-desc">Vendor-funded discounts applied instantly at the point of sale. Each program defines who qualifies, what it applies to, how it's funded, and when it runs.</p>
+          </div>
+          <button class="btn-primary" (click)="stub('Create rebate flow — stub')"><i class="pi pi-plus"></i> Create instant rebate</button>
+        </div>
+
+        <div class="rb-summary">
+          <div class="rb-chipstat"><div class="k">Active programs</div><div class="v">{{ activeRebates().length }}</div></div>
+          <div class="rb-chipstat"><div class="k">Open liability</div><div class="v">{{ openLiability() | currency:'USD':'symbol':'1.0-0' }}</div></div>
+          <div class="rb-chipstat"><div class="k">Redemptions (all time)</div><div class="v">{{ totalRedemptions() | number }}</div></div>
+          <div class="rb-chipstat"><div class="k">Programs total</div><div class="v">{{ rebates.length }}</div></div>
+        </div>
+
+        <div class="rb-list">
+          <div class="rb" *ngFor="let r of rebates">
+            <div class="rb-top">
+              <div class="rb-id"><span class="rb-name">{{ r.name }}</span><span class="rb-code">{{ r.code }}</span></div>
+              <div class="rb-badges">
+                <span *ngIf="r.web" class="badge" [ngStyle]="{color: P.teal, background: P.tealSoft}"><i class="pi pi-globe"></i> web</span>
+                <span class="badge" [ngStyle]="{color: status(r.status).fg, background: status(r.status).bg}">{{ status(r.status).label }}</span>
+              </div>
+            </div>
+            <div class="rb-headline">
+              <span class="rb-amount">{{ r.amount }}</span>
+              <span class="badge" [ngStyle]="{color: elig(r.eligibility).fg, background: elig(r.eligibility).bg}">{{ elig(r.eligibility).label }}</span>
+            </div>
+            <div class="rb-facts">
+              <div class="rb-fact"><span class="k">Applies to</span><span class="v">{{ r.scope }}</span></div>
+              <div class="rb-fact"><span class="k">Window</span><span class="v mono">{{ r.window }}</span></div>
+              <div class="rb-fact"><span class="k">Funding</span><span class="v">{{ r.funding }}</span></div>
+              <div class="rb-fact"><span class="k">Reconciliation</span><span class="v">{{ r.claim }}</span></div>
+            </div>
+            <div class="rb-perf">
+              <div class="rb-burn"><div class="rb-burn-fill" [style.width.%]="r.burn"></div></div>
+              <div class="rb-perf-row">
+                <span>{{ r.rebated | currency:'USD':'symbol':'1.0-0' }} of {{ r.budget | currency:'USD':'symbol':'1.0-0' }} rebated</span>
+                <span class="mono">{{ r.redemptions | number }} redemptions</span>
+              </div>
+            </div>
+            <div class="rb-actions">
+              <button class="iconbtn" (click)="stub('Edit rebate — stub')"><i class="pi pi-pencil"></i> Edit</button>
+              <button class="iconbtn" (click)="stub('Details view — stub')"><i class="pi pi-external-link"></i> Details</button>
+            </div>
+          </div>
+        </div>
+
+        <ng-container *ngTemplateOutlet="customCard; context: { section: 'rebates' }"></ng-container>
+      </div>
+
+      <!-- ---------- Audit ---------- -->
+      <div *ngIf="activeSection === 'audit'">
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-history"></i></span><h3>Audit log — all vendor changes</h3>
+            <div class="act"><span class="filterpill" (click)="stub()"><i class="pi pi-search"></i> Filter</span></div>
+          </header>
+          <div class="card-body">
+            <ng-container *ngFor="let a of audit; let last = last">
+              <ng-container *ngTemplateOutlet="auditRow; context: { a: a, last: last }"></ng-container>
+            </ng-container>
+          </div>
+        </section>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- toast -->
+  <div class="toast-wrap" *ngIf="toastMsg"><div class="toast">{{ toastMsg }}</div></div>
+</div>
+
+<!-- ===================== reusable templates ===================== -->
+<ng-template #auditRow let-a="a" let-last="last">
+  <div class="arow" [class.last]="last">
+    <span class="av">{{ initials(a.who) }}</span>
+    <div class="main">
+      <div class="lead"><b>{{ a.who }}</b> changed <b>{{ a.field }}</b></div>
+      <div class="change">
+        <span class="badge" [ngStyle]="{color: secColor(a.section).fg, background: secColor(a.section).bg}">{{ a.section }}</span>
+        <span class="from">{{ a.from }}</span>
+        <i class="pi pi-arrow-right" [style.color]="P.faint" style="font-size:11px"></i>
+        <span class="to">{{ a.to }}</span>
+      </div>
+    </div>
+    <span class="when">{{ a.when }}</span>
+  </div>
+</ng-template>
+
+<ng-template #customCard let-section="section">
+  <section class="card">
+    <header class="card-head">
+      <span class="ci" [ngStyle]="{background: P.violetSoft, color: P.violet}"><i class="pi pi-plus-circle"></i></span>
+      <h3>Custom fields</h3>
+      <div class="act"><button class="iconbtn" (click)="stub('Add field flow — stub')"><i class="pi pi-plus"></i> Add field</button></div>
+    </header>
+    <div class="card-body">
+      <ng-container *ngIf="customFor(section).length; else emptyCf">
+        <div class="field" *ngFor="let f of customFor(section)">
+          <span class="k">
+            {{ f.label }}
+            <span class="cf-type">{{ f.type }}</span>
+            <i *ngIf="f.publishable" class="pi pi-globe" [style.color]="P.teal" style="font-size:10px"></i>
+          </span>
+          <span class="v mono">{{ f.value }}</span>
+        </div>
+      </ng-container>
+      <ng-template #emptyCf>
+        <div class="cf-empty">No custom fields on this card yet. Defined once, a custom field appears on every vendor — typed, filterable, and reportable.</div>
+      </ng-template>
+    </div>
+  </section>
+</ng-template>

@@ -186,7 +186,7 @@ public class ShippingErrorRequest
     public int ID { get; set; }
     public int ErrorID { get; set; }
     public int Disposition { get; set; }
-    public string CustomMessage { get; set; }
+    public string? CustomMessage { get; set; }
 }
 
 public class ShippingErrorProduct

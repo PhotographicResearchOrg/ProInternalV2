@@ -69,6 +69,7 @@
            currentPageReportTemplate="Showing {first} to {last} of {totalRecords}">
 
     <ng-template pTemplate="header">
+
       <tr>
         <th>Image</th>
         <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
@@ -80,13 +81,12 @@
         <th pSortableColumn="onWeb">On Web <p-sortIcon field="onWeb"></p-sortIcon></th>
         <th>Actions</th>
       </tr>
+
     </ng-template>
 
     <ng-template pTemplate="body" let-vendor>
-      <tr>
+      <tr class="vendor-row" (dblclick)="openVendor(vendor)">
         <td>
-
-
           <div class="avatar-container">
             <div (drop)="onImageDrop($event, vendor)"
                  (dragover)="onDragOver($event)"
