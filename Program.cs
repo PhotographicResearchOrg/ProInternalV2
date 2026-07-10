@@ -34,10 +34,27 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient();
 
 
+// for POC file access
 builder.Services.Configure<AppConfigurations>(
     builder.Configuration.GetSection("AppConfigurations")
 );
 
+builder.Services.Configure<FileStorageOptions>(
+    builder.Configuration.GetSection(FileStorageOptions.SectionName));
+
+builder.Services.AddScoped<IFileBrowserService, FileBrowserService>();
+
+builder.Services.AddMemoryCache();
+
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);
+
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = long.MaxValue; // if IFormFile upload > 128 MB
+});
+
+//builder.Services.Configure<Microsoft.AspNetCore.Server.IIS.IISServerOptions>(
+//    o => o.MaxRequestBodySize = null);
 
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("Email")
@@ -165,6 +182,17 @@ app.UseSpa(spa =>
         spa.UseAngularCliServer(npmScript: "start");
     }
 });
-// Enable Angular routing fallback
-app.MapFallbackToFile("index.html");
+app.MapFallback(async context =>
+{
+    var path = context.Request.Path;
+    if (path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/Files", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+    context.Response.ContentType = "text/html";
+    await context.Response.SendFileAsync(
+        Path.Combine(app.Environment.WebRootPath, "index.html"));
+});
 app.Run();

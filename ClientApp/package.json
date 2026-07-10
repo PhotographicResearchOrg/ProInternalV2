@@ -1,14 +1,14 @@
 {
     "name": "avalon-ng",
     "version": "17.0.0",
-    "scripts": {
-        "ng": "ng",
-        "start": "ng serve",
-        "build": "ng build",
-        "watch": "ng build --watch --configuration development",
-        "test": "ng test",
-        "lint": "ng lint"
-    },
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve --proxy-config proxy.conf.json",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "lint": "ng lint"
+  },
     "private": true,
     "dependencies": {
         "@angular/animations": "^17.0.5",

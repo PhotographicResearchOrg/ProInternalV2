@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { map } from "rxjs/operators";
-import {  switchMap } from 'rxjs';
+import { switchMap } from 'rxjs';
 import { ApiService } from "./api.service";
 import { QuarterlyRebates, QuarterlyRebatesHistorical, qrDetail, PaymentType } from "../models/accounting/quarterly-rebates";
 import { OrdersMetrics } from "../models/Dashboard/OrdersMetrics";
