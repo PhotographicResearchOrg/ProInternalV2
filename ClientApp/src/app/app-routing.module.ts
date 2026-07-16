@@ -36,6 +36,8 @@ import { ShipmentMonitorComponent } from './prointernalengine/components/dashboa
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
 import { VendorCardComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-card/vendor-card.component';
 import { IrSetupDashboardComponent } from './prointernalengine/components/instantrebate/ir-setup-dashboard/ir-setup-dashboard.component';
+import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component';
+
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -68,13 +70,20 @@ const routes: Routes = [
       { path: 'forecast', component: ForecastComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Forcasting' } },
       { path: 'patronage', component: PatronageComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Patronage' } },
       { path: 'payments', component: PaymentsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Payments' } },
+      { path: 'payment-administration', component: PaymentAdministrationComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Payment Administration' } },
+
+
       { path: 'setup', component: VendorSetupComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor SetUp' } },
       { path: 'exclusions/brand', component: BrandExclusionsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Brand Exclusions' } },
       { path: 'exclusions/group', component: ExclusionGroupsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Exclusion Groups' } },
       { path: 'exclusion/group/company', component: ExclusionGroupCompanyComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Company Exclusion Groups' } },
       { path: 'accountmanagement', component: AccountManagementComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Account Management' } },
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
+
+      
+
       { path: 'vendor-card', component: VendorCardComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor' } },
+
       { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },
       { path: 'shippingmonitor', component: ShipmentMonitorComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Monitor' } },
       { path: 'productedit', component: ProductEditComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Edit' } },

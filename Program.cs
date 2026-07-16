@@ -40,7 +40,7 @@ builder.Services.Configure<AppConfigurations>(
 );
 
 builder.Services.Configure<FileStorageOptions>(
-    builder.Configuration.GetSection(FileStorageOptions.SectionName));
+builder.Configuration.GetSection(FileStorageOptions.SectionName));
 
 builder.Services.AddScoped<IFileBrowserService, FileBrowserService>();
 

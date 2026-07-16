@@ -4,6 +4,7 @@ import { SellThroughCompliance } from 'src/app/models/vendor/SellThroughComplian
 import { DataService } from 'src/app/services/data.service';
 import { MessageService } from 'primeng/api';
 import * as XLSX from 'xlsx';
+import { formatDate } from '@angular/common';
 
 interface SellThroughSummary {
   expectedDealers: number;
@@ -399,18 +400,13 @@ export class VendorSellthroughComponent implements OnInit {
           const exportData =
             data.map(x => ({
 
-              Account: x.account,
-
-              Dealer: x.dba,
-
-              WeekEnding: x.weekEnding,
-
+              ID: '',
+              Member: x.dba,
+              MemberNumber: x.account,
               ProductCode: x.productCode,
-
               Sales: x.sales,
-
-              Inventory: x.inventory
-
+              Inventory: x.inventory,
+              WeekEnding: formatDate(x.weekEnding, 'yyyy-MM-dd', 'en-US')
             }));
 
           const worksheet =

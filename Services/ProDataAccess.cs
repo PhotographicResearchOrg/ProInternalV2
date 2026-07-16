@@ -87,11 +87,11 @@ namespace ProInternal.Services
 
 
         public void InsertSellThroughRequestAudit(
-    int vendorId,
-    int account,
-    DateTime weekEnding,
-    string contactEmail,
-    string requestedBy)
+        int vendorId,
+        int account,
+        DateTime weekEnding,
+        string contactEmail,
+        string requestedBy)
         {
             using var conn = GetConnection();
 

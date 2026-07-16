@@ -121,6 +121,7 @@
     <None Remove="ClientApp\src\app\models\Dashboard\MapViolation.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\MapViolationResponse.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\OrdersMetrics.ts" />
+    <None Remove="ClientApp\src\app\models\Dashboard\Payment.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\ProductGating.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\Products.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\SARMetrics.ts" />
@@ -156,6 +157,7 @@
     <None Remove="ClientApp\src\app\services\auth.service.ts" />
     <None Remove="ClientApp\src\app\services\csv.service.ts" />
     <None Remove="ClientApp\src\app\services\data.service.ts" />
+    <None Remove="ClientApp\src\app\services\payments.service.ts" />
     <None Remove="ClientApp\src\app\services\strapi.service.ts" />
     <None Remove="ClientApp\src\app\services\theme.service.ts" />
     <None Remove="license.elic.xml" />
@@ -173,6 +175,9 @@
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\InvoiceRecord.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\Outstanding.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\models\accounting\quarterly-rebates.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\models\accounting\payment-administration.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
     <TypeScriptCompile Include="ClientApp\src\app\models\Dashboard\comments.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
@@ -214,6 +219,7 @@
     </TypeScriptCompile>
     <TypeScriptCompile Include="ClientApp\src\app\models\LoginResponse.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\services\AccountingService.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\services\payments.service.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\services\strapi.service.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>

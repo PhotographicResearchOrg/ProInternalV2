@@ -1,0 +1,931 @@
+<div class="toast" [class.show]="toastVisible"><span class="ok">&#10003;</span> <span>{{ toastMessage }}</span></div>
+
+<div class="pay-app">
+
+  <!-- ============ RAIL ============ -->
+  <div class="pay-rail">
+    <div class="rail-brand">ProMaster · RAS<b>Payment Administration</b></div>
+    <div class="rail-item" [class.active]="currentScreen==='dashboard'" (click)="go('dashboard')"><span class="rail-icon">&#9673;</span> Dashboard</div>
+
+    <div class="rail-tag">Rails</div>
+    <div class="rail-item" [class.active]="currentScreen==='members' || currentScreen==='memberDetail'" (click)="go('members')"><span class="rail-icon">&#128100;</span> Member Gross $</div>
+    <div class="rail-item" [class.active]="currentScreen==='ezpay'" (click)="go('ezpay')"><span class="rail-icon">&#9998;</span> EZPay Management</div>
+    <div class="rail-item" [class.active]="currentScreen==='promptpay'" (click)="go('promptpay')"><span class="rail-icon">&#9998;</span> Prompt Pay Management</div>
+
+    <div class="rail-tag">Bill Runs</div>
+    <div class="rail-item" [class.active]="currentScreen==='runQueue' || currentScreen==='runDetail'" (click)="go('runQueue')"><span class="rail-icon">&#128203;</span> Bill Run Queue</div>
+    <div class="rail-item" [class.active]="currentScreen==='recon'" (click)="go('recon')"><span class="rail-icon">&#9878;</span> Reconciliation</div>
+    <div class="rail-item" [class.active]="currentScreen==='schedule'" (click)="go('schedule')"><span class="rail-icon">&#128197;</span> Payment Schedule</div>
+    <div class="rail-item" [class.active]="currentScreen==='ccQueue'" (click)="go('ccQueue')"><span class="rail-icon">&#128179;</span> Prepaid &amp; CC</div>
+
+    <div class="rail-tag">Configuration</div>
+    <div class="rail-item" [class.active]="currentScreen==='accounts'" (click)="go('accounts')"><span class="rail-icon">&#9881;</span> Account Settings</div>
+    <div class="rail-item" [class.active]="currentScreen==='customFields'" (click)="go('customFields')"><span class="rail-icon">&#128221;</span> Custom Fields</div>
+    <div class="rail-item" [class.active]="currentScreen==='reportPaths'" (click)="go('reportPaths')"><span class="rail-icon">&#128193;</span> Payment Settings</div>
+
+    <div class="rail-sep"></div>
+    <div class="rail-item" [class.active]="currentScreen==='audit'" (click)="go('audit')"><span class="rail-icon">&#128220;</span> Audit Feed</div>
+  </div>
+
+  <!-- ============ MAIN ============ -->
+  <div class="pay-main">
+
+    <!-- ================= DASHBOARD ================= -->
+    <ng-container *ngIf="currentScreen==='dashboard'">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">ProMaster · Payment Administration</div><h1>Payment Dashboard</h1>
+          <div class="subtitle">EZPay &amp; Prompt Pay — one bill run, two rails, full reconciliation</div>
+        </div>
+        <div class="row-flex">
+          <button class="btn btn-ghost" (click)="go('audit')">Audit Log</button>
+          <button class="btn btn-primary" (click)="go('runQueue')">+ New Bill Run</button>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card" [class.alert]="s.alert" *ngFor="let s of statCards" (click)="go(s.target)">
+          <div class="stat-label">{{ s.label }}</div><div class="stat-val">{{ s.value }}</div><div class="stat-sub">{{ s.sub }}</div>
+        </div>
+      </div>
+      <div class="section-label">Action Needed</div>
+      <div class="entry-grid">
+        <div class="entry-card" (click)="go('members')">
+          <div class="entry-top"><div class="entry-icon">&#128203;</div><span class="adminbadge adminbadge-amber">{{ priorWeekCount }} accounts</span></div>
+          <div class="entry-title">Prior-Week Invoices Requiring Action</div>
+          <div class="entry-desc">Prompt Pay invoices posted prior week (mandatory) plus EZPay opt-ins pending this Friday's run.</div>
+        </div>
+        <div class="entry-card violet" (click)="go('recon')">
+          <div class="entry-top"><div class="entry-icon">&#9888;</div><span class="adminbadge adminbadge-red">{{ reconExceptions.length || 3 }} kicked</span></div>
+          <div class="entry-title">Reconciliation Exceptions</div>
+          <div class="entry-desc">Elected-to-pay vs. actually-posted mismatches for the open run.</div>
+        </div>
+        <div class="entry-card amber" (click)="go('ccQueue')">
+          <div class="entry-top"><div class="entry-icon">&#128179;</div><span class="adminbadge adminbadge-blue">6 pending</span></div>
+          <div class="entry-title">Prepaid &amp; CC</div>
+          <div class="entry-desc">Prepaid rail balances, funding method, and members opted to pay by card.</div>
+        </div>
+      </div>
+
+      <div class="section-label">Manage</div>
+      <div class="entry-grid">
+        <div class="entry-card" (click)="go('members')">
+          <div class="entry-top"><div class="entry-icon">&#128100;</div></div>
+          <div class="entry-title">Member Gross $ &amp; Invoice Detail</div>
+          <div class="entry-desc">Gross rolled up by member across both rails, drill into any invoice, email invoice copies.</div>
+        </div>
+        <div class="entry-card" (click)="go('accounts')">
+          <div class="entry-top"><div class="entry-icon">&#9881;</div></div>
+          <div class="entry-title">Account Include / Exclude</div>
+          <div class="entry-desc">Rail assignment and Included status per account — staff override for any reason, batch or single.</div>
+        </div>
+        <div class="entry-card" (click)="go('reportPaths')">
+          <div class="entry-top"><div class="entry-icon">&#128193;</div></div>
+          <div class="entry-title">Payment Settings</div>
+          <div class="entry-desc">Recon report folder paths, draw cap, and NACHA bank file setup.</div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- ================= MEMBER GROSS $ ================= -->
+    <ng-container *ngIf="currentScreen==='members'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Member Gross $</div>
+      <div class="topbar">
+        <div><h1>Member Gross $</h1><div class="subtitle">Gross exposure by member, across EZPay and Prompt Pay</div></div>
+        <input placeholder="Search member # or name…" [(ngModel)]="memberSearchTerm" style="width:240px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;">
+      </div>
+      <div class="card">
+        <table>
+          <tr><th>Member</th><th>Account</th><th class="num-right">Gross $</th><th class="num-right">PRO Disc.</th><th class="num-right">EZPay Disc.</th><th class="num-right">Net Net</th><th>Rail</th><th></th></tr>
+          <tr class="clickable" *ngFor="let m of filteredMemberGross" (click)="openMember(m)">
+            <td><b>{{ m.name }}</b></td>
+            <td class="mono">{{ m.accountId }}</td>
+            <td class="money num-right">{{ m.gross | currency }}</td>
+            <td class="money num-right">{{ m.proDiscount | currency }}</td>
+            <td class="money num-right">{{ m.ezpayDiscount | currency }}</td>
+            <td class="money num-right">{{ m.netNet | currency }}</td>
+            <td><span class="adminbadge" [ngClass]="m.rail==='EZPay' ? 'adminbadge-blue' : 'adminbadge-violet'">{{ m.rail }}</span></td>
+            <td class="mono faint">→</td>
+          </tr>
+        </table>
+      </div>
+    </ng-container>
+
+    <!-- ================= MEMBER DETAIL (Account Snapshot) ================= -->
+    <ng-container *ngIf="currentScreen==='memberDetail' && selectedMember as member">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / <span (click)="go('members')">Member Gross $</span> / {{ member.name }}</div>
+      <div class="topbar">
+        <div><h1>{{ member.name }}</h1><div class="subtitle mono">Account {{ member.accountId }} · {{ member.rail }} rail</div></div>
+        <button class="btn btn-ghost">Email Statement</button>
+      </div>
+
+      <div class="grid3" style="margin-bottom:16px;">
+        <div class="card mb0"><div class="stat-label">Gross $ (all open)</div><div class="stat-val">{{ member.gross | currency }}</div></div>
+        <div class="card mb0"><div class="stat-label">Total Discounts</div><div class="stat-val">{{ (member.proDiscount + member.ezpayDiscount) | currency }}</div></div>
+        <div class="card mb0"><div class="stat-label">Net Net Due</div><div class="stat-val" style="color:var(--teal);">{{ member.netNet | currency }}</div></div>
+      </div>
+
+      <div class="section-label">Account Snapshot</div>
+      <div class="grid3" style="margin-bottom:16px;" *ngIf="selectedMemberSnapshot as snap">
+        <div class="card mb0">
+          <div class="stat-label">Last Run Paid</div>
+          <div class="stat-val" style="font-size:16px;">{{ snap.lastRunDate | date:'MM/dd/yyyy' }}</div>
+          <div class="stat-sub">
+            <span class="money">{{ snap.lastRunAmount | currency }}</span> ·
+            <span class="adminbadge" [ngClass]="snap.lastRunStatus==='Posted' ? 'adminbadge-green' : 'adminbadge-red'">{{ snap.lastRunStatus }}</span>
+          </div>
+        </div>
+        <div class="card mb0">
+          <div class="stat-label">Current / Upcoming</div>
+          <div class="stat-val" style="font-size:16px;">{{ snap.currentRunDate | date:'MM/dd/yyyy' }}</div>
+          <div class="stat-sub">
+            <span class="money">{{ snap.currentRunAmount | currency }}</span> ·
+            <span class="adminbadge adminbadge-amber" *ngIf="snap.currentRunStatus==='QueuedOpenRun'">Queued — Open Run</span>
+            <span class="adminbadge adminbadge-gray" *ngIf="snap.currentRunStatus==='NotQueued'">Not Queued</span>
+          </div>
+        </div>
+        <div class="card mb0 alert">
+          <div class="stat-label">Overdue</div>
+          <div class="stat-val">{{ snap.overdueAmount | currency }}</div>
+          <div class="stat-sub">{{ snap.overdueInvoiceCount }} invoice(s)</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><h3>All Open Invoices</h3><span class="adminbadge adminbadge-gray">{{ selectedMemberInvoices.length }} open</span></div>
+          <table>
+            <tr><th>Invoice</th><th class="num-right">Gross</th><th class="num-right">PRO Disc.</th><th class="num-right">EZPay Disc.</th><th>Status</th><th></th></tr>
+            <tr class="clickable" *ngFor="let inv of selectedMemberInvoices" (click)="openInvoice(inv)" [style.background]="inv.status==='Overdue' ? 'var(--red-soft)' : null">
+              <td class="mono">{{ inv.invoiceId }}</td>
+              <td class="money num-right">{{ inv.gross | currency }}</td>
+              <td class="money num-right">{{ inv.proDiscountAmt | currency }}</td>
+              <td class="money num-right">{{ inv.ezpayDiscountAmt | currency }}</td>
+              <td>
+                <span class="adminbadge adminbadge-green" *ngIf="inv.status==='OnTerms'">On Terms</span>
+                <span class="adminbadge adminbadge-red" *ngIf="inv.status==='Overdue'">Overdue</span>
+                <span class="adminbadge adminbadge-red" *ngIf="inv.status==='Late' || inv.status==='Forfeited'">Late</span>
+              </td>
+              <td class="mono faint">→</td>
+            </tr>
+          </table>
+          <div class="flow-note">Click any invoice to open the deep-dive, override a discount, or email it directly.</div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-head"><h3>Custom Fields</h3><button class="btn btn-ghost btn-sm">+ Add</button></div>
+            <div class="kv" *ngFor="let f of filteredCustomFields"><span class="k">{{ f.fieldName }}</span><span class="v">{{ f.defaultValue || '—' }}</span></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Account Audit</h3></div>
+            <div class="audit-item" *ngFor="let a of auditFeed.slice(0,4)">
+              <div class="dot"></div><div><div><b>{{ a.actor }}</b> {{ a.message }}</div><div class="audit-time">{{ a.timestamp | date:'MM/dd/yyyy h:mm a' }}</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- ================= EZPAY MANAGEMENT ================= -->
+    <ng-container *ngIf="currentScreen==='ezpay'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / EZPay Management</div>
+      <div class="topbar">
+        <div><h1>EZPay Management</h1><div class="subtitle">Prior-week invoices, member opted in · 1% fixed, stacks on PRO discount</div></div>
+        <div class="row-flex">
+          <button class="btn btn-ghost" (click)="exportRailReport('EZPay','pdf')">Export PDF</button>
+          <button class="btn btn-ghost" (click)="exportRailReport('EZPay','excel')">Export Excel</button>
+        </div>
+      </div>
+      <div class="note"><b>Rule:</b> EZPay invoices carry both a PRO discount and the EZPay discount, stacked. Both independently overridable with a required reason.</div>
+      <div class="note blue"><b>Autopay accounts included:</b> {{ autopayAccountCount }} members on autopay are always summed into this card's totals — all open invoices and credits from the prior week, regardless of when this page is viewed. <span class="adminbadge adminbadge-blue">{{ autopayAmount | currency }}</span> of the Gross Total above comes from autopay.</div>
+
+      <div class="grid3" style="margin-bottom:16px;">
+        <div class="card mb0"><div class="stat-label">Gross Total</div><div class="stat-val">{{ ezpayTotals.gross | currency }}</div></div>
+        <div class="card mb0"><div class="stat-label">Total Discounts</div><div class="stat-val">{{ (ezpayTotals.proDisc + ezpayTotals.ezpayDisc) | currency }}</div></div>
+        <div class="card mb0"><div class="stat-label">Net Net Total</div><div class="stat-val" style="color:var(--teal);">{{ ezpayTotals.net | currency }}</div></div>
+      </div>
+
+      <div class="card">
+        <table>
+          <tr><th>Invoice</th><th>Account</th><th class="num-right">Gross</th><th class="num-right">PRO Disc.</th><th class="num-right">EZPay Disc.</th><th class="num-right">Net Net</th><th>Status</th><th>Override</th></tr>
+          <tr *ngFor="let inv of ezpayInvoices">
+            <td class="mono">{{ inv.invoiceId }}</td>
+            <td class="mono">{{ inv.accountId }}</td>
+            <td class="money num-right">{{ inv.gross | currency }}</td>
+            <td class="money num-right">{{ inv.proDiscountAmt | currency }}</td>
+            <td class="money num-right"><span *ngIf="inv.ezpayDiscountPct !== null">{{ inv.ezpayDiscountAmt | currency }}</span><span *ngIf="inv.ezpayDiscountPct===null" style="color:var(--red);">Lost</span></td>
+            <td class="money num-right">{{ inv.net | currency }}</td>
+            <td><span class="adminbadge adminbadge-green" *ngIf="inv.status==='OnTerms'">On Terms</span><span class="adminbadge adminbadge-red" *ngIf="inv.status!=='OnTerms'">{{ inv.status }}</span></td>
+            <td class="row-flex">
+              <button class="btn btn-ghost btn-sm" (click)="openOverride(inv.invoiceId,'PRO Discount',(inv.proDiscountPct ?? 0)+'%')">PRO</button>
+              <button class="btn btn-ghost btn-sm" (click)="openOverride(inv.invoiceId,'EZPay Discount',(inv.ezpayDiscountPct ?? 0)+'%')">EZPay</button>
+            </td>
+          </tr>
+          <tr style="background:#f7f8fa;font-weight:700;">
+            <td colspan="2">Σ Totals</td>
+            <td class="money num-right">{{ ezpayTotals.gross | currency }}</td>
+            <td class="money num-right">{{ ezpayTotals.proDisc | currency }}</td>
+            <td class="money num-right">{{ ezpayTotals.ezpayDisc | currency }}</td>
+            <td class="money num-right">{{ ezpayTotals.net | currency }}</td>
+            <td colspan="2"></td>
+          </tr>
+        </table>
+      </div>
+    </ng-container>
+
+    <!-- ================= PROMPT PAY MANAGEMENT ================= -->
+    <ng-container *ngIf="currentScreen==='promptpay'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Prompt Pay Management</div>
+      <div class="topbar">
+        <div><h1>Prompt Pay Management</h1><div class="subtitle">All invoices posted prior week — mandatory · no EZPay discount</div></div>
+        <div class="row-flex">
+          <button class="btn btn-ghost" (click)="exportRailReport('PromptPay','pdf')">Export PDF</button>
+          <button class="btn btn-ghost" (click)="exportRailReport('PromptPay','excel')">Export Excel</button>
+        </div>
+      </div>
+      <div class="note red"><b>Forfeiture rule:</b> PRO discount is lost entirely if not paid on terms.</div>
+
+      <div class="grid3" style="margin-bottom:16px;">
+        <div class="card mb0"><div class="stat-label">Gross Total</div><div class="stat-val">{{ promptPayTotals.gross | currency }}</div></div>
+        <div class="card mb0"><div class="stat-label">PRO Discount Total</div><div class="stat-val">{{ promptPayTotals.proDisc | currency }}</div></div>
+        <div class="card mb0"><div class="stat-label">Net Total</div><div class="stat-val" style="color:var(--teal);">{{ promptPayTotals.net | currency }}</div></div>
+      </div>
+
+      <div class="card">
+        <table>
+          <tr><th>Invoice</th><th>Account</th><th>Product</th><th class="num-right">Gross</th><th class="num-right">PRO Disc.</th><th class="num-right">Net</th><th>Status</th><th>Override</th></tr>
+          <tr *ngFor="let inv of promptPayInvoices">
+            <td class="mono">{{ inv.invoiceId }}</td>
+            <td class="mono">{{ inv.accountId }}</td>
+            <td>{{ inv.vendor }}</td>
+            <td class="money num-right">{{ inv.gross | currency }}</td>
+            <td class="money num-right"><span *ngIf="inv.proDiscountPct !== null">{{ inv.proDiscountAmt | currency }}</span><span *ngIf="inv.proDiscountPct===null" style="color:var(--red);">Lost</span></td>
+            <td class="money num-right">{{ inv.net | currency }}</td>
+            <td><span class="adminbadge adminbadge-green" *ngIf="inv.status==='OnTerms'">On Terms</span><span class="adminbadge adminbadge-red" *ngIf="inv.status==='Forfeited'">Forfeited</span></td>
+            <td><button class="btn btn-ghost btn-sm" (click)="openOverride(inv.invoiceId,'PRO Discount',(inv.proDiscountPct ?? 0)+'%')">Override</button></td>
+          </tr>
+          <tr style="background:#f7f8fa;font-weight:700;">
+            <td colspan="3">Σ Totals</td>
+            <td class="money num-right">{{ promptPayTotals.gross | currency }}</td>
+            <td class="money num-right">{{ promptPayTotals.proDisc | currency }}</td>
+            <td class="money num-right">{{ promptPayTotals.net | currency }}</td>
+            <td colspan="2"></td>
+          </tr>
+        </table>
+      </div>
+    </ng-container>
+
+    <!-- ================= BILL RUN QUEUE ================= -->
+    <ng-container *ngIf="currentScreen==='runQueue'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Bill Run Queue</div>
+      <div class="topbar">
+        <div><h1>Bill Run Queue</h1><div class="subtitle">Each run = one bill date, two rails inside</div></div>
+        <button class="btn btn-primary" (click)="buildNewRun()">+ New Run</button>
+      </div>
+      <div class="pill-tab">
+        <div [class.active]="runQueueTab==='open'" (click)="runQueueTabSet('open')">Upcoming / Open</div>
+        <div [class.active]="runQueueTab==='history'" (click)="runQueueTabSet('history')">History</div>
+      </div>
+
+      <ng-container *ngIf="runQueueTab==='open'">
+        <div class="card">
+          <table>
+            <tr><th>Bill Date</th><th class="num-right">PromptPay $</th><th class="num-right">EZPay $</th><th class="num-right">Total Net</th><th>Status</th><th></th></tr>
+            <tr class="clickable" *ngFor="let r of openRuns" (click)="openRun(r)">
+              <td class="mono">{{ r.billDate | date:'MM/dd/yyyy' }}</td>
+              <td class="money num-right">{{ r.promptPayNet | currency }}</td>
+              <td class="money num-right">{{ r.ezpayNet | currency }}</td>
+              <td class="money num-right">{{ r.totalNet | currency }}</td>
+              <td><span class="adminbadge adminbadge-amber">Open for Edit</span></td>
+              <td class="mono faint">→</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="section-label">Manage Queue (both rails)</div>
+        <div class="card">
+          <div class="row-flex" style="justify-content:space-between;margin-bottom:12px;">
+            <input placeholder="Search member # or name…" [(ngModel)]="queueSearchTerm" style="width:260px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;">
+            <div class="row-flex">
+              <span class="mono faint" style="font-size:12px;">{{ queueSelected.size }} selected</span>
+              <button class="btn btn-ghost btn-sm" (click)="openAddInvoice()">+ Add Invoice to Run</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:#e8bcbc;" (click)="openSkip('account')">Remove from Payment</button>
+            </div>
+          </div>
+          <table *ngIf="queueAccounts.length; else noQueue">
+            <tr>
+              <th style="width:28px;"><input type="checkbox" (change)="toggleQueueSelectAll($any($event.target).checked)"></th>
+              <th>Account</th>
+              <th>Rail</th>
+              <th class="num-right">Invoices</th>
+              <th class="num-right">Net</th>
+              <th></th>
+            </tr>
+            <ng-container *ngFor="let grp of queueAccounts">
+              <tr>
+                <td><input type="checkbox" [checked]="queueSelected.has(grp.accountId)" (change)="toggleQueueSelect(grp.accountId)"></td>
+                <td><b>{{ grp.name }}</b> <span class="mono faint">{{ grp.accountId }}</span></td>
+                <td><span class="adminbadge" [ngClass]="grp.rail==='EZPay' ? 'adminbadge-blue' : 'adminbadge-violet'">{{ grp.rail }}</span></td>
+                <td class="mono num-right">{{ grp.invoiceCount }}</td>
+                <td class="money num-right">{{ grp.net | currency }}</td>
+                <td><button class="btn btn-ghost btn-sm" (click)="toggleExpand('q-'+grp.accountId)">{{ isExpanded('q-'+grp.accountId) ? 'Invoices ▴' : 'Invoices ▾' }}</button></td>
+              </tr>
+              <tr *ngIf="isExpanded('q-'+grp.accountId)" class="expand-row">
+                <td></td>
+                <td colspan="4">
+                  <table class="nested">
+                    <tr><th style="width:24px;"></th><th>Invoice</th><th class="num-right">Net</th><th></th></tr>
+                    <tr *ngFor="let inv of grp.invoices">
+                      <td><input type="checkbox"></td>
+                      <td class="mono">{{ inv.invoiceId }}</td>
+                      <td class="money num-right">{{ inv.net | currency }}</td>
+                      <td><button class="btn btn-ghost btn-sm" style="color:var(--red);" (click)="openSkip('invoice', inv.invoiceId)">Remove from Gross</button></td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </ng-container>
+          </table>
+          <ng-template #noQueue><div class="flow-note">No accounts in the queue yet — open or build a run to populate this list.</div></ng-template>
+        </div>
+
+        <div class="section-label">Excluded from This Run</div>
+        <div class="card">
+          <table>
+            <tr><th>Account / Invoice</th><th>Type</th><th class="num-right">Amount</th><th>Reason</th><th>Excluded By</th><th></th></tr>
+            <tr *ngFor="let ex of runExclusions">
+              <td class="mono">{{ ex.targetLabel }}</td>
+              <td><span class="adminbadge adminbadge-gray">{{ ex.type }}</span></td>
+              <td class="money num-right">{{ ex.amount | currency }}</td>
+              <td>{{ ex.reason }}</td>
+              <td class="mono faint">{{ ex.excludedBy }}</td>
+              <td><button class="btn btn-ghost btn-sm" style="color:var(--green);" (click)="includeInRun(ex)">Include</button></td>
+            </tr>
+          </table>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="runQueueTab==='history'">
+        <div class="card">
+          <table>
+            <tr><th>Bill Date</th><th class="num-right">PromptPay $</th><th class="num-right">EZPay $</th><th class="num-right">Total Net</th><th>Status</th><th></th></tr>
+            <ng-container *ngFor="let r of historyRuns">
+              <tr class="clickable" (click)="toggleExpand('hd-'+r.runId)">
+                <td class="mono">{{ r.billDate | date:'MM/dd/yyyy' }}</td>
+                <td class="money num-right">{{ r.promptPayNet | currency }}</td>
+                <td class="money num-right">{{ r.ezpayNet | currency }}</td>
+                <td class="money num-right">{{ r.totalNet | currency }}</td>
+                <td><span class="adminbadge adminbadge-green" *ngIf="r.status==='Reconciled'">Reconciled</span><span class="adminbadge adminbadge-red" *ngIf="r.status==='HadExceptions'">Had Exceptions</span></td>
+                <td class="mono faint">{{ isExpanded('hd-'+r.runId) ? '▴' : '▾' }}</td>
+              </tr>
+              <tr *ngIf="isExpanded('hd-'+r.runId) && getHistoryDetail(r) as detail" class="expand-row">
+                <td></td>
+                <td colspan="5" style="padding:14px 10px;">
+                  <div class="row-flex justify-end" style="margin-bottom:10px;">
+                    <button class="btn btn-ghost btn-sm" (click)="exportRunInvoices(r,'pdf')">View All Invoices</button>
+                    <button class="btn btn-ghost btn-sm" (click)="exportRunInvoices(r,'pdf')">Export PDF</button>
+                    <button class="btn btn-ghost btn-sm" (click)="exportRunInvoices(r,'excel')">Export Excel</button>
+                  </div>
+                  <div class="grid2">
+                    <div>
+                      <div class="section-label" style="margin-top:0;">Skipped / Excluded</div>
+                      <table class="nested">
+                        <tr><th>Account</th><th>Reason</th><th class="num-right">Amount</th></tr>
+                        <tr *ngFor="let s of detail.skipped"><td class="mono">{{ s.accountId }}</td><td>{{ s.reason }}</td><td class="money num-right">{{ s.amount | currency }}</td></tr>
+                      </table>
+                    </div>
+                    <div>
+                      <div class="section-label" style="margin-top:0;">Completed</div>
+                      <div class="kv"><span class="k">Sent</span><span class="v">{{ detail.sent }}</span></div>
+                      <div class="kv"><span class="k">Posted</span><span class="v" style="color:var(--green);">{{ detail.posted }}</span></div>
+                      <div class="kv"><span class="k">Exceptions</span><span class="v" [style.color]="detail.exceptions.length ? 'var(--red)' : null">{{ detail.exceptions.length }}</span></div>
+                    </div>
+                  </div>
+                  <ng-container *ngIf="detail.exceptions.length">
+                    <div class="section-label">Exceptions &amp; Resolution</div>
+                    <table class="nested">
+                      <tr><th>Invoice</th><th>Account</th><th class="num-right">Amount</th><th>Original Reason</th><th>Resolution</th></tr>
+                      <tr *ngFor="let e of detail.exceptions">
+                        <td class="mono">{{ e.invoiceId }}</td>
+                        <td class="mono">{{ e.accountId }}</td>
+                        <td class="money num-right">{{ e.electedAmount | currency }}</td>
+                        <td><span class="adminbadge adminbadge-red">{{ e.reason }}</span></td>
+                        <td><span class="adminbadge" [ngClass]="e.resolutionStatus==='Resolved' ? 'adminbadge-green' : 'adminbadge-amber'">{{ e.resolutionStatus }}</span> {{ e.resolutionNote }}</td>
+                      </tr>
+                    </table>
+                  </ng-container>
+                </td>
+              </tr>
+            </ng-container>
+          </table>
+        </div>
+      </ng-container>
+    </ng-container>
+
+    <!-- ================= BILL RUN DETAIL ================= -->
+    <ng-container *ngIf="currentScreen==='runDetail' && activeRun as run">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / <span (click)="go('runQueue')">Bill Run Queue</span> / {{ run.billDate | date:'MM/dd/yyyy' }}</div>
+      <div class="topbar">
+        <div>
+          <h1>Bill Run — {{ run.billDate | date:'MM/dd/yyyy' }}</h1>
+          <div class="subtitle">Prompt Pay (mandatory) + EZPay (opt-in, 1% discount)</div>
+        </div>
+        <span class="adminbadge adminbadge-amber">Open for Edit</span>
+      </div>
+
+      <div class="stepper">
+        <div class="step done"><span>01</span>Build</div>
+        <div class="step" [class.now]="runDetailTab==='edit'" [class.done]="runDetailTab==='review'" (click)="runDetailTabSet('edit')"><span>02</span>Edit</div>
+        <div class="step" [class.now]="runDetailTab==='review'" (click)="runDetailTabSet('review')"><span>03</span>Review</div>
+        <div class="step"><span>04</span>Submit</div><div class="step"><span>05</span>Reconcile</div>
+      </div>
+
+      <ng-container *ngIf="runDetailTab==='edit'">
+        <div class="note blue"><b>Paid Date</b> is set per rail, not per invoice. Defaults to the bill date; change to backdate a whole rail.</div>
+        <div class="row-flex justify-end" style="margin-bottom:10px;">
+          <button class="btn btn-ghost btn-sm" (click)="openAddInvoice()">+ Add Invoice to Run</button>
+        </div>
+
+        <div class="lane-head promptpay" style="justify-content:space-between;">
+          <span>Prompt Pay — Mandatory <span class="lane-adminbadge">{{ promptPayInvoiceCount(run) }} invoices · {{ run.promptPayNet | currency }}</span></span>
+          <span class="row-flex" style="gap:8px;">
+            <label style="font-size:11px;font-weight:600;">Paid Date</label>
+            <input type="date" [value]="run.promptPayPaidDate | date:'yyyy-MM-dd'" (change)="setPaidDate('PromptPay', $any($event.target).value)"
+                   style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:12px;">
+          </span>
+        </div>
+        <div class="card">
+          <div class="row-flex" style="justify-content:space-between;margin-bottom:10px;">
+            <span class="mono faint" style="font-size:12px;">Bulk actions</span>
+            <div class="row-flex">
+              <button class="btn btn-ghost btn-sm" (click)="runBulkAction('PromptPay','Applied PRO discount')">Apply PRO Discount</button>
+              <button class="btn btn-ghost btn-sm" (click)="runBulkAction('PromptPay','Removed PRO discount')">Remove PRO Discount</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:#e8bcbc;" (click)="openSkip('account')">Exclude from Run</button>
+            </div>
+          </div>
+          <table>
+            <tr><th style="width:28px;"><input type="checkbox"></th><th>Account</th><th class="num-right">Invoices</th><th class="num-right">Gross</th><th class="num-right">PRO Disc.</th><th class="num-right">Net</th><th></th></tr>
+            <ng-container *ngFor="let grp of run.promptPayAccounts">
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><b>{{ grp.name }}</b> <span class="mono faint">{{ grp.accountId }}</span></td>
+                <td class="mono num-right">{{ grp.invoiceCount }}</td>
+                <td class="money num-right">{{ grp.gross | currency }}</td>
+                <td class="money num-right">{{ grp.proDiscount | currency }}</td>
+                <td class="money num-right">{{ grp.net | currency }}</td>
+                <td><button class="btn btn-ghost btn-sm" (click)="toggleExpand('pp-'+grp.accountId)">{{ isExpanded('pp-'+grp.accountId) ? 'Invoices ▴' : 'Invoices ▾' }}</button></td>
+              </tr>
+              <tr *ngIf="isExpanded('pp-'+grp.accountId)" class="expand-row">
+                <td></td>
+                <td colspan="5">
+                  <table class="nested">
+                    <tr><th>Invoice</th><th>Vendor</th><th class="num-right">Gross</th><th>PRO Disc.</th><th>Status</th><th></th></tr>
+                    <tr *ngFor="let inv of grp.invoices">
+                      <td class="mono">{{ inv.invoiceId }}</td>
+                      <td>{{ inv.vendor }}</td>
+                      <td class="money num-right">{{ inv.gross | currency }}</td>
+                      <td class="mono">{{ inv.proDiscountAmt | currency }}</td>
+                      <td><span class="adminbadge adminbadge-green" *ngIf="inv.status==='OnTerms'">On Terms</span><span class="adminbadge adminbadge-red" *ngIf="inv.status!=='OnTerms'">{{ inv.status }}</span></td>
+                      <td><button class="btn btn-ghost btn-sm" (click)="runBulkAction('PromptPay','Removed PRO discount on '+inv.invoiceId,{accountId:grp.accountId,invoiceId:inv.invoiceId})">Remove Disc.</button></td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </ng-container>
+          </table>
+        </div>
+
+        <div class="lane-head ezpay" style="justify-content:space-between;">
+          <span>EZPay — Opt-In <span class="lane-adminbadge">{{ ezpayInvoiceCount(run) }} invoices · {{ run.ezpayNet | currency }}</span></span>
+          <span class="row-flex" style="gap:8px;">
+            <label style="font-size:11px;font-weight:600;">Paid Date</label>
+            <input type="date" [value]="run.ezpayPaidDate | date:'yyyy-MM-dd'" (change)="setPaidDate('EZPay', $any($event.target).value)"
+                   style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:12px;">
+          </span>
+        </div>
+        <div class="card">
+          <div class="row-flex" style="justify-content:space-between;margin-bottom:10px;">
+            <span class="mono faint" style="font-size:12px;">Bulk actions</span>
+            <div class="row-flex">
+              <button class="btn btn-ghost btn-sm" (click)="runBulkAction('EZPay','Applied EZPay discount')">Apply EZPay Discount</button>
+              <button class="btn btn-ghost btn-sm" (click)="runBulkAction('EZPay','Removed EZPay discount')">Remove EZPay Discount</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:#e8bcbc;" (click)="openSkip('account')">Exclude from Run</button>
+            </div>
+          </div>
+          <table>
+            <tr><th style="width:28px;"><input type="checkbox"></th><th>Account</th><th class="num-right">Invoices</th><th class="num-right">Gross</th><th class="num-right">PRO Disc.</th><th class="num-right">EZPay Disc.</th><th class="num-right">Net Net</th><th></th></tr>
+            <ng-container *ngFor="let grp of run.ezpayAccounts">
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><b>{{ grp.name }}</b> <span class="mono faint">{{ grp.accountId }}</span></td>
+                <td class="mono num-right">{{ grp.invoiceCount }}</td>
+                <td class="money num-right">{{ grp.gross | currency }}</td>
+                <td class="money num-right">{{ grp.proDiscount | currency }}</td>
+                <td class="money num-right">{{ grp.ezpayDiscount | currency }}</td>
+                <td class="money num-right">{{ grp.net | currency }}</td>
+                <td><button class="btn btn-ghost btn-sm" (click)="toggleExpand('ez-'+grp.accountId)">{{ isExpanded('ez-'+grp.accountId) ? 'Invoices ▴' : 'Invoices ▾' }}</button></td>
+              </tr>
+              <tr *ngIf="isExpanded('ez-'+grp.accountId)" class="expand-row">
+                <td></td>
+                <td colspan="6">
+                  <table class="nested">
+                    <tr><th>Invoice</th><th>Vendor</th><th class="num-right">Gross</th><th>PRO Disc.</th><th>EZPay Disc.</th><th>Status</th><th></th></tr>
+                    <tr *ngFor="let inv of grp.invoices">
+                      <td class="mono">{{ inv.invoiceId }}</td>
+                      <td>{{ inv.vendor }}</td>
+                      <td class="money num-right">{{ inv.gross | currency }}</td>
+                      <td class="mono">{{ inv.proDiscountAmt | currency }}</td>
+                      <td class="mono"><span *ngIf="inv.ezpayDiscountPct !== null">{{ inv.ezpayDiscountAmt | currency }}</span><span *ngIf="inv.ezpayDiscountPct===null" style="color:var(--red);">Lost</span></td>
+                      <td><span class="adminbadge adminbadge-green" *ngIf="inv.status==='OnTerms'">On Terms</span><span class="adminbadge adminbadge-red" *ngIf="inv.status!=='OnTerms'">{{ inv.status }}</span></td>
+                      <td class="row-flex">
+                        <button class="btn btn-ghost btn-sm" (click)="runBulkAction('EZPay','Removed PRO discount on '+inv.invoiceId,{accountId:grp.accountId,invoiceId:inv.invoiceId})">Remove PRO</button>
+                        <button class="btn btn-ghost btn-sm" (click)="runBulkAction('EZPay','Removed EZPay discount on '+inv.invoiceId,{accountId:grp.accountId,invoiceId:inv.invoiceId})">Remove EZPay</button>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </ng-container>
+          </table>
+        </div>
+        <div class="row-flex justify-end"><button class="btn btn-violet" (click)="runDetailTabSet('review')">Continue to Review</button></div>
+      </ng-container>
+
+      <ng-container *ngIf="runDetailTab==='review'">
+        <div class="card">
+          <div class="card-head"><h3>Final Review — Both Rails</h3><span class="adminbadge adminbadge-amber">Pending Approval</span></div>
+          <div class="grid3" style="margin-bottom:14px;">
+            <div class="kv-block"><span class="k">Prompt Pay Net · Paid {{ run.promptPayPaidDate | date:'MM/dd/yyyy' }}</span><span class="v big">{{ run.promptPayNet | currency }}</span></div>
+            <div class="kv-block"><span class="k">EZPay Net Net · Paid {{ run.ezpayPaidDate | date:'MM/dd/yyyy' }}</span><span class="v big">{{ run.ezpayNet | currency }}</span></div>
+            <div class="kv-block"><span class="k">Total Net Payable</span><span class="v big" style="color:var(--teal);">{{ run.totalNet | currency }}</span></div>
+          </div>
+        </div>
+
+        <div class="card" *ngIf="getDrawCapInfo(run) as cap">
+          <div class="card-head"><h3>Draw Cap</h3><span class="adminbadge" [ngClass]="cap.overflowAmount > 0 ? 'adminbadge-amber' : 'adminbadge-green'">{{ cap.overflowAmount > 0 ? 'Overflow Triggered' : 'Within Limit' }}</span></div>
+          <div class="grid3">
+            <div class="kv-block">
+              <span class="k">Daily Max <span class="mono" style="color:var(--teal);cursor:pointer;font-size:11px;" (click)="go('reportPaths')">(edit)</span></span>
+              <span class="v big">{{ cap.dailyMax | currency }}</span>
+            </div>
+            <div class="kv-block"><span class="k">Used Today (incl. this run)</span><span class="v big">{{ cap.usedToday | currency }}</span></div>
+            <div class="kv-block"><span class="k">Remaining Today</span><span class="v big" style="color:var(--teal);">{{ (cap.dailyMax - cap.usedToday) | currency }}</span></div>
+          </div>
+          <div class="flow-note">Daily Max is configurable in Payment Settings. If a run's total pushes Used Today past the max, this run automatically splits into two draw files — the overflow doesn't get dropped or blocked, it queues for the next business day.</div>
+
+          <div class="grid2" style="margin-top:12px;">
+            <div class="card mb0">
+              <div class="card-head"><h3 style="font-size:13px;">Primary Draw File</h3><span class="adminbadge adminbadge-green">This Run</span></div>
+              <div class="kv"><span class="k">Amount</span><span class="v">{{ cap.primaryAmount | currency }}</span></div>
+              <div class="kv"><span class="k">Accounts</span><span class="v">{{ cap.primaryCount }}</span></div>
+            </div>
+            <div class="card mb0" [style.opacity]="cap.overflowAmount > 0 ? 1 : 0.55">
+              <div class="card-head"><h3 style="font-size:13px;">Secondary (Overflow) File</h3><span class="adminbadge" [ngClass]="cap.overflowAmount > 0 ? 'adminbadge-amber' : 'adminbadge-gray'">{{ cap.overflowAmount > 0 ? 'Triggered' : 'Not Triggered' }}</span></div>
+              <div class="kv"><span class="k">Amount</span><span class="v">{{ cap.overflowAmount | currency }}</span></div>
+              <div class="kv"><span class="k">Draws</span><span class="v faint">Next business day — {{ cap.overflowDate | date:'MM/dd/yyyy' }}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row-flex justify-end">
+          <button class="btn btn-ghost" (click)="runDetailTabSet('edit')">Back to Edit</button>
+          <button class="btn btn-violet" (click)="submitRun()">Approve &amp; Submit to Computyme</button>
+        </div>
+      </ng-container>
+
+      <div class="card" style="margin-top:18px;">
+        <div class="card-head"><h3>Run Audit</h3></div>
+        <div class="audit-item" *ngFor="let a of runAudit">
+          <div class="dot"></div>
+          <div><div><b>{{ a.actor }}</b> {{ a.message }}</div><div class="audit-time">{{ a.timestamp | date:'MM/dd/yyyy h:mm a' }}</div></div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- ================= RECONCILIATION ================= -->
+    <ng-container *ngIf="currentScreen==='recon'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Reconciliation</div>
+      <div class="topbar">
+        <div><h1>Reconciliation</h1><div class="subtitle">Elected-to-pay (web) vs. actually posted — 1:1 match, reason on every rejection</div></div>
+        <button class="btn btn-ghost" (click)="go('reportPaths')">Report Locations</button>
+      </div>
+      <div class="note blue"><b>Scope:</b> reconciliation is per bill run, comparing elected vs. posted from both environments plus a consolidated report.</div>
+      <div class="grid3" style="margin-bottom:16px;">
+        <div class="card mb0"><div class="stat-label">Total Attempted</div><div class="stat-val">{{ reconAttempted | currency }}</div></div>
+        <div class="card mb0"><div class="stat-label">Total Posted</div><div class="stat-val" style="color:var(--green);">{{ reconPosted | currency }}</div></div>
+        <div class="card mb0 alert"><div class="stat-label">Net Difference</div><div class="stat-val">{{ (reconAttempted - reconPosted) | currency }}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Exceptions — Elected vs. Posted</h3></div>
+        <table>
+          <tr><th>Invoice</th><th>Account</th><th class="num-right">Elected</th><th class="num-right">Posted</th><th class="num-right">Diff</th><th>Reason</th><th></th></tr>
+          <tr *ngFor="let e of reconExceptions">
+            <td class="mono">{{ e.invoiceId }}</td>
+            <td class="mono">{{ e.accountId }}</td>
+            <td class="money num-right">{{ e.electedAmount | currency }}</td>
+            <td class="money num-right">{{ e.postedAmount | currency }}</td>
+            <td class="money num-right">{{ e.diff | currency }}</td>
+            <td><span class="adminbadge adminbadge-red">{{ e.reason }}</span></td>
+            <td><button class="btn btn-primary btn-sm" (click)="reprocess(e)">Reprocess</button></td>
+          </tr>
+        </table>
+      </div>
+      <div class="grid3">
+        <div class="card mb0"><div class="card-head"><h3>Source Report</h3></div><button class="btn btn-ghost btn-sm" (click)="downloadReconReport('source')">Download</button></div>
+        <div class="card mb0"><div class="card-head"><h3>Destination Report</h3></div><button class="btn btn-ghost btn-sm" (click)="downloadReconReport('destination')">Download</button></div>
+        <div class="card mb0"><div class="card-head"><h3>Consolidated Report</h3></div><button class="btn btn-ghost btn-sm" (click)="downloadReconReport('consolidated')">Download</button></div>
+      </div>
+
+      <div class="section-label">Bank File — NACHA</div>
+      <div class="card">
+        <div class="card-head"><h3>Primary ACH Draw File — {{ activeRun ? (activeRun.billDate | date:'MM/dd/yyyy') : '07/17/2026' }}</h3><span class="adminbadge adminbadge-blue">NACHA · SEC {{ nachaSettings.secCode }}</span></div>
+        <div class="flow-note">Standard NACHA file: File Header → Batch Header → Entry Detail (one per account, Transaction Code 27/37 debit) → Batch Control → File Control, fixed 94-char records, blocked in 10s. Dummy routing/account numbers pending real bank setup — SEC code and Company ID confirmed in Payment Settings.</div>
+        <div class="row-flex" style="margin-top:10px;">
+          <button class="btn btn-primary btn-sm" (click)="downloadAchFile('primary')">Download ACH File</button>
+          <span class="mono faint" style="font-size:12px;">{{ reconExceptions.length ? '306' : '308' }} entries · {{ reconAttempted | currency }} total draw</span>
+        </div>
+      </div>
+      <div class="card" style="opacity:.55;">
+        <div class="card-head"><h3>Secondary (Overflow) ACH File — Next Business Day</h3><span class="adminbadge adminbadge-gray">Not Triggered</span></div>
+        <div class="flow-note">Same NACHA structure as the primary file, separate File Header/Control — only generated when a run's total pushes the day's Used amount past the configurable Daily Max. This run stayed under the cap, so there's nothing here to download.</div>
+        <div class="row-flex" style="margin-top:10px;">
+          <button class="btn btn-ghost btn-sm" disabled>Download ACH File</button>
+          <span class="mono faint" style="font-size:12px;">0 entries · $0.00</span>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- ================= REPORT OUTPUT LOCATIONS ================= -->
+    <ng-container *ngIf="currentScreen==='reportPaths'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Payment Settings</div>
+      <div class="topbar"><div><h1>Payment Settings</h1><div class="subtitle">Report output folders and the daily draw cap</div></div></div>
+
+      <div class="section-label">Report Output Locations</div>
+      <div class="card">
+        <div class="field"><label>Source (RAS) Report Folder</label><input [(ngModel)]="reportPaths.sourceFolder"></div>
+        <div class="field"><label>Destination (Computyme) Report Folder</label><input [(ngModel)]="reportPaths.destinationFolder"></div>
+        <div class="field"><label>Consolidated Report Folder</label><input [(ngModel)]="reportPaths.consolidatedFolder"></div>
+        <button class="btn btn-primary btn-sm" (click)="saveReportPaths()">Save Locations</button>
+      </div>
+
+      <div class="section-label">Draw Cap</div>
+      <div class="card">
+        <div class="note"><b>How overflow works:</b> if a day's total draws (across EZPay, Prompt Pay, and Prepaid runs) would exceed this max, the excess automatically splits into a Secondary ACH file dated for the next business day — it's tracked, not blocked or dropped.</div>
+        <div class="field" style="max-width:280px;"><label>Daily Max ($)</label><input class="mono" [(ngModel)]="drawCapDailyMax"></div>
+        <button class="btn btn-primary btn-sm" (click)="saveDrawCap()">Save Cap</button>
+      </div>
+
+      <div class="section-label">NACHA / Bank File Setup</div>
+      <div class="card">
+        <div class="note red"><b>Required from the bank before going live:</b> Company ID, SEC code confirmation, Immediate Destination routing number, and whether they require a $0.00 pre-note test transaction first.</div>
+        <div class="grid2">
+          <div class="field"><label>Company ID (FEIN-based)</label><input class="mono" placeholder="1999999999" [(ngModel)]="nachaSettings.companyId"></div>
+          <div class="field">
+            <label>SEC Code</label>
+            <select [(ngModel)]="nachaSettings.secCode"><option value="CCD">CCD — Corporate</option><option value="PPD">PPD — Consumer</option></select>
+          </div>
+          <div class="field"><label>Immediate Destination Routing</label><input class="mono" placeholder="9-digit bank routing #" [(ngModel)]="nachaSettings.destinationRouting"></div>
+          <div class="field"><label>Originating DFI ID</label><input class="mono" placeholder="First 8 digits of your routing" [(ngModel)]="nachaSettings.originatingDfiId"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" (click)="saveNachaSettings()">Save NACHA Settings</button>
+      </div>
+    </ng-container>
+
+    <!-- ================= PAYMENT SCHEDULE ================= -->
+    <ng-container *ngIf="currentScreen==='schedule'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Payment Schedule</div>
+      <div class="topbar"><div><h1>Payment Schedule</h1><div class="subtitle">Batch runs are manual by default — auto-run only kicks in for configured holidays</div></div></div>
+      <div class="note"><b>Default behavior:</b> bill runs are built and submitted manually each week. A schedule rule only fires automatically when its date lands on a configured holiday — otherwise it's a reminder, not an auto-submit.</div>
+      <div class="card">
+        <table>
+          <tr><th>Rule</th><th>Cadence</th><th class="num-right">Run Time</th><th>Mode</th><th>Status</th><th></th></tr>
+          <tr *ngFor="let r of scheduleRules">
+            <td>{{ r.label }}</td>
+            <td class="mono">{{ r.cadence }}</td>
+            <td class="mono num-right">{{ r.runTime }}</td>
+            <td><span class="adminbadge" [ngClass]="r.mode==='Auto' ? 'adminbadge-violet' : 'adminbadge-gray'">{{ r.mode }}</span></td>
+            <td><span class="adminbadge" [ngClass]="r.status==='Active' ? 'adminbadge-green' : 'adminbadge-amber'">{{ r.status }}</span></td>
+            <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+          </tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>New Rule</h3></div>
+        <div class="grid3">
+          <div class="field"><label>Date</label><input type="date" [(ngModel)]="newRuleDate"></div>
+          <div class="field"><label>Time</label><input type="time" [(ngModel)]="newRuleTime"></div>
+          <div class="field">
+            <label>Mode</label>
+            <select [(ngModel)]="newRuleMode"><option value="Manual">Manual (reminder only)</option><option value="Auto">Auto-run (holiday)</option></select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" (click)="saveScheduleRule()">Save Rule</button>
+      </div>
+    </ng-container>
+
+    <!-- ================= CC PAYMENT QUEUE ================= -->
+    <ng-container *ngIf="currentScreen==='ccQueue'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Prepaid &amp; CC</div>
+      <div class="topbar">
+        <div><h1>Prepaid &amp; CC</h1><div class="subtitle">Third rail — accounts fund a prepaid balance instead of EZPay/Prompt Pay draft</div></div>
+        <button class="btn btn-primary btn-sm" (click)="addPrepaidAccount()">+ Add Prepaid Account</button>
+      </div>
+
+      <div class="section-label">Prepaid Accounts</div>
+      <div class="card">
+        <table>
+          <tr><th>Account</th><th>Payment Method</th><th class="num-right">Current Balance</th><th class="num-right">Spent (this period)</th><th class="num-right">YTD Spend</th><th></th></tr>
+          <tr *ngFor="let p of prepaidAccounts">
+            <td><b>{{ p.name }}</b> <span class="mono faint">{{ p.accountId }}</span></td>
+            <td>
+              <select class="mono" [(ngModel)]="p.paymentMethod" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;">
+                <option value="CC">CC</option>
+                <option value="ACH">ACH</option>
+                <option value="Check">Check</option>
+              </select>
+            </td>
+            <td class="money num-right">{{ p.currentBalance | currency }}</td>
+            <td class="money num-right">{{ p.spentThisPeriod | currency }}</td>
+            <td class="money num-right">{{ p.ytdSpend | currency }}</td>
+            <td><button class="btn btn-ghost btn-sm" (click)="fundPrepaidBalance(p)">Fund Balance</button></td>
+          </tr>
+        </table>
+      </div>
+      <div class="flow-note">Payment Method is per-account config for how the prepaid balance gets funded — separate from how Prepaid draws against that balance for purchases.</div>
+
+      <div class="section-label">Credit Card Payment Queue</div>
+      <div class="note violet"><b>Not fully implemented:</b> capture still happens manually today. This view gives visibility so these members aren't double-drafted.</div>
+      <div class="card">
+        <table>
+          <tr><th>Account</th><th class="num-right">Amount</th><th>Requested</th><th>Status</th></tr>
+          <tr *ngFor="let c of ccQueue"><td>{{ c.account }}</td><td class="money num-right">{{ c.amount | currency }}</td><td class="mono">{{ c.requested | date:'MM/dd/yyyy' }}</td><td><span class="adminbadge adminbadge-amber">{{ c.status }}</span></td></tr>
+        </table>
+      </div>
+    </ng-container>
+
+    <!-- ================= ACCOUNT SETTINGS ================= -->
+    <ng-container *ngIf="currentScreen==='accounts'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Account Settings</div>
+      <div class="topbar">
+        <div><h1>Account Rail &amp; Payment Status</h1><div class="subtitle">Every account belongs to exactly one rail — EZPay, Prompt Pay, or Prepaid, never more than one</div></div>
+        <button class="btn btn-ghost">Bulk Holiday Exclude</button>
+      </div>
+      <div class="note"><b>Rule:</b> Rail assignment is single and mutually exclusive. Included/Excluded is independent of the rail and can be flipped for any reason.</div>
+      <div class="card">
+        <table>
+          <tr><th>Account</th><th>Name</th><th>Rail</th><th>Included</th><th>Reason</th><th></th></tr>
+          <tr *ngFor="let a of accountSettings">
+            <td class="mono">{{ a.accountId }}</td>
+            <td>{{ a.name }}</td>
+            <td>
+              <select [(ngModel)]="a.rail" (change)="saveAccountSetting(a)" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-family:var(--mono);">
+                <option value="EZPay">EZPay</option>
+                <option value="PromptPay">Prompt Pay</option>
+                <option value="Prepaid">Prepaid</option>
+              </select>
+            </td>
+            <td><div class="toggle" [class.on]="a.included" (click)="a.included = !a.included; saveAccountSetting(a)"></div></td>
+            <td class="faint">{{ a.reason }}</td>
+            <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+          </tr>
+        </table>
+      </div>
+      <div class="flow-note">Changing an account's Rail here is a permanent reassignment. One-run exclusions are done from Bill Run Queue → Manage Queue.</div>
+    </ng-container>
+
+    <!-- ================= CUSTOM FIELDS ================= -->
+    <ng-container *ngIf="currentScreen==='customFields'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Custom Fields</div>
+      <div class="topbar">
+        <div><h1>Custom Fields</h1><div class="subtitle">Extend Account, Invoice, and Bill Run records without a schema change</div></div>
+        <button class="btn btn-primary">+ Add Field</button>
+      </div>
+      <div class="pill-tab">
+        <div [class.active]="customFieldTab==='Account'" (click)="customFieldTab='Account'">Account</div>
+        <div [class.active]="customFieldTab==='Invoice'" (click)="customFieldTab='Invoice'">Invoice</div>
+        <div [class.active]="customFieldTab==='BillRun'" (click)="customFieldTab='BillRun'">Bill Run</div>
+      </div>
+      <div class="card">
+        <table>
+          <tr><th>Field Name</th><th>Type</th><th>Default</th><th>Required</th><th></th></tr>
+          <tr *ngFor="let f of filteredCustomFields">
+            <td><b>{{ f.fieldName }}</b></td>
+            <td class="mono">{{ f.type }}</td>
+            <td class="mono">{{ f.defaultValue || '—' }}</td>
+            <td><span class="adminbadge" [ngClass]="f.required ? 'adminbadge-amber' : 'adminbadge-gray'">{{ f.required ? 'Required' : 'Optional' }}</span></td>
+            <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+          </tr>
+        </table>
+      </div>
+    </ng-container>
+
+    <!-- ================= AUDIT FEED ================= -->
+    <ng-container *ngIf="currentScreen==='audit'">
+      <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Audit Feed</div>
+      <div class="topbar"><div><h1>Audit Feed</h1><div class="subtitle">Every override, run action, and account change — who, what, when</div></div></div>
+      <div class="pill-tab">
+        <div [class.active]="auditFilter==='All'" (click)="auditFilter='All'">All</div>
+        <div [class.active]="auditFilter==='Override'" (click)="auditFilter='Override'">Overrides</div>
+        <div [class.active]="auditFilter==='BillRun'" (click)="auditFilter='BillRun'">Bill Runs</div>
+        <div [class.active]="auditFilter==='Account'" (click)="auditFilter='Account'">Account Settings</div>
+        <div [class.active]="auditFilter==='Invoice'" (click)="auditFilter='Invoice'">Invoices</div>
+      </div>
+      <div class="card">
+        <div class="audit-item" *ngFor="let a of filteredAuditFeed">
+          <div class="dot"></div>
+          <div><div><b>{{ a.actor }}</b> {{ a.message }}</div><div class="audit-time">{{ a.timestamp | date:'MM/dd/yyyy h:mm a' }}</div></div>
+        </div>
+      </div>
+    </ng-container>
+
+  </div>
+</div>
+
+<!-- ============ OVERRIDE MODAL ============ -->
+<div class="modal-bg" [class.open]="overrideModalVisible">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="eyebrow">Override</div><h1 style="font-size:17px;">{{ overrideTarget?.type }}</h1><div class="subtitle mono">Invoice {{ overrideTarget?.invoiceId }}</div></div>
+      <div class="modal-close" (click)="closeModal('override')">&times;</div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Current Value</label><input [value]="overrideTarget?.currentValue" disabled></div>
+      <div class="field mono"><label>Override Value</label><input [(ngModel)]="overrideNewValue" placeholder="e.g. 1.5%"></div>
+    </div>
+    <div class="field"><label>Reason (required)</label><input [(ngModel)]="overrideReason" placeholder="e.g. Goodwill adjustment"></div>
+    <div class="row-flex justify-end">
+      <button class="btn btn-ghost" (click)="closeModal('override')">Cancel</button>
+      <button class="btn btn-primary" (click)="saveOverride()">Save Override</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ INVOICE DEEP DIVE ============ -->
+<div class="modal-bg" [class.open]="invoiceModalVisible">
+  <div class="modal" *ngIf="activeInvoice as inv">
+    <div class="modal-head">
+      <div><div class="eyebrow">Invoice Detail</div><h1 style="font-size:17px;">{{ inv.invoiceId }}</h1><div class="subtitle mono">Account {{ inv.accountId }}</div></div>
+      <div class="modal-close" (click)="closeModal('invoice')">&times;</div>
+    </div>
+    <div class="kv"><span class="k">Vendor</span><span class="v">{{ inv.vendor }}</span></div>
+    <div class="kv"><span class="k">Posted</span><span class="v">{{ inv.postedDate | date:'MM/dd/yyyy' }}</span></div>
+    <div class="kv"><span class="k">Gross</span><span class="v">{{ inv.gross | currency }}</span></div>
+    <div class="kv"><span class="k">PRO Discount</span><span class="v">{{ inv.proDiscountAmt | currency }}</span></div>
+    <div class="kv"><span class="k">EZPay Discount</span><span class="v">{{ inv.ezpayDiscountAmt | currency }}</span></div>
+    <div class="kv"><span class="k">Net</span><span class="v" style="color:var(--teal);">{{ inv.net | currency }}</span></div>
+    <div class="section-label" style="margin-top:16px;">Audit</div>
+    <div class="audit-item" *ngFor="let a of activeInvoiceAudit">
+      <div class="dot"></div>
+      <div><div><b>{{ a.actor }}</b> {{ a.message }}</div><div class="audit-time">{{ a.timestamp | date:'MM/dd/yyyy h:mm a' }}</div></div>
+    </div>
+    <div class="row-flex justify-end" style="margin-top:16px;">
+      <button class="btn btn-ghost" (click)="closeModal('invoice'); openOverride(inv.invoiceId,'PRO Discount',(inv.proDiscountPct ?? 0)+'%')">Override</button>
+      <button class="btn btn-violet" (click)="emailInvoice(inv)">Email Invoice</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SKIP / EXCLUDE MODAL ============ -->
+<div class="modal-bg" [class.open]="skipModalVisible">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="eyebrow">{{ skipScope==='invoice' ? 'Remove Invoice from Gross' : 'Remove Account from Payment' }}</div><h1 style="font-size:17px;">Requires a reason</h1></div>
+      <div class="modal-close" (click)="closeModal('skip')">&times;</div>
+    </div>
+    <div class="field"><label>Reason (required)</label><input [(ngModel)]="skipReason" placeholder="e.g. Member requested hold, disputed invoice…"></div>
+    <div class="row-flex justify-end">
+      <button class="btn btn-ghost" (click)="closeModal('skip')">Cancel</button>
+      <button class="btn btn-primary" (click)="confirmSkip()">Confirm Removal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD INVOICE TO RUN MODAL ============ -->
+<div class="modal-bg" [class.open]="addInvoiceModalVisible">
+  <div class="modal" style="width:720px;">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow">Add to Run</div><h1 style="font-size:17px;">Search Open Invoices</h1>
+        <div class="subtitle">Any open invoice, any post date</div>
+      </div>
+      <div class="modal-close" (click)="closeModal('addInvoice')">&times;</div>
+    </div>
+    <input placeholder="Search by invoice #, account #, or member name…" [(ngModel)]="addInvoiceSearchTerm" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;margin-bottom:12px;">
+    <table>
+      <tr><th style="width:24px;"></th><th>Invoice</th><th>Account</th><th>Rail</th><th class="num-right">Posted</th><th class="num-right">Net</th></tr>
+      <tr *ngFor="let r of addInvoiceResults">
+        <td><input type="checkbox" (change)="toggleAddInvoiceSelect(r.invoiceId)"></td>
+        <td class="mono">{{ r.invoiceId }}</td>
+        <td>{{ r.vendor }} <span class="mono faint">{{ r.accountId }}</span></td>
+        <td><span class="adminbadge" [ngClass]="r.rail==='EZPay' ? 'adminbadge-blue' : 'adminbadge-violet'">{{ r.rail }}</span></td>
+        <td class="mono num-right faint">{{ r.postedDate | date:'MM/dd/yyyy' }}</td>
+        <td class="money num-right">{{ r.net | currency }}</td>
+      </tr>
+    </table>
+    <div class="flow-note" style="margin:10px 0 0;">Older invoices follow the normal discount rules for their rail — pulling one forward doesn't retroactively grant EZPay's 1%.</div>
+    <div class="field" style="margin-top:12px;"><label>Reason for manual pull-forward (required)</label><input [(ngModel)]="addInvoiceReason" placeholder="e.g. Member requested to pay early"></div>
+    <div class="row-flex justify-end">
+      <button class="btn btn-ghost" (click)="closeModal('addInvoice')">Cancel</button>
+      <button class="btn btn-primary" (click)="confirmAddInvoice()">Add Selected to Run</button>
+    </div>
+  </div>
+</div>

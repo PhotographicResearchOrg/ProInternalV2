@@ -23,17 +23,31 @@ export class AppMenuComponent implements OnInit {
         label: 'Dashboards', icon: 'pi pi-chart-line',
         items: [
           can('/dashboard-landing') && { label: 'Home', icon: 'pi pi-fw pi-home', routerLink: ['/dashboard-landing'] },
-          (can('/dashboard-accounting') || can('/qtr-rebates') || can('/forecast') || can('/patronage') || can('/payments')) && {
+
+          ( can('/dashboard-accounting') ||
+            can('/qtr-rebates') ||
+            can('/forecast') ||
+            can('/patronage') ||
+            can('/payments') ||
+            can('/payment-administration') ||
+            can('/receivables') ||
+            can('/credits') ||
+            can('/vendor-billing')) &&
+          {
 
             label: 'Accounting', icon: 'pi pi-fw pi-money-bill',
             items:
               [
               can('/dashboard-accounting') && { label: 'Accounting Dash', icon: 'pi pi-fw pi-sign-in', routerLink: ['/dashboard-accounting'] },
               can('/qtr-rebates') && { label: 'Quarterly Rebates', icon: 'pi pi-fw pi-times-circle', routerLink: ['/qtr-rebates'] },
-              can('/forecast') && { label: 'Forecasting', icon: 'pi pi-chart-line', routerLink: ['/forecast'] },
+              can('/forecast') && { label: 'Forecasting1', icon: 'pi pi-chart-line', routerLink: ['/forecast'] },
+              can('/payment-administration') && { label: 'Payment Administration', icon: 'pi pi-credit-card', routerLink: ['/payment-administration'] },
+
               can('/patronage') && { label: 'Patronage', icon: 'pi pi-file', routerLink: ['/patronage'] },
               can('/payments') && { label: 'Payments', icon: 'pi pi-briefcase', routerLink: ['/payments'] },
-                can('/receivables') && { label: 'Receivables', icon: 'pi-list', routerLink: ['/receivables'] },
+              can('/receivables') && { label: 'Receivables', icon: 'pi-list', routerLink: ['/receivables'] },
+
+      
 
               can('/credits') && { label: 'Credits', icon: 'pi pi-dollar', routerLink: ['/credits']},
               can('/vendor-billing') && { label: 'Vendor Billing', icon: 'pi pi-briefcase', routerLink: ['/vendor-billing'] },

@@ -89,10 +89,15 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
 import { IrSetupDashboardComponent } from './prointernalengine/components/instantrebate/ir-setup-dashboard/ir-setup-dashboard.component';
+import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component'
+
+
+
 
 @NgModule({
   declarations:
     [
+    PaymentAdministrationComponent,
     IrSetupDashboardComponent,
     VendorCardComponent,
     CreditsComponent,
