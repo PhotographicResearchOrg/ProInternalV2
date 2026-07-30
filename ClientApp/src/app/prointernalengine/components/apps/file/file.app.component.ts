@@ -104,6 +104,16 @@ export class FileAppComponent implements OnInit {
     });
   }
 
+  get canGoUp(): boolean {
+    return !!this.currentRelativePath;
+  }
+
+  goUp() {
+    if (!this.currentRelativePath) return;
+    const segments = this.currentRelativePath.split(/[\\/]/).filter(s => s.length);
+    segments.pop();
+    this.navigateTo(segments.join('/'));
+  }
   refresh() { this.sizeCache.delete(this.currentRelativePath); this.loadFolder(this.currentRelativePath); }
 
   private buildBreadcrumb() {

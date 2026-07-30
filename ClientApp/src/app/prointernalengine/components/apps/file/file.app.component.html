@@ -72,71 +72,75 @@
   <!-- RIGHT: breadcrumb + folders + files -->
   <div class="col-12 md:col-7 xl:col-9">
     <div class="card flex align-items-center justify-content-between py-2">
-      <p-breadcrumb [model]="breadcrumbItems" [home]="breadcrumbHome" styleClass="border-none p-0"></p-breadcrumb>
-      <button pButton pRipple icon="pi pi-refresh" class="p-button-text p-button-rounded"
-              (click)="refresh()" pTooltip="Refresh"></button>
-    </div>
+      <div class="flex align-items-center gap-1">
+        <button pButton pRipple icon="pi pi-arrow-up" class="p-button-text p-button-rounded"
+                (click)="goUp()" [disabled]="!canGoUp" pTooltip="Up one level"></button>
+        <p-breadcrumb [model]="breadcrumbItems" [home]="breadcrumbHome" styleClass="border-none p-0"></p-breadcrumb>
+      </div>
+        <button pButton pRipple icon="pi pi-refresh" class="p-button-text p-button-rounded"
+                (click)="refresh()" pTooltip="Refresh"></button>
+      </div>
 
-    <!-- loading -->
-    <div *ngIf="loading" class="card flex justify-content-center py-6">
-      <p-progressSpinner styleClass="w-3rem h-3rem" strokeWidth="4"></p-progressSpinner>
-    </div>
+      <!-- loading -->
+      <div *ngIf="loading" class="card flex justify-content-center py-6">
+        <p-progressSpinner styleClass="w-3rem h-3rem" strokeWidth="4"></p-progressSpinner>
+      </div>
 
-    <ng-container *ngIf="!loading">
-      <!-- folders -->
-      <div class="card" *ngIf="folders.length">
-        <div class="text-900 text-xl font-semibold mb-3">Folders</div>
-        <div class="grid">
-          <div *ngFor="let folder of folders" class="col-12 md:col-6 xl:col-4">
-            <div class="p-3 border-1 surface-border border-round flex align-items-center justify-content-between cursor-pointer transition-colors transition-duration-150 hover:surface-100 hover:border-primary"
-                 (click)="openFolder(folder)">
-              <div class="flex align-items-center gap-2 overflow-hidden">
-                <i class="pi pi-folder text-2xl text-primary"></i>
-                <span class="text-900 font-medium white-space-nowrap overflow-hidden text-overflow-ellipsis">{{ folder.name }}</span>
+      <ng-container *ngIf="!loading">
+        <!-- folders -->
+        <div class="card" *ngIf="folders.length">
+          <div class="text-900 text-xl font-semibold mb-3">Folders</div>
+          <div class="grid">
+            <div *ngFor="let folder of folders" class="col-12 md:col-6 xl:col-4">
+              <div class="p-3 border-1 surface-border border-round flex align-items-center justify-content-between cursor-pointer transition-colors transition-duration-150 hover:surface-100 hover:border-primary"
+                   (click)="openFolder(folder)">
+                <div class="flex align-items-center gap-2 overflow-hidden">
+                  <i class="pi pi-folder text-2xl text-primary"></i>
+                  <span class="text-900 font-medium white-space-nowrap overflow-hidden text-overflow-ellipsis">{{ folder.name }}</span>
+                </div>
+                <i class="pi pi-chevron-right text-500"></i>
               </div>
-              <i class="pi pi-chevron-right text-500"></i>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- files -->
-      <div class="card">
-        <div class="text-900 text-xl font-semibold mb-3">Files</div>
-        <p-table [value]="files" [rows]="10" [paginator]="files.length > 10"
-                 responsiveLayout="scroll" styleClass="p-datatable-sm">
-          <ng-template pTemplate="header">
-            <tr>
-              <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
-              <th pSortableColumn="modifiedUtc" style="width:12rem">Modified <p-sortIcon field="modifiedUtc"></p-sortIcon></th>
-              <th pSortableColumn="sizeBytes" style="width:8rem">Size <p-sortIcon field="sizeBytes"></p-sortIcon></th>
-              <th style="width:7rem"></th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-file>
-            <tr>
-              <td>
-                <div class="flex align-items-center gap-2">
-                  <i class="pi pi-file text-primary"></i>
-                  <span>{{ file.name }}</span>
-                </div>
-              </td>
-              <td class="text-600">{{ file.modifiedUtc | date:'short' }}</td>
-              <td class="text-600">{{ formatBytes(file.sizeBytes) }}</td>
-              <td class="text-right">
-                <button pButton pRipple icon="pi pi-eye" class="p-button-text p-button-rounded"
-                        (click)="view(file)" pTooltip="View"></button>
-                <button pButton pRipple icon="pi pi-download" class="p-button-text p-button-rounded"
-                        (click)="download(file)" pTooltip="Download"></button>
-              </td>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="emptymessage">
-            <tr><td colspan="4" class="text-center text-600 py-4">This folder has no files.</td></tr>
-          </ng-template>
-        </p-table>
-      </div>
-    </ng-container>
-  </div>
+        <!-- files -->
+        <div class="card">
+          <div class="text-900 text-xl font-semibold mb-3">Files</div>
+          <p-table [value]="files" [rows]="10" [paginator]="files.length > 10"
+                   responsiveLayout="scroll" styleClass="p-datatable-sm">
+            <ng-template pTemplate="header">
+              <tr>
+                <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
+                <th pSortableColumn="modifiedUtc" style="width:12rem">Modified <p-sortIcon field="modifiedUtc"></p-sortIcon></th>
+                <th pSortableColumn="sizeBytes" style="width:8rem">Size <p-sortIcon field="sizeBytes"></p-sortIcon></th>
+                <th style="width:7rem"></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-file>
+              <tr>
+                <td>
+                  <div class="flex align-items-center gap-2">
+                    <i class="pi pi-file text-primary"></i>
+                    <span>{{ file.name }}</span>
+                  </div>
+                </td>
+                <td class="text-600">{{ file.modifiedUtc | date:'short' }}</td>
+                <td class="text-600">{{ formatBytes(file.sizeBytes) }}</td>
+                <td class="text-right">
+                  <button pButton pRipple icon="pi pi-eye" class="p-button-text p-button-rounded"
+                          (click)="view(file)" pTooltip="View"></button>
+                  <button pButton pRipple icon="pi pi-download" class="p-button-text p-button-rounded"
+                          (click)="download(file)" pTooltip="Download"></button>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="4" class="text-center text-600 py-4">This folder has no files.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </ng-container>
+    </div>
  </div>
 
