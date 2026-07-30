@@ -22,6 +22,10 @@ export class FileAppComponent implements OnInit {
   directBytes = 0;
   directCount = 0;
 
+  showNewFolder = false;
+  newProductCode = '';
+  creatingFolder = false;
+
   deepBytes = 0;
   deepFileCount = 0;
   deepCalculated = false;
@@ -131,6 +135,30 @@ export class FileAppComponent implements OnInit {
 
   removeFavorite(path: string) {
     this.favorites = this.favoritesService.remove(path);
+  }
+
+  toggleNewFolder() {
+    this.showNewFolder = !this.showNewFolder;
+    this.newProductCode = '';
+  }
+
+  createProductFolder() {
+    const code = this.newProductCode.trim();
+    if (!code) return;
+    this.creatingFolder = true;
+    this.fileService.createProductFolder(this.currentRelativePath, code).subscribe({
+      next: () => {
+        this.creatingFolder = false;
+        this.showNewFolder = false;
+        this.newProductCode = '';
+        this.refresh();                      
+      },
+      error: (err) => {
+        this.creatingFolder = false;
+        if (err.status === 409) alert(`Folder "${code}" already exists.`);
+        else alert('Could not create the folder.');
+      },
+    });
   }
 
   refresh() { this.sizeCache.delete(this.currentRelativePath); this.loadFolder(this.currentRelativePath); }

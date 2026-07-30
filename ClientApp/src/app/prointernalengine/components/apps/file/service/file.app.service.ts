@@ -107,4 +107,10 @@ export class FileAppService {
     return this.http.get<FolderSize>('Files/size', { params: { path } });
   }
 
+  createProductFolder(path: string, productCode: string) {
+    return this.http.post('Files/create-product-folder', null, {
+      params: { path, productCode },
+    });
+  }
+
 }
