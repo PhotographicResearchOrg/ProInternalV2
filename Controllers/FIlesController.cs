@@ -93,5 +93,19 @@ namespace ProInternal.Controllers
             return Ok(new { totalBytes = bytes, fileCount = count });
         }
 
+        // POST /Files/create-product-folder?path=SomeFolder&productCode=ABC123
+        [HttpPost("create-product-folder")]
+        public IActionResult CreateProductFolder([FromQuery] string? path, [FromQuery] string productCode)
+        {
+            if (string.IsNullOrWhiteSpace(productCode))
+                return BadRequest("Product code is required.");
+
+            var (created, _) = _files.CreateProductFolder(path ?? "", productCode);
+            if (!created)
+                return Conflict(new { message = $"Folder '{productCode}' already exists." });
+
+            return Ok(new { created = true, productCode });
+        }
+
     }
 }

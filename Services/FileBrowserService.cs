@@ -119,5 +119,34 @@ namespace ProInternal.Services
             _cache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
             return result;
         }
+
+    //structure for product-folder, will augment by adding to array if needed
+    private static readonly string[] ProductFolderTemplate = new[]
+        {
+            "Documents",
+            "Instruction Book",
+            "Product Image - Hi Res",
+            "Product Image - Lo Res",
+            "Product Video",
+        };
+
+        public (bool Created, string FullPath) CreateProductFolder(string relativeParentPath, string productCode)
+        {
+            //checks for path errors, code can only be a plain folder name
+            var safeCode = Path.GetFileName((productCode ?? "").Trim());
+            if (string.IsNullOrWhiteSpace(safeCode)) throw new ArgumentException("Product code is required.");
+            var productFull = SafePath.Resolve(_root, Path.Combine(relativeParentPath ?? "", safeCode));
+            if (Directory.Exists(productFull))
+                return (false, productFull); // if directory exists, notify 
+
+            //service logic for directory creation
+            Directory.CreateDirectory(productFull);
+            foreach (var sub in ProductFolderTemplate)
+                Directory.CreateDirectory(Path.Combine(productFull, sub));
+            _logger.LogInformation("Created product folder {Path} ({Count} subfolders)",
+                productFull, ProductFolderTemplate.Length);
+
+            return (true, productFull);
+        }
     }
 }

@@ -14,5 +14,8 @@ namespace ProInternal.Services
         string ResolveForUpload(string relativeFolder, string fileName);
 
         (long TotalBytes, long FileCount) GetFolderSize(string relativePath);
+
+        // Creates <productCode> + template subfolders under relativeParentPath. Created=false -> already existed.
+        (bool Created, string FullPath) CreateProductFolder(string relativeParentPath, string productCode);
     }
 }
