@@ -1,72 +1,73 @@
 <div class="grid">
   <!-- LEFT: storage + upload -->
   <!-- Storage -->
-  <div class="card">
-    <div class="flex align-items-center justify-content-between mb-1">
-      <span class="text-900 text-xl font-semibold">Storage</span>
-      <i class="pi pi-database text-primary"></i>
-    </div>
-    <div class="text-600 text-sm mb-4 white-space-nowrap overflow-hidden text-overflow-ellipsis">
-      {{ currentRelativePath || 'PM5 (root)' }}
+  <div class="col-12 md:col-5 xl:col-3">
+    <div class="card">
+      <div class="flex align-items-center justify-content-between mb-1">
+        <span class="text-900 text-xl font-semibold">Storage</span>
+        <i class="pi pi-database text-primary"></i>
+      </div>
+      <div class="text-600 text-sm mb-4 white-space-nowrap overflow-hidden text-overflow-ellipsis">
+        {{ currentRelativePath || 'PM5 (root)' }}
+      </div>
+
+      <!-- instant: current folder's direct files -->
+      <div class="mb-3">
+        <div class="text-900 text-3xl font-bold">{{ formatBytes(directBytes) }}</div>
+        <div class="text-500 text-sm">{{ directCount }} file{{ directCount === 1 ? '' : 's' }} in this folder</div>
+      </div>
+
+      <div *ngIf="deepCalculated" class="surface-100 border-round p-3 flex align-items-center gap-2">
+        <i class="pi pi-sitemap text-primary"></i>
+        <div>
+          <div class="text-900 font-semibold">{{ formatBytes(deepBytes) }}</div>
+          <div class="text-500 text-xs">{{ deepFileCount }} files incl. subfolders</div>
+        </div>
+      </div>
+
+      <!-- calculate button, shown until a result exists -->
+      <ng-container *ngIf="!deepCalculated">
+        <button pButton pRipple
+                [label]="storageLoading ? 'Calculating…' : 'Calculate total size'"
+                [icon]="storageLoading ? 'pi pi-spin pi-spinner' : 'pi pi-calculator'"
+                [disabled]="storageLoading"
+                class="p-button-sm p-button-outlined w-full"
+                (click)="calculateDeepSize()"></button>
+        <small class="block text-500 text-xs mt-2">
+          Includes all subfolders — may take a moment for large folders.
+        </small>
+      </ng-container>
     </div>
 
-    <!-- instant: current folder's direct files -->
-    <div class="mb-3">
-      <div class="text-900 text-3xl font-bold">{{ formatBytes(directBytes) }}</div>
-      <div class="text-500 text-sm">{{ directCount }} file{{ directCount === 1 ? '' : 's' }} in this folder</div>
-    </div>
+    <!-- Upload -->
+    <div class="card">
+      <div class="text-900 text-lg font-semibold mb-3">Upload</div>
 
-    <div *ngIf="deepCalculated" class="surface-100 border-round p-3 flex align-items-center gap-2">
-      <i class="pi pi-sitemap text-primary"></i>
-      <div>
-        <div class="text-900 font-semibold">{{ formatBytes(deepBytes) }}</div>
-        <div class="text-500 text-xs">{{ deepFileCount }} files incl. subfolders</div>
+      <div class="file-dropzone"
+           [class.dragging]="isDragging"
+           (dragover)="onDragOver($event)"
+           (dragleave)="onDragLeave($event)"
+           (drop)="onDrop($event)"
+           (click)="onBrowse()">
+        <i class="pi pi-cloud-upload text-5xl mb-3"
+           [ngClass]="isDragging ? 'text-primary' : 'text-400'"></i>
+        <div class="text-700 font-medium">Drag &amp; drop files here</div>
+        <div class="text-500 text-sm mt-1">
+          or <span class="text-primary font-medium">browse from your computer</span>
+        </div>
+        <input #fileInput type="file" multiple hidden (change)="onFileInputChange($event)" />
+      </div>
+
+      <div *ngIf="uploading" class="mt-3">
+        <div class="flex justify-content-between text-500 text-xs mb-1">
+          <span>Uploading…</span><span>{{ uploadProgress }}%</span>
+        </div>
+        <div class="upload-progress-track">
+          <div class="upload-progress-bar" [style.width.%]="uploadProgress"></div>
+        </div>
       </div>
     </div>
-
-    <!-- calculate button, shown until a result exists -->
-    <ng-container *ngIf="!deepCalculated">
-      <button pButton pRipple
-              [label]="storageLoading ? 'Calculating…' : 'Calculate total size'"
-              [icon]="storageLoading ? 'pi pi-spin pi-spinner' : 'pi pi-calculator'"
-              [disabled]="storageLoading"
-              class="p-button-sm p-button-outlined w-full"
-              (click)="calculateDeepSize()"></button>
-      <small class="block text-500 text-xs mt-2">
-        Includes all subfolders — may take a moment for large folders.
-      </small>
-    </ng-container>
   </div>
-
-  <!-- Upload -->
-  <div class="card">
-    <div class="text-900 text-lg font-semibold mb-3">Upload</div>
-
-    <div class="file-dropzone"
-         [class.dragging]="isDragging"
-         (dragover)="onDragOver($event)"
-         (dragleave)="onDragLeave($event)"
-         (drop)="onDrop($event)"
-         (click)="onBrowse()">
-      <i class="pi pi-cloud-upload text-5xl mb-3"
-         [ngClass]="isDragging ? 'text-primary' : 'text-400'"></i>
-      <div class="text-700 font-medium">Drag &amp; drop files here</div>
-      <div class="text-500 text-sm mt-1">
-        or <span class="text-primary font-medium">browse from your computer</span>
-      </div>
-      <input #fileInput type="file" multiple hidden (change)="onFileInputChange($event)" />
-    </div>
-
-    <div *ngIf="uploading" class="mt-3">
-      <div class="flex justify-content-between text-500 text-xs mb-1">
-        <span>Uploading…</span><span>{{ uploadProgress }}%</span>
-      </div>
-      <div class="upload-progress-track">
-        <div class="upload-progress-bar" [style.width.%]="uploadProgress"></div>
-      </div>
-    </div>
-  </div>
-</div>
 
   <!-- RIGHT: breadcrumb + folders + files -->
   <div class="col-12 md:col-7 xl:col-9">
@@ -137,4 +138,5 @@
       </div>
     </ng-container>
   </div>
+ </div>
 
