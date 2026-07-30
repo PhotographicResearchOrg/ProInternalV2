@@ -2,6 +2,19 @@
   <!-- LEFT: storage + upload -->
   <!-- Storage -->
   <div class="col-12 md:col-5 xl:col-3">
+    <div class="card" *ngIf="favorites.length">
+      <div class="text-900 text-lg font-semibold mb-3">Favorites</div>
+      <div *ngFor="let f of favorites"
+           class="flex align-items-center justify-content-between p-2 border-round cursor-pointer hover:surface-100"
+           (click)="navigateTo(f.path)">
+        <span class="flex align-items-center gap-2 overflow-hidden">
+          <i class="pi pi-star-fill text-yellow-500"></i>
+          <span class="white-space-nowrap overflow-hidden text-overflow-ellipsis">{{ f.label }}</span>
+        </span>
+        <button pButton pRipple icon="pi pi-times" class="p-button-text p-button-rounded p-button-sm"
+                (click)="removeFavorite(f.path); $event.stopPropagation()"></button>
+      </div>
+    </div>
     <div class="card">
       <div class="flex align-items-center justify-content-between mb-1">
         <span class="text-900 text-xl font-semibold">Storage</span>
@@ -77,9 +90,12 @@
                 (click)="goUp()" [disabled]="!canGoUp" pTooltip="Up one level"></button>
         <p-breadcrumb [model]="breadcrumbItems" [home]="breadcrumbHome" styleClass="border-none p-0"></p-breadcrumb>
       </div>
-        <button pButton pRipple icon="pi pi-refresh" class="p-button-text p-button-rounded"
-                (click)="refresh()" pTooltip="Refresh"></button>
-      </div>
+      <button pButton pRipple [icon]="isCurrentFavorite ? 'pi pi-star-fill' : 'pi pi-star'"
+              class="p-button-text p-button-rounded" (click)="toggleFavorite()"
+              [pTooltip]="isCurrentFavorite ? 'Remove from favorites' : 'Add to favorites'"></button>
+      <button pButton pRipple icon="pi pi-refresh" class="p-button-text p-button-rounded"
+              (click)="refresh()" pTooltip="Refresh"></button>
+    </div>
 
       <!-- loading -->
       <div *ngIf="loading" class="card flex justify-content-center py-6">

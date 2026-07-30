@@ -4,6 +4,7 @@ import { FileAppService, FileSystemEntry, FolderSize } from './service/file.app.
 import { MenuItem } from 'primeng/api';
 import { Subscription, } from 'rxjs';
 import { HttpEventType } from '@angular/common/http';
+import { FavoritesService, FavoriteFolder } from 'src/app/services/favorites.service'
 
 @Component({
   templateUrl: './file.app.component.html',
@@ -28,6 +29,7 @@ export class FileAppComponent implements OnInit {
   isDragging = false;
   uploading = false;
   uploadProgress = 0;
+  favorites: FavoriteFolder[] = [];
 
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
@@ -37,9 +39,11 @@ export class FileAppComponent implements OnInit {
     private fileService: FileAppService,
     private route: ActivatedRoute,
     private router: Router,
+    private favoritesService: FavoritesService,
   ) { }
 
   ngOnInit() {
+    this.favorites = this.favoritesService.list();
     this.routeSub = this.route.queryParams.subscribe(p => this.loadFolder(p['path'] || ''));
   }
 
@@ -114,6 +118,21 @@ export class FileAppComponent implements OnInit {
     segments.pop();
     this.navigateTo(segments.join('/'));
   }
+  get isCurrentFavorite(): boolean {
+    return this.favoritesService.isFavorite(this.currentRelativePath);
+  }
+
+  toggleFavorite() {
+    const label = this.currentRelativePath
+      ? this.currentRelativePath.split(/[\\/]/).pop()!   // last folder name
+      : 'Root';
+    this.favorites = this.favoritesService.toggle(this.currentRelativePath, label);
+  }
+
+  removeFavorite(path: string) {
+    this.favorites = this.favoritesService.remove(path);
+  }
+
   refresh() { this.sizeCache.delete(this.currentRelativePath); this.loadFolder(this.currentRelativePath); }
 
   private buildBreadcrumb() {
