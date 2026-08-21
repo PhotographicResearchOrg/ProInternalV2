@@ -115,9 +115,9 @@ export class VendorBillingComponent {
         const name = v.name ?? '';
 
         return {
-          label: `${id} – ${name}`,          // 👀 display
-          value: v.vendorId,                 // ✅ stored
-          searchText: `${id} ${name}`.toLowerCase(), // 🔍 searchable
+          label: `${id} – ${name}`,          //  display
+          value: v.vendorId,                 //  stored
+          searchText: `${id} ${name}`.toLowerCase(), //  searchable
           raw: v
         };
       });
@@ -187,7 +187,7 @@ export class VendorBillingComponent {
         value: m.id
       }));
 
-      // ✅ Auto-select ONLY when unambiguous
+      //  Auto-select ONLY when unambiguous
       if (this.memberResults.length === 1) {
         this.selectedMember = this.memberResults[0];
         this.form.proID = this.memberResults[0].value;
@@ -197,7 +197,11 @@ export class VendorBillingComponent {
 
 
   onInvoiceDrop(file: File) {
+
+    console.log("onInvoiceDrop");
+
     this.accounting.extractInvoicePreview(file)
+
       .subscribe(preview => {
 
         // Store preview
@@ -224,11 +228,11 @@ export class VendorBillingComponent {
                 raw: v
               };
 
-              // 🔑 PrimeNG contract (non-negotiable)
+              //  PrimeNG contract (non-negotiable)
               this.vendorResults = [vendorOption];
               this.selectedVendor = vendorOption;
 
-              // 🔑 Form value
+              //  Form value
               this.form.vendorID = String(v.vendorId);
             });
         }
@@ -330,7 +334,7 @@ export class VendorBillingComponent {
     if (!this.form.vendorID) return this.warn('Vendor required');
     if (!this.form.proID) return this.warn('Member required');
 
-    // 🔥 THIS IS THE FIX
+    //  THIS IS THE FIX
     if (this.form.amount === null || Number.isNaN(this.form.amount)) {
       return this.warn('Amount required');
     }
@@ -378,10 +382,10 @@ export class VendorBillingComponent {
       return;
     }
 
-    // 🔥 STEP 1: extract from FIRST PDF
+    //  STEP 1: extract from FIRST PDF
     this.onInvoiceDrop(pdfs[0]);
 
-    // 🔥 STEP 2: upload & attach ALL PDFs
+    //  STEP 2: upload & attach ALL PDFs
     this.uploadFiles(pdfs as any);
   }
 
@@ -469,7 +473,7 @@ export class VendorBillingComponent {
         Description: row.description,
         FileIds: row.files.map(f => f.fileId),
 
-        // 🔥 ADD THIS
+        // ADD THIS
         ExtractionPreview: row.extractionPreview
       }))
     };

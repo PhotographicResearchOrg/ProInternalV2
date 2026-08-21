@@ -80,6 +80,7 @@ import { BrowserModule } from '@angular/platform-browser';             // <-- ad
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; // <-- add
 import { ChipsModule } from 'primeng/chips';
 import { CalendarModule } from 'primeng/calendar'; // If PrimeNG 17+, use DatePickerModule instead
+import { BreadcrumbModule } from 'primeng/breadcrumb';
 /* Components */
 
 import { VendorCardComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-card/vendor-card.component';
@@ -90,13 +91,14 @@ import { ShipmentMonitorComponent } from './prointernalengine/components/dashboa
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
 import { IrSetupDashboardComponent } from './prointernalengine/components/instantrebate/ir-setup-dashboard/ir-setup-dashboard.component';
 import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component'
-
+import { FileAppComponent } from './prointernalengine/components/apps/file/file.app.component';
 
 
 
 @NgModule({
   declarations:
     [
+    FileAppComponent,
     PaymentAdministrationComponent,
     IrSetupDashboardComponent,
     VendorCardComponent,
@@ -136,6 +138,7 @@ import { PaymentAdministrationComponent } from './prointernalengine/components/d
   ],
 
   imports: [
+    BreadcrumbModule,
     UploaderModule,
     InputNumberModule,
     BrowserModule,                 // <-- required

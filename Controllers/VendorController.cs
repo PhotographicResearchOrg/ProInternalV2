@@ -371,7 +371,7 @@ ExportSellThroughEmail(
                     </p>
 
                     <p>
-                        Our records indicate that we have not received your sell through
+                        Our records indicate that we have not received your SONY sell through
                         submission for the reporting period below.
                     </p>
 
@@ -398,7 +398,7 @@ ExportSellThroughEmail(
                     </table>
 
                     <p style='margin-top:20px;'>
-                        Please submit the required sell through file
+                        Please submit the required SONY sell through file
                         at your earliest convenience.
                     </p>
 
@@ -414,7 +414,7 @@ ExportSellThroughEmail(
                     "noreply@promaster.com",
                     "PRO Sell Through"
                 ),
-                Subject = $"Sell Through File Request - {request.WeekEnding}",
+                Subject = $"SONY Sell Through File Request - {request.WeekEnding}",
                 Body = body,
                 IsBodyHtml = true
             };

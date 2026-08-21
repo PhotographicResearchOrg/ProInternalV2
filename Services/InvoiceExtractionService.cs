@@ -6,6 +6,10 @@ using Spire.Pdf.Texts;
 using System.Data;
 using System.Text;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json;
+using Amazon;
+using Amazon.BedrockRuntime;
+using Amazon.BedrockRuntime.Model;
 
 namespace ProInternal.Services
 {
@@ -90,14 +94,98 @@ namespace ProInternal.Services
         }
 
 
+        private async Task<InvoiceExtractionPreviewDto> TestBedrock(IFormFile file)
+        {
+         
+
+            var modelId = "global.anthropic.claude-sonnet-4-6";
+
+            const string prompt = """
+You are an accounting invoice extraction engine.
+
+Analyze the attached PDF invoice.
+
+Return ONLY valid JSON.
+
+Do not wrap the response in markdown.
+
+If a field cannot be determined, return null.
+
+Schema:
+
+{
+  "vendorName": "",
+  "memberName": "",
+  "shippingCompany": "",
+  "invoiceNumber": "",
+  "poNumber": "",
+  "invoiceDate": null,
+  "dueDate": null,
+  "date": null,
+  "totalAmount": null,
+  "rawText": ""
+}
+""";
+
+            using var memory = new MemoryStream();
+            await file.CopyToAsync(memory);
+
+            var client = new AmazonBedrockRuntimeClient(RegionEndpoint.USEast1);
+
+            var request = new ConverseRequest
+            {
+                ModelId = modelId,
+                Messages =
+                [
+                    new Message
+            {
+                Role = ConversationRole.User,
+                Content =
+                [
+                    new ContentBlock
+                    {
+                        Text = prompt
+                    },
+                    new ContentBlock
+                    {
+                        Document = new DocumentBlock
+                        {
+                            Name = "Invoice",
+                            Format = DocumentFormat.Pdf,
+                            Source = new DocumentSource
+                            {
+                                Bytes = new MemoryStream(memory.ToArray())
+                            }
+                        }
+                    }
+                ]
+            }
+                ]
+            };
+
+            var response = await client.ConverseAsync(request);
+
+            var json = response.Output.Message.Content
+                .First(c => c.Text != null)
+                .Text;
+
+            _logger.LogInformation(json);
+
+    
+            return JsonConvert.DeserializeObject<InvoiceExtractionPreviewDto>(json)!;
+        }
 
 
         public async Task<InvoiceExtractionPreviewDto> ExtractPreviewAsync(IFormFile file)
         {
-            // 🔥 AI extraction via Python (uvicorn)
-            var dto = await _Uvicorn.ExtractInvoicePreviewAsync(file);
+            //  AI extraction via Python (uvicorn)
+            //var dto = await _Uvicorn.ExtractInvoicePreviewAsync(file);
+            var dto = await TestBedrock(file);
 
-            // 🔍 Resolve vendor / member using existing tuple resolvers
+
+
+
+            //  Resolve vendor / member using existing tuple resolvers
             var vendorName = !string.IsNullOrWhiteSpace(dto.VendorName)? NormalizeVendorName(dto.VendorName): dto.RawText;
 
             var vendor = ResolveVendor(vendorName);
@@ -117,7 +205,7 @@ namespace ProInternal.Services
 
             var member = ResolveMember(memberSource);
 
-            // ✅ SAFE numeric assignment (tuple → int?)
+            // SAFE numeric assignment (tuple → int?)
             dto.SuggestedVendorId =int.TryParse(vendor.VendorId, out var vid) ? vid : null;
             dto.VendorConfidence = vendor.VendorConfidence;
 
@@ -137,7 +225,7 @@ namespace ProInternal.Services
             }
 
 
-            // 📊 Final confidence calculation
+            // Final confidence calculation
             dto.CalculateConfidence();
             return dto;
         }
@@ -247,7 +335,7 @@ namespace ProInternal.Services
 
             foreach (var rule in rules)
             {
-                // 🔥 MEMBER LEARNING (vendor + pattern scoped)
+                //MEMBER LEARNING (vendor + pattern scoped)
                 if (rule.FieldName == "Member" && rule.Strategy == "Regex")
                 {
                     var normalizedRaw = NormalizeVendorName(rawText);
@@ -264,7 +352,7 @@ namespace ProInternal.Services
                 }
 
 
-                // 🔁 ALL OTHER FIELDS
+                //ALL OTHER FIELDS
                 string? value = rule.Strategy switch
                 {
                     "Regex" => MatchRegex(rawText, rule.Pattern),
@@ -409,7 +497,7 @@ namespace ProInternal.Services
                 extracted.SuggestedMemberId.Value.ToString() == final.ProID;
 
             if (aiAlreadyCorrect)
-                return; // ✅ exit ONLY member learning
+                return; //exit ONLY member learning
 
             if (!string.IsNullOrWhiteSpace(extracted.MemberName) &&
                 !string.IsNullOrWhiteSpace(final.ProID))
@@ -452,7 +540,7 @@ namespace ProInternal.Services
                 FieldName = field,
                 Strategy = "Regex",
                 Pattern = escaped,
-                ResolvedValue = corrected   // 🔥 THIS WAS MISSING
+                ResolvedValue = corrected   //  THIS WAS MISSING
             });
         }
 

@@ -38,7 +38,6 @@ import { VendorCardComponent } from './prointernalengine/components/MemberManage
 import { IrSetupDashboardComponent } from './prointernalengine/components/instantrebate/ir-setup-dashboard/ir-setup-dashboard.component';
 import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component';
 
-
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
   useHash: true
@@ -57,14 +56,23 @@ const routes: Routes = [
       { path: 'qtr-rebates', component: QtrRebatesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Quarterly Rebates' } },
       { path: 'powerbi', component: PowerbiComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Reporting' } },
       { path: 'rebatesupport', component: RebatesupportComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Quarterly Rebates' } },
-      { path: 'apps/files', canActivate: [AuthGuard], data: { breadcrumb: 'Files' }, loadChildren: () => import('./prointernalengine/components/apps/file/file.app.module').then(m => m.FileAppModule) },      { path: 'BRMsetup', component: HubspotCompanyComponent, canActivate: [AuthGuard] },
+
+      //{ path: 'apps/files', canActivate: [AuthGuard], data: { breadcrumb: 'Files' }, loadChildren: () => import('./prointernalengine/components/apps/file/file.app.module').then(m => m.FileAppModule) },
+
+      {
+        path: 'apps/files',
+        component: FileAppComponent,
+        canActivate: [AuthGuard],
+        data: { breadcrumb: 'Files' }
+      },
+
+      { path: 'BRMsetup', component: HubspotCompanyComponent, canActivate: [AuthGuard] },
       { path: 'BRMdash', component: DashboardBrmComponent, canActivate: [AuthGuard] },
       { path: 'security-admin', component: SecurityAdminComponent, canActivate: [AuthGuard] },
       { path: 'instantrebate', component: RebatesupportComponent, canActivate: [AuthGuard] },
       { path: 'rebatesetup', component: RebateSetupComponent, canActivate: [AuthGuard] },
       { path: 'uploadrebates', component: RebateExcelUploaderComponent, canActivate: [AuthGuard] },
       { path: 'rebatemanagement', component: IrSetupDashboardComponent, canActivate: [AuthGuard] },
-
       { path: 'gating', component: GatingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Gating' } },
       { path: 'stock', component: VendorStockComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor Stock' } },
       { path: 'forecast', component: ForecastComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Forcasting' } },

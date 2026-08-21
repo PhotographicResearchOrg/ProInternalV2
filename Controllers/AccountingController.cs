@@ -137,7 +137,7 @@ namespace ProInternal.Controllers
 
             foreach (var file in files)
             {
-                // 🔒 PDF-ONLY GUARD (must be first)
+                //  PDF-ONLY GUARD (must be first)
                 if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) &&
                     !file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
                 {
@@ -269,7 +269,7 @@ namespace ProInternal.Controllers
                 }
                 catch (Exception ex)
                 {
-                    // ⚠️ Credit posted, invoice failed
+                    //  Credit posted, invoice failed
                     _proDataAccess.MarkCreditInvoiceFailed(
                         creditId,
                         apiResult.InvoiceNumber,
@@ -344,7 +344,7 @@ namespace ProInternal.Controllers
             };
             
             var result = await SaveCredits(creditBatch);
-            // 🧠 OPTIONAL: reinforce learning ONLY AFTER SUCCESS
+            // OPTIONAL: reinforce learning ONLY AFTER SUCCESS
             foreach (var row in request.OrderDetails.Where(r => r.ExtractionPreview != null))
             {
                 _invoiceExtractionService.DetectAndSaveVendorLearning(
@@ -536,7 +536,7 @@ ParseApiResponse(HttpResponseMessage response)
 
                 Directory.CreateDirectory(batchRoot);
 
-                // 🔍 PROOF FILE (do not remove yet)
+                // PROOF FILE (do not remove yet)
                 System.IO.File.WriteAllText(
                     Path.Combine(batchRoot, "step1_reached.txt"),
                     DateTime.Now.ToString("O")
@@ -561,7 +561,7 @@ ParseApiResponse(HttpResponseMessage response)
                     );
 
                 // -----------------------------
-                // PDF GENERATION (🔥 MOST LIKELY FAILURE)
+                // PDF GENERATION ( MOST LIKELY FAILURE)
                 // -----------------------------
                 await GenerateCoverPdfFromHtml(html, localCoverPath);
 
@@ -895,7 +895,7 @@ ParseApiResponse(HttpResponseMessage response)
             var msg = new MailMessage
             {
                 From = new MailAddress(
-    "billing@yourdomain.com",   // 🔥 TEMP HARD CODE
+    "billing@yourdomain.com",   // EMP HARD CODE
     "Accounting"
 ),
                 Subject = $"Invoice {req.InvoiceNumber}",
