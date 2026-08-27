@@ -200,12 +200,16 @@ export class DashboardLandingComponent implements OnInit {
   }
 
   saveDsConfig() {
-    this.dataService.setDropShipThreshold(this.dsThreshold).subscribe(() => {
+
+
+    this.dataService.setDropShipThreshold(this.dsThreshold, 'Dashboard Landing').subscribe(() => {
       this.toast.add({
         severity: 'success',
         summary: 'Saved',
         detail: 'Drop Ship threshold updated'
       });
+
+
 
       this.showDsConfig = false;
       this.loadMetrics();

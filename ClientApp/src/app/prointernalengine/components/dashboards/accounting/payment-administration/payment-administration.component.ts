@@ -7,6 +7,10 @@ import { FormsModule } from '@angular/forms';
 // ============================================================================
 
 export type PaymentRail = 'EZPay' | 'PromptPay' | 'Prepaid';
+export type ExternalPaymentType = 'Check' | 'Wire' | 'External ACH';
+export interface PaymentMethodOption { value: string; label: string; }
+export interface PaymentMethodSetting { id: string; label: string; enabled: boolean; adminWorkbench: boolean; memberPortal: boolean; }
+export interface WalletSetting { id: string; label: string; enabled: boolean; supported: boolean; }
 export type ScreenId =
   | 'dashboard' | 'members' | 'memberDetail'
   | 'ezpay' | 'promptpay'
@@ -16,7 +20,7 @@ export type ScreenId =
   | 'audit';
 
 export interface StatCard { label: string; value: string; sub: string; alert?: boolean; target: ScreenId; }
-export interface MemberGross { accountId: string; name: string; gross: number; proDiscount: number; ezpayDiscount: number; netNet: number; rail: PaymentRail; }
+export interface MemberGross { accountId: string; name: string; gross: number; proDiscount: number; ezpayDiscount: number; netNet: number; rail: PaymentRail; defaultPaymentMethod: string; }
 export interface InvoiceRow {
   invoiceId: string; accountId: string; vendor: string; postedDate: Date; gross: number;
   proDiscountPct: number | null; proDiscountAmt: number; ezpayDiscountPct: number | null; ezpayDiscountAmt: number;
@@ -101,9 +105,9 @@ export class PaymentAdministrationComponent {
   // ==========================================================================
 
   memberGrossList: MemberGross[] = [
-    { accountId: '3620', name: 'Michaels Camera Video', gross: 14220, proDiscount: 310, ezpayDiscount: 139.10, netNet: 13770.90, rail: 'EZPay' },
-    { accountId: '3767', name: 'Dons Photo', gross: 9840, proDiscount: 0, ezpayDiscount: 98.40, netNet: 9741.60, rail: 'EZPay' },
-    { accountId: '3739', name: 'Gosselin Photo Video', gross: 6105.50, proDiscount: 185, ezpayDiscount: 0, netNet: 5920.50, rail: 'PromptPay' },
+    { accountId: '3620', name: 'Michaels Camera Video', gross: 14220, proDiscount: 310, ezpayDiscount: 139.10, netNet: 13770.90, rail: 'EZPay', defaultPaymentMethod: 'ACH •••• 4821' },
+    { accountId: '3767', name: 'Dons Photo', gross: 9840, proDiscount: 0, ezpayDiscount: 98.40, netNet: 9741.60, rail: 'EZPay', defaultPaymentMethod: 'Bank Draft •••• 7712' },
+    { accountId: '3739', name: 'Gosselin Photo Video', gross: 6105.50, proDiscount: 185, ezpayDiscount: 0, netNet: 5920.50, rail: 'PromptPay', defaultPaymentMethod: 'Visa •••• 9144' },
   ];
   memberSearchTerm = '';
   get filteredMemberGross(): MemberGross[] {
@@ -308,6 +312,194 @@ export class PaymentAdministrationComponent {
   promptPayInvoiceCount(run: BillRun): number { return run.promptPayAccounts.reduce((s, a) => s + a.invoiceCount, 0); }
   ezpayInvoiceCount(run: BillRun): number { return run.ezpayAccounts.reduce((s, a) => s + a.invoiceCount, 0); }
 
+  // ---- invoice selection + payment assignment ----
+  selectedRunInvoiceIds = new Set<string>();
+  paymentMethodByInvoice: Record<string, string> = {};
+  bulkPaymentMethodByRail: Record<'PromptPay' | 'EZPay', string> = { PromptPay: '', EZPay: '' };
+
+  readonly paymentMethodsByAccount: Record<string, PaymentMethodOption[]> = {
+    '3739': [
+      { value: 'ach-4821', label: 'ACH •••• 4821' },
+      { value: 'bank-draft-3739', label: 'Bank Draft — Account on File' },
+      { value: 'visa-9144', label: 'Visa •••• 9144' },
+    ],
+    '3774': [
+      { value: 'ach-1180', label: 'ACH •••• 1180' },
+      { value: 'bank-draft-3774', label: 'Bank Draft — Account on File' },
+      { value: 'mc-2209', label: 'Mastercard •••• 2209' },
+    ],
+    '3620': [
+      { value: 'ach-4821', label: 'ACH •••• 4821' },
+      { value: 'bank-draft-3620', label: 'Bank Draft — Account on File' },
+      { value: 'visa-9144', label: 'Visa •••• 9144' },
+    ],
+    '3767': [
+      { value: 'ach-7712', label: 'ACH •••• 7712' },
+      { value: 'bank-draft-3767', label: 'Bank Draft — Account on File' },
+      { value: 'amex-3005', label: 'Amex •••• 3005' },
+    ],
+  };
+
+  readonly defaultPaymentMethodByAccount: Record<string, string> = {
+    '3620': 'ach-4821',
+    '3767': 'bank-draft-3767',
+    '3739': 'visa-9144',
+    '3774': 'ach-1180',
+  };
+
+  paymentMethodsFor(accountId: string): PaymentMethodOption[] {
+    return [
+      ...(this.paymentMethodsByAccount[accountId] ?? []).filter(method =>
+        method.value.startsWith('ach-') ? this.isPaymentMethodEnabled('authorizeNetAch') :
+          method.value.startsWith('bank-draft-') ? this.isPaymentMethodEnabled('bankDraft') :
+            this.isPaymentMethodEnabled('card')
+      ),
+      ...(this.hasExternalPaymentMethodEnabled ? [{ value: 'external', label: 'Record external payment…' }] : []),
+      { value: 'hold', label: 'Hold — do not pay' },
+    ];
+  }
+
+  paymentMethodFor(inv: InvoiceRow): string {
+    const available = this.paymentMethodsFor(inv.accountId);
+    const configuredDefault = this.defaultPaymentMethodByAccount[inv.accountId];
+    const defaultIsAvailable = available.some(method => method.value === configuredDefault);
+    return this.paymentMethodByInvoice[inv.invoiceId] ?? (defaultIsAvailable ? configuredDefault : available[0]?.value) ?? 'hold';
+  }
+
+  paymentMethodLabel(inv: InvoiceRow): string {
+    const value = this.paymentMethodFor(inv);
+    if (value.startsWith('external:')) { return value.substring('external:'.length); }
+    return this.paymentMethodsFor(inv.accountId).find(m => m.value === value)?.label ?? value;
+  }
+
+  setInvoicePaymentMethod(inv: InvoiceRow, value: string): void {
+    if (value === 'external') {
+      this.selectedRunInvoiceIds.add(inv.invoiceId);
+      this.openExternalPayment(inv.rail, [inv.invoiceId]);
+      return;
+    }
+    this.paymentMethodByInvoice[inv.invoiceId] = value;
+  }
+
+  toggleRunInvoiceSelect(invoiceId: string, checked: boolean): void {
+    checked ? this.selectedRunInvoiceIds.add(invoiceId) : this.selectedRunInvoiceIds.delete(invoiceId);
+  }
+
+  toggleRunGroupSelect(group: BillRunAccountGroup, checked: boolean): void {
+    group.invoices.forEach(inv => this.toggleRunInvoiceSelect(inv.invoiceId, checked));
+  }
+
+  toggleRunRailSelect(rail: 'PromptPay' | 'EZPay', checked: boolean): void {
+    this.runInvoicesForRail(rail).forEach(inv => this.toggleRunInvoiceSelect(inv.invoiceId, checked));
+  }
+
+  isRunGroupSelected(group: BillRunAccountGroup): boolean {
+    return group.invoices.length > 0 && group.invoices.every(inv => this.selectedRunInvoiceIds.has(inv.invoiceId));
+  }
+
+  isRunGroupPartiallySelected(group: BillRunAccountGroup): boolean {
+    const count = group.invoices.filter(inv => this.selectedRunInvoiceIds.has(inv.invoiceId)).length;
+    return count > 0 && count < group.invoices.length;
+  }
+
+  isRunRailSelected(rail: 'PromptPay' | 'EZPay'): boolean {
+    const invoices = this.runInvoicesForRail(rail);
+    return invoices.length > 0 && invoices.every(inv => this.selectedRunInvoiceIds.has(inv.invoiceId));
+  }
+
+  isRunRailPartiallySelected(rail: 'PromptPay' | 'EZPay'): boolean {
+    const invoices = this.runInvoicesForRail(rail);
+    const count = invoices.filter(inv => this.selectedRunInvoiceIds.has(inv.invoiceId)).length;
+    return count > 0 && count < invoices.length;
+  }
+
+  selectedInvoiceCount(rail: 'PromptPay' | 'EZPay'): number {
+    return this.runInvoicesForRail(rail).filter(inv => this.selectedRunInvoiceIds.has(inv.invoiceId)).length;
+  }
+
+  selectedInvoiceTotal(rail: 'PromptPay' | 'EZPay'): number {
+    return this.runInvoicesForRail(rail)
+      .filter(inv => this.selectedRunInvoiceIds.has(inv.invoiceId))
+      .reduce((sum, inv) => sum + inv.net, 0);
+  }
+
+  assignBulkPaymentMethod(rail: 'PromptPay' | 'EZPay'): void {
+    const value = this.bulkPaymentMethodByRail[rail];
+    const selected = this.runInvoicesForRail(rail).filter(inv => this.selectedRunInvoiceIds.has(inv.invoiceId));
+    if (!selected.length) { this.showToast(`Select at least one ${rail} invoice.`); return; }
+    if (!value) { this.showToast('Choose a payment method first.'); return; }
+    if (value === 'external') { this.openExternalPayment(rail, selected.map(inv => inv.invoiceId)); return; }
+    selected.forEach(inv => {
+      const available = this.paymentMethodsByAccount[inv.accountId] ?? [];
+      const resolved = value === 'default-ach'
+        ? available.find(m => m.value.startsWith('ach-'))?.value
+        : value === 'bank-draft'
+          ? available.find(m => m.value.startsWith('bank-draft-'))?.value
+          : value === 'default-card'
+            ? available.find(m => !m.value.startsWith('ach-') && !m.value.startsWith('bank-draft-'))?.value
+            : value;
+      this.paymentMethodByInvoice[inv.invoiceId] = resolved ?? 'hold';
+    });
+    const method = value === 'default-ach' ? 'each account’s default ACH'
+      : value === 'bank-draft' ? 'Bank Draft — Account on File'
+        : value === 'default-card' ? 'each account’s default card'
+          : 'Hold — do not pay';
+    this.runBulkAction(rail, `Assigned ${method} to ${selected.length} invoice(s)`);
+  }
+
+  private runInvoicesForRail(rail: 'PromptPay' | 'EZPay'): InvoiceRow[] {
+    if (!this.activeRun) { return []; }
+    const groups = rail === 'PromptPay' ? this.activeRun.promptPayAccounts : this.activeRun.ezpayAccounts;
+    return groups.flatMap(group => group.invoices);
+  }
+
+  externalPaymentModalVisible = false;
+  externalPaymentType: ExternalPaymentType = 'Check';
+  externalPaymentDate = new Date().toISOString().substring(0, 10);
+  externalPaymentReference = '';
+  externalPaymentNote = '';
+  externalPaymentRail: 'PromptPay' | 'EZPay' = 'EZPay';
+  externalPaymentInvoiceIds: string[] = [];
+
+  openExternalPayment(rail: PaymentRail, invoiceIds?: string[]): void {
+    if (rail === 'Prepaid') { return; }
+    const ids = invoiceIds ?? this.runInvoicesForRail(rail).filter(inv => this.selectedRunInvoiceIds.has(inv.invoiceId)).map(inv => inv.invoiceId);
+    if (!ids.length) { this.showToast('Select at least one invoice first.'); return; }
+    this.externalPaymentRail = rail;
+    this.externalPaymentInvoiceIds = ids;
+    this.externalPaymentType = this.enabledExternalPaymentTypes[0] ?? 'Check';
+    this.externalPaymentDate = new Date().toISOString().substring(0, 10);
+    this.externalPaymentReference = '';
+    this.externalPaymentNote = '';
+    this.externalPaymentModalVisible = true;
+  }
+
+  get externalPaymentAmount(): number {
+    if (!this.activeRun) { return 0; }
+    const ids = new Set(this.externalPaymentInvoiceIds);
+    return [...this.activeRun.promptPayAccounts, ...this.activeRun.ezpayAccounts]
+      .flatMap(group => group.invoices)
+      .filter(inv => ids.has(inv.invoiceId))
+      .reduce((sum, inv) => sum + inv.net, 0);
+  }
+
+  get enabledExternalPaymentTypes(): ExternalPaymentType[] {
+    const methods: ExternalPaymentType[] = [];
+    if (this.isPaymentMethodEnabled('check')) { methods.push('Check'); }
+    if (this.isPaymentMethodEnabled('wire')) { methods.push('Wire'); }
+    if (this.isPaymentMethodEnabled('externalAch')) { methods.push('External ACH'); }
+    return methods;
+  }
+
+  confirmExternalPayment(): void {
+    if (!this.externalPaymentReference.trim()) { this.showToast('A check or confirmation number is required.'); return; }
+    const label = `${this.externalPaymentType} · ${this.externalPaymentReference.trim()}`;
+    this.externalPaymentInvoiceIds.forEach(id => this.paymentMethodByInvoice[id] = `external:${label}`);
+    this.runBulkAction(this.externalPaymentRail, `Recorded ${label} for ${this.externalPaymentInvoiceIds.length} invoice(s)`);
+    this.externalPaymentModalVisible = false;
+    this.bulkPaymentMethodByRail[this.externalPaymentRail] = '';
+  }
+
   runBulkAction(rail: PaymentRail, action: string, scope?: { accountId?: string; invoiceId?: string }): void {
     this.showToast(action + ' — logged to Run Audit');
     this.runAudit.unshift({ actor: 'You', message: action, timestamp: new Date(), category: 'BillRun' });
@@ -411,6 +603,33 @@ export class PaymentAdministrationComponent {
     consolidatedFolder: '\\\\proserver\\payments\\recon\\consolidated\\'
   };
   saveReportPaths(): void { this.showToast('Report output locations updated.'); }
+
+  paymentMethodSettings: PaymentMethodSetting[] = [
+    { id: 'authorizeNetAch', label: 'Authorize.net ACH', enabled: true, adminWorkbench: true, memberPortal: true },
+    { id: 'bankDraft', label: 'Bank Draft — Account on File', enabled: true, adminWorkbench: true, memberPortal: false },
+    { id: 'card', label: 'Credit / Debit Card', enabled: true, adminWorkbench: true, memberPortal: true },
+    { id: 'check', label: 'Check', enabled: true, adminWorkbench: true, memberPortal: false },
+    { id: 'wire', label: 'Wire', enabled: true, adminWorkbench: true, memberPortal: false },
+    { id: 'externalAch', label: 'External ACH', enabled: true, adminWorkbench: true, memberPortal: false },
+  ];
+
+  walletSettings: WalletSetting[] = [
+    { id: 'applePay', label: 'Apple Pay', enabled: false, supported: true },
+    { id: 'googlePay', label: 'Google Pay', enabled: false, supported: true },
+    { id: 'paypal', label: 'PayPal', enabled: false, supported: true },
+    { id: 'venmo', label: 'Venmo', enabled: false, supported: false },
+  ];
+
+  isPaymentMethodEnabled(id: string): boolean {
+    return this.paymentMethodSettings.find(method => method.id === id)?.enabled ?? false;
+  }
+
+  get hasExternalPaymentMethodEnabled(): boolean {
+    return ['check', 'wire', 'externalAch'].some(id => this.isPaymentMethodEnabled(id));
+  }
+
+  savePaymentMethods(): void { this.showToast('Payment methods updated.'); }
+  saveWalletSupport(): void { this.showToast('Wallet support updated.'); }
 
   drawCapDailyMax = 1000000.00;
   saveDrawCap(): void { this.showToast('Daily draw cap updated.'); }
@@ -521,10 +740,11 @@ export class PaymentAdministrationComponent {
   // MODAL CLOSE
   // ==========================================================================
 
-  closeModal(which: 'override' | 'invoice' | 'skip' | 'addInvoice'): void {
+  closeModal(which: 'override' | 'invoice' | 'skip' | 'addInvoice' | 'externalPayment'): void {
     if (which === 'override') { this.overrideModalVisible = false; }
     if (which === 'invoice') { this.closeInvoiceModal(); }
     if (which === 'skip') { this.skipModalVisible = false; }
     if (which === 'addInvoice') { this.addInvoiceModalVisible = false; }
+    if (which === 'externalPayment') { this.externalPaymentModalVisible = false; }
   }
 }

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.yourcompany.com/workflow/workflow.enums.json",
+  "title": "Workflow Enumerations",
+  "description": "Explicit workflow vocabularies. Your system already runs approval, credit holds, export status, and audit states; this makes them first-class instead of implicit.",
+  "$defs": {
+    "ApprovalStatus": {
+      "type": "string",
+      "enum": ["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"]
+    },
+    "HoldType": {
+      "type": "string",
+      "description": "Reason an order is blocked from progressing. Multiple holds may be active at once.",
+      "enum": ["CREDIT", "FRAUD_REVIEW", "INVENTORY", "PRICING_REVIEW", "MANUAL", "COMPLIANCE"]
+    },
+    "ExportStatus": {
+      "type": "string",
+      "description": "State of export to a downstream consumer (e.g. Computyme, ERP).",
+      "enum": ["NOT_EXPORTED", "QUEUED", "EXPORTED", "ACKNOWLEDGED", "FAILED"]
+    }
+  }
+}

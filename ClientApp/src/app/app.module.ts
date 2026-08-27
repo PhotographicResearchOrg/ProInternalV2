@@ -92,12 +92,15 @@ import { VendorSellthroughComponent } from './prointernalengine/components/Vendo
 import { IrSetupDashboardComponent } from './prointernalengine/components/instantrebate/ir-setup-dashboard/ir-setup-dashboard.component';
 import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component'
 import { FileAppComponent } from './prointernalengine/components/apps/file/file.app.component';
-
+import { OrdersComponent } from './prointernalengine/components/dashboards/Orders/orders.component';
+import { EdiManagementComponent } from './prointernalengine/components/dashboards/Orders/edi-management/edi-management.component';
 
 
 @NgModule({
   declarations:
     [
+    OrdersComponent,
+    EdiManagementComponent,
     FileAppComponent,
     PaymentAdministrationComponent,
     IrSetupDashboardComponent,

@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.yourcompany.com/fulfillment/fulfillment.schema.json",
+  "title": "Fulfillment",
+  "description": "Fulfillment model. An order splits into one or more fulfillment groups, each with its own type (warehouse/dropship/pickup), ship-to, carrier, and shipments. This is what makes hybrid orders (some lines from warehouse, some dropshipped) expressible in V1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fulfillmentGroups"],
+  "properties": {
+    "fulfillmentGroups": {
+      "type": "array",
+      "description": "One entry per distinct fulfillment path. A simple single-warehouse order has exactly one group.",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/FulfillmentGroup" }
+    }
+  },
+  "$defs": {
+    "FulfillmentGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["groupId", "fulfillmentType", "status"],
+      "properties": {
+        "groupId": {
+          "type": "string",
+          "description": "Unique id within the order. Order items reference this via fulfillmentGroupId.",
+          "examples": ["FG-1", "FG-DROPSHIP-VENDOR-42"]
+        },
+        "fulfillmentType": { "$ref": "../orders/order.enums.json#/$defs/FulfillmentType" },
+        "status": { "$ref": "../orders/order.enums.json#/$defs/FulfillmentStatus" },
+        "shipTo": {
+          "$ref": "../common/address.schema.json",
+          "description": "Destination for this group. May differ per group (e.g. multi-warehouse split-ship)."
+        },
+        "warehouseId": {
+          "type": ["string", "null"],
+          "description": "Source warehouse/location for WAREHOUSE or PICKUP groups."
+        },
+        "vendorId": {
+          "type": ["string", "null"],
+          "description": "Vendor responsible for a DROPSHIP group. Null for warehouse groups."
+        },
+        "requestedShipDate": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "Customer-requested or planned ship date."
+        },
+        "shippingMethod": {
+          "type": ["string", "null"],
+          "description": "Requested service level (e.g. GROUND, 2DAY, LTL_FREIGHT). Free-form for V1.",
+          "examples": ["GROUND", "LTL_FREIGHT"]
+        },
+        "shipments": {
+          "type": "array",
+          "description": "Actual physical shipments executed for this group. Empty until shipped.",
+          "items": { "$ref": "#/$defs/Shipment" },
+          "default": []
+        },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        }
+      }
+    },
+    "Shipment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shipmentId"],
+      "properties": {
+        "shipmentId": { "type": "string" },
+        "carrier": {
+          "type": ["string", "null"],
+          "examples": ["UPS", "FEDEX", "USPS"]
+        },
+        "trackingNumber": { "type": ["string", "null"] },
+        "shippedAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "shippedItems": {
+          "type": "array",
+          "description": "Which lines and how many units went in this shipment. Enables partial-ship tracking.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["lineId", "quantity"],
+            "properties": {
+              "lineId": { "type": "string" },
+              "quantity": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          },
+          "default": []
+        },
+        "freightCost": {
+          "$ref": "../common/money.schema.json",
+          "description": "Actual freight cost for this shipment, if known."
+        }
+      }
+    }
+  }
+}

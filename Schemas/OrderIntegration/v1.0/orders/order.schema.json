@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.yourcompany.com/orders/order.schema.json",
+  "title": "Canonical Order",
+  "description": "The canonical enterprise order contract. This defines what an order MEANS in the business, independent of any external system. SQL is the source of truth; Computyme, Shopify, EDI, and future ERPs are adapters that map to/from this contract. Consumers may ignore or partially implement fields; the contract still owns the truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "metadata", "source", "customer", "addresses", "order", "pricing", "items", "fulfillment", "workflow"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Contract version this payload conforms to. Consumers branch on this. Bump minor for additive changes, major for breaking changes.",
+      "const": "1.0"
+    },
+
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "orderId", "createdAt" ],
+      "description": "Identity and provenance of the payload.",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "description": "Canonical, immutable order identifier owned by the SQL platform. NOT a channel order number (those live in references)."
+        },
+        "orderNumber": {
+          "type": [ "string", "null" ],
+          "description": "Human-facing order number, if different from orderId."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the order was created in the canonical platform."
+        },
+        "updatedAt": {
+          "type": [ "string", "null" ],
+          "format": "date-time",
+          "description": "Last modification time in the canonical platform."
+        }
+      }
+    },
+
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "channel" ],
+      "description": "Where the order originated.",
+      "properties": {
+        "channel": { "$ref": "order.enums.json#/$defs/SourceChannel" },
+        "channelOrderId": {
+          "type": [ "string", "null" ],
+          "description": "The order id as known by the originating channel (e.g. Shopify order id, EDI control number)."
+        },
+        "storeId": {
+          "type": [ "string", "null" ],
+          "description": "Sub-channel identifier (POS register, Shopify store, EDI trading partner)."
+        }
+      }
+    },
+
+    "customer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "customerId" ],
+      "description": "Who placed the order.",
+      "properties": {
+        "customerId": {
+          "type": "string",
+          "description": "Canonical customer identifier."
+        },
+        "name": { "type": [ "string", "null" ] },
+        "email": {
+          "type": [ "string", "null" ],
+          "format": "email"
+        },
+        "phone": { "type": [ "string", "null" ] },
+        "pricingTier": {
+          "type": [ "string", "null" ],
+          "description": "Customer pricing segment (e.g. RETAIL, WHOLESALE, CONTRACT_A). Drives pricing rules.",
+          "examples": [ "WHOLESALE", "CONTRACT_A" ]
+        },
+        "poNumber": {
+          "type": [ "string", "null" ],
+          "description": "Customer's purchase order number for this order."
+        }
+      }
+    },
+
+    "addresses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "billing" ],
+      "description": "Order-level billing and default shipping. Per-group ship-to overrides live in fulfillment.",
+      "properties": {
+        "billing": { "$ref": "../common/address.schema.json" },
+        "shipping": {
+          "$ref": "../common/address.schema.json",
+          "description": "Default ship-to. Optional when every fulfillment group carries its own shipTo."
+        }
+      }
+    },
+
+    "order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "status", "orderDate" ],
+      "description": "Order-level business attributes.",
+      "properties": {
+        "status": {
+          "$ref": "order.enums.json#/$defs/OrderStatus"
+        },
+        "orderDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Business date of the order."
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "description": "Currency for all monetary amounts on the order. Per-Money currency must match this.",
+          "default": "USD"
+        },
+        "taxInclusive": {
+          "type": "boolean",
+          "description": "Whether line/total amounts already include tax.",
+          "default": false
+        },
+        "notes": {
+          "type": [ "string", "null" ],
+          "description": "Free-text order notes."
+        },
+        "paymentTerms": {
+          "type": [ "object", "null" ],
+          "additionalProperties": false,
+          "description": "Commercial payment terms agreed for the order.",
+          "properties": {
+            "code": {
+              "type": [ "string", "null" ],
+              "description": "Business terms code, such as NET30."
+            },
+            "netDays": {
+              "type": [ "integer", "null" ],
+              "minimum": 0,
+              "description": "Number of days from the applicable order or invoice date."
+            },
+            "dueDate": {
+              "type": [ "string", "null" ],
+              "format": "date",
+              "description": "Explicit payment due date when known."
+            }
+          }
+        }
+      }
+    },
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "grandTotal" ],
+      "description": "Order-level monetary rollups. Line detail lives in items; this is the summary the business agrees on.",
+      "properties": {
+        "subtotal": {
+          "$ref": "../common/money.schema.json",
+          "description": "Sum of line totals before order-level discounts, shipping, and tax."
+        },
+        "discountTotal": {
+          "$ref": "../common/money.schema.json",
+          "description": "Total of all discounts (order-level + line-level)."
+        },
+        "shippingTotal": {
+          "$ref": "../common/money.schema.json",
+          "description": "Total freight/shipping charged to the customer."
+        },
+        "taxTotal": {
+          "$ref": "../common/money.schema.json"
+        },
+        "grandTotal": {
+          "$ref": "../common/money.schema.json",
+          "description": "Final amount due. The number both sides reconcile against."
+        },
+        "orderDiscounts": {
+          "type": "array",
+          "description": "Discounts applied at the order level (not tied to a single line).",
+          "items": { "$ref": "order-item.schema.json#/$defs/LineDiscount" },
+          "default": []
+        }
+      }
+    },
+
+    "items": {
+      "type": "array",
+      "description": "Order lines. At least one. See order-item.schema.json.",
+      "minItems": 1,
+      "items": { "$ref": "order-item.schema.json" }
+    },
+
+    "fulfillment": {
+      "$ref": "../fulfillment/fulfillment.schema.json"
+    },
+
+    "payments": {
+      "type": "array",
+      "description": "Payment records against the order. May be empty for terms/on-account orders.",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [ "paymentId", "method", "status", "amount" ],
+        "properties": {
+          "paymentId": { "type": "string" },
+          "method": { "$ref": "order.enums.json#/$defs/PaymentMethod" },
+          "status": { "$ref": "order.enums.json#/$defs/PaymentStatus" },
+          "amount": { "$ref": "../common/money.schema.json" },
+          "processedAt": {
+            "type": [ "string", "null" ],
+            "format": "date-time"
+          },
+          "reference": {
+            "type": [ "string", "null" ],
+            "description": "Processor/transaction reference, masked card token, etc. Never raw PAN."
+          }
+        }
+      }
+    },
+
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "approvalStatus", "exportStatus" ],
+      "description": "Explicit workflow state: approvals, holds, and export tracking. Makes implicit process state first-class.",
+      "properties": {
+        "approvalStatus": { "$ref": "../workflow/workflow.enums.json#/$defs/ApprovalStatus" },
+        "exportStatus": { "$ref": "../workflow/workflow.enums.json#/$defs/ExportStatus" },
+        "holds": {
+          "type": "array",
+          "description": "Active holds blocking the order. Empty means clear to proceed.",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "holdType" ],
+            "properties": {
+              "holdType": { "$ref": "../workflow/workflow.enums.json#/$defs/HoldType" },
+              "reason": { "type": [ "string", "null" ] },
+              "placedAt": {
+                "type": [ "string", "null" ],
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "references": {
+      "type": "object",
+      "description": "Cross-system identifiers at the order level, keyed by system name. Lets every adapter find its own id without owning a canonical field.",
+      "additionalProperties": { "type": "string" },
+      "default": {},
+      "examples": [
+        {
+          "computymeOrderId": "CT-99821",
+          "shopifyOrderId": "4455667788",
+          "ediControlNumber": "0001023"
+        }
+      ]
+    },
+
+    "extensions": {
+      "type": "object",
+      "description": "Namespaced escape hatch for channel-specific or not-yet-canonical data. Each consumer reads only its own namespace. Adding data here NEVER requires a schema change and never contaminates canonical fields. Promote a field to canonical only when it has cross-system business meaning.",
+      "additionalProperties": true,
+      "default": {},
+      "properties": {
+        "shopify": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "edi": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "computyme": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "future": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Provenance and risk signals.",
+      "default": {},
+      "properties": {
+        "createdBy": { "type": [ "string", "null" ] },
+        "updatedBy": { "type": [ "string", "null" ] },
+        "riskScore": {
+          "type": [ "number", "null" ],
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Fraud/credit risk score if scored. Null if not evaluated."
+        },
+        "events": {
+          "type": "array",
+          "description": "Append-only audit trail of significant state changes.",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "event", "at" ],
+            "properties": {
+              "event": {
+                "type": "string",
+                "examples": [ "STATUS_CHANGED", "HOLD_PLACED", "EXPORTED" ]
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "actor": { "type": [ "string", "null" ] },
+              "detail": { "type": [ "string", "null" ] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

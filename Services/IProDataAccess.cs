@@ -75,7 +75,11 @@ GetSellThroughExportData(
         IEnumerable<ShopifyGovernanceIssueDto> GetShopifyGovernanceIssues();
         void ShopifyTaxonomyReview( int id, string disposition);
         decimal GetDropShipThreshold();
-        void SetDropShipThreshold(decimal value);
+        void SetDropShipThreshold(
+            decimal value,
+            string actionBy,
+            string actionSource
+        );
 
         VendorDto? GetVendorById(int vendorId);
         VendorMatchDto? FindVendorByName(string name);

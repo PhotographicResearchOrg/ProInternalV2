@@ -191,16 +191,88 @@ namespace ProInternal.Services
                 );
             }
         }
-        public void SetDropShipThreshold(decimal value)
+        public void SetDropShipThreshold(
+          decimal value,
+          string actionBy,
+          string actionSource)
         {
-            using (var conn = GetConnection())
+            using var conn = GetConnection();
+           // conn.Open();
+
+            using var transaction = conn.BeginTransaction();
+
+            try
             {
-                conn.Execute(
-                    @"UPDATE OrderProcessingConfig
-              SET DropShipThreshold = @Value
-              WHERE Id = 1",
-                    new { Value = value }
+                var oldValue = conn.QuerySingle<decimal>(
+                    @"
+            SELECT DropShipThreshold
+            FROM dbo.OrderProcessingConfig
+            WHERE Id = 1;
+            ",
+                    transaction: transaction
                 );
+
+                if (oldValue == value)
+                {
+                    transaction.Commit();
+                    return;
+                }
+
+                var updated = conn.Execute(
+                    @"
+            UPDATE dbo.OrderProcessingConfig
+            SET DropShipThreshold = @Value
+            WHERE Id = 1;
+            ",
+                    new
+                    {
+                        Value = value
+                    },
+                    transaction
+                );
+
+                if (updated == 0)
+                    throw new InvalidOperationException(
+                        "Drop Ship configuration was not found."
+                    );
+
+                conn.Execute(
+                    @"
+            INSERT INTO dbo.PIV2_OrderAudit
+            (
+                OrderId,
+                ActionType,
+                Reason,
+                ActionBy,
+                ActionSource,
+                ActionDate
+            )
+            VALUES
+            (
+                NULL,
+                'Drop Ship Threshold Changed',
+                @Reason,
+                @ActionBy,
+                @ActionSource,
+                GETDATE()
+            );
+            ",
+                    new
+                    {
+                        Reason =
+                            $"Threshold changed from {oldValue:C} to {value:C}.",
+                        ActionBy = actionBy,
+                        ActionSource = actionSource
+                    },
+                    transaction
+                );
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
             }
         }
 

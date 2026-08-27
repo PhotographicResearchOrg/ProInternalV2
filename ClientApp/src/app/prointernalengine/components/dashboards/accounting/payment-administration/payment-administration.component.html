@@ -95,7 +95,7 @@
       </div>
       <div class="card">
         <table>
-          <tr><th>Member</th><th>Account</th><th class="num-right">Gross $</th><th class="num-right">PRO Disc.</th><th class="num-right">EZPay Disc.</th><th class="num-right">Net Net</th><th>Rail</th><th></th></tr>
+          <tr><th>Member</th><th>Account</th><th class="num-right">Gross $</th><th class="num-right">PRO Disc.</th><th class="num-right">EZPay Disc.</th><th class="num-right">Net Net</th><th>Rail</th><th>Default Payment</th><th></th></tr>
           <tr class="clickable" *ngFor="let m of filteredMemberGross" (click)="openMember(m)">
             <td><b>{{ m.name }}</b></td>
             <td class="mono">{{ m.accountId }}</td>
@@ -104,6 +104,7 @@
             <td class="money num-right">{{ m.ezpayDiscount | currency }}</td>
             <td class="money num-right">{{ m.netNet | currency }}</td>
             <td><span class="adminbadge" [ngClass]="m.rail==='EZPay' ? 'adminbadge-blue' : 'adminbadge-violet'">{{ m.rail }}</span></td>
+            <td class="mono">{{ m.defaultPaymentMethod }}</td>
             <td class="mono faint">→</td>
           </tr>
         </table>
@@ -454,19 +455,28 @@
           </span>
         </div>
         <div class="card">
-          <div class="row-flex" style="justify-content:space-between;margin-bottom:10px;">
-            <span class="mono faint" style="font-size:12px;">Bulk actions</span>
-            <div class="row-flex">
+          <div class="row-flex bulk-toolbar">
+            <span class="mono faint" style="font-size:12px;">Bulk actions <b *ngIf="selectedInvoiceCount('PromptPay')">· {{ selectedInvoiceCount('PromptPay') }} selected · {{ selectedInvoiceTotal('PromptPay') | currency }}</b></span>
+            <div class="row-flex bulk-actions">
+              <select class="bulk-payment-select" [(ngModel)]="bulkPaymentMethodByRail.PromptPay">
+                <option value="">Payment method…</option>
+                <option value="default-ach" *ngIf="isPaymentMethodEnabled('authorizeNetAch')">Default ACH for each account</option>
+                <option value="bank-draft" *ngIf="isPaymentMethodEnabled('bankDraft')">Bank Draft — Account on File</option>
+                <option value="default-card" *ngIf="isPaymentMethodEnabled('card')">Default card for each account</option>
+                <option value="external" *ngIf="hasExternalPaymentMethodEnabled">Record external payment…</option>
+                <option value="hold">Hold — do not pay</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" (click)="assignBulkPaymentMethod('PromptPay')">Assign</button>
               <button class="btn btn-ghost btn-sm" (click)="runBulkAction('PromptPay','Applied PRO discount')">Apply PRO Discount</button>
               <button class="btn btn-ghost btn-sm" (click)="runBulkAction('PromptPay','Removed PRO discount')">Remove PRO Discount</button>
               <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:#e8bcbc;" (click)="openSkip('account')">Exclude from Run</button>
             </div>
           </div>
           <table>
-            <tr><th style="width:28px;"><input type="checkbox"></th><th>Account</th><th class="num-right">Invoices</th><th class="num-right">Gross</th><th class="num-right">PRO Disc.</th><th class="num-right">Net</th><th></th></tr>
+            <tr><th style="width:28px;"><input type="checkbox" [checked]="isRunRailSelected('PromptPay')" [indeterminate]="isRunRailPartiallySelected('PromptPay')" (change)="toggleRunRailSelect('PromptPay', $any($event.target).checked)"></th><th>Account</th><th class="num-right">Invoices</th><th class="num-right">Gross</th><th class="num-right">PRO Disc.</th><th class="num-right">Net</th><th></th></tr>
             <ng-container *ngFor="let grp of run.promptPayAccounts">
               <tr>
-                <td><input type="checkbox"></td>
+                <td><input type="checkbox" [checked]="isRunGroupSelected(grp)" [indeterminate]="isRunGroupPartiallySelected(grp)" (change)="toggleRunGroupSelect(grp, $any($event.target).checked)"></td>
                 <td><b>{{ grp.name }}</b> <span class="mono faint">{{ grp.accountId }}</span></td>
                 <td class="mono num-right">{{ grp.invoiceCount }}</td>
                 <td class="money num-right">{{ grp.gross | currency }}</td>
@@ -476,14 +486,21 @@
               </tr>
               <tr *ngIf="isExpanded('pp-'+grp.accountId)" class="expand-row">
                 <td></td>
-                <td colspan="5">
+                <td colspan="6">
                   <table class="nested">
-                    <tr><th>Invoice</th><th>Vendor</th><th class="num-right">Gross</th><th>PRO Disc.</th><th>Status</th><th></th></tr>
+                    <tr><th style="width:24px;"></th><th>Invoice</th><th>Vendor</th><th class="num-right">Gross</th><th>PRO Disc.</th><th>Payment Method</th><th>Status</th><th></th></tr>
                     <tr *ngFor="let inv of grp.invoices">
+                      <td><input type="checkbox" [checked]="selectedRunInvoiceIds.has(inv.invoiceId)" (change)="toggleRunInvoiceSelect(inv.invoiceId, $any($event.target).checked)"></td>
                       <td class="mono">{{ inv.invoiceId }}</td>
                       <td>{{ inv.vendor }}</td>
                       <td class="money num-right">{{ inv.gross | currency }}</td>
                       <td class="mono">{{ inv.proDiscountAmt | currency }}</td>
+                      <td>
+                        <select class="payment-select" [ngModel]="paymentMethodFor(inv)" (ngModelChange)="setInvoicePaymentMethod(inv, $event)">
+                          <option *ngIf="paymentMethodFor(inv).startsWith('external:')" [value]="paymentMethodFor(inv)">{{ paymentMethodLabel(inv) }}</option>
+                          <option *ngFor="let method of paymentMethodsFor(inv.accountId)" [value]="method.value">{{ method.label }}</option>
+                        </select>
+                      </td>
                       <td><span class="adminbadge adminbadge-green" *ngIf="inv.status==='OnTerms'">On Terms</span><span class="adminbadge adminbadge-red" *ngIf="inv.status!=='OnTerms'">{{ inv.status }}</span></td>
                       <td><button class="btn btn-ghost btn-sm" (click)="runBulkAction('PromptPay','Removed PRO discount on '+inv.invoiceId,{accountId:grp.accountId,invoiceId:inv.invoiceId})">Remove Disc.</button></td>
                     </tr>
@@ -503,19 +520,28 @@
           </span>
         </div>
         <div class="card">
-          <div class="row-flex" style="justify-content:space-between;margin-bottom:10px;">
-            <span class="mono faint" style="font-size:12px;">Bulk actions</span>
-            <div class="row-flex">
+          <div class="row-flex bulk-toolbar">
+            <span class="mono faint" style="font-size:12px;">Bulk actions <b *ngIf="selectedInvoiceCount('EZPay')">· {{ selectedInvoiceCount('EZPay') }} selected · {{ selectedInvoiceTotal('EZPay') | currency }}</b></span>
+            <div class="row-flex bulk-actions">
+              <select class="bulk-payment-select" [(ngModel)]="bulkPaymentMethodByRail.EZPay">
+                <option value="">Payment method…</option>
+                <option value="default-ach" *ngIf="isPaymentMethodEnabled('authorizeNetAch')">Default ACH for each account</option>
+                <option value="bank-draft" *ngIf="isPaymentMethodEnabled('bankDraft')">Bank Draft — Account on File</option>
+                <option value="default-card" *ngIf="isPaymentMethodEnabled('card')">Default card for each account</option>
+                <option value="external" *ngIf="hasExternalPaymentMethodEnabled">Record external payment…</option>
+                <option value="hold">Hold — do not pay</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" (click)="assignBulkPaymentMethod('EZPay')">Assign</button>
               <button class="btn btn-ghost btn-sm" (click)="runBulkAction('EZPay','Applied EZPay discount')">Apply EZPay Discount</button>
               <button class="btn btn-ghost btn-sm" (click)="runBulkAction('EZPay','Removed EZPay discount')">Remove EZPay Discount</button>
               <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:#e8bcbc;" (click)="openSkip('account')">Exclude from Run</button>
             </div>
           </div>
           <table>
-            <tr><th style="width:28px;"><input type="checkbox"></th><th>Account</th><th class="num-right">Invoices</th><th class="num-right">Gross</th><th class="num-right">PRO Disc.</th><th class="num-right">EZPay Disc.</th><th class="num-right">Net Net</th><th></th></tr>
+            <tr><th style="width:28px;"><input type="checkbox" [checked]="isRunRailSelected('EZPay')" [indeterminate]="isRunRailPartiallySelected('EZPay')" (change)="toggleRunRailSelect('EZPay', $any($event.target).checked)"></th><th>Account</th><th class="num-right">Invoices</th><th class="num-right">Gross</th><th class="num-right">PRO Disc.</th><th class="num-right">EZPay Disc.</th><th class="num-right">Net Net</th><th></th></tr>
             <ng-container *ngFor="let grp of run.ezpayAccounts">
               <tr>
-                <td><input type="checkbox"></td>
+                <td><input type="checkbox" [checked]="isRunGroupSelected(grp)" [indeterminate]="isRunGroupPartiallySelected(grp)" (change)="toggleRunGroupSelect(grp, $any($event.target).checked)"></td>
                 <td><b>{{ grp.name }}</b> <span class="mono faint">{{ grp.accountId }}</span></td>
                 <td class="mono num-right">{{ grp.invoiceCount }}</td>
                 <td class="money num-right">{{ grp.gross | currency }}</td>
@@ -526,15 +552,22 @@
               </tr>
               <tr *ngIf="isExpanded('ez-'+grp.accountId)" class="expand-row">
                 <td></td>
-                <td colspan="6">
+                <td colspan="7">
                   <table class="nested">
-                    <tr><th>Invoice</th><th>Vendor</th><th class="num-right">Gross</th><th>PRO Disc.</th><th>EZPay Disc.</th><th>Status</th><th></th></tr>
+                    <tr><th style="width:24px;"></th><th>Invoice</th><th>Vendor</th><th class="num-right">Gross</th><th>PRO Disc.</th><th>EZPay Disc.</th><th>Payment Method</th><th>Status</th><th></th></tr>
                     <tr *ngFor="let inv of grp.invoices">
+                      <td><input type="checkbox" [checked]="selectedRunInvoiceIds.has(inv.invoiceId)" (change)="toggleRunInvoiceSelect(inv.invoiceId, $any($event.target).checked)"></td>
                       <td class="mono">{{ inv.invoiceId }}</td>
                       <td>{{ inv.vendor }}</td>
                       <td class="money num-right">{{ inv.gross | currency }}</td>
                       <td class="mono">{{ inv.proDiscountAmt | currency }}</td>
                       <td class="mono"><span *ngIf="inv.ezpayDiscountPct !== null">{{ inv.ezpayDiscountAmt | currency }}</span><span *ngIf="inv.ezpayDiscountPct===null" style="color:var(--red);">Lost</span></td>
+                      <td>
+                        <select class="payment-select" [ngModel]="paymentMethodFor(inv)" (ngModelChange)="setInvoicePaymentMethod(inv, $event)">
+                          <option *ngIf="paymentMethodFor(inv).startsWith('external:')" [value]="paymentMethodFor(inv)">{{ paymentMethodLabel(inv) }}</option>
+                          <option *ngFor="let method of paymentMethodsFor(inv.accountId)" [value]="method.value">{{ method.label }}</option>
+                        </select>
+                      </td>
                       <td><span class="adminbadge adminbadge-green" *ngIf="inv.status==='OnTerms'">On Terms</span><span class="adminbadge adminbadge-red" *ngIf="inv.status!=='OnTerms'">{{ inv.status }}</span></td>
                       <td class="row-flex">
                         <button class="btn btn-ghost btn-sm" (click)="runBulkAction('EZPay','Removed PRO discount on '+inv.invoiceId,{accountId:grp.accountId,invoiceId:inv.invoiceId})">Remove PRO</button>
@@ -657,7 +690,39 @@
     <!-- ================= REPORT OUTPUT LOCATIONS ================= -->
     <ng-container *ngIf="currentScreen==='reportPaths'">
       <div class="crumb"><span (click)="go('dashboard')">Dashboard</span> / Payment Settings</div>
-      <div class="topbar"><div><h1>Payment Settings</h1><div class="subtitle">Report output folders and the daily draw cap</div></div></div>
+      <div class="topbar"><div><h1>Payment Settings</h1><div class="subtitle">Payment options, wallet support, report output, and draw controls</div></div></div>
+
+      <div class="section-label">Payment Methods</div>
+      <div class="card">
+        <table>
+          <tr><th>Payment Method</th><th>Enabled</th><th>Admin Workbench</th><th>Member Payment Page</th></tr>
+          <tr *ngFor="let method of paymentMethodSettings">
+            <td><b>{{ method.label }}</b></td>
+            <td><div class="toggle" [class.on]="method.enabled" (click)="method.enabled = !method.enabled"></div></td>
+            <td><span class="adminbadge" [ngClass]="method.adminWorkbench ? 'adminbadge-green' : 'adminbadge-gray'">{{ method.adminWorkbench ? 'Available' : 'Not Available' }}</span></td>
+            <td><span class="adminbadge" [ngClass]="method.memberPortal ? 'adminbadge-green' : 'adminbadge-gray'">{{ method.memberPortal ? 'Available' : 'Not Available' }}</span></td>
+          </tr>
+        </table>
+        <div class="row-flex justify-end" style="margin-top:12px;"><button class="btn btn-primary btn-sm" (click)="savePaymentMethods()">Save Payment Methods</button></div>
+      </div>
+
+      <div class="section-label">Wallet Support</div>
+      <div class="card">
+        <div class="flow-note" style="margin-bottom:10px;">Enable digital-wallet options available to members during self-service checkout.</div>
+        <table>
+          <tr><th>Wallet</th><th>Enabled</th><th>Available On</th><th>Status</th></tr>
+          <tr *ngFor="let wallet of walletSettings" [style.opacity]="wallet.supported ? 1 : .55">
+            <td><b>{{ wallet.label }}</b></td>
+            <td>
+              <div *ngIf="wallet.supported" class="toggle" [class.on]="wallet.enabled" (click)="wallet.enabled = !wallet.enabled"></div>
+              <span *ngIf="!wallet.supported" class="faint">—</span>
+            </td>
+            <td>Member Payment Page</td>
+            <td><span class="adminbadge" [ngClass]="wallet.supported ? 'adminbadge-green' : 'adminbadge-gray'">{{ wallet.supported ? 'Supported' : 'Unsupported' }}</span></td>
+          </tr>
+        </table>
+        <div class="row-flex justify-end" style="margin-top:12px;"><button class="btn btn-primary btn-sm" (click)="saveWalletSupport()">Save Wallet Support</button></div>
+      </div>
 
       <div class="section-label">Report Output Locations</div>
       <div class="card">
@@ -837,6 +902,45 @@
       </div>
     </ng-container>
 
+  </div>
+</div>
+
+<!-- ============ RECORD EXTERNAL PAYMENT MODAL ============ -->
+<div class="modal-bg" [class.open]="externalPaymentModalVisible">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow">Payment Method</div>
+        <h1 style="font-size:17px;">Record External Payment</h1>
+        <div class="subtitle">{{ externalPaymentInvoiceIds.length }} invoice(s) · {{ externalPaymentAmount | currency }}</div>
+      </div>
+      <div class="modal-close" (click)="closeModal('externalPayment')">&times;</div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Payment Type</label>
+        <select [(ngModel)]="externalPaymentType">
+          <option *ngFor="let type of enabledExternalPaymentTypes" [value]="type">{{ type === 'External ACH' ? 'Manually Initiated ACH' : type }}</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Payment Date</label>
+        <input type="date" [(ngModel)]="externalPaymentDate">
+      </div>
+    </div>
+    <div class="field">
+      <label>Check / Confirmation Number (required)</label>
+      <input [(ngModel)]="externalPaymentReference" placeholder="Enter the external payment reference">
+    </div>
+    <div class="field">
+      <label>Internal Note</label>
+      <input [(ngModel)]="externalPaymentNote" placeholder="Optional reconciliation note">
+    </div>
+    <div class="note blue">This records the payment against the selected invoices and sends it through reconciliation. It does not submit a transaction to Authorize.net.</div>
+    <div class="row-flex justify-end">
+      <button class="btn btn-ghost" (click)="closeModal('externalPayment')">Cancel</button>
+      <button class="btn btn-primary" (click)="confirmExternalPayment()">Record Payment</button>
+    </div>
   </div>
 </div>
 

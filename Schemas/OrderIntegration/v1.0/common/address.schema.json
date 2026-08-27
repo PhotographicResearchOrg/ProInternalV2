@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.yourcompany.com/common/address.schema.json",
+  "title": "Address",
+  "description": "A postal address. Used for billing, shipping, and per-fulfillment-group ship-to. Field semantics are stable regardless of source system.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["line1", "city", "country"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the person or company at this address (recipient or payer).",
+      "examples": [ "Acme Hardware Inc.", "Jane Doe" ]
+    },
+    "firstName": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "lastName": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "attention": {
+      "type": [ "string", "null" ],
+      "description": "Optional 'attention to' / care-of line."
+    },
+    "line1": {
+      "type": "string",
+      "description": "Primary street address line.",
+      "examples": [ "123 Industrial Pkwy" ]
+    },
+    "line2": {
+      "type": [ "string", "null" ],
+      "description": "Secondary address line (suite, unit, floor)."
+    },
+    "city": {
+      "type": "string",
+      "examples": [ "New Haven" ]
+    },
+    "region": {
+      "type": [ "string", "null" ],
+      "description": "State, province, or region. ISO 3166-2 subdivision code preferred (e.g. \"US-CT\"), plain name accepted.",
+      "examples": [ "US-CT", "Connecticut" ]
+    },
+    "postalCode": {
+      "type": [ "string", "null" ],
+      "examples": [ "06511" ]
+    },
+    "country": {
+      "type": "string",
+      "description": "ISO 3166-1 alpha-2 country code.",
+      "pattern": "^[A-Z]{2}$",
+      "examples": [ "US", "CA" ]
+    },
+    "phone": {
+      "type": [ "string", "null" ],
+      "description": "Contact phone for this address. E.164 format preferred.",
+      "examples": [ "+12035551234" ]
+    },
+    "email": {
+      "type": [ "string", "null" ],
+      "format": "email",
+      "description": "Contact email for this address."
+    },
+    "residential": {
+      "type": [ "boolean", "null" ],
+      "description": "True if known residential, false if known commercial, null if unknown. Drives carrier rating."
+    }
+  }
+}

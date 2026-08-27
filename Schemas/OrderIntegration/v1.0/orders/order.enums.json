@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.yourcompany.com/orders/order.enums.json",
+  "title": "Order Enumerations",
+  "description": "Canonical business vocabularies. These are the source-of-truth meanings. Adapters (Computyme, Shopify, EDI) map their internal codes TO these values, never the reverse. Add new members over minor schema versions; never repurpose an existing member.",
+  "$defs": {
+    "SourceChannel": {
+      "type": "string",
+      "description": "Origination system / sales channel for the order.",
+      "enum": ["B2B_WEB", "POS", "SHOPIFY", "EDI", "AMAZON", "PHONE", "MANUAL"]
+    },
+    "OrderStatus": {
+      "type": "string",
+      "description": "High-level lifecycle state of the order as a whole. Replaces legacy integer statuses (e.g. 55/56/110).",
+      "enum": ["DRAFT", "OPEN", "ON_HOLD", "CONFIRMED", "PARTIALLY_FULFILLED", "FULFILLED", "INVOICED", "CLOSED", "CANCELLED"]
+    },
+    "FulfillmentType": {
+      "type": "string",
+      "description": "How a fulfillment group is sourced/shipped. Replaces legacy OrderTypeId integers.",
+      "enum": ["WAREHOUSE", "DROPSHIP", "PICKUP", "HYBRID"]
+    },
+    "FulfillmentStatus": {
+      "type": "string",
+      "description": "State of an individual fulfillment group.",
+      "enum": ["PENDING", "ALLOCATED", "PICKING", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED", "BACKORDERED"]
+    },
+    "LineType": {
+      "type": "string",
+      "description": "Semantic role of an order line. Formalizes bundles, freight, and promotions.",
+      "enum": ["STANDARD", "BUNDLE_PARENT", "BUNDLE_COMPONENT", "SUPPLEMENTAL_SHIPPING", "PROMOTIONAL"]
+    },
+    "PaymentMethod": {
+      "type": "string",
+      "enum": ["CREDIT_CARD", "ACH", "WIRE", "TERMS_NET", "ON_ACCOUNT", "GIFT_CARD", "OTHER"]
+    },
+    "PaymentStatus": {
+      "type": "string",
+      "enum": ["PENDING", "AUTHORIZED", "CAPTURED", "PARTIALLY_REFUNDED", "REFUNDED", "FAILED", "VOIDED"]
+    },
+    "DiscountType": {
+      "type": "string",
+      "enum": ["PERCENT", "FIXED_AMOUNT", "TIER_PRICE", "PROMO_CODE", "CONTRACT_PRICE"]
+    },
+    "AddressType": {
+      "type": "string",
+      "enum": ["BILLING", "SHIPPING"]
+    }
+  }
+}

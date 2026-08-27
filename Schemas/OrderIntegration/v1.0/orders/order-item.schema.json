@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.yourcompany.com/orders/order-item.schema.json",
+  "title": "OrderItem",
+  "description": "A single line on an order. lineType drives interpretation: bundles use parentLineId to link components; supplemental shipping lines carry freight as a line; promotional lines carry discounts as negative-effect lines.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["lineId", "lineType", "quantity"],
+  "properties": {
+    "lineId": {
+      "type": "string",
+      "description": "Stable unique identifier for this line within the order. Use a GUID or a deterministic line key; do not reuse across orders.",
+      "examples": ["L-0001", "b8f1c0e2-..."]
+    },
+    "lineType": {
+      "$ref": "order.enums.json#/$defs/LineType"
+    },
+    "parentLineId": {
+      "type": ["string", "null"],
+      "description": "For BUNDLE_COMPONENT lines, the lineId of the BUNDLE_PARENT they belong to. Null for all other line types."
+    },
+    "sku": {
+      "type": ["string", "null"],
+      "description": "Your canonical SKU / item number. The business identity of the product, independent of any channel's product id."
+    },
+    "productName": {
+      "type": ["string", "null"],
+      "description": "Human-readable description as it should appear on documents."
+    },
+    "quantity": {
+      "type": "number",
+      "description": "Ordered quantity. Supports decimal for weight/length-based items.",
+      "exclusiveMinimum": 0,
+      "examples": [1, 12, 2.5]
+    },
+    "unitOfMeasure": {
+      "type": ["string", "null"],
+      "description": "UOM the quantity is expressed in (EA, CASE, LB, FT). Free-form for V1; may become an enum later.",
+      "examples": ["EA", "CASE"]
+    },
+    "unitPrice": {
+      "$ref": "../common/money.schema.json",
+      "description": "Price per unit before line-level discounts."
+    },
+    "lineDiscounts": {
+      "type": "array",
+      "description": "Discounts applied specifically to this line.",
+      "items": { "$ref": "#/$defs/LineDiscount" },
+      "default": []
+    },
+    "lineTotal": {
+      "$ref": "../common/money.schema.json",
+      "description": "Extended total for the line after line-level discounts (quantity * unitPrice - discounts). Tax excluded unless taxInclusive is true at order level."
+    },
+    "fulfillmentGroupId": {
+      "type": ["string", "null"],
+      "description": "Which fulfillment group ships this line. Links to fulfillment.fulfillmentGroups[].groupId. Null only on lines that are never shipped (e.g. pure discount lines)."
+    },
+    "references": {
+      "type": "object",
+      "description": "External identifiers for this line, keyed by system. Lets adapters round-trip without polluting canonical fields.",
+      "additionalProperties": { "type": "string" },
+      "examples": [{ "shopifyLineItemId": "998877", "ediLineNumber": "0010" }]
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Channel-specific or future line data. See order.schema.json extensions guidance.",
+      "additionalProperties": true,
+      "default": {}
+    }
+  },
+  "$defs": {
+    "LineDiscount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discountType", "amount"],
+      "properties": {
+        "discountType": { "$ref": "order.enums.json#/$defs/DiscountType" },
+        "code": {
+          "type": ["string", "null"],
+          "description": "Promo code or contract reference, if applicable."
+        },
+        "description": { "type": ["string", "null"] },
+        "amount": {
+          "$ref": "../common/money.schema.json",
+          "description": "The discount value applied to the line (positive number representing the reduction)."
+        }
+      }
+    }
+  }
+}

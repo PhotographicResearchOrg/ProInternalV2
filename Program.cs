@@ -17,6 +17,8 @@ using ProInternal.Helpers;
 using ProInternal.Models.Accounting;
 using ProInternal.Models.Accounts;
 using ProInternal.Services;
+using ProInternal.Services.OrderIntegration;
+using ProInternal.Services.OrderIntegration.Adapters.Inbound.Shopify;
 using System;
 using System.IO;
 using System.Net.Http;
@@ -67,20 +69,16 @@ builder.Services.AddSingleton<AwsSecretHelper>();
 //New
 
 
-builder.Services.AddSingleton<PowerBIService>();
-
-
-
+//builder.Services.AddSingleton<PowerBIService>();
 builder.Services.AddScoped<IProDataAccess, ProDataAccess>();
 builder.Services.AddScoped<IDRADataAccess, DRADataAccess>();
 builder.Services.AddScoped<INukeDataAccess, NukeDataAccess>();
 builder.Services.AddScoped<IEDADataAccess, EDADataAccess>();
-
-
-
+builder.Services.AddScoped<IOrdersDataAccess, OrdersDataAccess>();
+builder.Services.AddScoped<IOrderIntegrationDataAccess,OrderIntegrationDataAccess>();
 builder.Services.AddScoped<IInvoiceExtractionService, InvoiceExtractionService>();
-
-
+builder.Services.AddScoped<IOrderSchemaValidator, OrderSchemaValidator>();
+builder.Services.AddScoped<IShopifyOrderAdapter,ShopifyOrderAdapter>();
 builder.Services.AddHttpClient<IUvicornDataAccess, UvicornDataAccess>(c =>
 {
     c.BaseAddress = new Uri("http://10.0.1.216:8000/"); // FastAPI base

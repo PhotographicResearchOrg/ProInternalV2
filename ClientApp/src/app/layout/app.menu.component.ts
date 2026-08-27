@@ -54,6 +54,27 @@ export class AppMenuComponent implements OnInit {
             ]
           },
 
+          (can('/orders') || can('/orders/edi')) &&
+          {
+            label: 'Orders',
+            icon: 'pi pi-shopping-cart',
+            items: [
+              can('/orders') && {
+                label: 'Order Management',
+                icon: 'pi pi-box',
+                routerLink: ['/orders']
+              },
+
+              can('/orders/edi') && {
+                label: 'EDI Management',
+                icon: 'pi pi-send',
+                routerLink: ['/orders/edi']
+              }
+            ]
+          },
+
+
+
           can('/shopify-admin') &&
           {
             label: 'Marketing',
@@ -175,9 +196,7 @@ export class AppMenuComponent implements OnInit {
 
       ]
     });
-
     can('ecommerce/new-product') && rawModel.push({ label: 'New Products', icon: 'pi pi-fw pi-plus', routerLink: ['ecommerce/new-product'] });
-
     (can('/BRMsetup') || can('/security-admin')) && rawModel.push({
       label: 'Member Management', icon: 'pi pi-fw pi-list',
       items: [
@@ -191,12 +210,9 @@ export class AppMenuComponent implements OnInit {
         }
       ]
     });
-
     can('ecommerce/order-history') && rawModel.push({ label: 'Process Orders', icon: 'pi pi-fw pi-history', routerLink: ['ecommerce/order-history'] });
-
     this.model = this.cleanMenuItems(rawModel);
   }
-
   cleanMenuItems(items: any[]): any[] {
     return (items || [])
       .filter(item => !!item)
@@ -213,7 +229,6 @@ export class AppMenuComponent implements OnInit {
         return cleanedItem;
       });
   }
-
   hasRoutePermission(path: string): boolean {
     return this.authService.getAllowedRoutes().includes(path.toLowerCase());
   }

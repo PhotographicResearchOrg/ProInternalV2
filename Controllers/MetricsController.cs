@@ -1,12 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
+using Microsoft.AspNetCore.Mvc;
+using ProInternal.Models.Dashboard;
+using ProInternal.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using ProInternal.Services;
-using ProInternal.Models.Dashboard;
-using Microsoft.AspNetCore.Cors;
+using System.Security.Claims;
 
 
 namespace ProInternal.Controllers
@@ -47,6 +50,18 @@ namespace ProInternal.Controllers
 
 
 
+        private string? GetCurrentUser()
+        {
+            return
+                User.FindFirst(ClaimTypes.Email)?.Value ??
+                User.FindFirst("email")?.Value ??
+                User.FindFirst(ClaimTypes.Name)?.Value ??
+                User.FindFirst("preferred_username")?.Value ??
+                User.FindFirst("unique_name")?.Value ??
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        }
+
+
         [HttpGet]
         [Route("getDropShipThreshold")]
         public decimal GetDropShipThreshold()
@@ -56,14 +71,38 @@ namespace ProInternal.Controllers
 
         [HttpPost]
         [Route("setDropShipThreshold")]
-        public void SetDropShipThreshold([FromBody] ThresholdRequest req)
+        public IActionResult SetDropShipThreshold(
+          [FromBody] ThresholdRequest req)
         {
-            _prodataAccess.SetDropShipThreshold(req.Value);
+            if (req.Value < 0)
+                return BadRequest("Threshold cannot be negative.");
+
+            var actionBy = GetCurrentUser();
+
+            if (string.IsNullOrWhiteSpace(actionBy))
+                return Unauthorized("Unable to identify the current user.");
+
+            var actionSource = req.ActionSource switch
+            {
+                "Dashboard Landing" => "Dashboard Landing",
+                "Order Toolbench" => "Order Toolbench",
+                _ => "Unknown"
+            };
+
+            _prodataAccess.SetDropShipThreshold(
+                req.Value,
+                actionBy,
+                actionSource
+            );
+
+            return Ok();
         }
+
 
         public class ThresholdRequest
         {
             public decimal Value { get; set; }
+            public string ActionSource { get; set; } = "";
         }
 
 

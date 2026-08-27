@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.yourcompany.com/common/money.schema.json",
+  "title": "Money",
+  "description": "A monetary amount with an explicit currency. Used everywhere a price, charge, discount, or total appears. Amount is a decimal string to avoid floating-point rounding errors across systems.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["amount", "currency"],
+  "properties": {
+    "amount": {
+      "type": "string",
+      "description": "Decimal amount as a string, e.g. \"19.99\". String form prevents float drift between SQL, JSON, and downstream ERPs. Negative allowed for credits/refunds.",
+      "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+      "examples": ["19.99", "-5.00", "1250.0000"]
+    },
+    "currency": {
+      "type": "string",
+      "description": "ISO 4217 three-letter currency code.",
+      "pattern": "^[A-Z]{3}$",
+      "examples": ["USD", "CAD", "EUR"]
+    }
+  }
+}

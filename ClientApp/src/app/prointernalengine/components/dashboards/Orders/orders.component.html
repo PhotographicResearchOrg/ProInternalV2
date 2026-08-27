@@ -1,0 +1,1123 @@
+<div class="orders-page">
+
+  <!-- Header -->
+  <div class="orders-header">
+    <div>
+      <div class="eyebrow">ProMaster · Order Administration</div>
+      <h1>Order Toolbench</h1>
+      <div class="subtitle">
+        Fulfillment
+      </div>
+    </div>
+
+    <div class="header-actions">
+
+      <button type="button"
+              class="btn btn-secondary"
+              (click)="openDsConfig()">
+        <i class="pi pi-sliders-h"></i>
+        Drop Ship Ceiling
+      </button>
+
+
+      <button type="button"
+              class="btn btn-secondary"
+              (click)="openEdiManagement()">
+        <i class="pi pi-send"></i>
+        EDI Management
+      </button>
+
+      <button type="button" class="btn btn-primary">
+        <i class="pi pi-play"></i>
+        Run POS Orders
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary-grid">
+
+    <div class="summary-card" (click)="selectMetricFilter('open')">
+      <div class="summary-label">Open Orders</div>
+      <div class="summary-value">
+        {{ orderMetrics.openOrders || 0 }}
+      </div>
+      <div class="summary-sub">Current warehouse queue</div>
+    </div>
+
+    <div class="summary-card alert-card" (click)="selectMetricFilter('hold')">
+      <div class="summary-label">On Hold</div>
+      <div class="summary-value">
+        {{ orderMetrics.onHoldOrders || 0 }}
+      </div>
+      <div class="summary-sub">Credit or review hold</div>
+    </div>
+
+    <div class="summary-card warning-card" (click)="selectMetricFilter('special')">
+      <div class="summary-label">Special Orders</div>
+      <div class="summary-value">
+        {{ orderMetrics.specialsOrders || 0 }}
+      </div>
+      <div class="summary-sub">Special handling required</div>
+    </div>
+
+    <div class="summary-card" (click)="selectMetricFilter('all')">
+      <div class="summary-label">Open Value</div>
+      <div class="summary-value">
+        {{ openValue | currency }}
+      </div>
+      <div class="summary-sub">Visible order value</div>
+    </div>
+
+  </div>
+  <!-- Tabs -->
+  <div class="channel-tabs">
+    <button type="button"
+            class="channel-tab"
+            [class.active]="activeChannel === 'warehouse'"
+            (click)="selectChannel('warehouse')">
+      <i class="pi pi-building"></i>
+      Warehouse Fulfillment
+      <span class="tab-count">{{ warehouseOrderCount }}</span>
+    </button>
+
+    <button type="button"
+            class="channel-tab"
+            [class.active]="activeChannel === 'consumer'"
+            (click)="selectChannel('consumer')">
+      <i class="pi pi-shopping-bag"></i>
+      Consumer Orders
+      <span class="tab-count">{{ consumerOrderCount }}</span>
+    </button>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="order-toolbar">
+    <div class="filter-fields">
+
+      <div class="field search-field">
+        <label for="orderSearch">Search Orders</label>
+
+        <span class="input-with-icon">
+          <i class="pi pi-search"></i>
+
+          <input id="orderSearch"
+                 type="text"
+                 [(ngModel)]="searchTerm"
+                 placeholder="Order, PO, account, company, address...">
+        </span>
+      </div>
+
+      <div class="field status-field">
+        <label for="statusFilter">Status</label>
+
+        <select id="statusFilter"
+                [(ngModel)]="selectedStatus"
+                (ngModelChange)="metricFilter = 'all'">
+          <option *ngFor="let status of statusOptions"
+                  [value]="status">
+            {{ status }}
+          </option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="toolbar-actions">
+
+      <button type="button"
+              class="btn btn-secondary"
+              (click)="clearFilters()">
+        Reset
+      </button>
+
+      <button type="button"
+              class="btn btn-secondary"
+              [disabled]="selectableFilteredOrders.length === 0"
+              (click)="toggleAllVisibleSelection()">
+        {{ allVisibleSelected ? 'Clear Selection' : 'Select All Eligible' }}
+      </button>
+
+
+      <button type="button"
+              class="btn btn-primary"
+              [disabled]="selectedCount === 0"
+              (click)="processSelected()">
+        Process Selected
+
+        <span class="selection-count"
+              *ngIf="selectedCount">
+          {{ selectedCount }}
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Orders Grid -->
+  <div class="table-card">
+    <div class="table-responsive">
+
+      <table class="orders-table operational-table">
+        <thead>
+          <tr>
+            <th class="select-column">
+              <input type="checkbox"
+                     [checked]="allVisibleSelected"
+                     [indeterminate]="someVisibleSelected"
+                     [disabled]="selectableFilteredOrders.length === 0"
+                     (click)="$event.stopPropagation()"
+                     (change)="toggleSelectAll($event)">
+            </th>
+            <th>Order</th>
+            <th>
+              {{ activeChannel === 'warehouse' ? 'Member' : 'Customer' }}
+            </th>
+            <th>Ship To</th>
+            <th>Channel / Type</th>
+            <th>Status</th>
+            <th>Entered</th>
+            <th class="number-column">Order Total</th>
+
+            <th class="actions-column">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          <tr *ngFor="let order of filteredOrders"
+              class="order-row"
+              [class.selected-row]="selectedOrder?.orderId === order.orderId"
+              [class.held-row]="isOrderOnHold(order)"
+              (click)="openOrder(order)">
+
+            <td class="select-column">
+              <input type="checkbox"
+                     [checked]="isSelected(order.orderId)"
+                     [disabled]="!canProcess(order)"
+                     (click)="$event.stopPropagation()"
+                     (change)="toggleOrderSelection(order.orderId, $event)">
+            </td>
+
+            <td>
+              <span class="order-number">{{ order.orderId }}</span>
+
+              <div class="order-meta">
+                <span *ngIf="order.computymeOrderId">
+                  Comp: {{ order.computymeOrderId }}
+                </span>
+
+                <span *ngIf="order.poNumber">
+                  PO: {{ order.poNumber }}
+                </span>
+              </div>
+            </td>
+
+            <td>
+              <div class="customer-name">{{ order.customerName }}</div>
+
+              <div class="customer-reference">
+                <span *ngIf="order.accountNumber">
+                  Account {{ order.accountNumber }}
+                </span>
+
+                <span *ngIf="!order.accountNumber">
+                  {{ order.customerReference }}
+                </span>
+              </div>
+            </td>
+
+            <td class="address-cell">
+              <ng-container *ngIf="order.shippingAddress; else noAddress">
+                <strong>{{ order.shippingAddress?.address1 }}</strong>
+
+                <span *ngIf="order.shippingAddress?.address2">
+                  {{ order.shippingAddress?.address2 }}
+                </span>
+
+                <span>
+                  {{ order.shippingAddress?.city }},
+                  {{ order.shippingAddress?.state }}
+                  {{ order.shippingAddress?.postalCode }}
+                </span>
+              </ng-container>
+
+              <ng-template #noAddress>
+                <span class="faint">No address available</span>
+              </ng-template>
+            </td>
+
+            <td>
+              <div>{{ order.source }}</div>
+
+              <div class="order-type">
+                {{ order.orderType }}
+
+                <span *ngIf="order.hasSpecial"
+                      class="special-order-badge">
+                  Special
+                </span>
+              </div>
+            </td>
+
+            <td>
+              <span class="status-badge"
+                    [ngClass]="getStatusClass(order.status)"
+                    [class.status-hold]="isOrderOnHold(order)">
+                {{ getHoldLabel(order) }}
+              </span>
+              <div class="override-label"
+                   *ngIf="order.holdOverride">
+                Hold overridden
+              </div>
+            </td>
+
+
+
+            <td class="nowrap">
+              {{ order.enteredDate | date:'MM/dd/yyyy' }}
+            </td>
+
+            <td class="number-column nowrap">
+              {{ order.total | currency }}
+            </td>
+
+
+
+            <td class="actions-column">
+              <button *ngIf="order.status !== 'Rejected'"
+                      type="button"
+                      class="row-action reject-action"
+                      (click)="openRejectModal(order, $event)">
+                Reject
+              </button>
+
+              <span *ngIf="order.status === 'Rejected'"
+                    class="rejected-text">
+                Rejected
+              </span>
+            </td>
+
+          </tr>
+
+          <tr *ngIf="filteredOrders.length === 0">
+            <td colspan="11" class="empty-state">
+              <i class="pi pi-search"></i>
+              <div>No orders match your filters.</div>
+
+              <button type="button"
+                      class="btn btn-secondary"
+                      (click)="clearFilters()">
+                Clear Filters
+              </button>
+            </td>
+          </tr>
+
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+
+  <!-- Full Order Inspector -->
+  <div class="order-detail-card"
+       *ngIf="selectedOrder as order">
+
+    <div class="detail-header">
+      <div>
+        <div class="eyebrow">
+          {{
+            order.channel === 'warehouse'
+              ? 'Warehouse Order'
+              : 'Consumer Order'
+          }}
+        </div>
+
+        <h2>{{ order.orderId }} · {{ order.customerName }}</h2>
+
+        <div class="subtitle">
+          Account {{ order.accountNumber || '—' }}
+          · PO {{ order.poNumber || '—' }}
+          · Computyme {{ order.computymeOrderId || 'Pending' }}
+        </div>
+      </div>
+
+      <div class="detail-actions">
+        <button type="button"
+                 class="btn btn-secondary"
+                [disabled]="!selectedOrder"
+                (click)="selectedOrder && openAudit(selectedOrder)">
+          View Audit
+        </button>
+
+        <button *ngIf="order.autoHold && !order.holdOverride"
+                type="button"
+                class="btn btn-warning"
+                [disabled]="overridingOrderId === order.orderId"
+                (click)="overrideHold(order)">
+          {{
+    overridingOrderId === order.orderId
+      ? 'Overriding...'
+      : 'Override Auto Hold'
+          }}
+        </button>
+
+        <button *ngIf="order.status !== 'Rejected'"
+                type="button"
+                class="btn btn-danger"
+                (click)="openRejectModal(order)">
+          Reject Order
+        </button>
+
+        <button type="button"
+                class="btn btn-primary"
+                [disabled]="!canProcess(order)"
+                (click)="processOrder(order)">
+          Process Order
+        </button>
+      </div>
+    </div>
+
+    <!-- Lifecycle -->
+    <div class="lifecycle">
+      <div class="lifecycle-step complete">
+        <span class="step-dot"></span>
+        <span>Received</span>
+      </div>
+
+      <div class="lifecycle-step complete">
+        <span class="step-dot"></span>
+        <span>Validated</span>
+      </div>
+
+      <div class="lifecycle-step current">
+        <span class="step-dot"></span>
+        <span>{{ order.status }}</span>
+      </div>
+
+      <div class="lifecycle-step">
+        <span class="step-dot"></span>
+        <span>Fulfilled</span>
+      </div>
+
+      <div class="lifecycle-step">
+        <span class="step-dot"></span>
+        <span>Closed</span>
+      </div>
+    </div>
+
+    <!-- Operational Fields -->
+    <div class="operational-grid">
+
+      <div class="info-panel">
+        <div class="section-label">Order Identity</div>
+
+        <div class="field-list">
+          <div class="field-row">
+            <span>Order ID</span>
+            <strong class="mono">{{ order.orderId }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>Computyme ID</span>
+            <strong>{{ order.computymeOrderId || 'Pending' }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>PO Number</span>
+            <strong>{{ order.poNumber || '—' }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>Account</span>
+            <strong>{{ order.accountNumber || '—' }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>Source</span>
+            <strong>{{ order.source }} · {{ order.orderType }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-panel">
+        <div class="info-panel-header">
+          <div class="section-label">Ship To</div>
+
+          <button type="button"
+                  class="address-edit-button"
+                  (click)="openAddressEditor(order)">
+            <i class="pi pi-pencil"></i>
+            Change Address
+          </button>
+        </div>
+
+        <div class="full-address" *ngIf="order.shippingAddress; else noDetailAddress">
+
+          <strong>{{ order.shippingAddress?.address1 }}</strong>
+
+          <span *ngIf="order.shippingAddress?.address2">
+            {{ order.shippingAddress?.address2 }}
+          </span>
+
+          <span>
+            {{ order.shippingAddress?.city }},
+            {{ order.shippingAddress?.state }}
+            {{ order.shippingAddress?.postalCode }}
+          </span>
+
+          <span>{{ order.shippingAddress?.country }}</span>
+        </div>
+
+        <ng-template #noDetailAddress>
+          <div class="faint">No shipping address available.</div>
+        </ng-template>
+      </div>
+
+      <div class="info-panel credit-panel">
+        <div class="section-label">Credit and Holds</div>
+
+        <div class="field-list">
+          <div class="field-row">
+            <span>Available Balance</span>
+            <strong>
+              {{
+                order.availableBalance !== undefined
+                  ? (order.availableBalance | currency)
+                  : '—'
+              }}
+            </strong>
+          </div>
+
+          <div class="field-row">
+            <span>Net Available</span>
+            <strong [class.negative-value]="
+                    order.netAvailable !==undefined &&
+                    order.netAvailable < 0
+              ">
+              {{
+                order.netAvailable !== undefined
+                  ? (order.netAvailable | currency)
+                  : '—'
+              }}
+            </strong>
+          </div>
+
+          <div class="field-row">
+            <span>Credit Status</span>
+            <strong>{{ order.creditStatus || '—' }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>Automatic Hold</span>
+            <strong>{{ order.autoHold ? 'Yes' : 'No' }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>Hold Override</span>
+            <strong>{{ order.holdOverride ? 'Yes' : 'No' }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-panel">
+        <div class="section-label">Shipping and Payment</div>
+
+        <div class="field-list">
+          <div class="field-row">
+            <span>Shipping Method</span>
+            <strong>{{ order.shippingMethod }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>Payment</span>
+            <strong>{{ order.paymentMethod }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>Shipping Notes</span>
+            <strong>{{ order.shippingNotes || '—' }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>Free Shipping</span>
+
+            <button type="button"
+                    class="free-shipping-toggle"
+                    [class.active]="order.freeShipping"
+                    [disabled]="savingFreeShipping"
+                    (click)="toggleFreeShipping(order)">
+              <i class="pi pi-truck"></i>
+
+              {{ order.freeShipping ? 'Enabled' : 'Enable' }}
+            </button>
+          </div>
+
+          <div class="field-row">
+            <span>System Reference</span>
+            <strong>{{ order.systemReference }}</strong>
+          </div>
+
+
+          <div class="field-row total-row">
+            <span>Order Total</span>
+            <strong>{{ order.total | currency }}</strong>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Complete Line Detail -->
+    <div class="line-detail-section">
+      <div class="section-header">
+        <div>
+          <div class="section-label">Order Lines</div>
+          <div class="section-subtitle">
+            Product, inventory, cost, notes, and special pricing
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-secondary">
+          Add Line
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="line-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Description</th>
+              <th class="number-column">Quantity</th>
+              <th>Stock</th>
+              <th class="number-column">Unit Cost</th>
+              <th class="number-column">Net</th>
+              <th>Notes</th>
+              <th>Special</th>
+              <th class="line-actions-column">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let line of order.lines">
+              <td class="mono">{{ line.sku }}</td>
+              <td>
+                <strong>{{ line.description }}</strong>
+              </td>
+              <td class="number-column">{{ line.quantity }}</td>
+              <td>
+                <span class="stock-badge"
+                      [class.out-of-stock]="line.stockStatus !== 'YES'">
+                  {{ line.stockStatus || '—' }}
+                </span>
+              </td>
+              <td class="number-column">
+                {{ line.unitCost | currency }}
+              </td>
+              <td class="number-column">
+                {{ line.total | currency }}
+              </td>
+              <td>{{ line.notes || '—' }}</td>
+              <td>{{ line.specialName || '—' }}</td>
+              <td class="line-actions-column">
+                <button type="button" class="icon-action" title="Edit line">
+                  <i class="pi pi-pencil"></i>
+                </button>
+
+                <button type="button"
+                        class="icon-action delete-line"
+                        title="Remove line">
+                  <i class="pi pi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+
+          <tfoot>
+            <tr>
+              <td colspan="5">Order Total</td>
+              <td class="number-column">
+                {{ order.total | currency }}
+              </td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="rejection-note"
+         *ngIf="order.status === 'Rejected'">
+      <i class="pi pi-ban"></i>
+
+      <div>
+        <strong>Order Rejected</strong>
+        <span>{{ order.rejectionReason }}</span>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!--------------------------------------------------------------------------------------------------------------------->
+  <!-- Address Editor -->
+  <div class="modal-backdrop"
+       *ngIf="addressEditorVisible"
+       (click)="closeAddressEditor()">
+    <div class="address-modal"
+         (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <div class="eyebrow">Order {{ addressEditorOrder?.orderId }}</div>
+          <h2>Change Shipping Address</h2>
+          <div class="subtitle">
+            {{ addressEditorOrder?.customerName }}
+          </div>
+        </div>
+
+        <button type="button"
+                class="modal-close"
+                (click)="closeAddressEditor()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="address-mode-tabs">
+        <button type="button"
+                [class.active]="addressEditorMode === 'saved'"
+                (click)="addressEditorMode = 'saved'">
+          <i class="pi pi-book"></i>
+          Saved Address
+        </button>
+
+        <button type="button"
+                [class.active]="addressEditorMode === 'dropship'"
+                (click)="addressEditorMode = 'dropship'">
+          <i class="pi pi-truck"></i>
+          Drop Ship Address
+        </button>
+      </div>
+
+      <div class="address-modal-body">
+        <div class="address-loading" *ngIf="loadingAddresses">
+          <i class="pi pi-spin pi-spinner"></i>
+          Loading available addresses...
+        </div>
+
+        <div class="address-error" *ngIf="addressError">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ addressError }}
+        </div>
+
+        <!-- Saved addresses -->
+        <ng-container *ngIf="
+          addressEditorMode === 'saved' &&
+          !loadingAddresses &&
+          !addressError
+        ">
+          <div class="address-section-heading">
+            <div>
+              <strong>Member Shipping Addresses</strong>
+              <span>Select the destination for this order.</span>
+            </div>
+
+            <span class="address-count">
+              {{ addressOptions.length }}
+            </span>
+          </div>
+
+          <div class="empty-addresses"
+               *ngIf="addressOptions.length === 0">
+            No mapped shipping addresses were found.
+          </div>
+
+          <div class="address-card-grid">
+            <button type="button"
+                    class="address-option-card"
+                    *ngFor="let address of addressOptions"
+                    [class.selected]="
+              selectedShipToAddressId === address.addressId
+            "
+                    (click)="selectShipToAddress(address.addressId)">
+              <div class="address-card-top">
+                <span class="default-address-badge"
+                      *ngIf="address.isDefaultShipTo">
+                  Default
+                </span>
+
+                <i class="pi"
+                   [ngClass]="
+                  selectedShipToAddressId === address.addressId
+                    ? 'pi-check-circle'
+                    : 'pi-circle'
+                "></i>
+              </div>
+
+              <strong>
+                {{ address.companyName || address.address1 }}
+              </strong>
+
+              <span *ngIf="address.firstName || address.lastName">
+                {{ address.firstName }} {{ address.lastName }}
+              </span>
+
+              <span>{{ address.address1 }}</span>
+              <span *ngIf="address.address2">
+                {{ address.address2 }}
+              </span>
+
+              <span>
+                {{ address.city }}, {{ address.state }}
+                {{ address.postalCode }}
+              </span>
+
+              <span *ngIf="address.country">
+                {{ address.country }}
+              </span>
+            </button>
+          </div>
+        </ng-container>
+
+        <!-- DS editor comes next -->
+        <!-- Drop Ship Address -->
+        <div class="ds-address-panel"
+             *ngIf="addressEditorMode === 'dropship'">
+
+          <div class="address-section-heading">
+            <div>
+              <strong>Drop Ship Destination</strong>
+              <span>
+                Recipient details sent to fulfillment.
+              </span>
+            </div>
+
+            <span class="default-address-badge">
+              Drop Ship
+            </span>
+          </div>
+
+          <div class="ds-form-grid">
+
+            <div class="field full-width">
+              <label>Company</label>
+              <input type="text"
+                     [(ngModel)]="dsAddress.companyName">
+            </div>
+
+            <div class="field">
+              <label>First Name</label>
+              <input type="text"
+                     [(ngModel)]="dsAddress.firstName">
+            </div>
+
+            <div class="field">
+              <label>Last Name</label>
+              <input type="text"
+                     [(ngModel)]="dsAddress.lastName">
+            </div>
+
+            <div class="field full-width">
+              <label>Address Line 1</label>
+              <input type="text"
+                     [(ngModel)]="dsAddress.address1">
+            </div>
+
+            <div class="field full-width">
+              <label>Address Line 2</label>
+              <input type="text"
+                     [(ngModel)]="dsAddress.address2">
+            </div>
+
+            <div class="field">
+              <label>City</label>
+              <input type="text"
+                     [(ngModel)]="dsAddress.city">
+            </div>
+
+            <div class="field">
+              <label>State</label>
+              <input type="text"
+                     [(ngModel)]="dsAddress.state">
+            </div>
+
+            <div class="field">
+              <label>Postal Code</label>
+              <input type="text"
+                     [(ngModel)]="dsAddress.postalCode">
+            </div>
+
+            <div class="field">
+              <label>Country</label>
+              <input type="text"
+                     [(ngModel)]="dsAddress.country">
+            </div>
+
+            <div class="field">
+              <label>Phone</label>
+              <input type="text"
+                     [(ngModel)]="dsAddress.phone">
+            </div>
+
+            <div class="field">
+              <label>Email</label>
+              <input type="email"
+                     [(ngModel)]="dsAddress.email">
+            </div>
+
+          </div>
+
+          <div class="fulfillment-preview">
+            <span>Fulfillment Address2</span>
+
+            <strong>
+              {{ dsAddress.address2 || '—' }} |
+              {{ dsAddress.phone || '—' }} |
+              {{ dsAddress.email || '—' }}
+            </strong>
+          </div>
+
+        </div>
+
+
+      </div>
+
+      <div class="modal-actions">
+        <button type="button"
+                class="btn btn-secondary"
+                (click)="closeAddressEditor()">
+          Close
+        </button>
+
+        <button type="button"
+                class="btn btn-primary"
+                [disabled]="
+          savingAddress ||
+          (
+            addressEditorMode === 'saved' &&
+            selectedShipToAddressId === null
+          )"
+                (click)="saveAddressChange()">
+          <i class="pi pi-check"></i>
+          {{ savingAddress ? 'Saving...' : 'Save Address' }}
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+  <!--------------------------------------------------------------------------------------------------------------------->
+  <!-- Reject Modal -->
+  <div class="modal-backdrop"
+       *ngIf="rejectModalVisible"
+       (click)="closeRejectModal()">
+
+    <div class="reject-modal"
+         (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <div>
+          <div class="eyebrow">Reject Order</div>
+          <h2>{{ rejectTarget?.orderId }}</h2>
+          <div class="subtitle">
+            {{ rejectTarget?.customerName }}
+          </div>
+        </div>
+
+        <button type="button"
+                class="modal-close"
+                (click)="closeRejectModal()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="reject-warning">
+        <i class="pi pi-exclamation-triangle"></i>
+
+        <div>
+          <strong>This order will not be processed.</strong>
+          <span>
+            The reason will be written to the order audit history.
+          </span>
+        </div>
+      </div>
+
+      <div class="field reject-field">
+        <label for="rejectReason">Reason for Rejection</label>
+
+        <textarea id="rejectReason"
+                  rows="4"
+                  [(ngModel)]="rejectReason"
+                  [class.invalid]="rejectReasonError"
+                  placeholder="Enter the reason this order is being rejected..."
+                  (input)="rejectReasonError = false">
+        </textarea>
+
+        <div class="validation-error"
+             *ngIf="rejectReasonError">
+          A rejection reason is required.
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button"
+                class="btn btn-secondary"
+                (click)="closeRejectModal()">
+          Cancel
+        </button>
+
+        <button type="button"
+                class="btn btn-danger"
+                [disabled]="rejectingOrderId !== null"
+                (click)="confirmReject()">
+          <i class="pi pi-ban"></i>
+          {{rejectingOrderId !== null? 'Rejecting...': 'Reject Order'}}
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+
+
+<div class="modal-backdrop"
+     *ngIf="showDsConfig"
+     (click)="closeDsConfig()">
+  <div class="reject-modal ds-config-modal"
+       (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="section-label">Drop Ship Configuration</div>
+        <h3>Drop Ship Ceiling</h3>
+      </div>
+
+      <button type="button"
+              class="modal-close"
+              (click)="closeDsConfig()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <div class="ds-config-field">
+      <label for="dsThreshold">Maximum order value</label>
+
+      <div class="currency-input">
+        <span>$</span>
+
+        <input id="dsThreshold"
+               type="number"
+               min="0"
+               step="0.01"
+               [(ngModel)]="dsThreshold">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button"
+              class="btn btn-secondary"
+              (click)="closeDsConfig()">
+        Cancel
+      </button>
+
+      <button type="button"
+              class="btn btn-primary"
+              [disabled]="savingDsConfig || dsThreshold < 0"
+              (click)="saveDsConfig()">
+        {{ savingDsConfig ? 'Saving...' : 'Save Ceiling' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
+
+<div class="modal-backdrop"
+     *ngIf="auditModalVisible"
+     (click)="closeAudit()">
+
+  <div class="address-modal audit-modal"
+       (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">
+          ORDER {{ auditOrder?.orderId }}
+        </div>
+
+        <h2>Order Activity</h2>
+
+        <p class="subtitle">
+          Processing changes and user activity
+        </p>
+      </div>
+
+      <button type="button"
+              class="modal-close"
+              aria-label="Close audit"
+              (click)="closeAudit()">
+        ×
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="address-loading"
+           *ngIf="auditLoading">
+        Loading activity…
+      </div>
+
+      <div class="address-error"
+           *ngIf="!auditLoading && auditError">
+        {{ auditError }}
+      </div>
+
+      <div class="empty-addresses"
+           *ngIf="
+          !auditLoading &&
+          !auditError &&
+          auditRecords.length === 0
+        ">
+        No activity has been recorded for this order.
+      </div>
+
+      <div class="audit-list"
+           *ngIf="
+          !auditLoading &&
+          !auditError &&
+          auditRecords.length
+        ">
+
+        <div class="audit-entry"
+             *ngFor="let record of auditRecords">
+
+          <div class="audit-marker"></div>
+
+          <div class="audit-content">
+            <div class="audit-heading">
+              <strong>{{ record.actionType }}</strong>
+
+              <span>
+                {{ record.actionDate | date:'MMM d, y, h:mm a' }}
+              </span>
+            </div>
+
+            <div class="audit-reason"
+                 *ngIf="record.reason">
+              {{ record.reason }}
+            </div>
+
+            <div class="audit-meta">
+              {{ record.actionBy || 'Unknown user' }}
+
+              <span *ngIf="record.actionSource">
+                · {{ record.actionSource }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,32 +1,132 @@
 
 <div class="grid">
   <div class="col-12 md:col-6 lg:col-3">
-    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full flex flex-column justify-content-between">
-      <div class="flex align-items-center justify-content-between mb-2">
+
+    <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full">
+
+      <!-- Header -->
+      <div class="flex align-items-center justify-content-between mb-3">
+
         <span class="text-lg font-semibold text-900">
           <i class="pi pi-box mr-2 text-primary"></i>
-          <a (click)="openDsConfig()"
+
+          <a [routerLink]="['/orders']"
              class="text-primary no-underline hover:underline cursor-pointer">
             Orders
           </a>
         </span>
-        <i class="pi pi-forward text-color-secondary"></i>
+
+        <a [routerLink]="['/orders']"
+           class="text-color-secondary hover:text-primary">
+          <i class="pi pi-arrow-right"></i>
+        </a>
+
       </div>
-      <div class="text-sm text-color-secondary">
-        <div>Open: {{ OrderMetrics.openOrders }} </div>
-        <div>Hold: {{ OrderMetrics.onHoldOrders }} </div>
-        <div>Specials: {{ OrderMetrics.specialsOrders }} </div>
-        <div>Drop Ship: {{ OrderMetrics.dropShipOrders }}</div>
-        <div class="mt-1 text-xs text-color-secondary">
-     
-          <div class="mt-1 text-xs text-color-secondary">
-            -  Threshold: {{ OrderMetrics.dropShipThreshold | currency }}
+
+      <!-- Metrics -->
+      <div class="grid m-0">
+
+        <div class="col-6 p-1">
+          <div class="surface-50 border-round p-2">
+            <div class="text-xs text-color-secondary">
+              Open
+            </div>
+
+            <div class="text-xl font-semibold text-900">
+              {{ OrderMetrics.openOrders || 0 }}
+            </div>
           </div>
         </div>
-        <div class="mt-2"><i class="pi pi-clock mr-1"></i>Last Run: {{ OrderMetrics.lastRunTime | date : "EEEE MM-dd-yyyy hh:mm" }}</div>
+
+        <div class="col-6 p-1">
+          <div class="surface-50 border-round p-2">
+            <div class="text-xs text-color-secondary">
+              On Hold
+            </div>
+
+            <div class="text-xl font-semibold text-red-500">
+              {{ OrderMetrics.onHoldOrders || 0 }}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-6 p-1">
+          <div class="surface-50 border-round p-2">
+            <div class="text-xs text-color-secondary">
+              Specials
+            </div>
+
+            <div class="text-xl font-semibold text-900">
+              {{ OrderMetrics.specialsOrders || 0 }}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-6 p-1">
+          <div class="surface-50 border-round p-2">
+            <div class="text-xs text-color-secondary">
+              Drop Ship
+            </div>
+
+            <div class="text-xl font-semibold text-900">
+              {{ OrderMetrics.dropShipOrders || 0 }}
+            </div>
+          </div>
+        </div>
+
       </div>
+
+      <!-- Drop-ship configuration -->
+      <div class="flex align-items-center justify-content-between
+                mt-2 p-2 surface-100 border-round">
+
+        <div>
+          <div class="text-xs text-color-secondary">
+            Drop Ship Ceiling
+          </div>
+
+          <div class="font-semibold text-primary">
+            {{ OrderMetrics.dropShipThreshold | currency }}
+          </div>
+        </div>
+
+        <button pButton
+                pRipple
+                type="button"
+                label="Adjust"
+                icon="pi pi-sliders-h"
+                class="p-button-sm p-button-text"
+                (click)="openDsConfig()">
+        </button>
+
+      </div>
+
+      <!-- Last run -->
+      <div class="flex align-items-center justify-content-between
+                mt-3 pt-2 border-top-1 surface-border
+                text-xs text-color-secondary">
+
+        <span>
+          <i class="pi pi-clock mr-1"></i>
+          Last Run
+        </span>
+
+        <strong class="text-900">
+          {{
+          OrderMetrics.lastRunTime
+            | date:'MMM d, h:mm a'
+          }}
+        </strong>
+
+      </div>
+
     </div>
+
   </div>
+
+
+
+
 
 
 

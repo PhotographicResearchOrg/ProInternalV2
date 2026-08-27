@@ -379,6 +379,38 @@ table {
   }
 }
 
+.bulk-toolbar {
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.bulk-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.bulk-payment-select,
+.payment-select {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 5px 8px;
+}
+
+.bulk-payment-select {
+  min-width: 172px;
+}
+
+.payment-select {
+  width: 154px;
+  max-width: 100%;
+}
+
 .expand-row {
   background: #f7f8fa;
 }

@@ -13,26 +13,27 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.100.5" />
-    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.4.16" />
-    <PackageReference Include="Dapper" Version="2.1.35" />
-    <PackageReference Include="EPPlus" Version="8.1.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="10.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="10.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.0">
+    <PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.101.4" />
+    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.100.11" />
+    <PackageReference Include="Dapper" Version="2.1.79" />
+    <PackageReference Include="EPPlus" Version="8.7.0" />
+    <PackageReference Include="JsonSchema.Net" Version="9.4.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.11">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Playwright" Version="1.57.0" />
-    <PackageReference Include="Microsoft.PowerBI.Api" Version="4.22.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.62.0" />
+    <PackageReference Include="Microsoft.PowerBI.Api" Version="5.1.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="PDFsharp" Version="6.2.4" />
-    <PackageReference Include="Spire.PDF" Version="11.12.7" />
-    <PackageReference Include="Spire.XLS" Version="15.12.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.7.0" />
+    <PackageReference Include="Spire.PDF" Version="12.8.5" />
+    <PackageReference Include="Spire.XLS" Version="16.8.2" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.2.3" />
   </ItemGroup>
 
   <ItemGroup>
@@ -75,7 +76,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Controllers\PowerBIController.cs" />
     <Compile Remove="Controllers\WeatherForecastController.cs" />
+    <Compile Remove="Services\PowerBIService.cs" />
     <Compile Remove="WeatherForecast.cs" />
   </ItemGroup>
 
@@ -129,6 +132,7 @@
     <None Remove="ClientApp\src\app\models\Dashboard\ShippingErrorMetrics.ts" />
     <None Remove="ClientApp\src\app\models\Dashboard\SpecialOrdersSummary.ts" />
     <None Remove="ClientApp\src\app\models\LoginResponse.ts" />
+    <None Remove="ClientApp\src\app\models\Orders\OrderModels.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\accessdenied2-routing.module.ts" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\accessdenied2.component.html" />
     <None Remove="ClientApp\src\app\prointernalengine\components\auth\accessdenied2\accessdenied2.component.ts" />
@@ -219,6 +223,7 @@
       <SubType>Code</SubType>
     </TypeScriptCompile>
     <TypeScriptCompile Include="ClientApp\src\app\models\LoginResponse.ts" />
+    <TypeScriptCompile Include="ClientApp\src\app\models\Orders\OrderModels.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\services\AccountingService.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\services\payments.service.ts" />
     <TypeScriptCompile Include="ClientApp\src\app\services\strapi.service.ts">
@@ -242,15 +247,27 @@
   <ItemGroup>
     <Folder Include="ClientApp\src\app\prointernalengine\components\dashboards\BRM\" />
     <Folder Include="ClientApp\src\app\prointernalengine\components\dashboards\Marketing\" />
+    <Folder Include="ClientApp\src\app\prointernalengine\components\dashboards\Orders\" />
     <Folder Include="ClientApp\src\app\prointernalengine\components\instantrebate\rebate-setup\" />
     <Folder Include="ClientApp\src\app\prointernalengine\components\Vendor\" />
     <Folder Include="ClientApp\src\assets\NewFolder\" />
+    <Folder Include="Adapters\" />
+    <Folder Include="Services\OrderIntegration\Adapters\Inbound\EDI\" />
+    <Folder Include="Services\OrderIntegration\Adapters\Outbound\" />
     <Folder Include="wwwroot\AutomationInvoice\" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="wwwroot\Templates\invoice.pdf" />
   </ItemGroup>
+
+
+<ItemGroup>
+  <None Update="Schemas\OrderIntegration\**\*.json">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+  </None>
+</ItemGroup>
 
     <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">
     <!-- Ensure Node.js is installed -->
