@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
 import { OrdersMetrics } from 'src/app/models/Dashboard/OrdersMetrics';
-import {OrderAuditRecord, UpdateOrderShipToRequest,OrderShipToOption,OrderActionResponse,OrderChannel,OrderRecord,OverrideOrderHoldRequest,ProcessOrdersRequest,RejectOrderRequest,RemoveOrderLineRequest,ReopenOrderRequest,UpdateOrderLineRequest,UpdateShippingNotesRequest} from 'src/app/models/orders/OrderModels';
+import { OrderExportResult , OrderAuditRecord, UpdateOrderShipToRequest,OrderShipToOption,OrderActionResponse,OrderChannel,OrderRecord,OverrideOrderHoldRequest,ProcessOrdersRequest,RejectOrderRequest,RemoveOrderLineRequest,ReopenOrderRequest,UpdateOrderLineRequest,UpdateShippingNotesRequest} from 'src/app/models/orders/OrderModels';
+
 
 @Injectable({
   providedIn: 'root'
@@ -23,11 +24,10 @@ export class OrdersService {
 
   getOrderMetrics(): Observable<OrdersMetrics> {return this.api.get<OrdersMetrics>('API/Metrics/getOrderMetrics');}
 
-  rejectOrder(
-    orderId: string,
-    reason: string
-  ): Observable<OrderActionResponse> {
-    const request: RejectOrderRequest = {
+  rejectOrder(orderId: string, reason: string): Observable<OrderActionResponse>
+  {
+    const request: RejectOrderRequest =
+    {
       orderId,
       reason
     };
@@ -90,10 +90,23 @@ export class OrdersService {
   }
 
 
-  processOrders(request: ProcessOrdersRequest) { return this.api.post<OrderActionResponse>('API/Orders/process', request); }
+
+  processOrders(
+    request: ProcessOrdersRequest
+  ): Observable<OrderExportResult> {
+    return this.api.post<OrderExportResult>(
+      'API/Orders/process',
+      request
+    );
+  }
+
+
+  //Not yet configured.
+  //-------------
   runPosOrders() {return this.api.post<OrderActionResponse>('API/Orders/run-pos',{}); }
   reopenOrder(request: ReopenOrderRequest) {return this.api.post<OrderActionResponse>(`API/Orders/${encodeURIComponent(request.orderId)}/reopen`,request);}
   updateShippingNotes(request: UpdateShippingNotesRequest) {return this.api.post<OrderActionResponse>( `API/Orders/${encodeURIComponent(request.orderId)}/shipping-notes`, request  );}
   updateOrderLine(request: UpdateOrderLineRequest) {return this.api.post<OrderActionResponse>(`API/Orders/${encodeURIComponent(request.orderId)}/lines/${encodeURIComponent(request.lineId)}`,request);}
   removeOrderLine(request: RemoveOrderLineRequest) {return this.api.post<OrderActionResponse>(`API/Orders/${encodeURIComponent(request.orderId)}/lines/${encodeURIComponent(request.lineId)}/remove`,request);}
+  //------------------------------
 }

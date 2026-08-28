@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.yourcompany.com/responses/order-response.schema.json",
+  "title": "Order Response",
+  "description": "A message a consumer (e.g. Computyme) sends back about an order it previously received. This is an event/delta: it reports what changed, it does not re-assert the whole order. Every response references the canonical orderId your platform owns, so the loop closes without guessing. Transport-agnostic: the same JSON applies whether delivered by file drop or API/webhook.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "responseType", "orderRef", "respondedAt"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Response contract version. Independent of the order contract version.",
+      "const": "1.0"
+    },
+    "responseType": {
+      "$ref": "response.enums.json#/$defs/ResponseType",
+      "description": "Selects which optional block carries the detail: acknowledgement, fulfillment, status, or exception."
+    },
+    "orderRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["orderId"],
+      "description": "Which order this response is about. orderId is YOUR canonical id; consumerOrderId is the consumer's own id for round-tripping.",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "description": "The canonical order id from the original order contract (metadata.orderId). Authoritative key."
+        },
+        "orderNumber": {
+          "type": ["string", "null"],
+          "description": "Human-facing order number, echoed for convenience."
+        },
+        "consumerOrderId": {
+          "type": ["string", "null"],
+          "description": "The consumer's internal id for this order (e.g. Computyme's CT-99821). Lets you store the mapping."
+        }
+      }
+    },
+    "respondedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the consumer generated this response."
+    },
+    "messageId": {
+      "type": ["string", "null"],
+      "description": "Unique id for THIS response message, for idempotency and de-duplication. Strongly recommended."
+    },
+
+    "acknowledgement": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Present when responseType is ACKNOWLEDGEMENT. Computyme returns this immediately on receipt of an order, as a single terminal answer: ACCEPTED means the order is valid and will be processed; REJECTED means it kicked out and will NOT be processed. Every order receives exactly one acknowledgement — silence is not acknowledgement.",
+      "required": ["ackResult"],
+      "properties": {
+        "ackResult": {
+          "$ref": "response.enums.json#/$defs/AckResult",
+          "description": "ACCEPTED = valid, will be processed. ACCEPTED_WITH_CHANGES = will be processed but with flagged deviations. REJECTED = kicked out, will not be processed."
+        },
+        "rejectReason": {
+          "$ref": "response.enums.json#/$defs/RejectReason",
+          "description": "Required when ackResult is REJECTED; omit otherwise. Machine code for why the order kicked out."
+        },
+        "message": {
+          "type": ["string", "null"],
+          "description": "Human-readable detail. REQUIRED when ackResult is REJECTED (so the kickout can be acted on) and recommended for ACCEPTED_WITH_CHANGES."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "ackResult": { "const": "REJECTED" } } },
+          "then": {
+            "required": ["rejectReason", "message"],
+            "properties": { "message": { "type": "string", "minLength": 1 } }
+          }
+        }
+      ]
+    },
+
+    "fulfillment": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Present when responseType is FULFILLMENT_UPDATE. Reports shipment and per-line outcomes.",
+      "properties": {
+        "fulfillmentGroupId": {
+          "type": ["string", "null"],
+          "description": "Which fulfillment group from the original order this update concerns. Null if order-wide."
+        },
+        "shipments": {
+          "type": "array",
+          "description": "Shipments executed by the consumer. Mirrors the order contract's shipment shape so both sides speak the same language.",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["shipmentId"],
+            "properties": {
+              "shipmentId": { "type": "string" },
+              "carrier": { "type": ["string", "null"], "examples": ["UPS", "FEDEX"] },
+              "trackingNumber": { "type": ["string", "null"] },
+              "shippedAt": { "type": ["string", "null"], "format": "date-time" },
+              "shippedItems": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["lineId", "quantity"],
+                  "properties": {
+                    "lineId": {
+                      "type": "string",
+                      "description": "The lineId from the original order's items[]. This is how lines are matched back."
+                    },
+                    "quantity": { "type": "number", "exclusiveMinimum": 0 }
+                  }
+                }
+              },
+              "freightCost": {
+                "$ref": "../common/money.schema.json",
+                "description": "Actual freight cost for this shipment, if reported."
+              }
+            }
+          }
+        },
+        "lines": {
+          "type": "array",
+          "description": "Per-line outcome. Use to report backorders, short-ships, and cancellations against the original lineIds.",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["lineId", "status"],
+            "properties": {
+              "lineId": { "type": "string", "description": "Matches items[].lineId in the original order." },
+              "status": { "$ref": "response.enums.json#/$defs/LineResponseStatus" },
+              "quantityShipped": { "type": ["number", "null"], "minimum": 0 },
+              "quantityBackordered": { "type": ["number", "null"], "minimum": 0 },
+              "expectedDate": { "type": ["string", "null"], "format": "date" },
+              "note": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+
+    "statusUpdate": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Present when responseType is STATUS_UPDATE. A coarse status the consumer wants to report (e.g. invoiced, closed).",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "$ref": "../orders/order.enums.json#/$defs/OrderStatus",
+          "description": "Reuses the canonical order status vocabulary so both sides agree on meaning."
+        },
+        "note": { "type": ["string", "null"] }
+      }
+    },
+
+    "exceptions": {
+      "type": "array",
+      "description": "Present when responseType is EXCEPTION (or attached to any response). Problems the consumer hit while processing.",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "$ref": "response.enums.json#/$defs/ExceptionSeverity" },
+          "code": { "type": ["string", "null"], "description": "Stable machine code for the problem, if the consumer has one." },
+          "message": { "type": "string" },
+          "lineId": { "type": ["string", "null"], "description": "The offending line, if line-specific." }
+        }
+      }
+    },
+
+    "references": {
+      "type": "object",
+      "description": "Cross-system identifiers keyed by system name, same convention as the order contract.",
+      "additionalProperties": { "type": "string" },
+      "default": {}
+    },
+
+    "extensions": {
+      "type": "object",
+      "description": "Namespaced consumer-specific data. Read only your own namespace. Adding here never requires a schema change.",
+      "additionalProperties": true,
+      "default": {}
+    }
+  }
+}

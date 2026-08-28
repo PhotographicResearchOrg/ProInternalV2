@@ -253,7 +253,6 @@
     <Folder Include="ClientApp\src\assets\NewFolder\" />
     <Folder Include="Adapters\" />
     <Folder Include="Services\OrderIntegration\Adapters\Inbound\EDI\" />
-    <Folder Include="Services\OrderIntegration\Adapters\Outbound\" />
     <Folder Include="wwwroot\AutomationInvoice\" />
   </ItemGroup>
 

@@ -1,9 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using ProInternal.Models.Orders;
 using ProInternal.Services;
+using ProInternal.Services.OrderIntegration;
 using System.Collections.Generic;
-using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using ProInternal.Models.OrderIntegration;
+
 
 
 namespace ProInternal.Controllers
@@ -15,10 +18,47 @@ namespace ProInternal.Controllers
     public class OrdersController : ControllerBase
     {
         private readonly IOrdersDataAccess _ordersDataAccess;
+        private readonly OrderIntegrationService _orderIntegrationService;
 
-        public OrdersController(IOrdersDataAccess ordersDataAccess)
+        public OrdersController(IOrdersDataAccess ordersDataAccess, OrderIntegrationService orderIntegrationService)
         {
             _ordersDataAccess = ordersDataAccess;
+            _orderIntegrationService = orderIntegrationService;
+        }
+
+
+
+    [HttpPost("process")]
+    public async Task<ActionResult<OrderExportResult>>
+    ProcessOrders([FromBody] ProcessOrdersRequest request,CancellationToken cancellationToken)
+        {
+            if (request.OrderIds is null ||
+                request.OrderIds.Count == 0)
+            {
+                return BadRequest(
+                    "Select at least one order.");
+            }
+
+            var actionBy = GetCurrentUser();
+
+            if (string.IsNullOrWhiteSpace(actionBy))
+            {
+                return Unauthorized(
+                    "Unable to identify the current user.");
+            }
+
+            var result =
+                await _orderIntegrationService
+                    .ExportToComputymeAsync(
+                        request.OrderIds,
+                        actionBy,
+                        cancellationToken);
+
+            /*
+             * Validation and adapter failures are completed business
+             * results, so return the structured result to Angular.
+             */
+            return Ok(result);
         }
 
         [HttpGet]
@@ -44,10 +84,7 @@ namespace ProInternal.Controllers
         [HttpGet("{orderId}")]
         public ActionResult<OrderRecordDto> GetOrder(string orderId,[FromQuery] string? orderSectionId)
         {
-            var order = _ordersDataAccess.GetOrder(
-                orderId,
-                orderSectionId
-            );
+            var order = _ordersDataAccess.GetOrder(orderId,orderSectionId);
 
             if (order == null)
                 return NotFound();

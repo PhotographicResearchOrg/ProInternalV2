@@ -6,13 +6,13 @@ public interface IOrderIntegrationDataAccess
 {
     //For my PRO orders
     CanonicalOrder? GetCanonicalOrder(string orderId);
-
     //Shopify
-    Task<InboundOrderResult>ImportShopifyOrderAsync(
-           ShopifyWebhookEnvelope envelope,
-           CanonicalOrder order,
-           IReadOnlyList<InboundOrderError> errors,
-           int orderStatusId,
-           CancellationToken cancellationToken);
+    Task<InboundOrderResult>ImportShopifyOrderAsync(ShopifyWebhookEnvelope envelope,
+        CanonicalOrder order,IReadOnlyList<InboundOrderError> errors,int orderStatusId,CancellationToken cancellationToken);
+    Task<long> SaveExportAsync(OrderExportBatch batch,CancellationToken cancellationToken);
+    Task SetExportStatusAsync( Guid batchId,string exportStatus,string? errorsJson,CancellationToken cancellationToken);
 
 }
+
+
+

@@ -193,6 +193,14 @@ export type OrderRecordApi =
     enteredDate: string | Date;
   };
 
+export interface OrderExportResult {
+  success: boolean;
+  message: string;
+  batchId: string;
+  fileName?: string | null;
+  processedCount: number;
+  errors: Record<string, string[]>;
+}
 export interface UpdateShippingNotesRequest {
   orderId: string;
   shippingNotes: string;

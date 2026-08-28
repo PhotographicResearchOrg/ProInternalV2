@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.yourcompany.com/responses/response.enums.json",
+  "title": "Order Response Enumerations",
+  "description": "Vocabularies for messages a consumer (e.g. Computyme) sends back about an order it received. Same governance as the order contract: string semantics, additive evolution, never repurpose a member.",
+  "$defs": {
+    "ResponseType": {
+      "type": "string",
+      "description": "What kind of response this message is. Determines which payload fields are meaningful.",
+      "enum": ["ACKNOWLEDGEMENT", "FULFILLMENT_UPDATE", "STATUS_UPDATE", "EXCEPTION"]
+    },
+    "AckResult": {
+      "type": "string",
+      "description": "Outcome of receiving the order, returned immediately. ACCEPTED = valid, will process; REJECTED = will not; ACCEPTED_WITH_CHANGES = processing but flagged deviations.",
+      "enum": ["ACCEPTED", "ACCEPTED_WITH_CHANGES", "REJECTED"]
+    },
+    "RejectReason": {
+      "type": "string",
+      "description": "Why an order was rejected. Present only when ackResult is REJECTED.",
+      "enum": ["INVALID_PAYLOAD", "UNKNOWN_CUSTOMER", "UNKNOWN_ITEM", "DUPLICATE_ORDER", "PRICING_MISMATCH", "CREDIT_DECLINED", "OTHER"]
+    },
+    "LineResponseStatus": {
+      "type": "string",
+      "description": "Per-line outcome reported back by the consumer.",
+      "enum": ["ACCEPTED", "SHIPPED", "PARTIALLY_SHIPPED", "BACKORDERED", "SHORT_SHIPPED", "CANCELLED", "REJECTED"]
+    },
+    "ExceptionSeverity": {
+      "type": "string",
+      "enum": ["INFO", "WARNING", "ERROR"]
+    }
+  }
+}

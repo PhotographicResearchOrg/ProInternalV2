@@ -19,6 +19,7 @@ using ProInternal.Models.Accounts;
 using ProInternal.Services;
 using ProInternal.Services.OrderIntegration;
 using ProInternal.Services.OrderIntegration.Adapters.Inbound.Shopify;
+using ProInternal.Services.OrderIntegration.Adapters.Outbound.Computyme;
 using System;
 using System.IO;
 using System.Net.Http;
@@ -79,6 +80,8 @@ builder.Services.AddScoped<IOrderIntegrationDataAccess,OrderIntegrationDataAcces
 builder.Services.AddScoped<IInvoiceExtractionService, InvoiceExtractionService>();
 builder.Services.AddScoped<IOrderSchemaValidator, OrderSchemaValidator>();
 builder.Services.AddScoped<IShopifyOrderAdapter,ShopifyOrderAdapter>();
+builder.Services.AddSingleton<IComputymeOrderAdapter,ComputymeOrderAdapter>();
+builder.Services.AddScoped<OrderIntegrationService>();
 builder.Services.AddHttpClient<IUvicornDataAccess, UvicornDataAccess>(c =>
 {
     c.BaseAddress = new Uri("http://10.0.1.216:8000/"); // FastAPI base

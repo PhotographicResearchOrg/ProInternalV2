@@ -6,25 +6,19 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 
+
+//Orders screen Service
 namespace ProInternal.Services
 {
 
     public class OrdersDataAccess: BaseDataAccess, IOrdersDataAccess
     {
-        public OrdersDataAccess(
-            IConfiguration config,
-            AwsSecretHelper helper
-        )
-            : base(
-                config,
-                helper,
-                "ProConnectionString"
-            )
+        public OrdersDataAccess(IConfiguration config, AwsSecretHelper helper)
+            : base(config,helper,"ProConnectionString")
         {
         }
 
-        public List<OrderRecordDto> GetOrders(
-            OrderSearchRequest request
+        public List<OrderRecordDto> GetOrders(OrderSearchRequest request
         )
         {
             using var conn = GetConnection();
@@ -49,12 +43,9 @@ namespace ProInternal.Services
             ).ToList();
         }
 
-        public List<OrderRecordDto> GetProcessedOrders(
-            string? channel
-        )
+        public List<OrderRecordDto> GetProcessedOrders(string? channel)
         {
             using var conn = GetConnection();
-
             return conn.Query<OrderRecordDto,OrderAddressDto, OrderRecordDto>
                 ("Orders_GetProcessed",(order, shippingAddress) =>
                 {
@@ -63,21 +54,18 @@ namespace ProInternal.Services
                     return order;
                 },
                 new
-                {
- Channel = channel
-                },
+                {Channel = channel},
                 splitOn: "Address1",
                 commandType:
                 CommandType.StoredProcedure
             ).ToList();
         }
 
-        public OrderRecordDto? GetOrder(
+       public OrderRecordDto? GetOrder(
        string orderId,
        string? orderSectionId)
         {
             using var conn = GetConnection();
-
             using var results = conn.QueryMultiple(
                 "dbo.PIV2_Orders_GetById",
                 new
@@ -93,15 +81,9 @@ namespace ProInternal.Services
             if (order == null)
                 return null;
 
-            order.ShippingAddress =
-                results.ReadFirstOrDefault<OrderAddressDto>();
-
-            order.BillingAddress =
-                results.ReadFirstOrDefault<OrderAddressDto>();
-
-            order.Lines =
-                results.Read<OrderLineDto>().ToList();
-
+            order.ShippingAddress =results.ReadFirstOrDefault<OrderAddressDto>();
+            order.BillingAddress =results.ReadFirstOrDefault<OrderAddressDto>();
+            order.Lines =results.Read<OrderLineDto>().ToList();
             return order;
         }
 
@@ -126,51 +108,65 @@ namespace ProInternal.Services
         }
 
 
-        public OrderActionResponse ProcessOrders(
-            ProcessOrdersRequest request
-        )
-        {
-            using var conn = GetConnection();
 
-            return conn.QuerySingle<OrderActionResponse>(
-                "Orders_Process",
-                new
-                {
-                    OrderIds = string.Join(
-                        ",",
-                        request.OrderIds
-                    )
-                },
-                commandType:
-                    CommandType.StoredProcedure
-            );
-        }
 
+
+//-------------------------------------------------------------Not Wired. -----------------------------------
         public OrderActionResponse RunPosOrders()
         {
             using var conn = GetConnection();
-
-            return conn.QuerySingle<OrderActionResponse>(
-                "Orders_RunPos",
-                commandType:
-                    CommandType.StoredProcedure
-            );
+            return conn.QuerySingle<OrderActionResponse>( "TEMP", commandType:CommandType.StoredProcedure);
         }
-
         public OrderActionResponse ReopenOrder(ReopenOrderRequest request)
         {
             using var conn = GetConnection();
 
-            return conn.QuerySingle<OrderActionResponse>("Orders_Reopen",
+            return conn.QuerySingle<OrderActionResponse>("TEMP",
                 new
                 {
                     OrderId = request.OrderId,
                     Reason = request.Reason
                 },
-                commandType:
-                    CommandType.StoredProcedure
+                commandType:CommandType.StoredProcedure
             );
         }
+
+
+        public OrderActionResponse UpdateOrderLine(UpdateOrderLineRequest request)
+        {
+            using var conn = GetConnection();
+
+            return conn.QuerySingle<OrderActionResponse>(
+                "TEMP",
+                new
+                {
+                    OrderId = request.OrderId,
+                    LineId = request.LineId,
+                    Quantity = request.Quantity,
+                    Notes = request.Notes
+                },
+                commandType:CommandType.StoredProcedure
+            );
+        }
+
+        public OrderActionResponse RemoveOrderLine(RemoveOrderLineRequest request)
+        {
+            using var conn = GetConnection();
+
+            return conn.QuerySingle<OrderActionResponse>("TEMP",
+                new
+                {
+                    OrderId = request.OrderId,
+                    LineId = request.LineId,
+                    Reason = request.Reason
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        //------------------------------------------------------------------------------
+
+
 
         public OrderActionResponse UpdateShippingNotes(
             UpdateShippingNotesRequest request
@@ -191,43 +187,7 @@ namespace ProInternal.Services
             );
         }
 
-        public OrderActionResponse UpdateOrderLine(
-            UpdateOrderLineRequest request
-        )
-        {
-            using var conn = GetConnection();
-
-            return conn.QuerySingle<OrderActionResponse>(
-                "Orders_UpdateLine",
-                new
-                {
-                    OrderId = request.OrderId,
-                    LineId = request.LineId,
-                    Quantity = request.Quantity,
-                    Notes = request.Notes
-                },
-                commandType:
-                    CommandType.StoredProcedure
-            );
-        }
-
-        public OrderActionResponse RemoveOrderLine(RemoveOrderLineRequest request)
-        {
-            using var conn = GetConnection();
-
-            return conn.QuerySingle<OrderActionResponse>(
-                "Orders_RemoveLine",
-                new
-                {
-                    OrderId = request.OrderId,
-                    LineId = request.LineId,
-                    Reason = request.Reason
-                },
-                commandType:
-                    CommandType.StoredProcedure
-            );
-        }
-
+      
         public OrderActionResponse SetFreeShipping(SetFreeShippingRequest request)
         {
             using var conn = GetConnection();
@@ -249,16 +209,12 @@ namespace ProInternal.Services
         {
             if (!int.TryParse(request.OrderId, out var orderId))
             {
-                throw new ArgumentException(
-                    "A valid OrderId is required.",
-                    nameof(request)
-                );
+                throw new ArgumentException( "A valid OrderId is required.",nameof(request));
             }
 
             using var conn = GetConnection();
 
-            return conn.QuerySingle<OrderActionResponse>(
-                "dbo.PIV2_Orders_OverrideHold",
+            return conn.QuerySingle<OrderActionResponse>( "dbo.PIV2_Orders_OverrideHold",
                 new
                 {
                     OrderId = orderId,
@@ -270,14 +226,11 @@ namespace ProInternal.Services
             );
         }
 
-
-
         public IEnumerable<OrderShipToOptionDto> GetShipToAddresses(string orderId)
         {
             using var conn = GetConnection();
 
-            return conn.Query<OrderShipToOptionDto>(
-                "dbo.PIV2_Orders_GetShipToAddresses",
+            return conn.Query<OrderShipToOptionDto>("dbo.PIV2_Orders_GetShipToAddresses",
                 new
                 {
                     OrderId = Convert.ToInt32(orderId)
@@ -287,8 +240,7 @@ namespace ProInternal.Services
         }
 
 
-        public OrderActionResponse UpdateShipTo(
-    UpdateOrderShipToRequest request)
+        public OrderActionResponse UpdateShipTo( UpdateOrderShipToRequest request)
         {
             using var conn = GetConnection();
 
@@ -299,21 +251,17 @@ namespace ProInternal.Services
                     OrderId = Convert.ToInt32(request.OrderId),
                     request.Mode,
                     request.AddressId,
-
                     request.CompanyName,
                     request.FirstName,
                     request.LastName,
-
                     request.Address1,
                     request.Address2,
                     request.City,
                     request.State,
                     request.PostalCode,
                     request.Country,
-
                     request.Phone,
                     request.Email,
-
                     request.ActionBy,
                     request.ActionSource
                 },
@@ -325,9 +273,7 @@ namespace ProInternal.Services
         public IEnumerable<OrderAuditDto> GetOrderAudit(string orderId)
         {
             using var conn = GetConnection();
-
-            return conn.Query<OrderAuditDto>(
-                "dbo.PIV2_Orders_GetAudit",
+            return conn.Query<OrderAuditDto>( "dbo.PIV2_Orders_GetAudit",
                 new
                 {
                     OrderId = orderId

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { OrderAuditRecord, UpdateOrderShipToRequest, OrderChannel, OrderStatus, OrderRecord, OrderShipToOption  } from 'src/app/models/orders/OrderModels';
+import { ProcessOrdersRequest, OrderAuditRecord, UpdateOrderShipToRequest, OrderChannel, OrderStatus, OrderRecord, OrderShipToOption  } from 'src/app/models/orders/OrderModels';
 import { OrdersService } from 'src/app/services/orders.service';
 import { OrdersMetrics } from 'src/app/models/Dashboard/OrdersMetrics';
 import { DataService } from 'src/app/services/data.service';
@@ -42,7 +42,7 @@ export class OrdersComponent implements OnInit {
   auditError = '';
   auditRecords: OrderAuditRecord[] = [];
   auditOrder: OrderRecord | null = null;
-
+  processingOrders = false;
 
 
   readonly statusOptions = [
@@ -568,12 +568,12 @@ export class OrdersComponent implements OnInit {
   }
 
   processSelected(): void {
-    if (!this.selectedCount) {
+    if (!this.selectedCount ||
+      this.processingOrders) {
       return;
     }
 
-    console.log(
-      'Processing orders:',
+    this.exportOrders(
       Array.from(this.selectedOrderIds)
     );
   }
@@ -590,12 +590,94 @@ export class OrdersComponent implements OnInit {
 
 
   processOrder(order: OrderRecord): void {
-    if (!this.canProcess(order)) {
+    if (!this.canProcess(order) ||
+      this.processingOrders) {
       return;
     }
 
-    console.log('Processing order:', order.orderId);
+    this.exportOrders([order.orderId]);
   }
+
+
+  private exportOrders(
+    orderIds: string[]
+  ): void {
+    this.processingOrders = true;
+    this.ordersError = '';
+
+    const request: ProcessOrdersRequest = {orderIds};
+
+    this.ordersService
+      .processOrders(request)
+      .subscribe({
+        next: result => {
+          this.processingOrders = false;
+
+          if (!result.success) {
+            const details =
+              Object.entries(result.errors ?? {})
+                .flatMap(
+                  ([orderId, errors]) =>
+                    errors.map(
+                      error =>
+                        `Order ${orderId}: ${error}`
+                    )
+                );
+
+            this.ordersError =
+              details.length > 0
+                ? details.join(' ')
+                : result.message;
+
+            this.toast.add({
+              severity: 'error',
+              summary:
+                'Computyme File Not Generated',
+              detail: result.message
+            });
+
+            return;
+          }
+
+          this.toast.add({
+            severity: 'success',
+            summary:
+              'Computyme File Generated',
+            detail:
+              `${result.processedCount} order(s) written to ` +
+              `${result.fileName}. Batch ${result.batchId}.`
+          });
+
+          for (const orderId of orderIds) {
+            this.selectedOrderIds.delete(
+              orderId);
+          }
+        },
+
+        error: error => {
+          this.processingOrders = false;
+
+          console.error(
+            'Unable to generate Computyme file.',
+            error);
+
+          this.ordersError =
+            error?.error?.message ??
+            error?.error ??
+            'Unable to generate the Computyme file.';
+
+          this.toast.add({
+            severity: 'error',
+            summary: 'Computyme Export Failed',
+            detail:
+              'The server could not complete the export.'
+          });
+        }
+      });
+  }
+
+
+
 
   get warehouseOrderCount(): number {
     return this.orders.filter(
