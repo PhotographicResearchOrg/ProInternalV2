@@ -29,6 +29,9 @@ export class FileAppComponent implements OnInit {
   uploading = false;
   uploadProgress = 0;
 
+  private history: string[] = []; //building stack for back button
+  private goingBack = false;
+
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   private sizeCache = new Map<string, FolderSize>();
@@ -40,7 +43,11 @@ export class FileAppComponent implements OnInit {
   ) { }
 
   ngOnInit() {
-    this.routeSub = this.route.queryParams.subscribe(p => this.loadFolder(p['path'] || ''));
+    this.routeSub = this.route.queryParams.subscribe(p => {
+      const path = p['path'] || '';
+      this.recordVisit(path);
+      this.loadFolder(path);
+    })
   }
 
   ngOnDestroy() {
@@ -103,6 +110,31 @@ export class FileAppComponent implements OnInit {
       queryParams: { path: path || null },
     });
   }
+
+  private recordVisit(path: string) {
+    if (this.goingBack) { // checks if you've already gone back
+      this.goingBack = false;
+      return;
+    }
+
+    const last = this.history[this.history.length - 1]; // check top
+    if (last === path) return; // dupe check that could happen
+
+    this.history.push(path);
+  }
+
+  get canGoBack(): boolean {
+    return this.history.length > 1;
+  }
+
+  goBack() {
+    if (!this.canGoBack) return; // can't go back
+
+    this.history.pop();
+    this.goingBack = true;
+    this.navigateTo(this.history[this.history.length - 1]); // walk
+  }
+
 
   refresh() { this.sizeCache.delete(this.currentRelativePath); this.loadFolder(this.currentRelativePath); }
 

@@ -4,7 +4,7 @@
 
     <!-- Storage ----->
     <div class="card">
-      <div class="flex align-items-center jsustify-content-between mb-1">
+      <div class="flex align-items-center justify-content-between mb-1">
         <span class="text-900 text-xl font-semibold">Storage</span>
         <i class="pi pi-database text-primary"></i>
       </div>
@@ -73,11 +73,15 @@
 
   <!-- RIGHT: breadcrumb + folders + files -->
   <div class="col-12 md:col-7 xl:col-9">
-    <div class="card flex align-items-center justify-content-between py-2">
-      <p-breadcrumb [model]="breadcrumbItems" [home]="breadcrumbHome" styleClass="border-none p-0"></p-breadcrumb>
+    <div class="card flex align-items-center justify-content-between py-3">
+      <div class="flex align-items-center gap-2">
+        <button pButton pRipple icon="pi pi-arrow-left" class="p-button-text p-button-rounded p-button-lg"
+                (click)="goBack()" [disabled]="!canGoBack"></button>
+        <p-breadcrumb [model]="breadcrumbItems" [home]="breadcrumbHome" styleClass="border-none p-0"></p-breadcrumb>
+      </div>
       <button pButton pRipple icon="pi pi-refresh" class="p-button-text p-button-rounded"
               (click)="refresh()" pTooltip="Refresh"></button>
-    </div>
+  </div>
 
     <!-- loading -->
     <div *ngIf="loading" class="card flex justify-content-center py-6">
@@ -140,4 +144,5 @@
       </div>
     </ng-container>
   </div>
+</div>
 
