@@ -179,10 +179,53 @@
                     <tr>
                       <td colspan="6">
                         <div class="p-2 border-round shadow-1 mt-2">
+
+                          <!-- Action notice for Forward and Call Me -->
+                          <div *ngIf="product.errorType === 'Forward' || product.errorType === 'Call Me'"
+                               class="p-3 mb-3 border-round flex gap-3 align-items-start"
+                               style="
+       background: linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%);
+       border: 1px solid #ffb74d;
+       box-shadow: 0 4px 14px rgba(239, 108, 0, .12);
+     ">
+
+                            <div class="flex align-items-center justify-content-center border-circle flex-shrink-0"
+                                 style="width: 46px; height: 46px; background: #ef6c00; color: #fff;">
+                              <i class="pi pi-exclamation-triangle text-xl"></i>
+                            </div>
+
+                            <div>
+                              <div class="text-xs font-bold uppercase mb-1"
+                                   style="color: #b53d00; letter-spacing: .06em;">
+                                Action required before closing
+                              </div>
+
+                              <div class="text-lg font-bold mb-1"
+                                   style="color: #3e2723;">
+                                {{
+ product.errorType === 'Forward'
+        ? 'Confirm the order was forwarded'
+        : 'Complete the requested call'
+                                }}
+                              </div>
+
+                              <div class="line-height-3 text-700">
+                                {{
+ product.errorType === 'Forward'
+        ? 'The retailer said they would forward this order. Follow up and make sure it was actually done, and that the end customer knows.'
+        : 'The customer requested a call. Make the call, resolve the question, and make sure the customer knows the outcome.'
+                                }}
+                              </div>
+
+                              <div class="inline-flex align-items-center gap-2 mt-2 px-2 py-1 border-round font-semibold text-sm"
+                                   style="background: #fff; color: #b53d00; border: 1px solid #ffcc80;">
+                                <i class="pi pi-check-circle"></i>
+                                This needs action — do not close it until the follow-up is done
+                              </div>
+                            </div>
+                          </div>
+
                           <div class="grid">
-
-
-
                             <div class="col-12 md:col-6">
                               <strong>Disposition:</strong>
 

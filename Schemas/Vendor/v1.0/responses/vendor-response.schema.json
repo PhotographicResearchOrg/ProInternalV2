@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/responses/vendor-response.schema.json",
+  "title": "Vendor Response",
+  "description": "Message a consumer (Computyme, an ERP) returns after receiving a canonical vendor payload. Every vendor sent must come back ACCEPTED, ACCEPTED_WITH_CHANGES, or REJECTED; silence is not acknowledgement. AckResult and ExceptionSeverity are the SHARED vocabularies from responses/response.enums.json; only the vendor-specific reject reasons are defined here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "responseType",
+    "vendorRef",
+    "respondedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "responseType": {
+      "type": "string",
+      "enum": [
+        "ACKNOWLEDGEMENT",
+        "EXCEPTION"
+      ]
+    },
+    "vendorRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vendorId"
+      ],
+      "properties": {
+        "vendorId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical vendorId this response concerns."
+        },
+        "consumerVendorId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The consumer's own id for this vendor, once assigned."
+        },
+        "vendorNumber": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "respondedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "messageId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "consumer": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "description": "System sending the response, e.g. COMPUTYME, INTACCT."
+    },
+    "acknowledgement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ackResult",
+        "message"
+      ],
+      "properties": {
+        "ackResult": {
+          "$ref": "response.enums.json#/$defs/AckResult"
+        },
+        "rejectReason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VendorRejectReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "description": "REJECTED always requires a machine reason code.",
+          "if": {
+            "properties": {
+              "ackResult": {
+                "const": "REJECTED"
+              }
+            },
+            "required": [
+              "ackResult"
+            ]
+          },
+          "then": {
+            "required": [
+              "rejectReason"
+            ],
+            "properties": {
+              "rejectReason": {
+                "$ref": "#/$defs/VendorRejectReason"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "exceptions": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "severity": {
+            "$ref": "response.enums.json#/$defs/ExceptionSeverity"
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "JSON Pointer to the offending value in the vendor payload."
+          }
+        }
+      }
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object"
+      },
+      "default": {}
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "responseType": {
+            "const": "ACKNOWLEDGEMENT"
+          }
+        },
+        "required": [
+          "responseType"
+        ]
+      },
+      "then": {
+        "required": [
+          "acknowledgement"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "responseType": {
+            "const": "EXCEPTION"
+          }
+        },
+        "required": [
+          "responseType"
+        ]
+      },
+      "then": {
+        "required": [
+          "exceptions"
+        ],
+        "properties": {
+          "exceptions": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "VendorRejectReason": {
+      "type": "string",
+      "description": "Why a vendor record was rejected. Vendor-specific; order reject reasons live in response.enums.json.",
+      "enum": [
+        "INVALID_PAYLOAD",
+        "DUPLICATE_VENDOR",
+        "UNKNOWN_VENDOR",
+        "UNSUPPORTED_TERMS",
+        "MISSING_REQUIRED_FIELD",
+        "OTHER"
+      ]
+    }
+  }
+}

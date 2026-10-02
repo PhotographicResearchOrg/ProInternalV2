@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/web/vendor-web-profile.schema.json",
+  "title": "Canonical Vendor Web Profile",
+  "description": "How a vendor is presented on PRO's sites: whether it is published, who can see it, and the content shown. One record per vendor, tied to the vendor through vendorId. It holds PRESENTATION only. The vendor's name, website, addresses, and working terms stay on the vendor record and are not repeated here; the policy text here is what members read, not what PRO's systems calculate from. PRO owns this contract; SQL is the system of record; web platforms (the B2B site, a CMS, a storefront) connect through adapters. Unknown fields are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "vendorId",
+    "visibility"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "vendorId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Canonical vendorId (vendor.schema.json metadata.vendorId) this profile belongs to. One profile per vendor."
+    },
+    "updatedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "published"
+      ],
+      "description": "Whether the vendor appears on the web and to whom. Independent of vendor.status: an ACTIVE vendor can be unpublished.",
+      "properties": {
+        "published": {
+          "type": "boolean",
+          "description": "Live on web."
+        },
+        "audiences": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Member types that can see this vendor, as codes from PRO's member-type registry. Adding a member type is a data change, not a schema change.",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "examples": [
+              "MEMBER",
+              "AFFILIATE"
+            ]
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "published": {
+            "const": true
+          }
+        },
+        "required": [
+          "published"
+        ]
+      },
+      "then": {
+        "required": [
+          "audiences"
+        ],
+        "properties": {
+          "audiences": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "displayName": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Name shown on the web when it should differ from vendor.name."
+        },
+        "slug": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "URL-safe identifier for the vendor page."
+        },
+        "blurb": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Short description."
+        },
+        "companyStatement": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Long-form company description."
+        },
+        "logoUrl": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri",
+          "pattern": "^https?://",
+          "description": "Full http(s) URL of the logo image."
+        },
+        "marketingMaterials": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Text or links to marketing material."
+        },
+        "featuredDisplayOrder": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Position among featured vendors. Null = not featured."
+        }
+      }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Policy text displayed to members. Display only: the structured terms PRO operates on are on the vendor record.",
+      "properties": {
+        "freightPolicyText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "returnPolicyText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "categories": {
+      "type": "array",
+      "default": [],
+      "description": "Product categories the vendor is listed under on the web, in display order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "displayOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
+        }
+      }
+    },
+    "references": {
+      "type": "object",
+      "description": "This profile's id in each web platform, keyed by system.",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Namespaced fields that only one web platform cares about.",
+      "additionalProperties": {
+        "type": "object"
+      },
+      "default": {}
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "createdBy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updatedBy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}
