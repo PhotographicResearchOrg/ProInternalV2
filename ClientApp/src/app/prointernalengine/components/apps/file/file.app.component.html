@@ -2,6 +2,16 @@
   <!-- LEFT: storage + upload -->
   <div class="col-12 md:col-5 xl:col-3">
 
+    <div class="card" *ngIf="favorites.length">
+      <div class="text-900 text-lg font-semibold mb-3">Favorites</div>
+      <div *ngFor="let path of favorites"
+           class="flex align-items-center gap-2 p-2 border-round cursor-pointer hover:surface-100"
+           (click)="navigateTo(path)">
+        <i class="pi pi-star-fill text-yellow-500"></i>
+        <span class="white-space-nowrap overflow-hidden text-overflow-ellipsis">{{ path || 'Root' }}</span>
+      </div>
+    </div>
+
     <!-- Storage ----->
     <div class="card">
       <div class="flex align-items-center justify-content-between mb-1">
@@ -79,9 +89,14 @@
                 (click)="goBack()" [disabled]="!canGoBack"></button>
         <p-breadcrumb [model]="breadcrumbItems" [home]="breadcrumbHome" styleClass="border-none p-0"></p-breadcrumb>
       </div>
-      <button pButton pRipple icon="pi pi-refresh" class="p-button-text p-button-rounded"
-              (click)="refresh()" pTooltip="Refresh"></button>
-  </div>
+      <div class="flex align-items-center gap-1">
+        <button pButton pRipple [icon]="isFavorite ? 'pi pi-star-fill' : 'pi pi-star'"
+                class="p-button-text p-button-rounded p-button-lg"
+                (click)="toggleFavorite()"></button>
+        <button pButton pRipple icon="pi pi-refresh" class="p-button-text p-button-rounded p-button-lg"
+                (click)="refresh()" pTooltip="Refresh"></button>
+      </div>
+    </div>
 
     <!-- loading -->
     <div *ngIf="loading" class="card flex justify-content-center py-6">

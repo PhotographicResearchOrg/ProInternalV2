@@ -158,8 +158,9 @@ export class AuthService {
     return !!localStorage.getItem('token'); // or sessionStorage, depending on where you stor
   }
   logout(): void {
-    // Clear localStorage
-    localStorage.clear();
+    const favorites = localStorage.getItem('fileFavorites'); // stores in variables
+    localStorage.clear(); // clear when logout called
+    if (favorites) localStorage.setItem('fileFavorites', favorites); //rewrites if contains.
 
     // Clear sessionStorage (optional)
     sessionStorage.clear();

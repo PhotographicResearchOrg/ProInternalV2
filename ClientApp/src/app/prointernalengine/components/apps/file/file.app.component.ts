@@ -32,6 +32,8 @@ export class FileAppComponent implements OnInit {
   private history: string[] = []; //building stack for back button
   private goingBack = false;
 
+  favorites: string[] = [];
+
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   private sizeCache = new Map<string, FolderSize>();
@@ -43,6 +45,7 @@ export class FileAppComponent implements OnInit {
   ) { }
 
   ngOnInit() {
+    this.favorites = this.loadFavorites();
     this.routeSub = this.route.queryParams.subscribe(p => {
       const path = p['path'] || '';
       this.recordVisit(path);
@@ -135,6 +138,36 @@ export class FileAppComponent implements OnInit {
     this.navigateTo(this.history[this.history.length - 1]); // walk
   }
 
+  private loadFavorites(): string[] {
+    try {
+      return JSON.parse(localStorage.getItem('fileFavorites') || '[]');
+    } catch { // loads text or null, JSON.parse turns text into list, returns list.
+      return [];
+    }
+  }
+
+  private cleanPath(path: string): string {
+    return path.replace(/\\/g, '/');
+  } // path converter, SafePath does this on the server, this is for browser.
+
+  get isFavorite(): boolean {
+    return this.favorites.includes(this.cleanPath(this.currentRelativePath));
+  } // get T/F on a normalized folder path, if list contains string ^
+
+  toggleFavorite() {
+    const path = this.cleanPath(this.currentRelativePath);
+    // gets normalized path like above
+
+    if (this.isFavorite) { //already here? 
+      this.favorites = this.favorites.filter(p => p !== path);
+    } else { // keeps everything already established, no overwriting.
+      this.favorites = [...this.favorites, path]; // this creates a new list with
+      // the 3 dots, adds the new path to the end of this list.
+    }
+
+    localStorage.setItem('fileFavorites', JSON.stringify(this.favorites));
+    // storage updated, stringify does opposite of parse, setItem sets favorite.
+  }
 
   refresh() { this.sizeCache.delete(this.currentRelativePath); this.loadFolder(this.currentRelativePath); }
 
