@@ -35,6 +35,7 @@ import { VendorBillingComponent } from './prointernalengine/components/dashboard
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
 import { VendorCardComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-card/vendor-card.component';
+import { VendorCustomFieldsComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-custom-fields/vendor-custom-fields.component';
 import { IrSetupDashboardComponent } from './prointernalengine/components/instantrebate/ir-setup-dashboard/ir-setup-dashboard.component';
 import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component';
 import { OrdersComponent } from './prointernalengine/components/dashboards/Orders/orders.component';
@@ -82,6 +83,7 @@ const routes: Routes = [
       { path: 'accountmanagement', component: AccountManagementComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Account Management' } },
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
       { path: 'vendor-card', component: VendorCardComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor' } },
+      { path: 'vendor-custom-fields', component: VendorCustomFieldsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor Custom Fields' } },
       { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },
       { path: 'shippingmonitor', component: ShipmentMonitorComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Monitor' } },
       { path: 'productedit', component: ProductEditComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Edit' } },

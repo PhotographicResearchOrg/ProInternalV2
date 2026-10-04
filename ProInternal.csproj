@@ -258,6 +258,7 @@
 
   <ItemGroup>
     <None Include="wwwroot\Templates\invoice.pdf" />
+    <None Include="~\.aws\credentials" />
   </ItemGroup>
 
 

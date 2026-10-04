@@ -39,7 +39,7 @@ export class VendorGridComponent implements OnInit {
   }
 
   openVendor(vendor: Vendor) {
-    this.router.navigate(['/vendor-card']);
+    this.router.navigate(['/vendor-card'], { queryParams: { vendorId: vendor.id } });
   }
 
   applyFilter() {

@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text;
 using ProInternal.Models.Configuration;
 using ProInternal.Models.Auth;
+using ProInternal.Models.Vendor;
 using Newtonsoft.Json;
 
 
@@ -20,6 +21,10 @@ namespace ProInternal.Models.Auth
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.User.Username),
                 new Claim("userId", user.User.UserId.ToString()),
+
+                // One per login; stamped on audit rows so the UI can tell which
+                // changes were made in the caller's current session.
+                new Claim(AuditActor.SessionIdClaim, Guid.NewGuid().ToString()),
 
                 new Claim("permissions", JsonConvert.SerializeObject(user.Permissions)),
 

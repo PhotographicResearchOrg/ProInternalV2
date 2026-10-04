@@ -84,6 +84,7 @@ import { BreadcrumbModule } from 'primeng/breadcrumb';
 /* Components */
 
 import { VendorCardComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-card/vendor-card.component';
+import { VendorCustomFieldsComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-custom-fields/vendor-custom-fields.component';
 import { CreditsComponent } from './prointernalengine/components/dashboards/accounting/credits.component/credits.component';
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -105,6 +106,7 @@ import { EdiManagementComponent } from './prointernalengine/components/dashboard
     PaymentAdministrationComponent,
     IrSetupDashboardComponent,
     VendorCardComponent,
+    VendorCustomFieldsComponent,
     CreditsComponent,
     VendorBillingComponent,
     ProductEditComponent,

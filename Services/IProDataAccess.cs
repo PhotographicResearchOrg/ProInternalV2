@@ -85,6 +85,46 @@ GetSellThroughExportData(
         VendorMatchDto? FindVendorByName(string name);
         VendorMatchDto? FindVendorByAddress(string rawText);
 
+        // Vendor card
+        VendorCardDto? GetVendorCard(int vendorId);
+        void ToggleVendorActive(int vendorId, AuditActor actor);
+
+        VendorTermsDto? GetVendorTerms(int vendorId);
+        void UpsertVendorTerms(VendorTermsDto terms, AuditActor actor);
+
+        int AddVendorBrand(VendorBrandDto brand, AuditActor actor);
+
+        int AddVendorContactGroup(VendorContactGroupDto group, AuditActor actor);
+        List<VendorContactGroupDto> GetVendorContacts(int vendorId);
+        int AddVendorContact(VendorContactDto contact, AuditActor actor);
+        void UpdateVendorContact(VendorContactDto contact, AuditActor actor);
+        void DeleteVendorContact(int vendorContactId);
+
+        List<VendorContractDto> GetVendorContracts(int vendorId);
+        int AddVendorContract(VendorContractDto contract, AuditActor actor);
+        void UpdateVendorContract(VendorContractDto contract, AuditActor actor);
+
+        List<VendorPriceListDto> GetVendorPriceLists(int vendorId);
+        int AddVendorPriceList(VendorPriceListDto priceList, AuditActor actor);
+
+        VendorPoliciesDto GetVendorPolicies(int vendorId);
+        void UpsertVendorFreightPolicy(VendorFreightPolicyDto policy, AuditActor actor);
+        void UpsertVendorShippingPolicy(VendorShippingPolicyDto policy, AuditActor actor);
+        void UpsertVendorReturnPolicy(VendorReturnPolicyDto policy, AuditActor actor);
+
+        List<VendorRebateProgramDto> GetVendorRebatePrograms(int vendorId);
+        int AddVendorRebateProgram(VendorRebateProgramDto rebate, AuditActor actor);
+        void UpdateVendorRebateProgram(VendorRebateProgramDto rebate, AuditActor actor);
+
+        List<VendorCustomFieldDefinitionDto> GetVendorCustomFieldDefinitions();
+        int AddVendorCustomFieldDefinition(VendorCustomFieldDefinitionDto definition, string createdBy);
+        int UpdateVendorCustomFieldDefinition(VendorCustomFieldDefinitionDto definition);
+        void DeleteVendorCustomFieldDefinition(int definitionId);
+        List<VendorCustomFieldDto> GetVendorCustomFields(int vendorId);
+        void SaveVendorCustomFieldValue(int vendorId, int definitionId, string? value, AuditActor actor);
+
+        List<VendorAuditLogEntryDto> GetEntityAuditLog(string entityType, int entityId, int take = 20);
+
         MemberMatchDto? FindMemberByName(string name);
         MemberMatchDto? FindMemberByAddress(string rawText);
 

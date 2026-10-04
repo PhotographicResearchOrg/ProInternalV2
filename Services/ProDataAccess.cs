@@ -25,11 +25,13 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Data;
 using System.Data.SqlClient;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
 using System.Reflection.PortableExecutable;
 using System.Security;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -178,6 +180,568 @@ namespace ProInternal.Services
         FROM Vendor
         WHERE VendorId = @vendorId
     ", new { vendorId });
+        }
+
+        // ===================== Vendor card =====================
+        //
+        // Audit logging: every Upsert/Add/Update below fetches the prior
+        // value(s), writes the change via the normal proc, then diffs
+        // old vs new and inserts one EntityAuditLog row per field that
+        // actually changed (LogDtoChanges/LogFieldChange skip no-op saves).
+
+        private static string? FormatAuditValue(object? value)
+        {
+            switch (value)
+            {
+                case null:
+                    return null;
+                case bool b:
+                    return b ? "Yes" : "No";
+                case DateTime dt:
+                    return dt.ToString("yyyy-MM-dd");
+                case decimal dec:
+                    return dec.ToString("0.####", CultureInfo.InvariantCulture);
+                default:
+                    var s = value.ToString();
+                    return string.IsNullOrWhiteSpace(s) ? null : s;
+            }
+        }
+
+        private static string HumanizeFieldName(string name)
+        {
+            return Regex.Replace(name, "(?<=[a-z])(?=[A-Z])", " ");
+        }
+
+        private void LogFieldChange(IDbConnection conn, int vendorId, string section, string fieldName, object? oldValue, object? newValue, AuditActor actor)
+        {
+            var oldStr = FormatAuditValue(oldValue);
+            var newStr = FormatAuditValue(newValue);
+            if (string.Equals(oldStr, newStr, StringComparison.Ordinal)) return;
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@EntityType", "Vendor");
+            parameters.Add("@EntityId", vendorId);
+            parameters.Add("@Section", section);
+            parameters.Add("@FieldName", fieldName);
+            parameters.Add("@OldValue", oldStr);
+            parameters.Add("@NewValue", newStr);
+            parameters.Add("@ChangedBy", actor.ChangedBy);
+            parameters.Add("@SessionId", actor.SessionId);
+            conn.Execute("PIV2InsertEntityAuditLog", parameters, commandType: CommandType.StoredProcedure);
+        }
+
+        private void LogDtoChanges<T>(IDbConnection conn, int vendorId, string section, T? oldDto, T newDto, AuditActor actor, params string[] excludeProps) where T : class
+        {
+            var exclude = new HashSet<string>(excludeProps);
+            foreach (var prop in typeof(T).GetProperties())
+            {
+                if (exclude.Contains(prop.Name)) continue;
+                var oldVal = oldDto == null ? null : prop.GetValue(oldDto);
+                var newVal = prop.GetValue(newDto);
+                LogFieldChange(conn, vendorId, section, HumanizeFieldName(prop.Name), oldVal, newVal, actor);
+            }
+        }
+
+        public VendorCardDto? GetVendorCard(int vendorId)
+        {
+            using var conn = GetConnection();
+
+            var card = conn.QueryFirstOrDefault<VendorCardDto>(
+                "PIV2GetVendorCard",
+                new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure
+            );
+            if (card == null) return null;
+
+            card.Brands = conn.Query<VendorBrandDto>(
+                "PIV2GetVendorBrands",
+                new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure
+            ).Select(b => b.BrandName).ToList();
+
+            card.Terms = GetVendorTerms(vendorId);
+
+            card.Stats = conn.QueryFirstOrDefault<VendorStatsDto>(
+                "PIV2GetVendorStats",
+                new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure
+            ) ?? new VendorStatsDto();
+
+            return card;
+        }
+
+        public void ToggleVendorActive(int vendorId, AuditActor actor)
+        {
+            using var conn = GetConnection();
+
+            var wasActive = conn.QueryFirstOrDefault<bool?>(
+                "SELECT IsActive FROM dbo.VendorProfile WHERE VendorId = @vendorId", new { vendorId }) ?? true;
+
+            conn.Execute("PIV2ToggleVendorActive", new { VendorId = vendorId }, commandType: CommandType.StoredProcedure);
+
+            LogFieldChange(conn, vendorId, "Vendor", "Active", wasActive, !wasActive, actor);
+        }
+
+        public VendorTermsDto? GetVendorTerms(int vendorId)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<VendorTermsDto>(
+                "PIV2GetVendorTerms",
+                new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public void UpsertVendorTerms(VendorTermsDto terms, AuditActor actor)
+        {
+            using var conn = GetConnection();
+
+            var existing = conn.QueryFirstOrDefault<VendorTermsDto>(
+                "PIV2GetVendorTerms", new { VendorId = terms.VendorId }, commandType: CommandType.StoredProcedure);
+
+            conn.Execute("PIV2UpsertVendorTerms", terms, commandType: CommandType.StoredProcedure);
+
+            LogDtoChanges(conn, terms.VendorId, "Terms", existing, terms, actor, nameof(VendorTermsDto.VendorId));
+        }
+
+        public int AddVendorBrand(VendorBrandDto brand, AuditActor actor)
+        {
+            using var conn = GetConnection();
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorId", brand.VendorId);
+            parameters.Add("@BrandName", brand.BrandName);
+            parameters.Add("@SortOrder", brand.SortOrder);
+
+            var id = conn.QuerySingle<int>("PIV2AddVendorBrand", parameters, commandType: CommandType.StoredProcedure);
+
+            LogFieldChange(conn, brand.VendorId, "Brands", "Brand", null, brand.BrandName, actor);
+
+            return id;
+        }
+
+        public int AddVendorContactGroup(VendorContactGroupDto group, AuditActor actor)
+        {
+            using var conn = GetConnection();
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorId", group.VendorId);
+            parameters.Add("@GroupName", group.GroupName);
+            parameters.Add("@SortOrder", group.SortOrder);
+
+            var id = conn.QuerySingle<int>("PIV2AddVendorContactGroup", parameters, commandType: CommandType.StoredProcedure);
+
+            LogFieldChange(conn, group.VendorId, "Contacts", "Contact group", null, group.GroupName, actor);
+
+            return id;
+        }
+
+        private class VendorContactFlatRow
+        {
+            public int VendorContactGroupId { get; set; }
+            public int VendorId { get; set; }
+            public string GroupName { get; set; }
+            public int GroupSortOrder { get; set; }
+            public int? VendorContactId { get; set; }
+            public string ContactName { get; set; }
+            public string Title { get; set; }
+            public string Email { get; set; }
+            public string Phone { get; set; }
+            public bool IsPrimary { get; set; }
+        }
+
+        public List<VendorContactGroupDto> GetVendorContacts(int vendorId)
+        {
+            using var conn = GetConnection();
+
+            var rows = conn.Query<VendorContactFlatRow>(
+                "PIV2GetVendorContacts",
+                new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+
+            var groups = new List<VendorContactGroupDto>();
+            foreach (var row in rows)
+            {
+                var group = groups.FirstOrDefault(g => g.VendorContactGroupId == row.VendorContactGroupId);
+                if (group == null)
+                {
+                    group = new VendorContactGroupDto
+                    {
+                        VendorContactGroupId = row.VendorContactGroupId,
+                        VendorId = row.VendorId,
+                        GroupName = row.GroupName,
+                        SortOrder = row.GroupSortOrder
+                    };
+                    groups.Add(group);
+                }
+
+                if (row.VendorContactId.HasValue)
+                {
+                    group.People.Add(new VendorContactDto
+                    {
+                        VendorContactId = row.VendorContactId.Value,
+                        VendorContactGroupId = row.VendorContactGroupId,
+                        Name = row.ContactName,
+                        Title = row.Title,
+                        Email = row.Email,
+                        Phone = row.Phone,
+                        IsPrimary = row.IsPrimary
+                    });
+                }
+            }
+
+            return groups;
+        }
+
+        private int? GetVendorIdForContactGroup(IDbConnection conn, int vendorContactGroupId)
+        {
+            return conn.QueryFirstOrDefault<int?>(
+                "SELECT VendorId FROM dbo.VendorContactGroup WHERE VendorContactGroupId = @id",
+                new { id = vendorContactGroupId });
+        }
+
+        public int AddVendorContact(VendorContactDto contact, AuditActor actor)
+        {
+            using var conn = GetConnection();
+            var vendorId = GetVendorIdForContactGroup(conn, contact.VendorContactGroupId);
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorContactGroupId", contact.VendorContactGroupId);
+            parameters.Add("@Name", contact.Name);
+            parameters.Add("@Title", contact.Title);
+            parameters.Add("@Email", contact.Email);
+            parameters.Add("@Phone", contact.Phone);
+            parameters.Add("@IsPrimary", contact.IsPrimary);
+
+            var id = conn.QuerySingle<int>("PIV2AddVendorContact", parameters, commandType: CommandType.StoredProcedure);
+
+            if (vendorId.HasValue)
+                LogDtoChanges(conn, vendorId.Value, "Contacts", (VendorContactDto?)null, contact, actor,
+                    nameof(VendorContactDto.VendorContactId), nameof(VendorContactDto.VendorContactGroupId));
+
+            return id;
+        }
+
+        public void UpdateVendorContact(VendorContactDto contact, AuditActor actor)
+        {
+            using var conn = GetConnection();
+
+            var existing = conn.QueryFirstOrDefault<VendorContactDto>(
+                @"SELECT VendorContactId, VendorContactGroupId, Name, Title, Email, Phone, IsPrimary
+                  FROM dbo.VendorCardContact WHERE VendorContactId = @id",
+                new { id = contact.VendorContactId });
+
+            var vendorId = GetVendorIdForContactGroup(conn, contact.VendorContactGroupId);
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorContactId", contact.VendorContactId);
+            parameters.Add("@Name", contact.Name);
+            parameters.Add("@Title", contact.Title);
+            parameters.Add("@Email", contact.Email);
+            parameters.Add("@Phone", contact.Phone);
+            parameters.Add("@IsPrimary", contact.IsPrimary);
+
+            conn.Execute("PIV2UpdateVendorContact", parameters, commandType: CommandType.StoredProcedure);
+
+            if (vendorId.HasValue)
+                LogDtoChanges(conn, vendorId.Value, "Contacts", existing, contact, actor,
+                    nameof(VendorContactDto.VendorContactId), nameof(VendorContactDto.VendorContactGroupId));
+        }
+
+        public void DeleteVendorContact(int vendorContactId)
+        {
+            using var conn = GetConnection();
+            conn.Execute("PIV2DeleteVendorContact", new { VendorContactId = vendorContactId }, commandType: CommandType.StoredProcedure);
+        }
+
+        public List<VendorContractDto> GetVendorContracts(int vendorId)
+        {
+            using var conn = GetConnection();
+            return conn.Query<VendorContractDto>(
+                "PIV2GetVendorContracts",
+                new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+        public int AddVendorContract(VendorContractDto contract, AuditActor actor)
+        {
+            using var conn = GetConnection();
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorId", contract.VendorId);
+            parameters.Add("@Name", contract.Name);
+            parameters.Add("@ContractType", contract.ContractType);
+            parameters.Add("@StartDate", contract.StartDate);
+            parameters.Add("@EndDate", contract.EndDate);
+            parameters.Add("@ValueText", contract.ValueText);
+            parameters.Add("@Status", contract.Status);
+
+            var id = conn.QuerySingle<int>("PIV2AddVendorContract", parameters, commandType: CommandType.StoredProcedure);
+
+            LogDtoChanges(conn, contract.VendorId, "Contracts", (VendorContractDto?)null, contract, actor,
+                nameof(VendorContractDto.VendorContractId), nameof(VendorContractDto.VendorId));
+
+            return id;
+        }
+
+        public void UpdateVendorContract(VendorContractDto contract, AuditActor actor)
+        {
+            using var conn = GetConnection();
+
+            var existing = conn.QueryFirstOrDefault<VendorContractDto>(
+                @"SELECT VendorContractId, VendorId, Name, ContractType, StartDate, EndDate, ValueText, Status
+                  FROM dbo.VendorContract WHERE VendorContractId = @id",
+                new { id = contract.VendorContractId });
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorContractId", contract.VendorContractId);
+            parameters.Add("@Name", contract.Name);
+            parameters.Add("@ContractType", contract.ContractType);
+            parameters.Add("@StartDate", contract.StartDate);
+            parameters.Add("@EndDate", contract.EndDate);
+            parameters.Add("@ValueText", contract.ValueText);
+            parameters.Add("@Status", contract.Status);
+
+            conn.Execute("PIV2UpdateVendorContract", parameters, commandType: CommandType.StoredProcedure);
+
+            var vendorId = existing?.VendorId ?? contract.VendorId;
+            LogDtoChanges(conn, vendorId, "Contracts", existing, contract, actor,
+                nameof(VendorContractDto.VendorContractId), nameof(VendorContractDto.VendorId));
+        }
+
+        public List<VendorPriceListDto> GetVendorPriceLists(int vendorId)
+        {
+            using var conn = GetConnection();
+            return conn.Query<VendorPriceListDto>(
+                "PIV2GetVendorPriceLists",
+                new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+        public int AddVendorPriceList(VendorPriceListDto priceList, AuditActor actor)
+        {
+            using var conn = GetConnection();
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorId", priceList.VendorId);
+            parameters.Add("@Name", priceList.Name);
+            parameters.Add("@EffectiveDate", priceList.EffectiveDate);
+            parameters.Add("@ExpirationDate", priceList.ExpirationDate);
+            parameters.Add("@SkuCount", priceList.SkuCount);
+            parameters.Add("@Currency", priceList.Currency);
+            parameters.Add("@Status", priceList.Status);
+
+            var id = conn.QuerySingle<int>("PIV2AddVendorPriceList", parameters, commandType: CommandType.StoredProcedure);
+
+            LogDtoChanges(conn, priceList.VendorId, "Price Lists", (VendorPriceListDto?)null, priceList, actor,
+                nameof(VendorPriceListDto.VendorPriceListId), nameof(VendorPriceListDto.VendorId));
+
+            return id;
+        }
+
+        public VendorPoliciesDto GetVendorPolicies(int vendorId)
+        {
+            using var conn = GetConnection();
+
+            return new VendorPoliciesDto
+            {
+                Freight = conn.QueryFirstOrDefault<VendorFreightPolicyDto>(
+                    "PIV2GetVendorFreightPolicy", new { VendorId = vendorId }, commandType: CommandType.StoredProcedure),
+                Shipping = conn.QueryFirstOrDefault<VendorShippingPolicyDto>(
+                    "PIV2GetVendorShippingPolicy", new { VendorId = vendorId }, commandType: CommandType.StoredProcedure),
+                Returns = conn.QueryFirstOrDefault<VendorReturnPolicyDto>(
+                    "PIV2GetVendorReturnPolicy", new { VendorId = vendorId }, commandType: CommandType.StoredProcedure)
+            };
+        }
+
+        public void UpsertVendorFreightPolicy(VendorFreightPolicyDto policy, AuditActor actor)
+        {
+            using var conn = GetConnection();
+
+            var existing = conn.QueryFirstOrDefault<VendorFreightPolicyDto>(
+                "PIV2GetVendorFreightPolicy", new { VendorId = policy.VendorId }, commandType: CommandType.StoredProcedure);
+
+            conn.Execute("PIV2UpsertVendorFreightPolicy", policy, commandType: CommandType.StoredProcedure);
+
+            LogDtoChanges(conn, policy.VendorId, "Policies", existing, policy, actor, nameof(VendorFreightPolicyDto.VendorId));
+        }
+
+        public void UpsertVendorShippingPolicy(VendorShippingPolicyDto policy, AuditActor actor)
+        {
+            using var conn = GetConnection();
+
+            var existing = conn.QueryFirstOrDefault<VendorShippingPolicyDto>(
+                "PIV2GetVendorShippingPolicy", new { VendorId = policy.VendorId }, commandType: CommandType.StoredProcedure);
+
+            conn.Execute("PIV2UpsertVendorShippingPolicy", policy, commandType: CommandType.StoredProcedure);
+
+            LogDtoChanges(conn, policy.VendorId, "Policies", existing, policy, actor, nameof(VendorShippingPolicyDto.VendorId));
+        }
+
+        public void UpsertVendorReturnPolicy(VendorReturnPolicyDto policy, AuditActor actor)
+        {
+            using var conn = GetConnection();
+
+            var existing = conn.QueryFirstOrDefault<VendorReturnPolicyDto>(
+                "PIV2GetVendorReturnPolicy", new { VendorId = policy.VendorId }, commandType: CommandType.StoredProcedure);
+
+            conn.Execute("PIV2UpsertVendorReturnPolicy", policy, commandType: CommandType.StoredProcedure);
+
+            LogDtoChanges(conn, policy.VendorId, "Policies", existing, policy, actor, nameof(VendorReturnPolicyDto.VendorId));
+        }
+
+        public List<VendorRebateProgramDto> GetVendorRebatePrograms(int vendorId)
+        {
+            using var conn = GetConnection();
+            return conn.Query<VendorRebateProgramDto>(
+                "PIV2GetVendorRebatePrograms",
+                new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+        public int AddVendorRebateProgram(VendorRebateProgramDto rebate, AuditActor actor)
+        {
+            using var conn = GetConnection();
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorId", rebate.VendorId);
+            parameters.Add("@Name", rebate.Name);
+            parameters.Add("@Code", rebate.Code);
+            parameters.Add("@AmountText", rebate.AmountText);
+            parameters.Add("@Eligibility", rebate.Eligibility);
+            parameters.Add("@ScopeText", rebate.ScopeText);
+            parameters.Add("@WindowText", rebate.WindowText);
+            parameters.Add("@Funding", rebate.Funding);
+            parameters.Add("@ClaimMethod", rebate.ClaimMethod);
+            parameters.Add("@Status", rebate.Status);
+            parameters.Add("@IsWebVisible", rebate.IsWebVisible);
+            parameters.Add("@BudgetAmount", rebate.BudgetAmount);
+
+            var id = conn.QuerySingle<int>("PIV2AddVendorRebateProgram", parameters, commandType: CommandType.StoredProcedure);
+
+            LogDtoChanges(conn, rebate.VendorId, "Rebates", (VendorRebateProgramDto?)null, rebate, actor,
+                nameof(VendorRebateProgramDto.VendorRebateProgramId), nameof(VendorRebateProgramDto.VendorId),
+                nameof(VendorRebateProgramDto.RebatedAmount), nameof(VendorRebateProgramDto.RedemptionCount));
+
+            return id;
+        }
+
+        public void UpdateVendorRebateProgram(VendorRebateProgramDto rebate, AuditActor actor)
+        {
+            using var conn = GetConnection();
+
+            var existing = conn.QueryFirstOrDefault<VendorRebateProgramDto>(
+                @"SELECT VendorRebateProgramId, VendorId, Name, Code, AmountText, Eligibility, ScopeText, WindowText,
+                         Funding, ClaimMethod, Status, IsWebVisible, BudgetAmount, RebatedAmount, RedemptionCount
+                  FROM dbo.VendorRebateProgram WHERE VendorRebateProgramId = @id",
+                new { id = rebate.VendorRebateProgramId });
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorRebateProgramId", rebate.VendorRebateProgramId);
+            parameters.Add("@Name", rebate.Name);
+            parameters.Add("@Code", rebate.Code);
+            parameters.Add("@AmountText", rebate.AmountText);
+            parameters.Add("@Eligibility", rebate.Eligibility);
+            parameters.Add("@ScopeText", rebate.ScopeText);
+            parameters.Add("@WindowText", rebate.WindowText);
+            parameters.Add("@Funding", rebate.Funding);
+            parameters.Add("@ClaimMethod", rebate.ClaimMethod);
+            parameters.Add("@Status", rebate.Status);
+            parameters.Add("@IsWebVisible", rebate.IsWebVisible);
+            parameters.Add("@BudgetAmount", rebate.BudgetAmount);
+
+            conn.Execute("PIV2UpdateVendorRebateProgram", parameters, commandType: CommandType.StoredProcedure);
+
+            var vendorId = existing?.VendorId ?? rebate.VendorId;
+            LogDtoChanges(conn, vendorId, "Rebates", existing, rebate, actor,
+                nameof(VendorRebateProgramDto.VendorRebateProgramId), nameof(VendorRebateProgramDto.VendorId),
+                nameof(VendorRebateProgramDto.RebatedAmount), nameof(VendorRebateProgramDto.RedemptionCount));
+        }
+
+        public List<VendorCustomFieldDefinitionDto> GetVendorCustomFieldDefinitions()
+        {
+            using var conn = GetConnection();
+            return conn.Query<VendorCustomFieldDefinitionDto>(
+                "PIV2GetVendorCustomFieldDefinitions",
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+        // Returns the new id, or -1 if the label is already used in that section.
+        public int AddVendorCustomFieldDefinition(VendorCustomFieldDefinitionDto definition, string createdBy)
+        {
+            using var conn = GetConnection();
+            var parameters = new DynamicParameters();
+            parameters.Add("@Section", definition.Section);
+            parameters.Add("@Label", definition.Label);
+            parameters.Add("@DataType", definition.DataType);
+            parameters.Add("@IsPublishable", definition.IsPublishable);
+            parameters.Add("@SortOrder", definition.SortOrder);
+            parameters.Add("@CreatedBy", createdBy);
+
+            return conn.QuerySingle<int>("PIV2AddVendorCustomFieldDefinition", parameters, commandType: CommandType.StoredProcedure);
+        }
+
+        // Returns 1 on success, 0 if not found, -1 if the label is already used in that section.
+        public int UpdateVendorCustomFieldDefinition(VendorCustomFieldDefinitionDto definition)
+        {
+            using var conn = GetConnection();
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorCustomFieldDefinitionId", definition.VendorCustomFieldDefinitionId);
+            parameters.Add("@Section", definition.Section);
+            parameters.Add("@Label", definition.Label);
+            parameters.Add("@DataType", definition.DataType);
+            parameters.Add("@IsPublishable", definition.IsPublishable);
+            parameters.Add("@SortOrder", definition.SortOrder);
+
+            return conn.QuerySingle<int>("PIV2UpdateVendorCustomFieldDefinition", parameters, commandType: CommandType.StoredProcedure);
+        }
+
+        public void DeleteVendorCustomFieldDefinition(int definitionId)
+        {
+            using var conn = GetConnection();
+            conn.Execute(
+                "PIV2DeleteVendorCustomFieldDefinition",
+                new { VendorCustomFieldDefinitionId = definitionId },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public List<VendorCustomFieldDto> GetVendorCustomFields(int vendorId)
+        {
+            using var conn = GetConnection();
+            return conn.Query<VendorCustomFieldDto>(
+                "PIV2GetVendorCustomFields",
+                new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+        public void SaveVendorCustomFieldValue(int vendorId, int definitionId, string? value, AuditActor actor)
+        {
+            using var conn = GetConnection();
+
+            var existing = conn.Query<VendorCustomFieldDto>(
+                "PIV2GetVendorCustomFields", new { VendorId = vendorId }, commandType: CommandType.StoredProcedure)
+                .FirstOrDefault(f => f.VendorCustomFieldDefinitionId == definitionId);
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorId", vendorId);
+            parameters.Add("@VendorCustomFieldDefinitionId", definitionId);
+            parameters.Add("@Value", value);
+            parameters.Add("@UpdatedBy", actor.ChangedBy);
+            conn.Execute("PIV2UpsertVendorCustomFieldValue", parameters, commandType: CommandType.StoredProcedure);
+
+            if (existing != null)
+                LogFieldChange(conn, vendorId, "Custom Fields", existing.Label, existing.Value, value, actor);
+        }
+
+        public List<VendorAuditLogEntryDto> GetEntityAuditLog(string entityType, int entityId, int take = 20)
+        {
+            using var conn = GetConnection();
+            return conn.Query<VendorAuditLogEntryDto>(
+                "PIV2GetEntityAuditLog",
+                new { EntityType = entityType, EntityId = entityId, Take = take },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
         }
 
 

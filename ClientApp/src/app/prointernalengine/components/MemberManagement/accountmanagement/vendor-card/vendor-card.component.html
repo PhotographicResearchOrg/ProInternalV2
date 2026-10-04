@@ -38,8 +38,7 @@
           <div class="vbrands">
 
             <span class="lab">Brand family</span>
-            TimberLine, StormGuard, Cascade Pro and IronOak
-          
+            {{ brandsText() }}
 
           </div>
 
@@ -65,13 +64,13 @@
       </div>
 
       <div class="stripe">
-        <div class="stat"><div class="k">Payable terms</div><div class="v">Net 30</div></div>
-        <div class="stat"><div class="k">PRO discount</div><div class="v" [style.color]="P.teal">32%</div></div>
-        <div class="stat"><div class="k">Member discount</div><div class="v" [style.color]="P.violet">18%</div></div>
-        <div class="stat"><div class="k">Active contracts</div><div class="v">3</div></div>
-        <div class="stat"><div class="k">Price lists</div><div class="v">5</div></div>
-        <div class="stat"><div class="k">Contacts</div><div class="v">8</div></div>
-        <div class="stat"><div class="k">Last change</div><div class="v">2d ago</div></div>
+        <div class="stat"><div class="k">Payable terms</div><div class="v">{{ terms.paymentTerms || '—' }}</div></div>
+        <div class="stat"><div class="k">PRO discount</div><div class="v" [style.color]="P.teal">{{ terms.proDiscountPct ?? 0 }}%</div></div>
+        <div class="stat"><div class="k">Member discount</div><div class="v" [style.color]="P.violet">{{ terms.memberDiscountPct ?? 0 }}%</div></div>
+        <div class="stat"><div class="k">Active contracts</div><div class="v">{{ stats.activeContracts }}</div></div>
+        <div class="stat"><div class="k">Price lists</div><div class="v">{{ stats.priceListCount }}</div></div>
+        <div class="stat"><div class="k">Contacts</div><div class="v">{{ stats.contactCount }}</div></div>
+        <div class="stat"><div class="k">Last change</div><div class="v">{{ timeAgo(stats.lastChangeAt) }}</div></div>
       </div>
     </header>
 
@@ -116,66 +115,64 @@
         <section class="card">
           <header class="card-head">
             <span class="ci"><i class="pi pi-percentage"></i></span><h3>Discount split</h3>
-            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+            <div class="act"><button class="iconbtn" (click)="openEditDiscountSplit()"><i class="pi pi-pencil"></i> Edit</button></div>
           </header>
           <div class="card-body">
             <p class="muted-p">How this vendor's list price is split between PRO (contractor) pricing and standard member pricing.</p>
             <div class="splitbar">
-              <div style="width:64%" [style.background]="P.teal">PRO 32%</div>
-              <div style="flex:1" [style.background]="P.violet">Member 18%</div>
+              <div [style.width.%]="proSplitWidthPct()" [style.background]="P.teal">PRO {{ terms.proDiscountPct ?? 0 }}%</div>
+              <div style="flex:1" [style.background]="P.violet">Member {{ terms.memberDiscountPct ?? 0 }}%</div>
             </div>
             <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:16px">
-              <div class="splitstat"><div class="k">PRO discount</div><div class="v" [style.color]="P.teal">32%</div><div class="s">off list · contractor tier</div></div>
-              <div class="splitstat"><div class="k">Member discount</div><div class="v" [style.color]="P.violet">18%</div><div class="s">off list · standard member</div></div>
+              <div class="splitstat"><div class="k">PRO discount</div><div class="v" [style.color]="P.teal">{{ terms.proDiscountPct ?? 0 }}%</div><div class="s">off list · contractor tier</div></div>
+              <div class="splitstat"><div class="k">Member discount</div><div class="v" [style.color]="P.violet">{{ terms.memberDiscountPct ?? 0 }}%</div><div class="s">off list · standard member</div></div>
             </div>
-            <div class="note">Spread: <b>14 pts</b> PRO advantage · applied at cart before promotions</div>
+            <div class="note">Spread: <b>{{ (terms.proDiscountPct ?? 0) - (terms.memberDiscountPct ?? 0) }} pts</b> PRO advantage · applied at cart before promotions</div>
           </div>
         </section>
 
         <section class="card">
           <header class="card-head">
             <span class="ci"><i class="pi pi-dollar"></i></span><h3>Payable terms</h3>
-            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+            <div class="act"><button class="iconbtn" (click)="openEditPayableTerms()"><i class="pi pi-pencil"></i> Edit</button></div>
           </header>
           <div class="card-body">
-            <div class="field"><span class="k">Payment terms</span><span class="v mono strong">Net 30</span></div>
-            <div class="field"><span class="k">Terms basis</span><span class="v mono">Invoice date</span></div>
-            <div class="field"><span class="k">Early-pay discount</span><span class="v mono">2% / 10 days</span></div>
-            <div class="field"><span class="k">Credit limit</span><span class="v mono">$250,000</span></div>
-            <div class="field"><span class="k">Currency</span><span class="v mono">USD</span></div>
-            <div class="field"><span class="k">Tax status</span><span class="v">Resale exempt</span></div>
-            <div class="field"><span class="k">Remit method</span><span class="v">ACH</span></div>
+            <div class="field"><span class="k">Payment terms</span><span class="v mono strong">{{ terms.paymentTerms || '—' }}</span></div>
+            <div class="field"><span class="k">Terms basis</span><span class="v mono">{{ terms.termsBasis || '—' }}</span></div>
+            <div class="field"><span class="k">Early-pay discount</span><span class="v mono">{{ terms.earlyPayDiscountText || '—' }}</span></div>
+            <div class="field"><span class="k">Credit limit</span><span class="v mono">{{ terms.creditLimit | currency:'USD':'symbol':'1.0-0' }}</span></div>
+            <div class="field"><span class="k">Currency</span><span class="v mono">{{ terms.currency || '—' }}</span></div>
+            <div class="field"><span class="k">Tax status</span><span class="v">{{ terms.taxStatus || '—' }}</span></div>
+            <div class="field"><span class="k">Remit method</span><span class="v">{{ terms.remitMethod || '—' }}</span></div>
           </div>
         </section>
 
         <section class="card">
           <header class="card-head">
             <span class="ci"><i class="pi pi-box"></i></span><h3>Ordering & margin</h3>
-            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+            <div class="act"><button class="iconbtn" (click)="openEditOrderingMargin()"><i class="pi pi-pencil"></i> Edit</button></div>
           </header>
           <div class="card-body">
-            <div class="field"><span class="k">Minimum order</span><span class="v mono">$500</span></div>
-            <div class="field"><span class="k">FOB point</span><span class="v">Origin</span></div>
-            <div class="field"><span class="k">Default markup</span><span class="v mono">1.45×</span></div>
-            <div class="field"><span class="k">Volume rebate</span><span class="v mono">3% over $1M/yr</span></div>
-            <div class="field"><span class="k">Price protection</span><span class="v">60 days</span></div>
-            <div class="field"><span class="k">Drop-ship</span><span class="v mono">Enabled</span></div>
+            <div class="field"><span class="k">Minimum order</span><span class="v mono">{{ terms.minimumOrder | currency:'USD':'symbol':'1.0-0' }}</span></div>
+            <div class="field"><span class="k">FOB point</span><span class="v">{{ terms.fobPoint || '—' }}</span></div>
+            <div class="field"><span class="k">Default markup</span><span class="v mono">{{ terms.defaultMarkup ?? '—' }}×</span></div>
+            <div class="field"><span class="k">Volume rebate</span><span class="v mono">{{ terms.volumeRebateText || '—' }}</span></div>
+            <div class="field"><span class="k">Price protection</span><span class="v">{{ terms.priceProtectionDays ?? '—' }} days</span></div>
+            <div class="field"><span class="k">Drop-ship</span><span class="v mono">{{ terms.dropShipEnabled ? 'Enabled' : 'Disabled' }}</span></div>
           </div>
         </section>
 
         <section class="card">
           <header class="card-head">
             <span class="ci"><i class="pi pi-building"></i></span><h3>Brand family & catalog</h3>
-            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-plus"></i> Add brand</button></div>
+            <div class="act"><button class="iconbtn" (click)="openAddBrand()"><i class="pi pi-plus"></i> Add brand</button></div>
           </header>
           <div class="card-body">
             <div class="vbrands" style="margin:0 0 12px">
               <span *ngFor="let b of brands; let i = index" class="badge" [ngStyle]="{color: brand(i).fg, background: brand(i).bg}">{{ b }}</span>
             </div>
-            <div class="field"><span class="k">Catalog SKUs</span><span class="v mono">1,842</span></div>
-            <div class="field"><span class="k">Web-published</span><span class="v mono">1,610</span></div>
-            <div class="field"><span class="k">Primary category</span><span class="v">Building materials</span></div>
-            <div class="field"><span class="k">Country of origin</span><span class="v">US / CA</span></div>
+            <div class="field"><span class="k">Primary category</span><span class="v">{{ terms.primaryCategory || '—' }}</span></div>
+            <div class="field"><span class="k">Country of origin</span><span class="v">{{ terms.countryOfOrigin || '—' }}</span></div>
           </div>
         </section>
 
@@ -184,21 +181,26 @@
 
       <!-- ---------- Contacts ---------- -->
       <div *ngIf="activeSection === 'contacts'" class="stack">
+        <div style="display:flex;justify-content:flex-end">
+          <button class="iconbtn" (click)="openAddContactGroup()"><i class="pi pi-plus"></i> Add group</button>
+        </div>
+        <div *ngIf="!contacts.length" class="cf-empty">No contact groups yet. Add a group (e.g. Sales, Accounts Payable) to start adding people.</div>
         <section class="card" *ngFor="let grp of contacts">
           <header class="card-head">
             <span class="ci" [ngStyle]="{background: brand(grp.color).bg, color: brand(grp.color).fg}"><i class="pi pi-users"></i></span>
             <h3>{{ grp.group }}</h3>
-            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-plus"></i> Add contact</button></div>
+            <div class="act"><button class="iconbtn" (click)="openAddContact(grp.groupId)"><i class="pi pi-plus"></i> Add contact</button></div>
           </header>
           <div class="card-body">
             <div class="people">
               <div class="person" *ngFor="let p of grp.people">
                 <div class="person-top">
                   <span class="avatar" [ngStyle]="{background: brand(grp.color).bg, color: brand(grp.color).fg}">{{ initials(p.name) }}</span>
-                  <div style="min-width:0">
+                  <div style="min-width:0;flex:1">
                     <div class="name">{{ p.name }}<i *ngIf="p.primary" class="pi pi-star-fill" [style.color]="P.amber"></i></div>
                     <div class="title">{{ p.title }}</div>
                   </div>
+                  <i class="pi pi-pencil" style="cursor:pointer" [style.color]="P.faint" (click)="openEditContact(p, grp.groupId)"></i>
                 </div>
                 <div class="lines">
                   <span class="row email"><i class="pi pi-envelope"></i> {{ p.email }}</span>
@@ -208,6 +210,7 @@
             </div>
           </div>
         </section>
+        <ng-container *ngTemplateOutlet="customCard; context: { section: 'contacts' }"></ng-container>
       </div>
 
       <!-- ---------- Contracts ---------- -->
@@ -215,7 +218,7 @@
         <section class="card">
           <header class="card-head">
             <span class="ci"><i class="pi pi-file"></i></span><h3>Contracts</h3>
-            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-plus"></i> New contract</button></div>
+            <div class="act"><button class="iconbtn" (click)="openAddContract()"><i class="pi pi-plus"></i> New contract</button></div>
           </header>
           <div class="card-body flush">
             <div class="tbl-head contracts-cols"><span>Contract</span><span>Type</span><span>Term</span><span>Value</span><span>Status</span><span></span></div>
@@ -225,7 +228,7 @@
               <span class="mono" [style.color]="P.sub" style="font-size:11.5px">{{ c.start }} → {{ c.end }}</span>
               <span class="mono" style="font-weight:600">{{ c.value }}</span>
               <span><span class="badge" [ngStyle]="{color: status(c.status).fg, background: status(c.status).bg}"><i [class]="status(c.status).icon"></i> {{ status(c.status).label }}</span></span>
-              <span style="text-align:right;cursor:pointer" [style.color]="P.faint" (click)="stub()"><i class="pi pi-external-link"></i></span>
+              <span style="text-align:right;cursor:pointer" [style.color]="P.faint" (click)="openEditContract(c)"><i class="pi pi-pencil"></i></span>
             </div>
           </div>
         </section>
@@ -235,7 +238,7 @@
       <!-- ---------- Price Lists ---------- -->
       <div *ngIf="activeSection === 'pricelists'" class="stack">
         <div style="display:flex;justify-content:flex-end">
-          <button class="iconbtn" (click)="stub()"><i class="pi pi-plus"></i> Import / new price list</button>
+          <button class="iconbtn" (click)="openAddPriceList()"><i class="pi pi-plus"></i> New price list</button>
         </div>
         <div class="pl-grid">
           <div class="pl" *ngFor="let l of lists">
@@ -259,42 +262,42 @@
         <section class="card">
           <header class="card-head">
             <span class="ci"><i class="pi pi-truck"></i></span><h3>Freight policy</h3>
-            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+            <div class="act"><button class="iconbtn" (click)="openEditFreightPolicy()"><i class="pi pi-pencil"></i> Edit</button></div>
           </header>
           <div class="card-body">
-            <div class="field"><span class="k">Freight terms</span><span class="v mono strong">Prepaid & add</span></div>
-            <div class="field"><span class="k">FOB point</span><span class="v">Origin</span></div>
-            <div class="field"><span class="k">Carrier</span><span class="v">Vendor's choice</span></div>
-            <div class="field"><span class="k">Prepaid threshold</span><span class="v mono">$2,500</span></div>
-            <div class="field"><span class="k">Fuel surcharge</span><span class="v mono">Pass-through</span></div>
-            <div class="field"><span class="k">Lead time</span><span class="v mono">5–7 business days</span></div>
+            <div class="field"><span class="k">Freight terms</span><span class="v mono strong">{{ freightPolicy.freightTerms || '—' }}</span></div>
+            <div class="field"><span class="k">FOB point</span><span class="v">{{ freightPolicy.fobPoint || '—' }}</span></div>
+            <div class="field"><span class="k">Carrier</span><span class="v">{{ freightPolicy.carrier || '—' }}</span></div>
+            <div class="field"><span class="k">Prepaid threshold</span><span class="v mono">{{ freightPolicy.prepaidThreshold | currency:'USD':'symbol':'1.0-0' }}</span></div>
+            <div class="field"><span class="k">Fuel surcharge</span><span class="v mono">{{ freightPolicy.fuelSurcharge || '—' }}</span></div>
+            <div class="field"><span class="k">Lead time</span><span class="v mono">{{ freightPolicy.leadTimeText || '—' }}</span></div>
           </div>
         </section>
         <section class="card">
           <header class="card-head">
             <span class="ci"><i class="pi pi-shield"></i></span><h3>Free shipping</h3>
-            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+            <div class="act"><button class="iconbtn" (click)="openEditShippingPolicy()"><i class="pi pi-pencil"></i> Edit</button></div>
           </header>
           <div class="card-body">
-            <div class="freehero"><div class="k">Free freight over</div><div class="v">$2,500</div></div>
-            <div class="field"><span class="k">Applies to</span><span class="v">Contiguous US</span></div>
-            <div class="field"><span class="k">PRO tier override</span><span class="v mono">$1,500</span></div>
-            <div class="field"><span class="k">Excludes</span><span class="v">Oversize / LTL freight</span></div>
-            <div class="field"><span class="k">Stacks with promos</span><span class="v mono">No</span></div>
+            <div class="freehero"><div class="k">Free freight over</div><div class="v">{{ shippingPolicy.freeFreightThreshold | currency:'USD':'symbol':'1.0-0' }}</div></div>
+            <div class="field"><span class="k">Applies to</span><span class="v">{{ shippingPolicy.appliesTo || '—' }}</span></div>
+            <div class="field"><span class="k">PRO tier override</span><span class="v mono">{{ shippingPolicy.proTierOverride | currency:'USD':'symbol':'1.0-0' }}</span></div>
+            <div class="field"><span class="k">Excludes</span><span class="v">{{ shippingPolicy.excludes || '—' }}</span></div>
+            <div class="field"><span class="k">Stacks with promos</span><span class="v mono">{{ shippingPolicy.stacksWithPromos ? 'Yes' : 'No' }}</span></div>
           </div>
         </section>
         <section class="card">
           <header class="card-head">
             <span class="ci"><i class="pi pi-replay"></i></span><h3>Return policy</h3>
-            <div class="act"><button class="iconbtn" (click)="stub()"><i class="pi pi-pencil"></i> Edit</button></div>
+            <div class="act"><button class="iconbtn" (click)="openEditReturnPolicy()"><i class="pi pi-pencil"></i> Edit</button></div>
           </header>
           <div class="card-body">
-            <div class="field"><span class="k">Return window</span><span class="v mono strong">30 days</span></div>
-            <div class="field"><span class="k">Restocking fee</span><span class="v mono">15%</span></div>
-            <div class="field"><span class="k">RMA required</span><span class="v mono">Yes</span></div>
-            <div class="field"><span class="k">Return freight</span><span class="v">Buyer pays</span></div>
-            <div class="field"><span class="k">Defective handling</span><span class="v">Replace or credit</span></div>
-            <div class="field"><span class="k">Non-returnable</span><span class="v">Custom / cut orders</span></div>
+            <div class="field"><span class="k">Return window</span><span class="v mono strong">{{ returnPolicy.returnWindowDays ?? '—' }} days</span></div>
+            <div class="field"><span class="k">Restocking fee</span><span class="v mono">{{ returnPolicy.restockingFeePct ?? 0 }}%</span></div>
+            <div class="field"><span class="k">RMA required</span><span class="v mono">{{ returnPolicy.rmaRequired ? 'Yes' : 'No' }}</span></div>
+            <div class="field"><span class="k">Return freight</span><span class="v">{{ returnPolicy.returnFreightText || '—' }}</span></div>
+            <div class="field"><span class="k">Defective handling</span><span class="v">{{ returnPolicy.defectiveHandlingText || '—' }}</span></div>
+            <div class="field"><span class="k">Non-returnable</span><span class="v">{{ returnPolicy.nonReturnableText || '—' }}</span></div>
           </div>
         </section>
         <ng-container *ngTemplateOutlet="customCard; context: { section: 'policies' }"></ng-container>
@@ -307,7 +310,7 @@
             <h2 class="rb-title">Instant rebates</h2>
             <p class="rb-desc">Vendor-funded discounts applied instantly at the point of sale. Each program defines who qualifies, what it applies to, how it's funded, and when it runs.</p>
           </div>
-          <button class="btn-primary" (click)="stub('Create rebate flow — stub')"><i class="pi pi-plus"></i> Create instant rebate</button>
+          <button class="btn-primary" (click)="openAddRebate()"><i class="pi pi-plus"></i> Create instant rebate</button>
         </div>
 
         <div class="rb-summary">
@@ -344,7 +347,7 @@
               </div>
             </div>
             <div class="rb-actions">
-              <button class="iconbtn" (click)="stub('Edit rebate — stub')"><i class="pi pi-pencil"></i> Edit</button>
+              <button class="iconbtn" (click)="openEditRebate(r)"><i class="pi pi-pencil"></i> Edit</button>
               <button class="iconbtn" (click)="stub('Details view — stub')"><i class="pi pi-external-link"></i> Details</button>
             </div>
           </div>
@@ -358,10 +361,44 @@
         <section class="card">
           <header class="card-head">
             <span class="ci"><i class="pi pi-history"></i></span><h3>Audit log — all vendor changes</h3>
-            <div class="act"><span class="filterpill" (click)="stub()"><i class="pi pi-search"></i> Filter</span></div>
+            <div class="act">
+              <span class="filterpill" [class.active]="auditCurrentSessionOnly" (click)="auditCurrentSessionOnly = !auditCurrentSessionOnly"
+                    pTooltip="Show only changes made since you logged in" tooltipPosition="top">
+                <i class="pi pi-bolt"></i> This session
+              </span>
+              <span class="filterpill" [class.active]="showAuditFilters" (click)="showAuditFilters = !showAuditFilters">
+                <i class="pi pi-search"></i> Filter
+                <span *ngIf="selectedAuditUsernames.length || selectedAuditFields.length" class="filter-count">
+                  {{ selectedAuditUsernames.length + selectedAuditFields.length }}
+                </span>
+              </span>
+            </div>
           </header>
           <div class="card-body">
-            <ng-container *ngFor="let a of audit; let last = last">
+            <div *ngIf="showAuditFilters" class="audit-filters">
+              <div class="audit-filters-fields">
+                <div class="dlg-field">
+                  <label>Username</label>
+                  <p-multiSelect [options]="auditUsernameOptions" [(ngModel)]="selectedAuditUsernames"
+                                  placeholder="All users" display="chip" appendTo="body"></p-multiSelect>
+                </div>
+                <div class="dlg-field">
+                  <label>Field</label>
+                  <p-multiSelect [options]="auditFieldOptions" [(ngModel)]="selectedAuditFields"
+                                  placeholder="All fields" display="chip" appendTo="body"></p-multiSelect>
+                </div>
+              </div>
+              <button class="iconbtn" *ngIf="selectedAuditUsernames.length || selectedAuditFields.length" (click)="clearAuditFilters()">
+                <i class="pi pi-times"></i> Clear
+              </button>
+            </div>
+
+            <div *ngIf="!filteredAudit().length" class="cf-empty">
+              {{ !audit.length ? 'No changes have been logged for this vendor yet.'
+                 : auditCurrentSessionOnly ? 'No changes have been made to this vendor in your current session.'
+                 : 'No audit entries match the selected filters.' }}
+            </div>
+            <ng-container *ngFor="let a of filteredAudit(); let last = last">
               <ng-container *ngTemplateOutlet="auditRow; context: { a: a, last: last }"></ng-container>
             </ng-container>
           </div>
@@ -375,12 +412,453 @@
   <div class="toast-wrap" *ngIf="toastMsg"><div class="toast">{{ toastMsg }}</div></div>
 </div>
 
+<!-- ===================== dialogs ===================== -->
+
+<p-dialog header="Edit discount split" [(visible)]="discountDialogVisible" [modal]="true" [style]="{width: '440px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>PRO discount %</label>
+      <input pInputText type="number" [(ngModel)]="discountDraft.proDiscountPct" [class.p-invalid]="fieldError('prodiscountpct')" />
+      <small class="dlg-err" *ngIf="fieldError('prodiscountpct')">{{ fieldError('prodiscountpct') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Member discount %</label>
+      <input pInputText type="number" [(ngModel)]="discountDraft.memberDiscountPct" [class.p-invalid]="fieldError('memberdiscountpct')" />
+      <small class="dlg-err" *ngIf="fieldError('memberdiscountpct')">{{ fieldError('memberdiscountpct') }}</small>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="discountDialogVisible = false"></button>
+    <button pButton label="Save" (click)="saveDiscountSplit()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Edit payable terms" [(visible)]="payableDialogVisible" [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Payment terms</label>
+      <input pInputText [(ngModel)]="payableDraft.paymentTerms" placeholder="Net 30" [class.p-invalid]="fieldError('paymentterms')" />
+      <small class="dlg-err" *ngIf="fieldError('paymentterms')">{{ fieldError('paymentterms') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Terms basis</label>
+      <input pInputText [(ngModel)]="payableDraft.termsBasis" placeholder="Invoice date" [class.p-invalid]="fieldError('termsbasis')" />
+      <small class="dlg-err" *ngIf="fieldError('termsbasis')">{{ fieldError('termsbasis') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Early-pay discount</label>
+      <input pInputText [(ngModel)]="payableDraft.earlyPayDiscountText" placeholder="2% / 10 days" [class.p-invalid]="fieldError('earlypaydiscounttext')" />
+      <small class="dlg-err" *ngIf="fieldError('earlypaydiscounttext')">{{ fieldError('earlypaydiscounttext') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Credit limit</label>
+      <input pInputText type="number" [(ngModel)]="payableDraft.creditLimit" [class.p-invalid]="fieldError('creditlimit')" />
+      <small class="dlg-err" *ngIf="fieldError('creditlimit')">{{ fieldError('creditlimit') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Currency</label>
+      <input pInputText [(ngModel)]="payableDraft.currency" placeholder="USD" [class.p-invalid]="fieldError('currency')" />
+      <small class="dlg-err" *ngIf="fieldError('currency')">{{ fieldError('currency') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Tax status</label>
+      <input pInputText [(ngModel)]="payableDraft.taxStatus" [class.p-invalid]="fieldError('taxstatus')" />
+      <small class="dlg-err" *ngIf="fieldError('taxstatus')">{{ fieldError('taxstatus') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Remit method</label>
+      <input pInputText [(ngModel)]="payableDraft.remitMethod" [class.p-invalid]="fieldError('remitmethod')" />
+      <small class="dlg-err" *ngIf="fieldError('remitmethod')">{{ fieldError('remitmethod') }}</small>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="payableDialogVisible = false"></button>
+    <button pButton label="Save" (click)="savePayableTerms()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Edit ordering & margin" [(visible)]="orderingDialogVisible" [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Minimum order</label>
+      <input pInputText type="number" [(ngModel)]="orderingDraft.minimumOrder" [class.p-invalid]="fieldError('minimumorder')" />
+      <small class="dlg-err" *ngIf="fieldError('minimumorder')">{{ fieldError('minimumorder') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>FOB point</label>
+      <input pInputText [(ngModel)]="orderingDraft.fobPoint" [class.p-invalid]="fieldError('fobpoint')" />
+      <small class="dlg-err" *ngIf="fieldError('fobpoint')">{{ fieldError('fobpoint') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Default markup</label>
+      <input pInputText type="number" step="0.01" [(ngModel)]="orderingDraft.defaultMarkup" [class.p-invalid]="fieldError('defaultmarkup')" />
+      <small class="dlg-err" *ngIf="fieldError('defaultmarkup')">{{ fieldError('defaultmarkup') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Volume rebate</label>
+      <input pInputText [(ngModel)]="orderingDraft.volumeRebateText" [class.p-invalid]="fieldError('volumerebatetext')" />
+      <small class="dlg-err" *ngIf="fieldError('volumerebatetext')">{{ fieldError('volumerebatetext') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Price protection (days)</label>
+      <input pInputText type="number" [(ngModel)]="orderingDraft.priceProtectionDays" [class.p-invalid]="fieldError('priceprotectiondays')" />
+      <small class="dlg-err" *ngIf="fieldError('priceprotectiondays')">{{ fieldError('priceprotectiondays') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Primary category</label>
+      <input pInputText [(ngModel)]="orderingDraft.primaryCategory" [class.p-invalid]="fieldError('primarycategory')" />
+      <small class="dlg-err" *ngIf="fieldError('primarycategory')">{{ fieldError('primarycategory') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Country of origin</label>
+      <input pInputText [(ngModel)]="orderingDraft.countryOfOrigin" [class.p-invalid]="fieldError('countryoforigin')" />
+      <small class="dlg-err" *ngIf="fieldError('countryoforigin')">{{ fieldError('countryoforigin') }}</small>
+    </div>
+    <div class="dlg-field dlg-check"><p-checkbox [binary]="true" [(ngModel)]="orderingDraft.dropShipEnabled" inputId="dropShip"></p-checkbox><label for="dropShip">Drop-ship enabled</label></div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="orderingDialogVisible = false"></button>
+    <button pButton label="Save" (click)="saveOrderingMargin()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Add brand" [(visible)]="brandDialogVisible" [modal]="true" [style]="{width: '400px'}" [draggable]="false">
+  <div class="dlg-field">
+    <label>Brand name</label>
+    <input pInputText [(ngModel)]="newBrandName" (keyup.enter)="saveBrand()" [class.p-invalid]="fieldError('brandname')" />
+    <small class="dlg-err" *ngIf="fieldError('brandname')">{{ fieldError('brandname') }}</small>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="brandDialogVisible = false"></button>
+    <button pButton label="Add" [disabled]="!newBrandName.trim()" (click)="saveBrand()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Add contact group" [(visible)]="contactGroupDialogVisible" [modal]="true" [style]="{width: '400px'}" [draggable]="false">
+  <div class="dlg-field">
+    <label>Group name</label>
+    <input pInputText [(ngModel)]="newGroupName" placeholder="Sales, Accounts Payable, ..." (keyup.enter)="saveContactGroup()" [class.p-invalid]="fieldError('groupname')" />
+    <small class="dlg-err" *ngIf="fieldError('groupname')">{{ fieldError('groupname') }}</small>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="contactGroupDialogVisible = false"></button>
+    <button pButton label="Add" [disabled]="!newGroupName.trim()" (click)="saveContactGroup()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog [header]="editingContactId ? 'Edit contact' : 'Add contact'" [(visible)]="contactDialogVisible" [modal]="true" [style]="{width: '440px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Name</label>
+      <input pInputText [(ngModel)]="contactDraft.name" [class.p-invalid]="fieldError('name')" />
+      <small class="dlg-err" *ngIf="fieldError('name')">{{ fieldError('name') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Title</label>
+      <input pInputText [(ngModel)]="contactDraft.title" [class.p-invalid]="fieldError('title')" />
+      <small class="dlg-err" *ngIf="fieldError('title')">{{ fieldError('title') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Email</label>
+      <input pInputText type="email" [(ngModel)]="contactDraft.email" [class.p-invalid]="fieldError('email')" />
+      <small class="dlg-err" *ngIf="fieldError('email')">{{ fieldError('email') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Phone</label>
+      <input pInputText [(ngModel)]="contactDraft.phone" [class.p-invalid]="fieldError('phone')" />
+      <small class="dlg-err" *ngIf="fieldError('phone')">{{ fieldError('phone') }}</small>
+    </div>
+    <div class="dlg-field dlg-check"><p-checkbox [binary]="true" [(ngModel)]="contactDraft.isPrimary" inputId="contactPrimary"></p-checkbox><label for="contactPrimary">Primary contact for this group</label></div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="contactDialogVisible = false"></button>
+    <button pButton [label]="editingContactId ? 'Save' : 'Add'" [disabled]="!contactDraft.name?.trim()" (click)="saveContact()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog [header]="editingContractId ? 'Edit contract' : 'New contract'" [(visible)]="contractDialogVisible" [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Name</label>
+      <input pInputText [(ngModel)]="contractDraft.name" [class.p-invalid]="fieldError('name')" />
+      <small class="dlg-err" *ngIf="fieldError('name')">{{ fieldError('name') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Type</label>
+      <input pInputText [(ngModel)]="contractDraft.contractType" placeholder="Supply, Rebate, Marketing, ..." [class.p-invalid]="fieldError('contracttype')" />
+      <small class="dlg-err" *ngIf="fieldError('contracttype')">{{ fieldError('contracttype') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Start date</label>
+      <input pInputText type="date" [(ngModel)]="contractDraft.startDate" [class.p-invalid]="fieldError('startdate')" />
+      <small class="dlg-err" *ngIf="fieldError('startdate')">{{ fieldError('startdate') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>End date</label>
+      <input pInputText type="date" [(ngModel)]="contractDraft.endDate" [class.p-invalid]="fieldError('enddate')" />
+      <small class="dlg-err" *ngIf="fieldError('enddate')">{{ fieldError('enddate') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Value</label>
+      <input pInputText [(ngModel)]="contractDraft.valueText" placeholder="$4.2M/yr" [class.p-invalid]="fieldError('valuetext')" />
+      <small class="dlg-err" *ngIf="fieldError('valuetext')">{{ fieldError('valuetext') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Status</label>
+      <p-dropdown [options]="statusOptions" [(ngModel)]="contractDraft.status"></p-dropdown>
+      <small class="dlg-err" *ngIf="fieldError('status')">{{ fieldError('status') }}</small>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="contractDialogVisible = false"></button>
+    <button pButton [label]="editingContractId ? 'Save' : 'Add'" [disabled]="!contractDraft.name?.trim()" (click)="saveContract()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="New price list" [(visible)]="priceListDialogVisible" [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Name</label>
+      <input pInputText [(ngModel)]="priceListDraft.name" [class.p-invalid]="fieldError('name')" />
+      <small class="dlg-err" *ngIf="fieldError('name')">{{ fieldError('name') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Effective date</label>
+      <input pInputText type="date" [(ngModel)]="priceListDraft.effectiveDate" [class.p-invalid]="fieldError('effectivedate')" />
+      <small class="dlg-err" *ngIf="fieldError('effectivedate')">{{ fieldError('effectivedate') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Expiration date</label>
+      <input pInputText type="date" [(ngModel)]="priceListDraft.expirationDate" [class.p-invalid]="fieldError('expirationdate')" />
+      <small class="dlg-err" *ngIf="fieldError('expirationdate')">{{ fieldError('expirationdate') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>SKUs priced</label>
+      <input pInputText type="number" [(ngModel)]="priceListDraft.skuCount" [class.p-invalid]="fieldError('skucount')" />
+      <small class="dlg-err" *ngIf="fieldError('skucount')">{{ fieldError('skucount') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Currency</label>
+      <input pInputText [(ngModel)]="priceListDraft.currency" [class.p-invalid]="fieldError('currency')" />
+      <small class="dlg-err" *ngIf="fieldError('currency')">{{ fieldError('currency') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Status</label>
+      <p-dropdown [options]="statusOptions" [(ngModel)]="priceListDraft.status"></p-dropdown>
+      <small class="dlg-err" *ngIf="fieldError('status')">{{ fieldError('status') }}</small>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="priceListDialogVisible = false"></button>
+    <button pButton label="Add" [disabled]="!priceListDraft.name?.trim()" (click)="savePriceList()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Edit freight policy" [(visible)]="freightDialogVisible" [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Freight terms</label>
+      <input pInputText [(ngModel)]="freightDraft.freightTerms" placeholder="Prepaid & add" [class.p-invalid]="fieldError('freightterms')" />
+      <small class="dlg-err" *ngIf="fieldError('freightterms')">{{ fieldError('freightterms') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>FOB point</label>
+      <input pInputText [(ngModel)]="freightDraft.fobPoint" [class.p-invalid]="fieldError('fobpoint')" />
+      <small class="dlg-err" *ngIf="fieldError('fobpoint')">{{ fieldError('fobpoint') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Carrier</label>
+      <input pInputText [(ngModel)]="freightDraft.carrier" [class.p-invalid]="fieldError('carrier')" />
+      <small class="dlg-err" *ngIf="fieldError('carrier')">{{ fieldError('carrier') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Prepaid threshold</label>
+      <input pInputText type="number" [(ngModel)]="freightDraft.prepaidThreshold" [class.p-invalid]="fieldError('prepaidthreshold')" />
+      <small class="dlg-err" *ngIf="fieldError('prepaidthreshold')">{{ fieldError('prepaidthreshold') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Fuel surcharge</label>
+      <input pInputText [(ngModel)]="freightDraft.fuelSurcharge" [class.p-invalid]="fieldError('fuelsurcharge')" />
+      <small class="dlg-err" *ngIf="fieldError('fuelsurcharge')">{{ fieldError('fuelsurcharge') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Lead time</label>
+      <input pInputText [(ngModel)]="freightDraft.leadTimeText" placeholder="5-7 business days" [class.p-invalid]="fieldError('leadtimetext')" />
+      <small class="dlg-err" *ngIf="fieldError('leadtimetext')">{{ fieldError('leadtimetext') }}</small>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="freightDialogVisible = false"></button>
+    <button pButton label="Save" (click)="saveFreightPolicy()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Edit free shipping policy" [(visible)]="shippingDialogVisible" [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Free freight over</label>
+      <input pInputText type="number" [(ngModel)]="shippingDraft.freeFreightThreshold" [class.p-invalid]="fieldError('freefreightthreshold')" />
+      <small class="dlg-err" *ngIf="fieldError('freefreightthreshold')">{{ fieldError('freefreightthreshold') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Applies to</label>
+      <input pInputText [(ngModel)]="shippingDraft.appliesTo" placeholder="Contiguous US" [class.p-invalid]="fieldError('appliesto')" />
+      <small class="dlg-err" *ngIf="fieldError('appliesto')">{{ fieldError('appliesto') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>PRO tier override</label>
+      <input pInputText type="number" [(ngModel)]="shippingDraft.proTierOverride" [class.p-invalid]="fieldError('protieroverride')" />
+      <small class="dlg-err" *ngIf="fieldError('protieroverride')">{{ fieldError('protieroverride') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Excludes</label>
+      <input pInputText [(ngModel)]="shippingDraft.excludes" placeholder="Oversize / LTL freight" [class.p-invalid]="fieldError('excludes')" />
+      <small class="dlg-err" *ngIf="fieldError('excludes')">{{ fieldError('excludes') }}</small>
+    </div>
+    <div class="dlg-field dlg-check"><p-checkbox [binary]="true" [(ngModel)]="shippingDraft.stacksWithPromos" inputId="stacksPromos"></p-checkbox><label for="stacksPromos">Stacks with promos</label></div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="shippingDialogVisible = false"></button>
+    <button pButton label="Save" (click)="saveShippingPolicy()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Edit return policy" [(visible)]="returnDialogVisible" [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Return window (days)</label>
+      <input pInputText type="number" [(ngModel)]="returnDraft.returnWindowDays" [class.p-invalid]="fieldError('returnwindowdays')" />
+      <small class="dlg-err" *ngIf="fieldError('returnwindowdays')">{{ fieldError('returnwindowdays') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Restocking fee %</label>
+      <input pInputText type="number" [(ngModel)]="returnDraft.restockingFeePct" [class.p-invalid]="fieldError('restockingfeepct')" />
+      <small class="dlg-err" *ngIf="fieldError('restockingfeepct')">{{ fieldError('restockingfeepct') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Return freight</label>
+      <input pInputText [(ngModel)]="returnDraft.returnFreightText" placeholder="Buyer pays" [class.p-invalid]="fieldError('returnfreighttext')" />
+      <small class="dlg-err" *ngIf="fieldError('returnfreighttext')">{{ fieldError('returnfreighttext') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Defective handling</label>
+      <input pInputText [(ngModel)]="returnDraft.defectiveHandlingText" [class.p-invalid]="fieldError('defectivehandlingtext')" />
+      <small class="dlg-err" *ngIf="fieldError('defectivehandlingtext')">{{ fieldError('defectivehandlingtext') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Non-returnable</label>
+      <input pInputText [(ngModel)]="returnDraft.nonReturnableText" [class.p-invalid]="fieldError('nonreturnabletext')" />
+      <small class="dlg-err" *ngIf="fieldError('nonreturnabletext')">{{ fieldError('nonreturnabletext') }}</small>
+    </div>
+    <div class="dlg-field dlg-check"><p-checkbox [binary]="true" [(ngModel)]="returnDraft.rmaRequired" inputId="rmaRequired"></p-checkbox><label for="rmaRequired">RMA required</label></div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="returnDialogVisible = false"></button>
+    <button pButton label="Save" (click)="saveReturnPolicy()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog [header]="editingRebateId ? 'Edit instant rebate' : 'Create instant rebate'" [(visible)]="rebateDialogVisible" [modal]="true" [style]="{width: '560px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Name</label>
+      <input pInputText [(ngModel)]="rebateDraft.name" [class.p-invalid]="fieldError('name')" />
+      <small class="dlg-err" *ngIf="fieldError('name')">{{ fieldError('name') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Code</label>
+      <input pInputText [(ngModel)]="rebateDraft.code" [class.p-invalid]="fieldError('code')" />
+      <small class="dlg-err" *ngIf="fieldError('code')">{{ fieldError('code') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Amount</label>
+      <input pInputText [(ngModel)]="rebateDraft.amountText" placeholder="$5.00 / unit" [class.p-invalid]="fieldError('amounttext')" />
+      <small class="dlg-err" *ngIf="fieldError('amounttext')">{{ fieldError('amounttext') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Eligibility</label>
+      <p-dropdown [options]="eligibilityOptions" [(ngModel)]="rebateDraft.eligibility"></p-dropdown>
+      <small class="dlg-err" *ngIf="fieldError('eligibility')">{{ fieldError('eligibility') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Applies to</label>
+      <input pInputText [(ngModel)]="rebateDraft.scopeText" [class.p-invalid]="fieldError('scopetext')" />
+      <small class="dlg-err" *ngIf="fieldError('scopetext')">{{ fieldError('scopetext') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Window</label>
+      <input pInputText [(ngModel)]="rebateDraft.windowText" placeholder="Jun 1 → Aug 31" [class.p-invalid]="fieldError('windowtext')" />
+      <small class="dlg-err" *ngIf="fieldError('windowtext')">{{ fieldError('windowtext') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Funding</label>
+      <input pInputText [(ngModel)]="rebateDraft.funding" [class.p-invalid]="fieldError('funding')" />
+      <small class="dlg-err" *ngIf="fieldError('funding')">{{ fieldError('funding') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Reconciliation</label>
+      <input pInputText [(ngModel)]="rebateDraft.claimMethod" placeholder="Off-invoice" [class.p-invalid]="fieldError('claimmethod')" />
+      <small class="dlg-err" *ngIf="fieldError('claimmethod')">{{ fieldError('claimmethod') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Status</label>
+      <p-dropdown [options]="statusOptions" [(ngModel)]="rebateDraft.status"></p-dropdown>
+      <small class="dlg-err" *ngIf="fieldError('status')">{{ fieldError('status') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Budget</label>
+      <input pInputText type="number" [(ngModel)]="rebateDraft.budgetAmount" [class.p-invalid]="fieldError('budgetamount')" />
+      <small class="dlg-err" *ngIf="fieldError('budgetamount')">{{ fieldError('budgetamount') }}</small>
+    </div>
+    <div class="dlg-field dlg-check"><p-checkbox [binary]="true" [(ngModel)]="rebateDraft.isWebVisible" inputId="rebateWeb"></p-checkbox><label for="rebateWeb">Visible on web</label></div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="rebateDialogVisible = false"></button>
+    <button pButton label="Save" [disabled]="!rebateDraft.name?.trim()" (click)="saveRebate()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog [header]="'Custom fields — ' + customSectionLabel(customFieldSection)" [(visible)]="customFieldDialogVisible" [modal]="true" [style]="{width: '480px'}" [draggable]="false">
+  <div class="dlg-grid">
+    <div class="dlg-field" *ngFor="let f of customFor(customFieldSection)" [class.dlg-check]="f.type === 'Boolean'">
+      <ng-container [ngSwitch]="f.type">
+        <ng-container *ngSwitchCase="'Boolean'">
+          <p-checkbox [binary]="true" [(ngModel)]="customFieldDrafts[f.defId]" [inputId]="'cf' + f.defId"></p-checkbox>
+          <label [for]="'cf' + f.defId">{{ f.label }}</label>
+        </ng-container>
+        <ng-container *ngSwitchCase="'Number'">
+          <label>{{ f.label }}</label>
+          <input pInputText type="number" [(ngModel)]="customFieldDrafts[f.defId]" />
+        </ng-container>
+        <ng-container *ngSwitchCase="'Date'">
+          <label>{{ f.label }}</label>
+          <input pInputText type="date" [(ngModel)]="customFieldDrafts[f.defId]" />
+        </ng-container>
+        <ng-container *ngSwitchDefault>
+          <label>{{ f.label }}</label>
+          <input pInputText maxlength="500" [(ngModel)]="customFieldDrafts[f.defId]" />
+        </ng-container>
+      </ng-container>
+    </div>
+    <small class="dlg-err" *ngIf="fieldError('value')">{{ fieldError('value') }}</small>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="customFieldDialogVisible = false"></button>
+    <button pButton label="Save" [loading]="savingCustomFields" (click)="saveCustomFields()"></button>
+  </ng-template>
+</p-dialog>
+
 <!-- ===================== reusable templates ===================== -->
 <ng-template #auditRow let-a="a" let-last="last">
-  <div class="arow" [class.last]="last">
+  <div class="arow" [class.last]="last" [class.current-session]="a.currentSession">
     <span class="av">{{ initials(a.who) }}</span>
     <div class="main">
-      <div class="lead"><b>{{ a.who }}</b> changed <b>{{ a.field }}</b></div>
+      <div class="lead">
+        <b>{{ a.who }}</b> changed <b>{{ a.field }}</b>
+        <span *ngIf="a.currentSession" class="session-tag" pTooltip="Made in your current login session" tooltipPosition="top">
+          <i class="pi pi-bolt"></i> This session
+        </span>
+      </div>
       <div class="change">
         <span class="badge" [ngStyle]="{color: secColor(a.section).fg, background: secColor(a.section).bg}">{{ a.section }}</span>
         <span class="from">{{ a.from }}</span>
@@ -397,7 +875,10 @@
     <header class="card-head">
       <span class="ci" [ngStyle]="{background: P.violetSoft, color: P.violet}"><i class="pi pi-plus-circle"></i></span>
       <h3>Custom fields</h3>
-      <div class="act"><button class="iconbtn" (click)="stub('Add field flow — stub')"><i class="pi pi-plus"></i> Add field</button></div>
+      <div class="act">
+        <a class="iconbtn" routerLink="/vendor-custom-fields" pTooltip="Add or remove custom fields for all vendors" tooltipPosition="top"><i class="pi pi-cog"></i> Manage</a>
+        <button *ngIf="customFor(section).length" class="iconbtn" (click)="openEditCustomFields(section)"><i class="pi pi-pencil"></i> Edit</button>
+      </div>
     </header>
     <div class="card-body">
       <ng-container *ngIf="customFor(section).length; else emptyCf">
@@ -407,11 +888,11 @@
             <span class="cf-type">{{ f.type }}</span>
             <i *ngIf="f.publishable" class="pi pi-globe" [style.color]="P.teal" style="font-size:10px"></i>
           </span>
-          <span class="v mono">{{ f.value }}</span>
+          <span class="v mono" [class.cf-unset]="!f.value">{{ customDisplay(f) }}</span>
         </div>
       </ng-container>
       <ng-template #emptyCf>
-        <div class="cf-empty">No custom fields on this card yet. Defined once, a custom field appears on every vendor — typed, filterable, and reportable.</div>
+        <div class="cf-empty">No custom fields are defined for {{ customSectionLabel(section) }}. Fields added on the <a routerLink="/vendor-custom-fields">Vendor Custom Fields</a> page appear here on every vendor.</div>
       </ng-template>
     </div>
   </section>

@@ -49,6 +49,11 @@ import { ShippingErrorRecord, ShippingErrorProduct, PackingSlipData, ProcessShip
 import { BatchRunResponse, PoSyncResult } from 'src/app/models/Uvicorn/PassThroughInvoice';
 import { Prod, Result, ProductInfoType, ProductInfoLookup, IQPrompt, CategoryNode } from 'src/app/models/Product/EditProduct'; 
 import { SellThroughCompliance } from 'src/app/models/vendor/SellThroughCompliance';
+import {
+  VendorCard, VendorTerms, VendorContactGroupApi, VendorContactApi, VendorContractApi,
+  VendorPriceListApi, VendorPolicies, VendorFreightPolicy, VendorShippingPolicy, VendorReturnPolicy,
+  VendorRebateProgramApi, VendorCustomFieldApi, VendorCustomFieldDefinitionApi, VendorAuditLogEntryApi
+} from 'src/app/models/vendor/vendor-card.model';
 
 @Injectable()
 export class DataService {
@@ -354,6 +359,88 @@ export class DataService {
   }
   toggleVendorWebStatus(vendorId: number): Observable<void> {
     return this.api.post<void>(`API/Listings/vendors/${vendorId}/toggle-web`, {});
+  }
+  // Vendor card
+  getVendorCard(vendorId: number): Observable<VendorCard> {
+    return this.api.get<VendorCard>(`API/VendorCard/${vendorId}`);
+  }
+  toggleVendorActive(vendorId: number): Observable<void> {
+    return this.api.post<void>(`API/VendorCard/${vendorId}/toggle-active`, {});
+  }
+  saveVendorTerms(vendorId: number, terms: VendorTerms): Observable<void> {
+    return this.api.put<void>(`API/VendorCard/${vendorId}/terms`, terms);
+  }
+  addVendorBrand(vendorId: number, brandName: string): Observable<{ vendorBrandId: number }> {
+    return this.api.post<{ vendorBrandId: number }>(`API/VendorCard/${vendorId}/brands`, { brandName });
+  }
+  getVendorContacts(vendorId: number): Observable<VendorContactGroupApi[]> {
+    return this.api.get<VendorContactGroupApi[]>(`API/VendorCard/${vendorId}/contacts`);
+  }
+  addVendorContactGroup(vendorId: number, groupName: string): Observable<{ vendorContactGroupId: number }> {
+    return this.api.post<{ vendorContactGroupId: number }>(`API/VendorCard/${vendorId}/contact-groups`, { groupName });
+  }
+  addVendorContact(vendorId: number, contact: Partial<VendorContactApi>): Observable<{ vendorContactId: number }> {
+    return this.api.post<{ vendorContactId: number }>(`API/VendorCard/${vendorId}/contacts`, contact);
+  }
+  updateVendorContact(contactId: number, contact: Partial<VendorContactApi>): Observable<void> {
+    return this.api.put<void>(`API/VendorCard/contacts/${contactId}`, contact);
+  }
+  getVendorContracts(vendorId: number): Observable<VendorContractApi[]> {
+    return this.api.get<VendorContractApi[]>(`API/VendorCard/${vendorId}/contracts`);
+  }
+  addVendorContract(vendorId: number, contract: Partial<VendorContractApi>): Observable<{ vendorContractId: number }> {
+    return this.api.post<{ vendorContractId: number }>(`API/VendorCard/${vendorId}/contracts`, contract);
+  }
+  updateVendorContract(contractId: number, contract: Partial<VendorContractApi>): Observable<void> {
+    return this.api.put<void>(`API/VendorCard/contracts/${contractId}`, contract);
+  }
+  getVendorPriceLists(vendorId: number): Observable<VendorPriceListApi[]> {
+    return this.api.get<VendorPriceListApi[]>(`API/VendorCard/${vendorId}/price-lists`);
+  }
+  addVendorPriceList(vendorId: number, priceList: Partial<VendorPriceListApi>): Observable<{ vendorPriceListId: number }> {
+    return this.api.post<{ vendorPriceListId: number }>(`API/VendorCard/${vendorId}/price-lists`, priceList);
+  }
+  getVendorPolicies(vendorId: number): Observable<VendorPolicies> {
+    return this.api.get<VendorPolicies>(`API/VendorCard/${vendorId}/policies`);
+  }
+  saveVendorFreightPolicy(vendorId: number, policy: VendorFreightPolicy): Observable<void> {
+    return this.api.put<void>(`API/VendorCard/${vendorId}/policies/freight`, policy);
+  }
+  saveVendorShippingPolicy(vendorId: number, policy: VendorShippingPolicy): Observable<void> {
+    return this.api.put<void>(`API/VendorCard/${vendorId}/policies/shipping`, policy);
+  }
+  saveVendorReturnPolicy(vendorId: number, policy: VendorReturnPolicy): Observable<void> {
+    return this.api.put<void>(`API/VendorCard/${vendorId}/policies/returns`, policy);
+  }
+  getVendorRebatePrograms(vendorId: number): Observable<VendorRebateProgramApi[]> {
+    return this.api.get<VendorRebateProgramApi[]>(`API/VendorCard/${vendorId}/rebates`);
+  }
+  addVendorRebateProgram(vendorId: number, rebate: Partial<VendorRebateProgramApi>): Observable<{ vendorRebateProgramId: number }> {
+    return this.api.post<{ vendorRebateProgramId: number }>(`API/VendorCard/${vendorId}/rebates`, rebate);
+  }
+  updateVendorRebateProgram(rebateId: number, rebate: Partial<VendorRebateProgramApi>): Observable<void> {
+    return this.api.put<void>(`API/VendorCard/rebates/${rebateId}`, rebate);
+  }
+  getVendorCustomFieldDefinitions(): Observable<VendorCustomFieldDefinitionApi[]> {
+    return this.api.get<VendorCustomFieldDefinitionApi[]>(`API/VendorCard/custom-field-definitions`);
+  }
+  addVendorCustomFieldDefinition(definition: Partial<VendorCustomFieldDefinitionApi>): Observable<{ vendorCustomFieldDefinitionId: number }> {
+    return this.api.post<{ vendorCustomFieldDefinitionId: number }>(`API/VendorCard/custom-field-definitions`, definition);
+  }
+  updateVendorCustomFieldDefinition(definitionId: number, definition: Partial<VendorCustomFieldDefinitionApi>): Observable<void> {
+    return this.api.put<void>(`API/VendorCard/custom-field-definitions/${definitionId}`, definition);
+  }
+  deleteVendorCustomFieldDefinition(definitionId: number): Observable<void> {
+    return this.api.delete<void>(`API/VendorCard/custom-field-definitions/${definitionId}`);
+  }
+  getVendorCustomFields(vendorId: number): Observable<VendorCustomFieldApi[]> {
+    return this.api.get<VendorCustomFieldApi[]>(`API/VendorCard/${vendorId}/custom-fields`);
+  }
+  saveVendorCustomFieldValue(vendorId: number, definitionId: number, value: string | null): Observable<void> {
+    return this.api.put<void>(`API/VendorCard/${vendorId}/custom-fields/${definitionId}`, { value });
+  }
+  getVendorAuditLog(vendorId: number, take: number = 20): Observable<VendorAuditLogEntryApi[]> {
+    return this.api.get<VendorAuditLogEntryApi[]>(`API/VendorCard/${vendorId}/audit-log?take=${take}`);
   }
   // Members (Members, Affiliates, Clients)
   getMembers(type: 'Members' | 'Affiliates' | 'Clients' = 'Members'): Observable<Member[]> {

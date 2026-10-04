@@ -85,7 +85,7 @@
     </ng-template>
 
     <ng-template pTemplate="body" let-vendor>
-      <tr class="vendor-row" (dblclick)="openVendor(vendor)">
+      <tr class="vendor-row" (click)="openVendor(vendor)">
         <td>
           <div class="avatar-container">
             <div (drop)="onImageDrop($event, vendor)"
@@ -123,7 +123,7 @@
         <td>
           <button pButton label="Toggle" icon="pi pi-refresh"
                   class="p-button-sm"
-                  (click)="toggleWebStatus(vendor)">
+                  (click)="toggleWebStatus(vendor); $event.stopPropagation()">
           </button>
         </td>
       </tr>
