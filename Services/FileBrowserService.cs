@@ -45,7 +45,7 @@ namespace ProInternal.Services
             if (!dir.Exists) throw new DirectoryNotFoundException(relativePath ?? "");
 
             var entries = dir.EnumerateFileSystemInfos()
-                .Where(fsi => !fsi.Name.StartsWith('.'))
+                .Where(fsi => !fsi.Name.StartsWith('.') && !fsi.Name.EndsWith(".db", StringComparison.OrdinalIgnoreCase) && !fsi.Name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase))
                 .Select(fsi => new FileSystemEntry
                 {
                     Name = fsi.Name,
