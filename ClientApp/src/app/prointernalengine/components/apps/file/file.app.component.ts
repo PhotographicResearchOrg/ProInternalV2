@@ -207,7 +207,7 @@ export class FileAppComponent implements OnInit {
   }
 
   openResult(r: FileSystemEntry) {
-    this.searchResults = []; //empty out, Angular recognizes new objects, let refresh happen for better search
+    this.clearSearch();
     this.navigateTo(r.relativePath); //clear path 
   }
 

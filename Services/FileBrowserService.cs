@@ -78,6 +78,7 @@ namespace ProInternal.Services
             var safeName = Path.GetFileName(fileName);
             var folderFull = SafePath.Resolve(_root, relativeFolder);
             Directory.CreateDirectory(folderFull);
+            _cache.Remove("foldersize::" + (relativeFolder ?? "").ToLowerInvariant());
             return SafePath.Resolve(_root, Path.Combine(relativeFolder ?? "", safeName));
         }
 
@@ -144,7 +145,8 @@ namespace ProInternal.Services
 
             foreach (var subDirectory in ProductFolderTemplate)
                 Directory.CreateDirectory(Path.Combine(productFull, subDirectory)); // create sub=dirs based off of template
-
+            _cache.Remove("foldersize::" + relativeParentPath.ToLowerInvariant());
+            _cache.Remove("folderindex");
             return true;
 
         }
