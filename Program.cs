@@ -88,7 +88,7 @@ builder.Services.AddHttpClient<IUvicornDataAccess, UvicornDataAccess>(c =>
     c.Timeout = TimeSpan.FromMinutes(15);
     c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
 });
-
+builder.Services.AddScoped<IOrderInboxDataAccess, OrderInboxDataAccess>();
 builder.Services.AddCors();
 
 // In production, the Angular files will be served from this directory

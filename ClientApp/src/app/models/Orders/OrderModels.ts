@@ -223,3 +223,77 @@ export interface ReopenOrderRequest {
   orderId: string;
   reason: string;
 }
+
+
+export type OrderInboxState =
+  | 'RECEIVED'
+  | 'READY'
+  | 'NEEDS_REVIEW'
+  | 'REJECTED';
+
+export interface OrderInboxProblem {
+  code: string;
+  field?: string;
+  message?: string;
+}
+
+export interface OrderInboxAddress {
+  name?: string;
+  attention?: string;
+  line1?: string;
+  line2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface OrderInboxLine {
+  lineId?: string;
+  sku?: string;
+  productName?: string;
+  quantity?: number;
+  unitPrice?: number;
+  lineTotal?: number;
+}
+
+export interface OrderInboxReviewItem {
+  inboxId: number;
+  channel: string;
+  storeId?: string;
+  channelOrderId?: string;
+  orderNumber?: string;
+  state: OrderInboxState;
+
+  customerName?: string;
+  customerEmail?: string;
+  total?: number;
+  currency?: string;
+  itemCount: number;
+
+  receivedAt: string;
+  lastAttemptAt: string;
+  attemptCount: number;
+
+  problems: OrderInboxProblem[];
+
+  targetTable?: string;
+  targetOrderId?: number;
+
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNote?: string;
+}
+
+export interface OrderInboxReviewDetail extends OrderInboxReviewItem {
+  shipTo?: OrderInboxAddress;
+  lines: OrderInboxLine[];
+  rawDocument?: string;
+}
+
+export interface OrderInboxActionResponse {
+  success: boolean;
+  message: string;
+}

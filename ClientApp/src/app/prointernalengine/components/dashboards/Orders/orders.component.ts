@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { ProcessOrdersRequest, OrderAuditRecord, UpdateOrderShipToRequest, OrderChannel, OrderStatus, OrderRecord, OrderShipToOption  } from 'src/app/models/orders/OrderModels';
+import { OrderInboxReviewItem, OrderInboxReviewDetail, ProcessOrdersRequest, OrderAuditRecord, UpdateOrderShipToRequest, OrderChannel, OrderStatus, OrderRecord, OrderShipToOption } from 'src/app/models/orders/OrderModels';
 import { OrdersService } from 'src/app/services/orders.service';
 import { OrdersMetrics } from 'src/app/models/Dashboard/OrdersMetrics';
 import { DataService } from 'src/app/services/data.service';
@@ -45,6 +45,19 @@ export class OrdersComponent implements OnInit {
   processingOrders = false;
 
 
+  reviewTabActive = false;
+  reviewOrders: OrderInboxReviewItem[] = [];
+  reviewLoading = false;
+  reviewError = '';
+  reviewShowRejected = false;
+  reviewSelected: OrderInboxReviewDetail | null = null;
+  reviewRawVisible = false;
+  reviewRejectTarget: OrderInboxReviewItem | null = null;
+  reviewRejectReason = '';
+  reviewRejectReasonError = false;
+  reviewRejecting = false;
+
+
   readonly statusOptions = [
     'All',
     'Open',
@@ -85,6 +98,7 @@ export class OrdersComponent implements OnInit {
   ngOnInit(): void {
     this.loadOrders();
     this.loadOrderMetrics();
+    this.loadReviewOrders();
   }
 
   selectMetricFilter(
@@ -512,6 +526,7 @@ export class OrdersComponent implements OnInit {
   }
 
   selectChannel(channel: OrderChannel): void {
+    this.reviewTabActive = false;
     this.activeChannel = channel;
     this.searchTerm = '';
     this.selectedStatus = 'All';
@@ -605,7 +620,7 @@ export class OrdersComponent implements OnInit {
     this.processingOrders = true;
     this.ordersError = '';
 
-    const request: ProcessOrdersRequest = {orderIds};
+    const request: ProcessOrdersRequest = { orderIds };
 
     this.ordersService
       .processOrders(request)
@@ -919,6 +934,157 @@ export class OrdersComponent implements OnInit {
   }
 
 
+
+  /* Orders still waiting on someone. Rejected ones are not counted. */
+  get reviewCount(): number {
+    return this.reviewOrders.filter(
+      order => order.state !== 'REJECTED'
+    ).length;
+  }
+
+  openReviewTab(): void {
+    this.reviewTabActive = true;
+    this.selectedOrder = null;
+    this.selectedOrderIds.clear();
+    this.loadReviewOrders();
+  }
+
+  loadReviewOrders(): void {
+    this.reviewLoading = true;
+    this.reviewError = '';
+
+    this.ordersService
+      .getReviewOrders(this.reviewShowRejected)
+      .subscribe({
+        next: orders => {
+          this.reviewOrders = orders ?? [];
+          this.reviewLoading = false;
+
+          const selectedId = this.reviewSelected?.inboxId;
+
+          if (
+            selectedId !== undefined &&
+            !this.reviewOrders.some(o => o.inboxId === selectedId)
+          ) {
+            this.reviewSelected = null;
+          }
+        },
+
+        error: error => {
+          console.error('Unable to load orders needing review.', error);
+          this.reviewOrders = [];
+          this.reviewError = 'Unable to load orders needing review.';
+          this.reviewLoading = false;
+        }
+      });
+  }
+
+  openReviewOrder(order: OrderInboxReviewItem): void {
+    this.reviewRawVisible = false;
+
+    this.ordersService.getReviewOrder(order.inboxId).subscribe({
+      next: detail => {
+        this.reviewSelected = {
+          ...detail,
+          problems: detail.problems ?? [],
+          lines: detail.lines ?? []
+        };
+      },
+
+      error: error => {
+        console.error('Unable to load the held order.', error);
+
+        this.toast.add({
+          severity: 'error',
+          summary: 'Unable to open order',
+          detail: 'The held order could not be loaded.'
+        });
+      }
+    });
+  }
+
+  /* The document as received, indented when it is JSON. */
+  get reviewRawText(): string {
+    const raw = this.reviewSelected?.rawDocument ?? '';
+
+    try {
+      return JSON.stringify(JSON.parse(raw), null, 2);
+    } catch {
+      return raw;
+    }
+  }
+
+  getReviewStateLabel(order: OrderInboxReviewItem): string {
+    switch (order.state) {
+      case 'NEEDS_REVIEW': return 'Needs Review';
+      case 'RECEIVED': return 'Not Processed';
+      case 'REJECTED': return 'Rejected';
+      default: return order.state;
+    }
+  }
+
+  canRejectReview(order: OrderInboxReviewItem): boolean {
+    return order.state === 'NEEDS_REVIEW' || order.state === 'RECEIVED';
+  }
+
+  openReviewReject(order: OrderInboxReviewItem, event?: Event): void {
+    event?.stopPropagation();
+
+    this.reviewRejectTarget = order;
+    this.reviewRejectReason = '';
+    this.reviewRejectReasonError = false;
+  }
+
+  closeReviewReject(): void {
+    this.reviewRejectTarget = null;
+    this.reviewRejectReason = '';
+    this.reviewRejectReasonError = false;
+  }
+
+  confirmReviewReject(): void {
+    const target = this.reviewRejectTarget;
+    const reason = this.reviewRejectReason.trim();
+
+    if (!target || !reason) {
+      this.reviewRejectReasonError = true;
+      return;
+    }
+
+    this.reviewRejecting = true;
+
+    this.ordersService
+      .rejectReviewOrder(target.inboxId, reason)
+      .subscribe({
+        next: result => {
+          this.reviewRejecting = false;
+
+          this.toast.add({
+            severity: result.success ? 'success' : 'warn',
+            summary: result.success ? 'Order rejected' : 'Not rejected',
+            detail: result.message
+          });
+
+          this.closeReviewReject();
+
+          if (this.reviewSelected?.inboxId === target.inboxId) {
+            this.reviewSelected = null;
+          }
+
+          this.loadReviewOrders();
+        },
+
+        error: error => {
+          this.reviewRejecting = false;
+          console.error('Unable to reject the held order.', error);
+
+          this.toast.add({
+            severity: 'error',
+            summary: 'Reject failed',
+            detail: 'The server could not reject this order.'
+          });
+        }
+      });
+  }
 
 
 

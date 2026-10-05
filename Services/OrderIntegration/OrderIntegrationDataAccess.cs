@@ -19,9 +19,9 @@ using System.Threading.Tasks;
 
 namespace ProInternal.Services.OrderIntegration
 {
-    public class OrderIntegrationDataAccess: BaseDataAccess, IOrderIntegrationDataAccess
+    public class OrderIntegrationDataAccess : BaseDataAccess, IOrderIntegrationDataAccess
     {
-        public OrderIntegrationDataAccess(IConfiguration config,AwsSecretHelper helper): base(config,helper,"ProConnectionString")
+        public OrderIntegrationDataAccess(IConfiguration config, AwsSecretHelper helper) : base(config, helper, "ProConnectionString")
         {
         }
 
@@ -31,69 +31,48 @@ namespace ProInternal.Services.OrderIntegration
                     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
                 };
 
-        public async Task<InboundOrderResult>ImportShopifyOrderAsync(
-                ShopifyWebhookEnvelope envelope,
+        /*
+         * Writes one Shopify order from the order inbox into OrderConsumer.
+         *
+         * Delivery details (webhook ids, payload, errors) are NOT passed
+         * here any more: the inbox record holds them. The order table
+         * receives only the pointer back to that record.
+         */
+        public async Task<InboundOrderResult> ImportShopifyOrderAsync(
+                long inboxId,
+                string channelOrderId,
                 CanonicalOrder order,
-                IReadOnlyList<InboundOrderError> errors,
                 int orderStatusId,
                 CancellationToken cancellationToken)
         {
-
-            ArgumentNullException.ThrowIfNull(envelope);
             ArgumentNullException.ThrowIfNull(order);
-            ArgumentNullException.ThrowIfNull(errors);
-
-            var channelOrderId =order.Source.ChannelOrderId ??order.Metadata.OrderId;
 
             if (string.IsNullOrWhiteSpace(channelOrderId))
             {
-                throw new InvalidOperationException( "SHOPIFY_ORDER_ID_MISSING: " + "The canonical order does not contain a channel order ID.");
+                throw new InvalidOperationException("SHOPIFY_ORDER_ID_MISSING: " + "The canonical order does not contain a channel order ID.");
             }
 
-            var canonicalJson =JsonSerializer.Serialize(order,IntegrationJsonOptions);
+            var canonicalJson = JsonSerializer.Serialize(order, IntegrationJsonOptions);
 
-            string? errorsJson = null;
+            using var conn = GetConnection();
 
-            if (errors.Count > 0)
-            {
-                errorsJson =JsonSerializer.Serialize(errors,IntegrationJsonOptions);
-            }
-
-            DateTimeOffset? triggeredAt = null;
-
-            if (!string.IsNullOrWhiteSpace( envelope.TriggeredAt) &&
-                    DateTimeOffset.TryParse(envelope.TriggeredAt,CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind,out var parsedTriggeredAt))
-            {
-                triggeredAt =parsedTriggeredAt;
-            }
-
-            using var conn =GetConnection();
-
-            var command = new CommandDefinition( "dbo.PIV2_ShopifyOrderConsumer_Import",
+            var command = new CommandDefinition("dbo.PIV2_ShopifyOrderConsumer_Import",
                     new
                     {
-                        WebhookId =envelope.WebhookId,
-                        EventId =envelope.EventId,
-                        Topic =  envelope.Topic,
-                        ShopDomain =envelope.ShopDomain,
-                        ChannelOrderId =channelOrderId,
-                        ApiVersion = envelope.ApiVersion,
-                        TriggeredAt = triggeredAt,
-                        PayloadJson = envelope.PayloadJson,
+                        InboxId = inboxId,
+                        ChannelOrderId = channelOrderId,
                         CanonicalJson = canonicalJson,
-                        ErrorsJson = errorsJson,
-                        OrderStatusId =orderStatusId
+                        OrderStatusId = orderStatusId
                     },
-                    commandType:CommandType.StoredProcedure, cancellationToken: cancellationToken);
+                    commandType: CommandType.StoredProcedure, cancellationToken: cancellationToken);
 
-            var result =await conn.QuerySingleAsync<ShopifyOrderImportRow>(command);
+            var result = await conn.QuerySingleAsync<ShopifyOrderImportRow>(command);
 
             return new InboundOrderResult
             {
-                Status =result.ResultStatus,
+                Status = result.ResultStatus,
                 OrderId = result.OrderConsumerId.ToString(CultureInfo.InvariantCulture),
-                ChannelOrderId = channelOrderId,
-                Errors = errors.ToList()
+                ChannelOrderId = channelOrderId
             };
         }
 
@@ -125,17 +104,17 @@ namespace ProInternal.Services.OrderIntegration
                 commandType: CommandType.StoredProcedure
             );
 
-            var header =results.ReadFirstOrDefault<OrderHeaderRow>();
+            var header = results.ReadFirstOrDefault<OrderHeaderRow>();
 
             if (header == null)
                 return null;
 
-            var billingAddresses =results.Read<OrderAddressRow>().ToList();
-            var shippingAddress =results.ReadFirstOrDefault<OrderAddressRow>();
-            var sections =results.Read<OrderSectionRow>().ToList();
-            var sourceItems =results.Read<OrderItemRow>().ToList();
+            var billingAddresses = results.Read<OrderAddressRow>().ToList();
+            var shippingAddress = results.ReadFirstOrDefault<OrderAddressRow>();
+            var sections = results.Read<OrderSectionRow>().ToList();
+            var sourceItems = results.Read<OrderItemRow>().ToList();
 
-            ValidateSourceData(header,billingAddresses,shippingAddress, sections,sourceItems);
+            ValidateSourceData(header, billingAddresses, shippingAddress, sections, sourceItems);
 
             return BuildCanonicalOrder(
                 header,
@@ -154,23 +133,23 @@ namespace ProInternal.Services.OrderIntegration
             List<OrderItemRow> items
         )
         {
-            RequireValue(header.SourceChannel,"SOURCE_CHANNEL_MISSING");
-            RequireValue(header.CustomerId,"CUSTOMER_ID_MISSING");
-            RequireValue( header.IntegrationOrderStatus,"ORDER_STATUS_MAPPING_MISSING");
-            RequireValue(header.IntegrationApprovalStatus,"APPROVAL_STATUS_MAPPING_MISSING");
-            RequireValue( header.IntegrationExportStatus,"EXPORT_STATUS_MAPPING_MISSING");
+            RequireValue(header.SourceChannel, "SOURCE_CHANNEL_MISSING");
+            RequireValue(header.CustomerId, "CUSTOMER_ID_MISSING");
+            RequireValue(header.IntegrationOrderStatus, "ORDER_STATUS_MAPPING_MISSING");
+            RequireValue(header.IntegrationApprovalStatus, "APPROVAL_STATUS_MAPPING_MISSING");
+            RequireValue(header.IntegrationExportStatus, "EXPORT_STATUS_MAPPING_MISSING");
 
             if (billingAddresses.Count == 0)
             {
-                throw new InvalidOperationException("BILLING_ADDRESS_MISSING: " +"No active billing address was found.");
+                throw new InvalidOperationException("BILLING_ADDRESS_MISSING: " + "No active billing address was found.");
             }
             if (billingAddresses.Count > 1)
             {
                 throw new InvalidOperationException("BILLING_ADDRESS_AMBIGUOUS: " + "More than one active billing address was found.");
             }
 
-            ValidateAddress( billingAddresses.Single(), "BILLING");
-            
+            ValidateAddress(billingAddresses.Single(), "BILLING");
+
             if (shippingAddress == null)
             {
                 throw new InvalidOperationException("SHIPPING_ADDRESS_MISSING: " + "The order does not have a shipping address.");
@@ -202,9 +181,9 @@ namespace ProInternal.Services.OrderIntegration
 
                 if (item.DropShipQuantity < 0 || item.DropShipQuantity > item.Quantity)
                 {
-                    throw new InvalidOperationException( $"DROPSHIP_QUANTITY_INVALID: Order item " + $"{item.OrderItemId} has an invalid " + $"dropship quantity.");
+                    throw new InvalidOperationException($"DROPSHIP_QUANTITY_INVALID: Order item " + $"{item.OrderItemId} has an invalid " + $"dropship quantity.");
                 }
-                RequireValue(item.Sku,$"ITEM_SKU_MISSING: Order item " +$"{item.OrderItemId}");
+                RequireValue(item.Sku, $"ITEM_SKU_MISSING: Order item " + $"{item.OrderItemId}");
             }
         }
 
@@ -219,12 +198,12 @@ namespace ProInternal.Services.OrderIntegration
             var currency = string.IsNullOrWhiteSpace(header.Currency)
                 ? "USD"
                 : header.Currency.Trim().ToUpperInvariant();
-            var orderStatus = ParseEnum<OrderStatus>(header.IntegrationOrderStatus!,"ORDER_STATUS_MAPPING_INVALID");
-            var approvalStatus = ParseEnum<ApprovalStatus>(header.IntegrationApprovalStatus!,"APPROVAL_STATUS_MAPPING_INVALID");
+            var orderStatus = ParseEnum<OrderStatus>(header.IntegrationOrderStatus!, "ORDER_STATUS_MAPPING_INVALID");
+            var approvalStatus = ParseEnum<ApprovalStatus>(header.IntegrationApprovalStatus!, "APPROVAL_STATUS_MAPPING_INVALID");
 
-            var exportStatus = ParseEnum<ExportStatus>(header.IntegrationExportStatus!,"EXPORT_STATUS_MAPPING_INVALID");
+            var exportStatus = ParseEnum<ExportStatus>(header.IntegrationExportStatus!, "EXPORT_STATUS_MAPPING_INVALID");
 
-            var sourceChannel = ParseEnum<SourceChannel>(header.SourceChannel!,"SOURCE_CHANNEL_INVALID");
+            var sourceChannel = ParseEnum<SourceChannel>(header.SourceChannel!, "SOURCE_CHANNEL_INVALID");
 
             var billingAddress = BuildAddress(
                 billingRow,
@@ -232,7 +211,7 @@ namespace ProInternal.Services.OrderIntegration
                 header.CustomerPhone,
                 header.CustomerEmail
             );
-            var shippingAddress = BuildAddress(shippingRow,header.CustomerName,null,null);
+            var shippingAddress = BuildAddress(shippingRow, header.CustomerName, null, null);
             var items = new List<CanonicalOrderItem>();
             foreach (var sourceItem in sourceItems)
             {
@@ -279,9 +258,9 @@ namespace ProInternal.Services.OrderIntegration
                     orderStatus
                 );
             var subtotal = items.Sum(x => ParseAmount(x.LineTotal));
-            var discountTotal =items.SelectMany(x => x.LineDiscounts).Sum(x => ParseAmount(x.Amount));
+            var discountTotal = items.SelectMany(x => x.LineDiscounts).Sum(x => ParseAmount(x.Amount));
             var shippingTotal = header.ShippingTotal;
-            var grandTotal =subtotal + shippingTotal;
+            var grandTotal = subtotal + shippingTotal;
 
             return new CanonicalOrder
             {
@@ -330,10 +309,10 @@ namespace ProInternal.Services.OrderIntegration
 
                 Pricing = new OrderPricing
                 {
-                    Subtotal = CreateMoney(subtotal,currency ),
-                    DiscountTotal = CreateMoney(discountTotal,currency),
+                    Subtotal = CreateMoney(subtotal, currency),
+                    DiscountTotal = CreateMoney(discountTotal, currency),
                     ShippingTotal = CreateMoney(shippingTotal, currency),
-                    GrandTotal = CreateMoney(grandTotal,currency )
+                    GrandTotal = CreateMoney(grandTotal, currency)
                 },
 
                 Items = items,
@@ -352,7 +331,7 @@ namespace ProInternal.Services.OrderIntegration
                 References = new Dictionary<string, string>
                 {
                     ["proOrderId"] = header.OrderId,
-                    ["proOrderSectionId"] =section.OrderSectionId.ToString()
+                    ["proOrderSectionId"] = section.OrderSectionId.ToString()
                 }
             };
         }
@@ -366,52 +345,52 @@ namespace ProInternal.Services.OrderIntegration
         )
         {
             var lineTotal = source.ActualUnitPrice * quantity;
-            var discountPerUnit =Math.Max(0,source.RegularUnitPrice -source.ActualUnitPrice);
+            var discountPerUnit = Math.Max(0, source.RegularUnitPrice - source.ActualUnitPrice);
             var discounts = new List<LineDiscount>();
             if (discountPerUnit > 0)
             {
                 discounts.Add(
                     new LineDiscount
                     {
-                        DiscountType =DiscountType.FIXED_AMOUNT,
+                        DiscountType = DiscountType.FIXED_AMOUNT,
                         Description = "Regular price to sale price adjustment",
-                        Amount = CreateMoney(discountPerUnit * quantity,currency)
+                        Amount = CreateMoney(discountPerUnit * quantity, currency)
                     }
                 );
             }
 
             return new CanonicalOrderItem
-            {        
+            {
                 LineId = lineId,
                 LineType = ProInternal.Models.OrderIntegration.LineType.STANDARD,
                 Sku = source.Sku,
                 ProductName = source.ProductName,
                 Quantity = quantity,
                 UnitOfMeasure = "EA",
-                UnitPrice = CreateMoney(source.RegularUnitPrice,currency),
+                UnitPrice = CreateMoney(source.RegularUnitPrice, currency),
                 LineDiscounts = discounts,
-                LineTotal = CreateMoney( lineTotal,currency),
-                FulfillmentGroupId =fulfillmentGroupId,
+                LineTotal = CreateMoney(lineTotal, currency),
+                FulfillmentGroupId = fulfillmentGroupId,
                 References = new Dictionary<string, string>
                 {
-                    ["proOrderItemId"] =source.OrderItemId.ToString(),
-                    ["proOrderSectionId"] =source.OrderSectionId.ToString()
+                    ["proOrderItemId"] = source.OrderItemId.ToString(),
+                    ["proOrderSectionId"] = source.OrderSectionId.ToString()
                 }
             };
         }
 
         private static List<FulfillmentGroup>
-            BuildFulfillmentGroups(List<CanonicalOrderItem> items,Address shippingAddress,string? shippingMethod,OrderStatus orderStatus)
+            BuildFulfillmentGroups(List<CanonicalOrderItem> items, Address shippingAddress, string? shippingMethod, OrderStatus orderStatus)
         {
             var groups = new List<FulfillmentGroup>();
-            var fulfillmentStatus =MapFulfillmentStatus(orderStatus);
-            if (items.Any( x => x.FulfillmentGroupId ==  "FG-WAREHOUSE"))
+            var fulfillmentStatus = MapFulfillmentStatus(orderStatus);
+            if (items.Any(x => x.FulfillmentGroupId == "FG-WAREHOUSE"))
             {
                 groups.Add(
                     new FulfillmentGroup
                     {
                         GroupId = "FG-WAREHOUSE",
-                        FulfillmentType =FulfillmentType.WAREHOUSE,
+                        FulfillmentType = FulfillmentType.WAREHOUSE,
                         Status = fulfillmentStatus,
                         ShipTo = shippingAddress,
                         ShippingMethod = shippingMethod
@@ -419,16 +398,16 @@ namespace ProInternal.Services.OrderIntegration
                 );
             }
 
-            if (items.Any( x => x.FulfillmentGroupId =="FG-DROPSHIP"))
+            if (items.Any(x => x.FulfillmentGroupId == "FG-DROPSHIP"))
             {
-                groups.Add( new FulfillmentGroup
-                    {
-                        GroupId = "FG-DROPSHIP",
-                        FulfillmentType = FulfillmentType.DROPSHIP,
-                        Status = fulfillmentStatus,
-                        ShipTo = shippingAddress,
-                        ShippingMethod = shippingMethod
-                    }
+                groups.Add(new FulfillmentGroup
+                {
+                    GroupId = "FG-DROPSHIP",
+                    FulfillmentType = FulfillmentType.DROPSHIP,
+                    Status = fulfillmentStatus,
+                    ShipTo = shippingAddress,
+                    ShippingMethod = shippingMethod
+                }
                 );
             }
 
@@ -439,40 +418,41 @@ namespace ProInternal.Services.OrderIntegration
         {
             return status switch
             {
-                OrderStatus.FULFILLED =>FulfillmentStatus.SHIPPED,
-                OrderStatus.INVOICED =>FulfillmentStatus.SHIPPED,
-                OrderStatus.CLOSED =>FulfillmentStatus.DELIVERED,
-                OrderStatus.CANCELLED =>FulfillmentStatus.CANCELLED, _ => FulfillmentStatus.PENDING
+                OrderStatus.FULFILLED => FulfillmentStatus.SHIPPED,
+                OrderStatus.INVOICED => FulfillmentStatus.SHIPPED,
+                OrderStatus.CLOSED => FulfillmentStatus.DELIVERED,
+                OrderStatus.CANCELLED => FulfillmentStatus.CANCELLED,
+                _ => FulfillmentStatus.PENDING
             };
         }
 
-     private static Address BuildAddress(OrderAddressRow source,string? fallbackName,string? phone,string? email)
+        private static Address BuildAddress(OrderAddressRow source, string? fallbackName, string? phone, string? email)
         {
             return new Address
             {
-                FirstName =source.FirstName,
-                LastName =source.LastName,
-                Name = !string.IsNullOrWhiteSpace(source.Name)? source.Name: fallbackName,
-                Line1 =source.Address1!,
-                Line2 =source.Address2,
-                City =source.City!,
-                Region =source.State,
-                PostalCode =source.PostalCode,
-                Country =source.Country!.Trim().ToUpperInvariant(),
-                Phone =phone,
-                Email =email
+                FirstName = source.FirstName,
+                LastName = source.LastName,
+                Name = !string.IsNullOrWhiteSpace(source.Name) ? source.Name : fallbackName,
+                Line1 = source.Address1!,
+                Line2 = source.Address2,
+                City = source.City!,
+                Region = source.State,
+                PostalCode = source.PostalCode,
+                Country = source.Country!.Trim().ToUpperInvariant(),
+                Phone = phone,
+                Email = email
             };
         }
 
-        private static void ValidateAddress(OrderAddressRow address,string addressRole)
+        private static void ValidateAddress(OrderAddressRow address, string addressRole)
         {
-            RequireValue(address.Address1,$"{addressRole}_ADDRESS_LINE1_MISSING");
-            RequireValue(address.City,$"{addressRole}_ADDRESS_CITY_MISSING");
-            RequireValue(address.Country,$"{addressRole}_ADDRESS_COUNTRY_MISSING");
+            RequireValue(address.Address1, $"{addressRole}_ADDRESS_LINE1_MISSING");
+            RequireValue(address.City, $"{addressRole}_ADDRESS_CITY_MISSING");
+            RequireValue(address.Country, $"{addressRole}_ADDRESS_COUNTRY_MISSING");
         }
 
         //Generic Error handle
-        private static void RequireValue(string? value,string errorCode)
+        private static void RequireValue(string? value, string errorCode)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
@@ -481,7 +461,7 @@ namespace ProInternal.Services.OrderIntegration
         }
 
 
-        public async Task<long> SaveExportAsync(OrderExportBatch batch,CancellationToken cancellationToken)
+        public async Task<long> SaveExportAsync(OrderExportBatch batch, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(batch);
             if (batch.Orders.Count == 0)
@@ -489,7 +469,7 @@ namespace ProInternal.Services.OrderIntegration
                 throw new InvalidOperationException("An export batch must contain at least one order.");
             }
 
-            var ordersJson =JsonSerializer.Serialize(batch.Orders,IntegrationJsonOptions);
+            var ordersJson = JsonSerializer.Serialize(batch.Orders, IntegrationJsonOptions);
             using var conn = GetConnection();
             var command =
                 new CommandDefinition("dbo.PIV2_OrderIntegrationExport_Save",
@@ -506,11 +486,11 @@ namespace ProInternal.Services.OrderIntegration
                         batch.ErrorsJson,
                         OrdersJson = ordersJson
                     },
-                    commandType:CommandType.StoredProcedure,cancellationToken:cancellationToken);
+                    commandType: CommandType.StoredProcedure, cancellationToken: cancellationToken);
             return await conn.QuerySingleAsync<long>(command);
         }
 
-        public async Task SetExportStatusAsync(Guid batchId,string exportStatus,string? errorsJson,CancellationToken cancellationToken)
+        public async Task SetExportStatusAsync(Guid batchId, string exportStatus, string? errorsJson, CancellationToken cancellationToken)
         {
             if (batchId == Guid.Empty)
             {
@@ -519,12 +499,12 @@ namespace ProInternal.Services.OrderIntegration
 
             if (string.IsNullOrWhiteSpace(exportStatus))
             {
-                throw new ArgumentException("An export status is required.",nameof(exportStatus));
+                throw new ArgumentException("An export status is required.", nameof(exportStatus));
             }
 
             using var conn = GetConnection();
 
-            var command =new CommandDefinition("dbo.PIV2_OrderIntegrationExport_SetStatus",
+            var command = new CommandDefinition("dbo.PIV2_OrderIntegrationExport_SetStatus",
                     new
                     {
                         BatchId = batchId,
@@ -545,10 +525,10 @@ namespace ProInternal.Services.OrderIntegration
 
         //---------------------------------HELPERS  -------------------------------------------------------------
 
-        private static TEnum ParseEnum<TEnum>(string value,string errorCode)
+        private static TEnum ParseEnum<TEnum>(string value, string errorCode)
             where TEnum : struct, Enum
         {
-            if (Enum.TryParse<TEnum>(value,false,out var parsed))
+            if (Enum.TryParse<TEnum>(value, false, out var parsed))
             {
                 return parsed;
             }
@@ -559,12 +539,12 @@ namespace ProInternal.Services.OrderIntegration
         {
             return new Money
             {
-                Amount = amount.ToString("0.00##",CultureInfo.InvariantCulture),
+                Amount = amount.ToString("0.00##", CultureInfo.InvariantCulture),
                 Currency = currency
             };
         }
 
-        private static decimal ParseAmount(Money? money )
+        private static decimal ParseAmount(Money? money)
         {
             if (money == null)
                 return 0;

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
 import { OrdersMetrics } from 'src/app/models/Dashboard/OrdersMetrics';
-import { OrderExportResult , OrderAuditRecord, UpdateOrderShipToRequest,OrderShipToOption,OrderActionResponse,OrderChannel,OrderRecord,OverrideOrderHoldRequest,ProcessOrdersRequest,RejectOrderRequest,RemoveOrderLineRequest,ReopenOrderRequest,UpdateOrderLineRequest,UpdateShippingNotesRequest} from 'src/app/models/orders/OrderModels';
+import { OrderInboxReviewItem, OrderInboxReviewDetail, OrderInboxActionResponse, OrderExportResult , OrderAuditRecord, UpdateOrderShipToRequest,OrderShipToOption,OrderActionResponse,OrderChannel,OrderRecord,OverrideOrderHoldRequest,ProcessOrdersRequest,RejectOrderRequest,RemoveOrderLineRequest,ReopenOrderRequest,UpdateOrderLineRequest,UpdateShippingNotesRequest} from 'src/app/models/orders/OrderModels';
 
 
 @Injectable({
@@ -97,6 +97,30 @@ export class OrdersService {
     return this.api.post<OrderExportResult>(
       'API/Orders/process',
       request
+    );
+  }
+
+
+
+  getReviewOrders(includeRejected = false): Observable<OrderInboxReviewItem[]> {
+    return this.api.get<OrderInboxReviewItem[]>(
+      `API/OrderInbox/review?includeRejected=${includeRejected}`
+    );
+  }
+
+  getReviewOrder(inboxId: number): Observable<OrderInboxReviewDetail> {
+    return this.api.get<OrderInboxReviewDetail>(
+      `API/OrderInbox/review/${inboxId}`
+    );
+  }
+
+  rejectReviewOrder(
+    inboxId: number,
+    reason: string
+  ): Observable<OrderInboxActionResponse> {
+    return this.api.post<OrderInboxActionResponse>(
+      'API/OrderInbox/reject',
+      { inboxId, reason }
     );
   }
 
