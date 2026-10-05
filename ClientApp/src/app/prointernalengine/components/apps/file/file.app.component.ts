@@ -190,6 +190,27 @@ export class FileAppComponent implements OnInit {
     
   }
 
+  searchTerm = '';
+  searchResults: FileSystemEntry[] = []; //fields to read component
+
+  runSearch() {
+    if (this.searchTerm.length < 1) { //criteria for searching up a folder name, currently set to 1 letter, so it'll be 'f' and then 'folder', 'folder1' etc will show up.
+      this.searchResults = [];
+      return;
+    }
+    this.fileService.searchFolders(this.searchTerm).subscribe(found => this.searchResults = found);
+  }
+
+  clearSearch() {
+    this.searchTerm = '';
+    this.searchResults = [];
+  }
+
+  openResult(r: FileSystemEntry) {
+    this.searchResults = []; //empty out, Angular recognizes new objects, let refresh happen for better search
+    this.navigateTo(r.relativePath); //clear path 
+  }
+
   refresh() { this.sizeCache.delete(this.currentRelativePath); this.loadFolder(this.currentRelativePath); }
 
   private buildBreadcrumb() {

@@ -112,4 +112,8 @@ export class FileAppService {
       params: { path, productCode }
     });
   }
+
+  searchFolders(term: string) {
+    return this.http.get<FileSystemEntry[]>('Files/search', { params: { term } });
+  }
 }

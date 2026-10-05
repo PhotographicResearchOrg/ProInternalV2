@@ -105,6 +105,8 @@ namespace ProInternal.Controllers
             return Ok();
         }
 
-
+        [HttpGet("search")]
+        public IActionResult Search([FromQuery] string term)
+            => Ok(_files.SearchFolders(term));
     }
 }
