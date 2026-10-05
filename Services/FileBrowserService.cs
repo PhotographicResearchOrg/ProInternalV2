@@ -20,6 +20,15 @@ namespace ProInternal.Services
         private readonly ILogger<FileBrowserService> _logger;
         private readonly IMemoryCache _cache;
 
+        private static readonly string[] ProductFolderTemplate =
+{
+            "Documents",
+            "Instruction Book",
+            "Product Image - Hi Res",
+            "Product Image - Lo Res",
+            "Product Video"
+        };
+
         public FileBrowserService(IOptions<FileStorageOptions> options, ILogger<FileBrowserService> logger, IMemoryCache cache)
         {
             _root = options.Value.RootPath;
@@ -36,6 +45,7 @@ namespace ProInternal.Services
             if (!dir.Exists) throw new DirectoryNotFoundException(relativePath ?? "");
 
             var entries = dir.EnumerateFileSystemInfos()
+                .Where(fsi => !fsi.Name.StartsWith('.'))
                 .Select(fsi => new FileSystemEntry
                 {
                     Name = fsi.Name,
@@ -118,6 +128,25 @@ namespace ProInternal.Services
             var result = (total, count);
             _cache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
             return result;
+        }
+
+        public bool CreateProductFolder(string relativeParentPath, string productCode)
+        {
+            var code = productCode.Trim(); //trim spaces off 
+
+            if (code.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                throw new ArgumentException("Product code is not a valid folder name."); // check for valid folder name
+
+            var productFull = SafePath.Resolve(_root, Path.Combine(relativeParentPath, code)); // build new path 
+
+            if (Directory.Exists(productFull))
+                return false; // check for already existing dir.
+
+            foreach (var subDirectory in ProductFolderTemplate)
+                Directory.CreateDirectory(Path.Combine(productFull, subDirectory)); // create sub=dirs based off of template
+
+            return true;
+
         }
     }
 }

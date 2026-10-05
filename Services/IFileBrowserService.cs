@@ -7,6 +7,9 @@ namespace ProInternal.Services
     {
         IReadOnlyList<FileSystemEntry> ListFolder(string relativePath);
 
+        bool CreateProductFolder(string relativeParentPath, string productCode);
+        // bool, true = created, false = already there.
+
         // returns safe absolute path for PhysicalFile(..), + metadata.
         (string FullPath, string ContentType, string FileName) ResolveForDownload(string relativePath);
 
