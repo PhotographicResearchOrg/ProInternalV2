@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/vendors/vendor.enums.json",
+  "title": "Vendor Enumerations",
+  "description": "Canonical vendor vocabularies, owned by PRO. Adapters map their codes TO these values, never the reverse. Add members over minor versions; never repurpose one.",
+  "$defs": {
+    "VendorStatus": {
+      "type": "string",
+      "description": "ACTIVE = a current vendor. INACTIVE = no new activity. Temporary stops on an ACTIVE vendor are expressed as vendor.blocks (purchasing and/or payment), not as a status.",
+      "enum": [
+        "ACTIVE",
+        "INACTIVE"
+      ]
+    },
+    "VendorAddressType": {
+      "type": "string",
+      "description": "MAIN = the vendor's primary address. REMIT_TO = payment address when different.",
+      "enum": [
+        "MAIN",
+        "REMIT_TO",
+        "ORDER_FROM",
+        "RETURN_TO"
+      ]
+    },
+    "ContactRole": {
+      "type": "string",
+      "description": "Function the contact serves for PRO. Code routes on these (e.g. ORDERS receives Excel POs, ACCOUNTS_RECEIVABLE receives remittance advice).",
+      "enum": [
+        "SALES",
+        "ORDERS",
+        "ACCOUNTS_RECEIVABLE",
+        "RETURNS",
+        "EDI",
+        "PROGRAMS",
+        "PRODUCT",
+        "EXECUTIVE",
+        "OTHER"
+      ]
+    },
+    "SupplyModel": {
+      "type": "string",
+      "description": "WAREHOUSE = vendor ships to a PRO warehouse; PRO receives and sells from stock. DIRECT_SHIP = vendor ships to the retailer, bills PRO, and PRO rebills the retailer.",
+      "enum": [
+        "WAREHOUSE",
+        "DIRECT_SHIP"
+      ]
+    },
+    "DirectShipOrderChannel": {
+      "type": "string",
+      "description": "How a DIRECT_SHIP order originates. B2B_PORTAL = retailer orders on the PRO site and PRO transmits it to the vendor. RETAILER_DIRECT = retailer orders the vendor directly; PRO receives a copy.",
+      "enum": [
+        "B2B_PORTAL",
+        "RETAILER_DIRECT"
+      ]
+    },
+    "OrderTransmissionMethod": {
+      "type": "string",
+      "description": "How PRO sends orders to the vendor. EXCEL uses the single PRO standard layout.",
+      "enum": [
+        "EDI",
+        "EXCEL",
+        "EMAIL",
+        "PORTAL"
+      ]
+    },
+    "FileDelivery": {
+      "type": "string",
+      "enum": [
+        "EMAIL",
+        "SFTP"
+      ]
+    },
+    "InvoiceIntakeMethod": {
+      "type": "string",
+      "description": "How the vendor's invoices reach PRO.",
+      "enum": [
+        "EDI",
+        "EMAIL",
+        "MAIL"
+      ]
+    },
+    "FreightPolicy": {
+      "type": "string",
+      "enum": [
+        "PREPAID",
+        "COLLECT",
+        "PREPAID_AND_ADD"
+      ]
+    },
+    "Incoterm": {
+      "type": "string",
+      "description": "Incoterms 2020. Domestic 'FOB Origin' maps to FCA; 'FOB Destination' maps to DAP.",
+      "enum": [
+        "EXW",
+        "FCA",
+        "FAS",
+        "FOB",
+        "CFR",
+        "CIF",
+        "CPT",
+        "CIP",
+        "DAP",
+        "DPU",
+        "DDP"
+      ]
+    },
+    "PaymentMethod": {
+      "type": "string",
+      "enum": [
+        "ACH",
+        "CHECK",
+        "WIRE",
+        "CARD"
+      ]
+    },
+    "EdiDirection": {
+      "type": "string",
+      "description": "Relative to PRO. INBOUND = vendor sends to PRO.",
+      "enum": [
+        "INBOUND",
+        "OUTBOUND"
+      ]
+    },
+    "EdiSetStatus": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "TESTING",
+        "INACTIVE"
+      ]
+    }
+  }
+}
