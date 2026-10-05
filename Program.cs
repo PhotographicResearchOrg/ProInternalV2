@@ -47,6 +47,11 @@ builder.Configuration.GetSection(FileStorageOptions.SectionName));
 
 builder.Services.AddScoped<IFileBrowserService, FileBrowserService>();
 
+builder.Services.Configure<VendorFileOptions>(
+builder.Configuration.GetSection(VendorFileOptions.SectionName));
+
+builder.Services.AddScoped<IVendorFileService, VendorFileService>();
+
 builder.Services.AddMemoryCache();
 
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);

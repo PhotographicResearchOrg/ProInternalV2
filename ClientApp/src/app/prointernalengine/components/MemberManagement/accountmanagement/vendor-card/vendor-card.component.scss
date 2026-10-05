@@ -853,6 +853,57 @@ main {
   }
 }
 
+/* ---- uploaded files ---- */
+.files-empty {
+  padding: 16px;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--borderSoft);
+  font-size: 12.5px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--teal);
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .file-meta {
+    color: var(--faint);
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+
+  .file-del {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--faint);
+
+    &:hover {
+      color: var(--red);
+    }
+  }
+}
+
 /* ---- custom fields ---- */
 .cf-empty {
   font-size: 12.5px;

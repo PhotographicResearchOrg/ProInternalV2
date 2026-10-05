@@ -4,11 +4,12 @@ import { Vendor } from 'src/app/models/accounts/vendor';
 import { MessageService } from 'primeng/api';
 import { Router } from '@angular/router';
 
+type Visibility = 'all' | 'Yes' | 'No';
 
 @Component({
   selector: 'app-vendor-grid',
   templateUrl: './vendor-grid.component.html',
-  styleUrls: ['./vendor-grid.component.scss'],  // <-- add this
+  styleUrls: ['./vendor-grid.component.scss'],
   providers: [MessageService]
 })
 export class VendorGridComponent implements OnInit {
@@ -17,16 +18,25 @@ export class VendorGridComponent implements OnInit {
   loading: boolean = true;
   allVendors: Vendor[] = [];
   uploadingVendor: number | null = null;
+  togglingId: number | null = null;
+  dragOverId: number | null = null;
 
-  visibilityOptions = [
-    { label: 'Visible', value: 'Yes', styleClass: 'chip-members' },
-    { label: 'Hidden', value: 'No', styleClass: 'chip-clients' }
+  visibilityOptions: { label: string, value: Visibility }[] = [
+    { label: 'All', value: 'all' },
+    { label: 'Live', value: 'Yes' },
+    { label: 'Hidden', value: 'No' }
   ];
 
-
-
-  selectedVisibility: string[] = ['Yes', 'No']; // all selected by default
+  visibility: Visibility = 'all';
   exporting = false;
+
+  // Same palette as the vendor card's brandColors
+  brandColors = [
+    { fg: '#0e7c73', bg: '#dff1ef' },
+    { fg: '#5b4bb5', bg: '#e9e6f7' },
+    { fg: '#a15c07', bg: '#fbeecb' },
+    { fg: '#1d4ed8', bg: '#dce8fd' }
+  ];
 
   constructor(
     private dataService: DataService,
@@ -38,37 +48,48 @@ export class VendorGridComponent implements OnInit {
     this.loadVendors();
   }
 
+  get liveCount(): number {
+    return this.allVendors.filter(v => v.onWeb === 'Yes').length;
+  }
+
+  get missingLogoCount(): number {
+    return this.allVendors.filter(v => !v.imageUrl).length;
+  }
+
+  countFor(value: Visibility): number {
+    return value === 'all' ? this.allVendors.length : this.allVendors.filter(v => v.onWeb === value).length;
+  }
+
+  brand(id: number) { return this.brandColors[Math.abs(id || 0) % this.brandColors.length]; }
+
+  initials(n: string): string {
+    return (n || '').split(/\s+/).filter(w => /^[A-Za-z0-9]/.test(w)).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
+  }
+
   openVendor(vendor: Vendor) {
     this.router.navigate(['/vendor-card'], { queryParams: { vendorId: vendor.id } });
   }
 
+  setVisibility(value: Visibility) {
+    this.visibility = value;
+    this.applyFilter();
+  }
+
   applyFilter() {
-    if (this.selectedVisibility.length === 0) {
-      this.vendors = [];
-    } else {
-      this.vendors = this.allVendors.filter(v => this.selectedVisibility.includes(v.onWeb));
-    }
+    this.vendors = this.visibility === 'all'
+      ? this.allVendors
+      : this.allVendors.filter(v => v.onWeb === this.visibility);
   }
 
   // Drag over handler to allow drop
-  onDragOver(event: DragEvent) {
+  onDragOver(event: DragEvent, vendor: Vendor) {
     event.preventDefault();
-  }
-
-
-  // Helpers to get styleClass and label by value
-  getStyleClassByValue(value: string): string {
-    const option = this.visibilityOptions.find(o => o.value === value);
-    return option ? option.styleClass : '';
-  }
-
-  getLabelByValue(value: string): string {
-    const option = this.visibilityOptions.find(o => o.value === value);
-    return option ? option.label : value;
+    this.dragOverId = vendor.id;
   }
 
   onImageDrop(event: DragEvent, vendor: Vendor) {
     event.preventDefault();
+    this.dragOverId = null;
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -95,10 +116,6 @@ export class VendorGridComponent implements OnInit {
     }
   }
 
-  getVisibilityChipClass(value: string): string {
-    return value === 'Yes' ? 'chip-members' : 'chip-clients';
-  }
-
   onGlobalFilter(table: any, event: Event): void {
     const input = (event.target as HTMLInputElement).value;
     table.filterGlobal(input, 'contains');
@@ -120,7 +137,6 @@ export class VendorGridComponent implements OnInit {
     this.dataService.getVendors().subscribe({
       next: (data) => {
         this.allVendors = data;
-        this.vendors = data;
         this.applyFilter();
         this.loading = false;
       },
@@ -132,12 +148,16 @@ export class VendorGridComponent implements OnInit {
   }
 
   toggleWebStatus(vendor: Vendor): void {
+    this.togglingId = vendor.id;
     this.dataService.toggleVendorWebStatus(vendor.id).subscribe({
       next: () => {
         vendor.onWeb = vendor.onWeb === 'Yes' ? 'No' : 'Yes';
-        this.messageService.add({ severity: 'success', summary: 'Updated', detail: `Web status toggled for ${vendor.name}` });
+        this.togglingId = null;
+        this.applyFilter();
+        this.messageService.add({ severity: 'success', summary: 'Updated', detail: `${vendor.name} is now ${vendor.onWeb === 'Yes' ? 'live on' : 'hidden from'} the web` });
       },
       error: () => {
+        this.togglingId = null;
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Could not toggle status' });
       }
     });

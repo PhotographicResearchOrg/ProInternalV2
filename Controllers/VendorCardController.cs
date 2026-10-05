@@ -1,11 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ProInternal.Models.Vendor;
 using ProInternal.Services;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ProInternal.Controllers
 {
@@ -15,10 +20,12 @@ namespace ProInternal.Controllers
     public class VendorCardController : ControllerBase
     {
         private readonly IProDataAccess _prodataAccess;
+        private readonly IVendorFileService _vendorFiles;
 
-        public VendorCardController(IProDataAccess proDataAccess)
+        public VendorCardController(IProDataAccess proDataAccess, IVendorFileService vendorFiles)
         {
             _prodataAccess = proDataAccess;
+            _vendorFiles = vendorFiles;
         }
 
         // The JWT's "sub" claim (the username) arrives as ClaimTypes.NameIdentifier
@@ -146,6 +153,61 @@ namespace ProInternal.Controllers
             priceList.VendorId = vendorId;
             var id = _prodataAccess.AddVendorPriceList(priceList, GetAuditActor());
             return Ok(new { vendorPriceListId = id });
+        }
+
+        // ---- Vendor files (contracts / price lists) ----
+        // category is "contracts" or "price-lists"; files live on the share
+        // configured under VendorFiles in appsettings, foldered by vendor id.
+
+        [HttpGet("{vendorId}/files/{category}")]
+        public IActionResult GetFiles(int vendorId, string category)
+        {
+            if (!_vendorFiles.IsValidCategory(category)) return NotFound();
+            return Ok(_vendorFiles.ListFiles(vendorId, category));
+        }
+
+        [HttpPost("{vendorId}/files/{category}")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadFiles(int vendorId, string category, [FromForm] List<IFormFile> files, CancellationToken ct)
+        {
+            if (!_vendorFiles.IsValidCategory(category)) return NotFound();
+            // don't create folders for vendors that don't exist
+            if (_prodataAccess.GetVendorCard(vendorId) == null) return NotFound();
+            if (files == null || files.Count == 0) return BadRequest("No files uploaded.");
+
+            var saved = await _vendorFiles.SaveFilesAsync(vendorId, category, files, ct);
+
+            var actor = GetAuditActor();
+            foreach (var name in saved)
+                _prodataAccess.LogVendorChange(vendorId, _vendorFiles.AuditSection(category), "File", null, name, actor);
+
+            return Ok(new { uploaded = saved });
+        }
+
+        [HttpGet("{vendorId}/files/{category}/download")]
+        public IActionResult DownloadFile(int vendorId, string category, [FromQuery] string name)
+        {
+            if (!_vendorFiles.IsValidCategory(category)) return NotFound();
+
+            try
+            {
+                var (full, contentType, fileName) = _vendorFiles.ResolveForDownload(vendorId, category, name);
+                return PhysicalFile(full, contentType, fileName, enableRangeProcessing: true);
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpDelete("{vendorId}/files/{category}")]
+        public IActionResult DeleteFile(int vendorId, string category, [FromQuery] string name)
+        {
+            if (!_vendorFiles.IsValidCategory(category)) return NotFound();
+            if (!_vendorFiles.DeleteFile(vendorId, category, name)) return NotFound();
+
+            _prodataAccess.LogVendorChange(vendorId, _vendorFiles.AuditSection(category), "File", name, null, GetAuditActor());
+            return Ok();
         }
 
         [HttpGet("{vendorId}/policies")]

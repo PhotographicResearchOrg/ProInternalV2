@@ -82,6 +82,15 @@ export interface VendorPriceListApi {
   status: string;
 }
 
+// Uploaded document on the vendor file share (contracts / price lists)
+export type VendorFileCategory = 'contracts' | 'price-lists';
+
+export interface VendorFileApi {
+  fileName: string;
+  sizeBytes: number;
+  uploadedUtc: string;
+}
+
 export interface VendorFreightPolicy {
   vendorId: number;
   freightTerms?: string;

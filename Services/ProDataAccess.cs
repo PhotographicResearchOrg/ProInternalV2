@@ -230,6 +230,12 @@ namespace ProInternal.Services
             conn.Execute("PIV2InsertEntityAuditLog", parameters, commandType: CommandType.StoredProcedure);
         }
 
+        public void LogVendorChange(int vendorId, string section, string fieldName, string? oldValue, string? newValue, AuditActor actor)
+        {
+            using var conn = GetConnection();
+            LogFieldChange(conn, vendorId, section, fieldName, oldValue, newValue, actor);
+        }
+
         private void LogDtoChanges<T>(IDbConnection conn, int vendorId, string section, T? oldDto, T newDto, AuditActor actor, params string[] excludeProps) where T : class
         {
             var exclude = new HashSet<string>(excludeProps);

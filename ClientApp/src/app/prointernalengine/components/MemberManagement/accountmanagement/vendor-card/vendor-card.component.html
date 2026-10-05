@@ -232,6 +232,7 @@
             </div>
           </div>
         </section>
+        <ng-container *ngTemplateOutlet="filesCard; context: { category: 'contracts', title: 'Contract documents' }"></ng-container>
         <ng-container *ngTemplateOutlet="customCard; context: { section: 'contracts' }"></ng-container>
       </div>
 
@@ -254,6 +255,7 @@
             </div>
           </div>
         </div>
+        <ng-container *ngTemplateOutlet="filesCard; context: { category: 'price-lists', title: 'Price list documents' }"></ng-container>
         <ng-container *ngTemplateOutlet="customCard; context: { section: 'pricelists' }"></ng-container>
       </div>
 
@@ -413,6 +415,8 @@
 </div>
 
 <!-- ===================== dialogs ===================== -->
+
+<p-confirmDialog key="file-delete" [style]="{width: '440px'}" [draggable]="false"></p-confirmDialog>
 
 <p-dialog header="Edit discount split" [(visible)]="discountDialogVisible" [modal]="true" [style]="{width: '440px'}" [draggable]="false">
   <div class="dlg-grid">
@@ -868,6 +872,31 @@
     </div>
     <span class="when">{{ a.when }}</span>
   </div>
+</ng-template>
+
+<ng-template #filesCard let-category="category" let-title="title">
+  <section class="card">
+    <header class="card-head">
+      <span class="ci"><i class="pi pi-paperclip"></i></span><h3>{{ title }}</h3>
+      <div class="act">
+        <input #fileInput type="file" multiple hidden (change)="uploadFiles(category, fileInput)" />
+        <button class="iconbtn" [disabled]="uploadingFiles[category]" (click)="fileInput.click()">
+          <i [class]="uploadingFiles[category] ? 'pi pi-spin pi-spinner' : 'pi pi-upload'"></i>
+          {{ uploadingFiles[category] ? 'Uploading…' : 'Upload files' }}
+        </button>
+      </div>
+    </header>
+    <div class="card-body flush">
+      <div *ngIf="!files[category].length" class="cf-empty files-empty">No files uploaded yet.</div>
+      <div class="file-row" *ngFor="let f of files[category]">
+        <i [class]="fileIcon(f.fileName)" [style.color]="P.sub"></i>
+        <a href="#" class="file-name" (click)="downloadFile(category, f, $event)" [title]="'Download ' + f.fileName">{{ f.fileName }}</a>
+        <span class="file-meta mono">{{ fileSize(f.sizeBytes) }}</span>
+        <span class="file-meta mono">{{ f.uploadedUtc | date:'yyyy-MM-dd' }}</span>
+        <button class="file-del" (click)="deleteFile(category, f)" pTooltip="Delete file" tooltipPosition="top"><i class="pi pi-trash"></i></button>
+      </div>
+    </div>
+  </section>
 </ng-template>
 
 <ng-template #customCard let-section="section">

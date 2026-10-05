@@ -1,132 +1,115 @@
 <p-toast></p-toast>
-<div class="p-grid p-align-center p-mb-3" style="max-width: 100%; overflow-x: hidden;">
-    <div class="p-col-12 p-md-4 py-2">
-      <span class="p-input-icon-left w-full">
-        <i class="pi pi-search"></i>
-        <input pInputText
-               type="text"
-               (input)="onGlobalFilter(dtVendors, $event)"
-               placeholder="Search vendors..."
-               class="w-full"
-               style="border-radius: 2rem" />
-      </span>
-    </div>
 
-    <!-- MultiSelect filter -->
-    <div class="p-col-12 p-md-4 py-2">
-      <p-multiSelect appendTo="body"
-                     [options]="visibilityOptions"
-                     [(ngModel)]="selectedVisibility"
-                     defaultLabel="Filter by visibility"
-                     display="chip"
-                     placeholder="Select visibility"
-                     (onChange)="applyFilter()"
-                     [style.width.%]="100"
-                     [style.min-width.px]="0">
+<div class="vlist">
 
-        <ng-template let-option pTemplate="item">
-          <span [ngClass]="getVisibilityChipClass(option.value)" class="custom-chip">
-            {{ option.label }}
-          </span>
-        </ng-template>
-        <ng-template let-selectedOption pTemplate="selectedItem">
-          <span [ngClass]="getVisibilityChipClass(selectedOption.value)" class="custom-chip">
-            {{ selectedOption.label }}
-          </span>
-        </ng-template>
-      </p-multiSelect>
-    </div>
-
-
-
-    <!-- Export buttons -->
-    <div class="p-col-12 p-md-4 flex justify-content-md-end gap-2 py-3" style="flex-wrap: nowrap;">
-      <button pButton
-              icon="pi pi-file-excel"
-              label="Export Vendors"
-              class="p-button-sm w-auto flex-grow-0"
-              (click)="exportVendors()"
-              [loading]="exporting"
-              [disabled]="exporting">
+  <!-- Header -->
+  <header class="vhead">
+    <div class="vhead-top">
+      <span class="logo"><i class="pi pi-box"></i></span>
+      <div style="min-width:0;flex:1">
+        <h1>Vendors</h1>
+        <div class="vsub">Manufacturers and suppliers on the PRO platform. Select a vendor to open its card.</div>
+      </div>
+      <button class="iconbtn" (click)="exportVendors()" [disabled]="exporting">
+        <i [class]="exporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"></i> Export
       </button>
     </div>
-  </div>
 
-  <p-table #dtVendors
-           [value]="vendors"
-           [loading]="loading"
-           [paginator]="true"
-           [rows]="50"
-           [rowsPerPageOptions]="[50, 100, 500]"
-           [responsiveLayout]="'scroll'"
-           [resizableColumns]="true"
-           [scrollable]="true"
-           scrollHeight="500px"
-           dataKey="id"
-           [globalFilterFields]="['name', 'street', 'cityState', 'zip', 'phone', 'shortName', 'onWeb']"
-           [filters]="{}"
-           [showCurrentPageReport]="true"
-           currentPageReportTemplate="Showing {first} to {last} of {totalRecords}">
+    <div class="stripe">
+      <div class="stat"><div class="k">Total vendors</div><div class="v">{{ allVendors.length }}</div></div>
+      <div class="stat"><div class="k">Live on web</div><div class="v" [style.color]="'var(--teal)'">{{ liveCount }}</div></div>
+      <div class="stat"><div class="k">Hidden</div><div class="v" [style.color]="'var(--sub)'">{{ allVendors.length - liveCount }}</div></div>
+      <div class="stat"><div class="k">Missing logo</div><div class="v" [style.color]="missingLogoCount ? 'var(--amber)' : null">{{ missingLogoCount }}</div></div>
+    </div>
+  </header>
 
-    <ng-template pTemplate="header">
+  <!-- Table card -->
+  <section class="card">
+    <header class="card-head">
+      <span class="search">
+        <i class="pi pi-search"></i>
+        <input type="text" placeholder="Search name, address, phone…" (input)="onGlobalFilter(dtVendors, $event)" />
+      </span>
 
-      <tr>
-        <th>Image</th>
-        <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
-        <th pSortableColumn="street">Street <p-sortIcon field="street"></p-sortIcon></th>
-        <th pSortableColumn="cityState">City | State <p-sortIcon field="cityState"></p-sortIcon></th>
-        <th pSortableColumn="zip">Zip <p-sortIcon field="zip"></p-sortIcon></th>
-        <th pSortableColumn="phone">Phone <p-sortIcon field="phone"></p-sortIcon></th>
-        <th pSortableColumn="shortName">Short Name <p-sortIcon field="shortName"></p-sortIcon></th>
-        <th pSortableColumn="onWeb">On Web <p-sortIcon field="onWeb"></p-sortIcon></th>
-        <th>Actions</th>
-      </tr>
+      <div class="seg">
+        <button *ngFor="let o of visibilityOptions"
+                [class.active]="visibility === o.value"
+                (click)="setVisibility(o.value)">
+          {{ o.label }}<span class="cnt">{{ countFor(o.value) }}</span>
+        </button>
+      </div>
 
-    </ng-template>
+      <span class="hint"><i class="pi pi-image"></i> Drop an image on a logo to replace it</span>
+    </header>
 
-    <ng-template pTemplate="body" let-vendor>
-      <tr class="vendor-row" (click)="openVendor(vendor)">
-        <td>
-          <div class="avatar-container">
-            <div (drop)="onImageDrop($event, vendor)"
-                 (dragover)="onDragOver($event)"
+    <p-table #dtVendors
+             styleClass="vtable"
+             [value]="vendors"
+             [loading]="loading"
+             [paginator]="true"
+             [rows]="50"
+             [rowsPerPageOptions]="[50, 100, 500]"
+             [scrollable]="true"
+             scrollHeight="60vh"
+             dataKey="id"
+             [globalFilterFields]="['name', 'street', 'cityState', 'zip', 'phone', 'shortName']"
+             [showCurrentPageReport]="true"
+             currentPageReportTemplate="{first}–{last} of {totalRecords}">
+
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width:136px">Logo</th>
+          <th pSortableColumn="name">Vendor <p-sortIcon field="name"></p-sortIcon></th>
+          <th pSortableColumn="cityState">Location <p-sortIcon field="cityState"></p-sortIcon></th>
+          <th pSortableColumn="phone" style="width:160px">Phone <p-sortIcon field="phone"></p-sortIcon></th>
+          <th pSortableColumn="onWeb" style="width:170px">Web storefront <p-sortIcon field="onWeb"></p-sortIcon></th>
+          <th style="width:44px"></th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-vendor>
+        <tr class="vendor-row" (click)="openVendor(vendor)">
+          <td>
+            <div class="logo-drop"
+                 [class.dragover]="dragOverId === vendor.id"
+                 (drop)="onImageDrop($event, vendor)"
+                 (dragover)="onDragOver($event, vendor)"
+                 (dragleave)="dragOverId = null"
                  pTooltip="Drag and drop to update or upload image"
                  tooltipPosition="top">
-
-              <img *ngIf="vendor.imageUrl && uploadingVendor !== vendor.id"
-                   [src]="vendor.imageUrl"
-                   class="rounded-circle shadow-sm" />
-
-
-
-              <div *ngIf="uploadingVendor === vendor.id" class="upload-spinner">
-                <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem; color: #007ad9;"></i>
-              </div>
-
-              <div *ngIf="!vendor.imageUrl && uploadingVendor !== vendor.id"
-                   class="placeholder-avatar">
-                <i class="pi pi-image"></i>
-              </div>
-
+              <img *ngIf="vendor.imageUrl && uploadingVendor !== vendor.id" [src]="vendor.imageUrl" alt="" />
+              <span *ngIf="!vendor.imageUrl && uploadingVendor !== vendor.id" class="initials" [ngStyle]="{color: brand(vendor.id).fg, background: brand(vendor.id).bg}">
+                {{ initials(vendor.name) }}
+              </span>
+              <i *ngIf="uploadingVendor === vendor.id" class="pi pi-spin pi-spinner spinner"></i>
             </div>
-          </div>
-        </td>
-        <td>{{ vendor.name }}</td>
-        <td>{{ vendor.street }}</td>
-        <td>{{ vendor.cityState }}</td>
-        <td>{{ vendor.zip }}</td>
-        <td>{{ vendor.phone }}</td>
-        <td>{{ vendor.shortName }}</td>
-        <td>
-          <p-tag [value]="vendor.onWeb" [styleClass]="vendor.onWeb === 'Yes' ? 'chip-members' : 'chip-clients'"></p-tag>
-        </td>
-        <td>
-          <button pButton label="Toggle" icon="pi pi-refresh"
-                  class="p-button-sm"
-                  (click)="toggleWebStatus(vendor); $event.stopPropagation()">
-          </button>
-        </td>
-      </tr>
-    </ng-template>
-  </p-table>
+          </td>
+          <td>
+            <div class="vname">{{ vendor.name }}</div>
+            <div class="vshort" *ngIf="vendor.shortName">{{ vendor.shortName }}</div>
+          </td>
+          <td>
+            <div class="loc1">{{ vendor.cityState || '—' }}<span class="zip" *ngIf="vendor.zip">{{ vendor.zip }}</span></div>
+            <div class="loc2" *ngIf="vendor.street">{{ vendor.street }}</div>
+          </td>
+          <td class="mono">{{ vendor.phone || '—' }}</td>
+          <td>
+            <button class="toggle" [disabled]="togglingId === vendor.id" (click)="toggleWebStatus(vendor); $event.stopPropagation()">
+              <span class="track" [class.on]="vendor.onWeb === 'Yes'"><span class="knob"></span></span>
+              <span class="tlabel" [class.on]="vendor.onWeb === 'Yes'">{{ vendor.onWeb === 'Yes' ? 'Live' : 'Hidden' }}</span>
+            </button>
+          </td>
+          <td><i class="pi pi-chevron-right chev"></i></td>
+        </tr>
+      </ng-template>
 
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="6">
+            <div class="empty"><i class="pi pi-inbox"></i> No vendors match these filters.</div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+</div>

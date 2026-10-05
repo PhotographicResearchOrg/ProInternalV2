@@ -8,10 +8,12 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import { ConfirmationService } from 'primeng/api';
 import { DataService } from 'src/app/services/data.service';
 import {
   VendorTerms, VendorFreightPolicy, VendorShippingPolicy, VendorReturnPolicy, VendorStats,
-  VendorContactApi, VendorContractApi, VendorPriceListApi, VendorRebateProgramApi
+  VendorContactApi, VendorContractApi, VendorPriceListApi, VendorRebateProgramApi,
+  VendorFileApi, VendorFileCategory
 } from 'src/app/models/vendor/vendor-card.model';
 
 interface NavItem { id: string; label: string; icon: string; }
@@ -87,6 +89,11 @@ export class VendorCardComponent implements OnInit {
   rebates: Rebate[] = [];
   audit: AuditEntry[] = [];
   customFields: CustomField[] = [];
+
+  // uploaded documents on the vendor file share, keyed by VendorFileCategory
+  // (string index so the untyped template context variable can index it)
+  files: { [category: string]: VendorFileApi[] } = { 'contracts': [], 'price-lists': [] };
+  uploadingFiles: { [category: string]: boolean } = { 'contracts': false, 'price-lists': false };
 
   statusMap: { [k: string]: { fg: string; bg: string; label: string; icon: string } } = {
     active: { fg: '#166534', bg: '#dcfce7', label: 'Active', icon: 'pi pi-check-circle' },
@@ -176,7 +183,11 @@ export class VendorCardComponent implements OnInit {
   customFieldDrafts: { [defId: number]: any } = {};
   savingCustomFields = false;
 
-  constructor(private dataService: DataService, private route: ActivatedRoute) { }
+  constructor(
+    private dataService: DataService,
+    private route: ActivatedRoute,
+    private confirmationService: ConfirmationService
+  ) { }
 
   ngOnInit(): void {
     const routeId = this.route.snapshot.paramMap.get('vendorId') || this.route.snapshot.queryParamMap.get('vendorId');
@@ -221,6 +232,8 @@ export class VendorCardComponent implements OnInit {
     this.loadRebates();
     this.loadAudit();
     this.loadCustomFields();
+    this.loadFiles('contracts');
+    this.loadFiles('price-lists');
   }
 
   private loadContacts(): void {
@@ -516,6 +529,89 @@ export class VendorCardComponent implements OnInit {
       },
       error: err => this.handleSaveError(err, 'Could not add price list')
     });
+  }
+
+  // --- Uploaded files (contracts / price lists) ---
+  private loadFiles(category: VendorFileCategory): void {
+    this.dataService.getVendorFiles(this.id, category).subscribe({
+      next: list => this.files[category] = list || [],
+      error: () => this.showToast('Could not load files')
+    });
+  }
+
+  uploadFiles(category: VendorFileCategory, input: HTMLInputElement): void {
+    const picked = Array.from(input.files || []);
+    input.value = ''; // allow re-selecting the same file later
+    if (!picked.length) return;
+
+    this.uploadingFiles[category] = true;
+    this.dataService.uploadVendorFiles(this.id, category, picked).subscribe({
+      next: res => {
+        this.uploadingFiles[category] = false;
+        const n = res?.uploaded?.length ?? picked.length;
+        this.showToast(`${n} file${n === 1 ? '' : 's'} uploaded`);
+        this.loadFiles(category);
+        this.loadAudit();
+      },
+      error: () => {
+        this.uploadingFiles[category] = false;
+        this.showToast('Upload failed');
+        this.loadFiles(category);
+      }
+    });
+  }
+
+  downloadFile(category: VendorFileCategory, f: VendorFileApi, ev?: Event): void {
+    ev?.preventDefault();
+    this.dataService.downloadVendorFile(this.id, category, f.fileName).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = f.fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => this.showToast('Could not download file')
+    });
+  }
+
+  deleteFile(category: VendorFileCategory, f: VendorFileApi): void {
+    this.confirmationService.confirm({
+      key: 'file-delete',
+      header: 'Delete file',
+      icon: 'pi pi-exclamation-triangle',
+      message: `Delete "${f.fileName}"? This cannot be undone.`,
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      acceptButtonStyleClass: 'p-button-danger',
+      rejectButtonStyleClass: 'p-button-text',
+      accept: () => {
+        this.dataService.deleteVendorFile(this.id, category, f.fileName).subscribe({
+          next: () => {
+            this.files[category] = this.files[category].filter(x => x.fileName !== f.fileName);
+            this.showToast('File deleted');
+            this.loadAudit();
+          },
+          error: () => this.showToast('Could not delete file')
+        });
+      }
+    });
+  }
+
+  fileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  fileIcon(name: string): string {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if (ext === 'pdf') return 'pi pi-file-pdf';
+    if (['xls', 'xlsx', 'csv'].includes(ext)) return 'pi pi-file-excel';
+    if (['doc', 'docx'].includes(ext)) return 'pi pi-file-word';
+    if (['png', 'jpg', 'jpeg', 'gif'].includes(ext)) return 'pi pi-image';
+    return 'pi pi-file';
   }
 
   // --- Policies ---

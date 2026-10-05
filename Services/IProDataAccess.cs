@@ -123,6 +123,9 @@ GetSellThroughExportData(
         List<VendorCustomFieldDto> GetVendorCustomFields(int vendorId);
         void SaveVendorCustomFieldValue(int vendorId, int definitionId, string? value, AuditActor actor);
 
+        // For vendor changes that don't go through a proc (e.g. file uploads)
+        void LogVendorChange(int vendorId, string section, string fieldName, string? oldValue, string? newValue, AuditActor actor);
+
         List<VendorAuditLogEntryDto> GetEntityAuditLog(string entityType, int entityId, int take = 20);
 
         MemberMatchDto? FindMemberByName(string name);

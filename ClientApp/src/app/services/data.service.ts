@@ -52,7 +52,8 @@ import { SellThroughCompliance } from 'src/app/models/vendor/SellThroughComplian
 import {
   VendorCard, VendorTerms, VendorContactGroupApi, VendorContactApi, VendorContractApi,
   VendorPriceListApi, VendorPolicies, VendorFreightPolicy, VendorShippingPolicy, VendorReturnPolicy,
-  VendorRebateProgramApi, VendorCustomFieldApi, VendorCustomFieldDefinitionApi, VendorAuditLogEntryApi
+  VendorRebateProgramApi, VendorCustomFieldApi, VendorCustomFieldDefinitionApi, VendorAuditLogEntryApi,
+  VendorFileApi, VendorFileCategory
 } from 'src/app/models/vendor/vendor-card.model';
 
 @Injectable()
@@ -399,6 +400,20 @@ export class DataService {
   }
   addVendorPriceList(vendorId: number, priceList: Partial<VendorPriceListApi>): Observable<{ vendorPriceListId: number }> {
     return this.api.post<{ vendorPriceListId: number }>(`API/VendorCard/${vendorId}/price-lists`, priceList);
+  }
+  getVendorFiles(vendorId: number, category: VendorFileCategory): Observable<VendorFileApi[]> {
+    return this.api.get<VendorFileApi[]>(`API/VendorCard/${vendorId}/files/${category}`);
+  }
+  uploadVendorFiles(vendorId: number, category: VendorFileCategory, files: File[]): Observable<{ uploaded: string[] }> {
+    const formData = new FormData();
+    files.forEach(f => formData.append('files', f, f.name));
+    return this.api.postMultipartJson<{ uploaded: string[] }>(`API/VendorCard/${vendorId}/files/${category}`, formData);
+  }
+  downloadVendorFile(vendorId: number, category: VendorFileCategory, fileName: string): Observable<Blob> {
+    return this.api.getBlob(`API/VendorCard/${vendorId}/files/${category}/download?name=${encodeURIComponent(fileName)}`);
+  }
+  deleteVendorFile(vendorId: number, category: VendorFileCategory, fileName: string): Observable<void> {
+    return this.api.delete<void>(`API/VendorCard/${vendorId}/files/${category}?name=${encodeURIComponent(fileName)}`);
   }
   getVendorPolicies(vendorId: number): Observable<VendorPolicies> {
     return this.api.get<VendorPolicies>(`API/VendorCard/${vendorId}/policies`);
