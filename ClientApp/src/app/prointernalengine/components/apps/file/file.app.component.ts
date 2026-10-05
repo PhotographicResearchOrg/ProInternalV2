@@ -169,6 +169,27 @@ export class FileAppComponent implements OnInit {
     // storage updated, stringify does opposite of parse, setItem sets favorite.
   }
 
+  newProductCode = '';
+  folderMessage = '';
+
+  createProductFolder() {
+    const code = this.newProductCode.trim();
+    if (!code) return;
+    this.newProductCode = '';
+    this.fileService.createProductFolder(this.currentRelativePath, code).subscribe({
+      next: () => {
+        this.folderMessage = '';
+        this.refresh();
+      },
+      error: (err) => {
+        this.folderMessage = err.status === 409
+          ? 'A folder named ' + code + ' already exists here.'
+          : 'Could not create ' + code + '.';
+      },
+    });
+    
+  }
+
   refresh() { this.sizeCache.delete(this.currentRelativePath); this.loadFolder(this.currentRelativePath); }
 
   private buildBreadcrumb() {

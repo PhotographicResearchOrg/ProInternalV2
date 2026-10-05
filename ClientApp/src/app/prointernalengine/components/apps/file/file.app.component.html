@@ -98,6 +98,14 @@
       </div>
     </div>
 
+    <div class="card flex align-items-center gap-2 py-3">
+      <input type="text" pInputText placeholder="Product code"
+             [(ngModel)]="newProductCode" (keyup.enter)="createProductFolder()" />
+      <button pButton pRipple label="New product folder" icon="pi pi-plus" class="p-button-outlined"
+              (click)="createProductFolder()"></button>
+      <span class="text-red-500 text-sm">{{ folderMessage }}</span>
+    </div>
+
     <!-- loading -->
     <div *ngIf="loading" class="card flex justify-content-center py-6">
       <p-progressSpinner styleClass="w-3rem h-3rem" strokeWidth="4"></p-progressSpinner>
