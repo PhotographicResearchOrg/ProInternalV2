@@ -148,5 +148,23 @@ namespace ProInternal.Services
             return true;
 
         }
+
+        public List<FileSystemEntry> SearchFolders(string term) //takes in term, gives back list of FileSystemEntry
+        {
+            var folders = _cache.Get<List<string>>("folderindex"); // look in app memory for entries
+            if (folders == null)
+            { // nothing cached, so walk the share once and keep the list for 12 hours
+                folders = Directory.EnumerateDirectories(_root, "*", new EnumerationOptions { RecurseSubdirectories = true })
+                    .Select(f => Path.GetRelativePath(_root, f)).ToList();
+                _cache.Set("folderindex", folders, TimeSpan.FromHours(12));
+            }
+
+            return folders // list filtering, case ignoring, parent ignoring as well by matching to last segment in path and not the parent
+                // so parent\foldername would just be foldername.
+                .Where(p => Path.GetFileName(p).Contains(term, StringComparison.OrdinalIgnoreCase))
+                .Take(100) // stop after 100 matches
+                .Select(p => new FileSystemEntry { Name = Path.GetFileName(p), RelativePath = p, IsFolder = true }) // creates new FileSystemEntry
+                .ToList(); // hand back method return type
+        }
     }
 }

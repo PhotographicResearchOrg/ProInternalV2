@@ -17,5 +17,6 @@ namespace ProInternal.Services
         string ResolveForUpload(string relativeFolder, string fileName);
 
         (long TotalBytes, long FileCount) GetFolderSize(string relativePath);
+        List<FileSystemEntry> SearchFolders(string term);
     }
 }
