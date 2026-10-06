@@ -1,14 +1,15 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Net.Http.Headers;
+using ProInternal.Models.Files;
+using ProInternal.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Microsoft.Net.Http.Headers;
-using ProInternal.Services;
-using Microsoft.AspNetCore.Authorization;
 
 namespace ProInternal.Controllers
 {
@@ -18,11 +19,13 @@ namespace ProInternal.Controllers
     public class FilesController : ControllerBase
     {
         private readonly IFileBrowserService _files;
+        private readonly IProDataAccess _pro;
         private readonly ILogger<FilesController> _logger;
 
-        public FilesController(IFileBrowserService files, ILogger<FilesController> logger)
+        public FilesController(IFileBrowserService files, IProDataAccess pro, ILogger<FilesController> logger)
         {
             _files = files;
+            _pro = pro;
             _logger = logger; 
         }
 
@@ -108,5 +111,16 @@ namespace ProInternal.Controllers
         [HttpGet("search")]
         public IActionResult Search([FromQuery] string term)
             => Ok(_files.SearchFolders(term));
+
+        [HttpGet("shares")]
+        public IActionResult Shares() => Ok(_pro.GetFileShares());
+
+        [HttpPost("shares")]
+        [Authorize(Roles = "PIV2_ADMIN")]
+        public IActionResult SaveShare([FromBody] FileShareDto share)
+        {
+            _pro.SaveFileShare(share);
+            return Ok();
+        }
     }
 }

@@ -16,7 +16,7 @@ namespace ProInternal.Services
 {
     public class FileBrowserService : IFileBrowserService
     {
-        private readonly string _root;
+        private readonly IProDataAccess _pro;
         private readonly ILogger<FileBrowserService> _logger;
         private readonly IMemoryCache _cache;
 
@@ -29,16 +29,25 @@ namespace ProInternal.Services
             "Product Video"
         };
 
-        public FileBrowserService(IOptions<FileStorageOptions> options, ILogger<FileBrowserService> logger, IMemoryCache cache)
+        public FileBrowserService(IProDataAccess pro, IOptions<FileStorageOptions> options, ILogger<FileBrowserService> logger, IMemoryCache cache)
         {
-            _root = options.Value.RootPath;
+            _pro = pro;
             _logger = logger;
             _cache = cache;
         }
-
+        private string Full(string relativePath)
+        {
+            var parts = relativePath.Replace('/', '\\').Split('\\', 2);
+            var share = _pro.GetFileShares().First(s => s.IsActive && s.DisplayName == parts[0]);
+            return SafePath.Resolve(share.UncPath, parts.Length > 1 ? parts[1] : "");
+        }
         public IReadOnlyList<FileSystemEntry> ListFolder(string relativePath)
         {
-            var full = SafePath.Resolve(_root, relativePath);
+            if (string.IsNullOrEmpty(relativePath))
+                return _pro.GetFileShares().Where(s => s.IsActive)
+                    .Select(s => new FileSystemEntry { Name = s.DisplayName, RelativePath = s.DisplayName, IsFolder = true }).ToList();
+
+            var full = Full(relativePath);
             var sw = Stopwatch.StartNew();
 
             var dir = new DirectoryInfo(full);
@@ -67,7 +76,7 @@ namespace ProInternal.Services
 
         public (string FullPath, string ContentType, string FileName) ResolveForDownload(string relativePath)
         {
-            var full = SafePath.Resolve(_root, relativePath);
+            var full = Full(relativePath);
             if (!File.Exists(full)) throw new FileNotFoundException(relativePath);
             var name = Path.GetFileName(full);
             return (full, MimeTypes.GetMimeType(full), name);
@@ -76,10 +85,10 @@ namespace ProInternal.Services
         public string ResolveForUpload(string relativeFolder, string fileName)
         {
             var safeName = Path.GetFileName(fileName);
-            var folderFull = SafePath.Resolve(_root, relativeFolder);
+            var folderFull = Full(relativeFolder);
             Directory.CreateDirectory(folderFull);
             _cache.Remove("foldersize::" + (relativeFolder ?? "").ToLowerInvariant());
-            return SafePath.Resolve(_root, Path.Combine(relativeFolder ?? "", safeName));
+            return Full(Path.Combine(relativeFolder ?? "", safeName));
         }
 
         public (long TotalBytes, long FileCount) GetFolderSize(string relativePath)
@@ -89,7 +98,7 @@ namespace ProInternal.Services
             if (_cache.TryGetValue(cacheKey, out (long TotalBytes, long FileCount) hit))
                 return hit;
 
-            var full = SafePath.Resolve(_root, relativePath);
+            var full = Full(relativePath);
             if (!Directory.Exists(full)) throw new DirectoryNotFoundException(relativePath);
 
             var sw = Stopwatch.StartNew();
@@ -130,7 +139,7 @@ namespace ProInternal.Services
             _cache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
             return result;
         }
-
+  
         public bool CreateProductFolder(string relativeParentPath, string productCode)
         {
             var code = productCode.Trim(); //trim spaces off 
@@ -138,7 +147,7 @@ namespace ProInternal.Services
             if (code.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
                 throw new ArgumentException("Product code is not a valid folder name."); // check for valid folder name
 
-            var productFull = SafePath.Resolve(_root, Path.Combine(relativeParentPath, code)); // build new path 
+            var productFull = Full(Path.Combine(relativeParentPath, code)); // build new path 
 
             if (Directory.Exists(productFull))
                 return false; // check for already existing dir.
@@ -156,9 +165,9 @@ namespace ProInternal.Services
             var folders = _cache.Get<List<string>>("folderindex"); // look in app memory for entries
             if (folders == null)
             { // nothing cached, so walk the share once and keep the list for 12 hours
-                folders = Directory.EnumerateDirectories(_root, "*", new EnumerationOptions { RecurseSubdirectories = true })
-                    .Select(f => Path.GetRelativePath(_root, f)).ToList();
-                _cache.Set("folderindex", folders, TimeSpan.FromHours(12));
+                folders = _pro.GetFileShares().Where(s => s.IsActive)
+                .SelectMany(s => Directory.EnumerateDirectories(s.UncPath, "*", new EnumerationOptions { RecurseSubdirectories = true })
+                .Select(f => Path.Combine(s.DisplayName, Path.GetRelativePath(s.UncPath, f)))).ToList();
             }
 
             return folders // list filtering, case ignoring, parent ignoring as well by matching to last segment in path and not the parent
