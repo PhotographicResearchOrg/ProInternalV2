@@ -9,13 +9,14 @@ using ProInternal.Models.Auth;
 using ProInternal.Models.Dashboard;
 using ProInternal.Models.EditProduct;
 using ProInternal.Models.Exclusions;
+using ProInternal.Models.Files;
 using ProInternal.Models.InstantRebates;
 using ProInternal.Models.InvoiceRecord;
+using ProInternal.Models.Marketing;
 using ProInternal.Models.Outstanding;
 using ProInternal.Models.Patronage;
 using ProInternal.Models.Products;
 using ProInternal.Models.Shared;
-using ProInternal.Models.Marketing;
 using ProInternal.Models.Vendor;
 using ProInternal.Models.WH;
 using ProInternal.Services;
@@ -204,7 +205,8 @@ GetSellThroughExportData(
 
         void DeletePermission(string permissionName);
 
-
+        List<FileShareDto> GetFileShares();
+        void SaveFileShare(FileShareDto share);
 
 
         void MarkNotificationAsRead(int notificationId, int userId);

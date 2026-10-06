@@ -64,5 +64,15 @@ namespace ProInternal.Tests
 
             Assert.Equal(@"brands\nikon\lenses", _service.SearchFolders("lens")[0].RelativePath);
         }
+
+        [Fact]
+        public void ListFolder_hides_windows_junk()
+        {
+            File.WriteAllText(Path.Combine(_root, "a.txt"), "x");
+            File.WriteAllText(Path.Combine(_root, "Thumbs.db"), "x");
+            File.WriteAllText(Path.Combine(_root, "desktop.ini"), "x");
+
+            Assert.Single(_service.ListFolder(""));
+        }
     }
 }

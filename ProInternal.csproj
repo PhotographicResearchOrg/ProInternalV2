@@ -10,6 +10,7 @@
     <SpaProxyServerUrl>http://localhost:4200</SpaProxyServerUrl>
     <SpaProxyLaunchCommand>npm start</SpaProxyLaunchCommand>    
     <ImplicitUsings>enable</ImplicitUsings>
+	<DefaultItemExcludes>$(DefaultItemExcludes);ProInternal.Tests\**</DefaultItemExcludes>  
   </PropertyGroup>
 
   <ItemGroup>

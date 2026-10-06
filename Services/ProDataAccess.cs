@@ -12,12 +12,13 @@ using ProInternal.Models.Accounts;
 using ProInternal.Models.Auth;
 using ProInternal.Models.Dashboard;
 using ProInternal.Models.Exclusions;
+using ProInternal.Models.Files;
 using ProInternal.Models.InstantRebates;
 using ProInternal.Models.InvoiceRecord;
+using ProInternal.Models.Marketing;
 using ProInternal.Models.Outstanding;
 using ProInternal.Models.Patronage;
 using ProInternal.Models.Products;
-using ProInternal.Models.Marketing;
 using ProInternal.Models.Vendor;
 using ProInternal.Models.WH;
 using System;
@@ -1269,12 +1270,17 @@ namespace ProInternal.Services
                 connection.Execute("PIV2_ReplaceUserRoles", parameters, commandType: CommandType.StoredProcedure);
             }
         }
+        public List<FileShareDto> GetFileShares()
+        {
+            using var conn = GetConnection();
+            return conn.Query<FileShareDto>("PIV2_FileShares_GetAll", commandType: CommandType.StoredProcedure).ToList();
+        }
 
-
-
-
-
-
+        public void SaveFileShare(FileShareDto share)
+        {
+            using var conn = GetConnection();
+            conn.Execute("PIV2_FileShares_Save", new { share.FileShareId, share.DisplayName, share.UncPath, share.IsActive }, commandType: CommandType.StoredProcedure);
+        }
         public void AssignPermissionToRole(string roleName, List<string> permissionNames)
         {
             using var conn = GetConnection();
@@ -1430,6 +1436,7 @@ namespace ProInternal.Services
                 return output;
             }
         }
+
 
 
         #region Authentication
