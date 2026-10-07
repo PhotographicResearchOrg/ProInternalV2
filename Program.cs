@@ -18,8 +18,13 @@ using ProInternal.Models.Accounting;
 using ProInternal.Models.Accounts;
 using ProInternal.Services;
 using ProInternal.Services.OrderIntegration;
+using ProInternal.Services.OrderIntegration.Adapters.Core;
+using ProInternal.Services.OrderIntegration.Adapters.Inbound.Edi;
+using ProInternal.Services.OrderIntegration.Adapters.Inbound.Pos;
 using ProInternal.Services.OrderIntegration.Adapters.Inbound.Shopify;
+using ProInternal.Services.OrderIntegration.Adapters.Inbox;
 using ProInternal.Services.OrderIntegration.Adapters.Outbound.Computyme;
+using ProInternal.Services.OrderIntegration.Adapters.Outbox;
 using System;
 using System.IO;
 using System.Net.Http;
@@ -70,7 +75,12 @@ builder.Services.AddSingleton<AwsSecretHelper>();
 //New
 
 
-//builder.Services.AddSingleton<PowerBIService>();
+
+builder.Services.AddScoped<IEdiPurchaseOrderAdapter, EdiPurchaseOrderAdapter>();   // new for EDI
+builder.Services.AddScoped<IOrderOutboxDataAccess, OrderOutboxDataAccess>();
+builder.Services.AddScoped<ConsumerOrderExportService>();
+builder.Services.AddScoped<HeldOrderReleaseService>();
+builder.Services.AddScoped<IPosOrderAdapter, PosOrderAdapter>();
 builder.Services.AddScoped<IProDataAccess, ProDataAccess>();
 builder.Services.AddScoped<IDRADataAccess, DRADataAccess>();
 builder.Services.AddScoped<INukeDataAccess, NukeDataAccess>();

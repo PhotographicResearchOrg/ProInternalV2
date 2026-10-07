@@ -17,7 +17,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 
-namespace ProInternal.Services.OrderIntegration
+namespace ProInternal.Services.OrderIntegration.Adapters.Core
 {
     public class OrderIntegrationDataAccess : BaseDataAccess, IOrderIntegrationDataAccess
     {

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
 
-namespace ProInternal.Services.OrderIntegration
+namespace ProInternal.Services.OrderIntegration.Adapters.Inbox
 {
     /*
      * Turns an inbox row into what the Order Toolbench shows.
@@ -115,6 +115,8 @@ namespace ProInternal.Services.OrderIntegration
 
                         detail.ShipTo = new OrderInboxAddress
                         {
+                            FirstName = Text(a, "firstName"),
+                            LastName = Text(a, "lastName"),
                             Name = Text(a, "name"),
                             Attention = Text(a, "attention"),
                             Line1 = Text(a, "line1"),

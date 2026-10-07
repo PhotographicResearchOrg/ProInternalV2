@@ -1,4 +1,5 @@
-﻿using Dapper;
+using Dapper;
+using System;
 using Microsoft.Extensions.Configuration;
 using ProInternal.Helpers;
 using ProInternal.Models.Orders;
@@ -280,6 +281,221 @@ namespace ProInternal.Services
                 },
                 commandType: CommandType.StoredProcedure
             ).ToList();
+        }
+
+        // ---------------------------------------------------------------
+        // Consumer orders (OrderConsumer / OrderItemConsumer).
+        //
+        // Returned in the same shape as warehouse orders. Consumer and
+        // warehouse order ids can collide, so every consumer call uses
+        // its own stored procedure and never a warehouse one.
+        // ---------------------------------------------------------------
+
+        public List<OrderRecordDto> GetConsumerOrders()
+        {
+            using var conn = GetConnection();
+
+            return conn.Query<OrderRecordDto, OrderAddressDto, OrderRecordDto>(
+                "dbo.PIV2_Orders_GetConsumer",
+                (order, shippingAddress) =>
+                {
+                    order.ShippingAddress = shippingAddress;
+                    order.Lines = new List<OrderLineDto>();
+                    return order;
+                },
+                splitOn: "Address1",
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+        public OrderRecordDto? GetConsumerOrder(string orderId)
+        {
+            using var conn = GetConnection();
+
+            using var results = conn.QueryMultiple(
+                "dbo.PIV2_Orders_GetConsumerById",
+                new { OrderId = orderId },
+                commandType: CommandType.StoredProcedure
+            );
+
+            var order = results.ReadFirstOrDefault<OrderRecordDto>();
+
+            if (order == null)
+                return null;
+
+            order.ShippingAddress = results.ReadFirstOrDefault<OrderAddressDto>();
+            order.BillingAddress = results.ReadFirstOrDefault<OrderAddressDto>();
+            order.Lines = results.Read<OrderLineDto>().ToList();
+
+            return order;
+        }
+
+        public OrderActionResponse UpdateConsumerShipTo(UpdateOrderShipToRequest request)
+        {
+            if (!int.TryParse(request.OrderId, out var orderId))
+                throw new ArgumentException("A valid OrderId is required.");
+
+            using var conn = GetConnection();
+
+            return conn.QuerySingle<OrderActionResponse>(
+                "dbo.PIV2_Orders_UpdateConsumerShipTo",
+                new
+                {
+                    OrderId = orderId,
+                    request.FirstName,
+                    request.LastName,
+                    request.Address1,
+                    request.Address2,
+                    request.City,
+                    request.State,
+                    request.PostalCode,
+                    request.Country,
+                    request.Phone,
+                    request.Email,
+                    request.ActionBy,
+                    request.ActionSource
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public OrderActionResponse RejectConsumerOrder(RejectOrderRequest request)
+        {
+            if (!int.TryParse(request.OrderId, out var orderId))
+                throw new ArgumentException("A valid OrderId is required.");
+
+            using var conn = GetConnection();
+
+            return conn.QuerySingle<OrderActionResponse>(
+                "dbo.PIV2_Orders_RejectConsumer",
+                new
+                {
+                    OrderId = orderId,
+                    request.Reason,
+                    request.ActionBy,
+                    request.ActionSource
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public IEnumerable<OrderAuditDto> GetConsumerOrderAudit(string orderId)
+        {
+            if (!int.TryParse(orderId, out var id))
+                throw new ArgumentException("A valid OrderId is required.");
+
+            using var conn = GetConnection();
+
+            return conn.Query<OrderAuditDto>(
+                "dbo.PIV2_Orders_GetConsumerAudit",
+                new { OrderId = id },
+                commandType: CommandType.StoredProcedure
+            ).ToList();
+        }
+
+        // ---------------------------------------------------------------
+        // Modify an order: line quantity, remove a line, shipping notes.
+        // Each procedure audits the change and returns Success = false
+        // with the reason when it refuses.
+        // ---------------------------------------------------------------
+
+        public OrderEditResponse EditLine(
+            int orderId, int orderItemId, int quantity,
+            string actionBy, string actionSource)
+        {
+            using var conn = GetConnection();
+
+            return conn.QuerySingle<OrderEditResponse>(
+                "dbo.PIV2_Orders_UpdateLine",
+                new
+                {
+                    OrderId = orderId,
+                    OrderItemId = orderItemId,
+                    Quantity = quantity,
+                    ActionBy = actionBy,
+                    ActionSource = actionSource
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public OrderEditResponse RemoveLine(
+            int orderId, int orderItemId, string reason,
+            string actionBy, string actionSource)
+        {
+            using var conn = GetConnection();
+
+            return conn.QuerySingle<OrderEditResponse>(
+                "dbo.PIV2_Orders_RemoveLine",
+                new
+                {
+                    OrderId = orderId,
+                    OrderItemId = orderItemId,
+                    Reason = reason,
+                    ActionBy = actionBy,
+                    ActionSource = actionSource
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public OrderEditResponse SetShippingNotes(
+            int orderId, string? shippingNotes,
+            string actionBy, string actionSource)
+        {
+            using var conn = GetConnection();
+
+            return conn.QuerySingle<OrderEditResponse>(
+                "dbo.PIV2_Orders_SetShippingNotes",
+                new
+                {
+                    OrderId = orderId,
+                    ShippingNotes = shippingNotes,
+                    ActionBy = actionBy,
+                    ActionSource = actionSource
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public OrderEditResponse EditConsumerLine(
+            int orderId, int orderItemId, int quantity,
+            string actionBy, string actionSource)
+        {
+            using var conn = GetConnection();
+
+            return conn.QuerySingle<OrderEditResponse>(
+                "dbo.PIV2_Orders_UpdateConsumerLine",
+                new
+                {
+                    OrderId = orderId,
+                    OrderItemId = orderItemId,
+                    Quantity = quantity,
+                    ActionBy = actionBy,
+                    ActionSource = actionSource
+                },
+                commandType: CommandType.StoredProcedure
+            );
+        }
+
+        public OrderEditResponse RemoveConsumerLine(
+            int orderId, int orderItemId, string reason,
+            string actionBy, string actionSource)
+        {
+            using var conn = GetConnection();
+
+            return conn.QuerySingle<OrderEditResponse>(
+                "dbo.PIV2_Orders_RemoveConsumerLine",
+                new
+                {
+                    OrderId = orderId,
+                    OrderItemId = orderItemId,
+                    Reason = reason,
+                    ActionBy = actionBy,
+                    ActionSource = actionSource
+                },
+                commandType: CommandType.StoredProcedure
+            );
         }
 
 

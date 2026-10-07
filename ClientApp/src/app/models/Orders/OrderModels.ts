@@ -116,6 +116,11 @@ export interface OrderShipToOption {
 
 export interface OrderRecord {
 
+  /* Consumer orders only. */
+  storeId?: string;
+  shipPhone?: string;
+  shipEmail?: string;
+
   freeShipping?: boolean;
   hasSpecial?: boolean;
   orderSectionId?: string;
@@ -225,6 +230,8 @@ export interface ReopenOrderRequest {
 }
 
 
+// ---- Needs Review (order inbox) ----
+
 export type OrderInboxState =
   | 'RECEIVED'
   | 'READY'
@@ -238,6 +245,8 @@ export interface OrderInboxProblem {
 }
 
 export interface OrderInboxAddress {
+  firstName?: string;
+  lastName?: string;
   name?: string;
   attention?: string;
   line1?: string;
@@ -296,4 +305,141 @@ export interface OrderInboxReviewDetail extends OrderInboxReviewItem {
 export interface OrderInboxActionResponse {
   success: boolean;
   message: string;
+}
+
+
+// ---- Modify an order ----
+
+/* The result of one change to an order. */
+export interface OrderEditResponse {
+  success: boolean;
+  message: string;
+  orderId?: string;
+
+  /* Set when the saved order no longer passes the order contract. */
+  contractErrors?: string[];
+}
+
+
+// ---- Needs Review: fix and release ----
+
+export interface ProductLookup {
+  productCode: string;
+  modelName?: string;
+}
+
+export interface HeldOrderReleaseRequest {
+  inboxId: number;
+  lines: { lineId: string; sku: string; remove?: boolean }[];
+  shipTo?: {
+    firstName?: string;
+    lastName?: string;
+    line1?: string;
+    line2?: string;
+    city?: string;
+    region?: string;
+    postalCode?: string;
+    country?: string;
+    phone?: string;
+  };
+  email?: string;
+}
+
+export interface HeldOrderReleaseResult {
+  released: boolean;
+  message: string;
+  orderId?: number;
+  problems: OrderInboxProblem[];
+}
+
+
+// ---- Sent orders ----
+
+/* The contract's export status, as shown on the Sent tab. */
+export type ExportState =
+  | 'EXPORTED'
+  | 'ACKNOWLEDGED'
+  | 'FAILED';
+
+export interface SentOrder {
+  exportId: number;
+  orderId: string;
+  channel: OrderChannel;
+
+  customerName?: string;
+  reference?: string;
+
+  destination?: string;
+  fileName?: string;
+  batchId?: string;
+  sentAt?: string;
+  sentBy?: string;
+
+  exportState: ExportState;
+
+  destinationOrderId?: string;
+  responseReason?: string;
+  respondedAt?: string;
+  respondedBy?: string;
+
+  /* Shipments as the destination reported them (a JSON array). */
+  shipmentsJson?: string;
+
+  /* shipmentsJson, read once when the list loads. */
+  shipments?: SentShipment[];
+
+  isOverdue: boolean;
+  orderStatus?: string;
+  canReopen: boolean;
+}
+
+export interface SentShipment {
+  shipmentId: string;
+  carrier?: string;
+  trackingNumber?: string;
+  shippedAt?: string;
+}
+export interface PosImportFileResult {
+  fileName: string;
+  status: 'IMPORTED' | 'NEEDS_REVIEW' | 'REJECTED' | 'DUPLICATE' | 'SKIPPED';
+  account?: string;
+  poNumber?: string;
+  orderId?: number;
+  inboxId?: number;
+  priceDifferences: number;
+  problems: string[];
+}
+
+export interface PosImportSummary {
+  success: boolean;
+  message: string;
+  files: number;
+  imported: number;
+  needsReview: number;
+  rejected: number;
+  duplicates: number;
+  skipped: number;
+  results: PosImportFileResult[];
+}
+export interface PosImportFileResult {
+  fileName: string;
+  status: 'IMPORTED' | 'NEEDS_REVIEW' | 'REJECTED' | 'DUPLICATE' | 'SKIPPED';
+  account?: string;
+  poNumber?: string;
+  orderId?: number;
+  inboxId?: number;
+  priceDifferences: number;
+  problems: string[];
+}
+
+export interface PosImportSummary {
+  success: boolean;
+  message: string;
+  files: number;
+  imported: number;
+  needsReview: number;
+  rejected: number;
+  duplicates: number;
+  skipped: number;
+  results: PosImportFileResult[];
 }

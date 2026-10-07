@@ -74,7 +74,7 @@
   <div class="channel-tabs">
     <button type="button"
             class="channel-tab"
-            [class.active]="!reviewTabActive && activeChannel === 'warehouse'"
+            [class.active]="!reviewTabActive && !sentTabActive && activeChannel === 'warehouse'"
             (click)="selectChannel('warehouse')">
       <i class="pi pi-building"></i>
       Warehouse Fulfillment
@@ -83,7 +83,7 @@
 
     <button type="button"
             class="channel-tab"
-            [class.active]="!reviewTabActive && activeChannel === 'consumer'"
+            [class.active]="!reviewTabActive && !sentTabActive && activeChannel === 'consumer'"
             (click)="selectChannel('consumer')">
       <i class="pi pi-shopping-bag"></i>
       Consumer Orders
@@ -99,348 +99,391 @@
       <span class="tab-count"
             [class.tab-count-alert]="reviewCount > 0">{{ reviewCount }}</span>
     </button>
+
+    <button type="button"
+            class="channel-tab"
+            [class.active]="sentTabActive"
+            (click)="openSentTab()">
+      <i class="pi pi-send"></i>
+      Sent
+      <span class="tab-count"
+            [class.tab-count-alert]="sentAttentionCount > 0">
+        {{ sentAttentionCount > 0 ? sentAttentionCount : sentOrders.length }}
+      </span>
+    </button>
   </div>
 
-  <ng-container *ngIf="!reviewTabActive">
+  <ng-container *ngIf="!reviewTabActive && !sentTabActive">
 
-    <!-- Toolbar -->
-    <div class="order-toolbar">
-      <div class="filter-fields">
+  <!-- Toolbar -->
+  <div class="order-toolbar">
+    <div class="filter-fields">
 
-        <div class="field search-field">
-          <label for="orderSearch">Search Orders</label>
+      <div class="field search-field">
+        <label for="orderSearch">Search Orders</label>
 
-          <span class="input-with-icon">
-            <i class="pi pi-search"></i>
+        <span class="input-with-icon">
+          <i class="pi pi-search"></i>
 
-            <input id="orderSearch"
-                   type="text"
-                   [(ngModel)]="searchTerm"
-                   placeholder="Order, PO, account, company, address...">
-          </span>
-        </div>
-
-        <div class="field status-field">
-          <label for="statusFilter">Status</label>
-
-          <select id="statusFilter"
-                  [(ngModel)]="selectedStatus"
-                  (ngModelChange)="metricFilter = 'all'">
-            <option *ngFor="let status of statusOptions"
-                    [value]="status">
-              {{ status }}
-            </option>
-          </select>
-        </div>
-
+          <input id="orderSearch"
+                 type="text"
+                 [(ngModel)]="searchTerm"
+                 placeholder="Order, PO, account, company, address...">
+        </span>
       </div>
 
-      <div class="toolbar-actions">
+      <div class="field status-field">
+        <label for="statusFilter">Status</label>
 
-        <button type="button"
-                class="btn btn-secondary"
-                (click)="clearFilters()">
-          Reset
-        </button>
+        <select id="statusFilter"
+                [(ngModel)]="selectedStatus"
+                (ngModelChange)="metricFilter = 'all'">
+          <option *ngFor="let status of statusOptions"
+                  [value]="status">
+            {{ status }}
+          </option>
+        </select>
+      </div>
 
-        <button type="button"
-                class="btn btn-secondary"
-                [disabled]="selectableFilteredOrders.length === 0"
-                (click)="toggleAllVisibleSelection()">
-          {{ allVisibleSelected ? 'Clear Selection' : 'Select All Eligible' }}
-        </button>
+      <div class="field store-field"
+           *ngIf="activeChannel === 'consumer'">
+        <label for="storeFilter">Store</label>
+
+        <select id="storeFilter"
+                [(ngModel)]="storeFilter">
+          <option value="All">All stores</option>
+          <option *ngFor="let store of storeOptions"
+                  [value]="store">
+            {{ store }}
+          </option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="toolbar-actions">
+
+      <button type="button"
+              class="btn btn-secondary"
+              (click)="clearFilters()">
+        Reset
+      </button>
+
+      <button type="button"
+              class="btn btn-secondary"
+              [disabled]="selectableFilteredOrders.length === 0"
+              (click)="toggleAllVisibleSelection()">
+        {{ allVisibleSelected ? 'Clear Selection' : 'Select All Eligible' }}
+      </button>
 
 
-        <button type="button"
-                class="btn btn-primary"
-                [disabled]="selectedCount === 0 || processingOrders"
-                (click)="processSelected()">
+      <button type="button"
+              class="btn btn-primary"
+              [disabled]="selectedCount === 0 || processingOrders"
+              (click)="processSelected()">
 
-          {{
+        {{
     processingOrders
       ? 'Generating...'
       : 'Process Selected'
-          }}
+        }}
 
-          <span class="selection-count"
-                *ngIf="selectedCount && !processingOrders">
-            {{ selectedCount }}
-          </span>
-        </button>
+        <span class="selection-count"
+              *ngIf="selectedCount && !processingOrders">
+          {{ selectedCount }}
+        </span>
+      </button>
 
 
 
-      </div>
     </div>
+  </div>
 
-    <!-- Orders Grid -->
-    <div class="table-card">
-      <div class="table-responsive">
+  <!-- Orders Grid -->
+  <div class="table-card">
+    <div class="table-responsive">
 
-        <table class="orders-table operational-table">
-          <thead>
-            <tr>
-              <th class="select-column">
-                <input type="checkbox"
-                       [checked]="allVisibleSelected"
-                       [indeterminate]="someVisibleSelected"
-                       [disabled]="selectableFilteredOrders.length === 0"
-                       (click)="$event.stopPropagation()"
-                       (change)="toggleSelectAll($event)">
-              </th>
-              <th>Order</th>
-              <th>
-                {{ activeChannel === 'warehouse' ? 'Member' : 'Customer' }}
-              </th>
-              <th>Ship To</th>
-              <th>Channel / Type</th>
-              <th>Status</th>
-              <th>Entered</th>
-              <th class="number-column">Order Total</th>
+      <table class="orders-table operational-table">
+        <thead>
+          <tr>
+            <th class="select-column">
+              <input type="checkbox"
+                     [checked]="allVisibleSelected"
+                     [indeterminate]="someVisibleSelected"
+                     [disabled]="selectableFilteredOrders.length === 0"
+                     (click)="$event.stopPropagation()"
+                     (change)="toggleSelectAll($event)">
+            </th>
+            <th>Order</th>
+            <th>
+              {{ activeChannel === 'warehouse' ? 'Member' : 'Customer' }}
+            </th>
+            <th>Ship To</th>
+            <th>Channel / Type</th>
+            <th>Status</th>
+            <th>Entered</th>
+            <th class="number-column">Order Total</th>
 
-              <th class="actions-column">Actions</th>
-            </tr>
-          </thead>
+            <th class="actions-column">Actions</th>
+          </tr>
+        </thead>
 
-          <tbody>
+        <tbody>
 
-            <tr *ngFor="let order of filteredOrders"
-                class="order-row"
-                [class.selected-row]="selectedOrder?.orderId === order.orderId"
-                [class.held-row]="isOrderOnHold(order)"
-                (click)="openOrder(order)">
+          <tr *ngFor="let order of filteredOrders"
+              class="order-row"
+              [class.selected-row]="selectedOrder?.orderId === order.orderId"
+              [class.held-row]="isOrderOnHold(order)"
+              (click)="openOrder(order)">
 
-              <td class="select-column">
-                <input type="checkbox"
-                       [checked]="isSelected(order.orderId)"
-                       [disabled]="!canProcess(order)"
-                       (click)="$event.stopPropagation()"
-                       (change)="toggleOrderSelection(order.orderId, $event)">
-              </td>
+            <td class="select-column">
+              <input type="checkbox"
+                     [checked]="isSelected(order.orderId)"
+                     [disabled]="!canProcess(order)"
+                     (click)="$event.stopPropagation()"
+                     (change)="toggleOrderSelection(order.orderId, $event)">
+            </td>
 
-              <td>
-                <span class="order-number">{{ order.orderId }}</span>
+            <td>
+              <span class="order-number">{{ order.orderId }}</span>
 
-                <div class="order-meta">
-                  <span *ngIf="order.computymeOrderId">
-                    Comp: {{ order.computymeOrderId }}
-                  </span>
-
-                  <span *ngIf="order.poNumber">
-                    PO: {{ order.poNumber }}
-                  </span>
-                </div>
-              </td>
-
-              <td>
-                <div class="customer-name">{{ order.customerName }}</div>
-
-                <div class="customer-reference">
-                  <span *ngIf="order.accountNumber">
-                    Account {{ order.accountNumber }}
-                  </span>
-
-                  <span *ngIf="!order.accountNumber">
-                    {{ order.customerReference }}
-                  </span>
-                </div>
-              </td>
-
-              <td class="address-cell">
-                <ng-container *ngIf="order.shippingAddress; else noAddress">
-                  <strong>{{ order.shippingAddress?.address1 }}</strong>
-
-                  <span *ngIf="order.shippingAddress?.address2">
-                    {{ order.shippingAddress?.address2 }}
-                  </span>
-
-                  <span>
-                    {{ order.shippingAddress?.city }},
-                    {{ order.shippingAddress?.state }}
-                    {{ order.shippingAddress?.postalCode }}
-                  </span>
-                </ng-container>
-
-                <ng-template #noAddress>
-                  <span class="faint">No address available</span>
-                </ng-template>
-              </td>
-
-              <td>
-                <div>{{ order.source }}</div>
-
-                <div class="order-type">
-                  {{ order.orderType }}
-
-                  <span *ngIf="order.hasSpecial"
-                        class="special-order-badge">
-                    Special
-                  </span>
-                </div>
-              </td>
-
-              <td>
-                <span class="status-badge"
-                      [ngClass]="getStatusClass(order.status)"
-                      [class.status-hold]="isOrderOnHold(order)">
-                  {{ getHoldLabel(order) }}
+              <div class="order-meta">
+                <span *ngIf="order.computymeOrderId">
+                  Comp: {{ order.computymeOrderId }}
                 </span>
-                <div class="override-label"
-                     *ngIf="order.holdOverride">
-                  Hold overridden
-                </div>
-              </td>
 
-
-
-              <td class="nowrap">
-                {{ order.enteredDate | date:'MM/dd/yyyy' }}
-              </td>
-
-              <td class="number-column nowrap">
-                {{ order.total | currency }}
-              </td>
-
-
-
-              <td class="actions-column">
-                <button *ngIf="order.status !== 'Rejected'"
-                        type="button"
-                        class="row-action reject-action"
-                        (click)="openRejectModal(order, $event)">
-                  Reject
-                </button>
-
-                <span *ngIf="order.status === 'Rejected'"
-                      class="rejected-text">
-                  Rejected
+                <span *ngIf="order.poNumber">
+                  PO: {{ order.poNumber }}
                 </span>
-              </td>
 
-            </tr>
+                <span *ngIf="isConsumer(order) && order.systemReference">
+                  {{ order.systemReference }}
+                </span>
+              </div>
+            </td>
 
-            <tr *ngIf="filteredOrders.length === 0">
-              <td colspan="11" class="empty-state">
-                <i class="pi pi-search"></i>
-                <div>No orders match your filters.</div>
+            <td>
+              <div class="customer-name">{{ order.customerName }}</div>
 
-                <button type="button"
-                        class="btn btn-secondary"
-                        (click)="clearFilters()">
-                  Clear Filters
-                </button>
-              </td>
-            </tr>
+              <div class="customer-reference">
+                <span *ngIf="order.accountNumber">
+                  Account {{ order.accountNumber }}
+                </span>
 
-          </tbody>
-        </table>
+                <span *ngIf="!order.accountNumber">
+                  {{ order.customerReference }}
+                </span>
+              </div>
+            </td>
 
-      </div>
+            <td class="address-cell">
+              <ng-container *ngIf="order.shippingAddress; else noAddress">
+                <strong>{{ order.shippingAddress?.address1 }}</strong>
+
+                <span *ngIf="order.shippingAddress?.address2">
+                  {{ order.shippingAddress?.address2 }}
+                </span>
+
+                <span>
+                  {{ order.shippingAddress?.city }},
+                  {{ order.shippingAddress?.state }}
+                  {{ order.shippingAddress?.postalCode }}
+                </span>
+              </ng-container>
+
+              <ng-template #noAddress>
+                <span class="faint">No address available</span>
+              </ng-template>
+            </td>
+
+            <td>
+              <div>{{ order.source }}</div>
+
+              <div class="order-type store-name"
+                   *ngIf="order.storeId"
+                   [title]="order.storeId">
+                {{ order.storeId }}
+              </div>
+
+              <div class="order-type">
+                {{ order.orderType }}
+
+                <span *ngIf="order.hasSpecial"
+                      class="special-order-badge">
+                  Special
+                </span>
+              </div>
+            </td>
+
+            <td>
+              <span class="status-badge"
+                    [ngClass]="getStatusClass(order.status)"
+                    [class.status-hold]="isOrderOnHold(order)">
+                {{ getHoldLabel(order) }}
+              </span>
+              <div class="override-label"
+                   *ngIf="order.holdOverride">
+                Hold overridden
+              </div>
+            </td>
+
+
+
+            <td class="nowrap">
+              {{ order.enteredDate | date:'MM/dd/yyyy' }}
+            </td>
+
+            <td class="number-column nowrap">
+              {{ order.total | currency }}
+            </td>
+
+
+
+            <td class="actions-column">
+              <button *ngIf="order.status !== 'Rejected'"
+                      type="button"
+                      class="row-action reject-action"
+                      (click)="openRejectModal(order, $event)">
+                Reject
+              </button>
+
+              <span *ngIf="order.status === 'Rejected'"
+                    class="rejected-text">
+                Rejected
+              </span>
+            </td>
+
+          </tr>
+
+          <tr *ngIf="filteredOrders.length === 0">
+            <td colspan="11" class="empty-state">
+              <i class="pi pi-search"></i>
+              <div>No orders match your filters.</div>
+
+              <button type="button"
+                      class="btn btn-secondary"
+                      (click)="clearFilters()">
+                Clear Filters
+              </button>
+            </td>
+          </tr>
+
+        </tbody>
+      </table>
+
     </div>
+  </div>
 
-    <!-- Full Order Inspector -->
-    <div class="order-detail-card"
-         *ngIf="selectedOrder as order">
+  <!-- Full Order Inspector -->
+  <div class="order-detail-card"
+       *ngIf="selectedOrder as order">
 
-      <div class="detail-header">
-        <div>
-          <div class="eyebrow">
-            {{
+    <div class="detail-header">
+      <div>
+        <div class="eyebrow">
+          {{
             order.channel === 'warehouse'
               ? 'Warehouse Order'
               : 'Consumer Order'
-            }}
-          </div>
-
-          <h2>{{ order.orderId }} · {{ order.customerName }}</h2>
-
-          <div class="subtitle">
-            Account {{ order.accountNumber || '—' }}
-            · PO {{ order.poNumber || '—' }}
-            · Computyme {{ order.computymeOrderId || 'Pending' }}
-          </div>
+          }}
         </div>
 
-        <div class="detail-actions">
-          <button type="button"
-                  class="btn btn-secondary"
-                  [disabled]="!selectedOrder"
-                  (click)="selectedOrder && openAudit(selectedOrder)">
-            View Audit
-          </button>
+        <h2>{{ order.orderId }} · {{ order.customerName }}</h2>
 
-          <button *ngIf="order.autoHold && !order.holdOverride"
-                  type="button"
-                  class="btn btn-warning"
-                  [disabled]="overridingOrderId === order.orderId"
-                  (click)="overrideHold(order)">
-            {{
+        <div class="subtitle" *ngIf="!isConsumer(order)">
+          Account {{ order.accountNumber || '—' }}
+          · PO {{ order.poNumber || '—' }}
+          · Computyme {{ order.computymeOrderId || 'Pending' }}
+        </div>
+
+        <div class="subtitle" *ngIf="isConsumer(order)">
+          {{ order.source }} {{ order.systemReference || '' }}
+          · Store {{ order.storeId || '—' }}
+          · {{ order.customerReference || '—' }}
+        </div>
+      </div>
+
+      <div class="detail-actions">
+        <button type="button"
+                 class="btn btn-secondary"
+                [disabled]="!selectedOrder"
+                (click)="selectedOrder && openAudit(selectedOrder)">
+          View Audit
+        </button>
+
+        <button *ngIf="order.autoHold && !order.holdOverride"
+                type="button"
+                class="btn btn-warning"
+                [disabled]="overridingOrderId === order.orderId"
+                (click)="overrideHold(order)">
+          {{
     overridingOrderId === order.orderId
       ? 'Overriding...'
       : 'Override Auto Hold'
-            }}
-          </button>
+          }}
+        </button>
 
-          <button *ngIf="order.status !== 'Rejected'"
-                  type="button"
-                  class="btn btn-danger"
-                  (click)="openRejectModal(order)">
-            Reject Order
-          </button>
+        <button *ngIf="order.status !== 'Rejected'"
+                type="button"
+                class="btn btn-danger"
+                (click)="openRejectModal(order)">
+          Reject Order
+        </button>
 
-          <button type="button"
-                  class="btn btn-primary"
-                  [disabled]="!canProcess(order) || processingOrders"
-                  (click)="processOrder(order)">
-            {{
+        <button type="button"
+                class="btn btn-primary"
+                [disabled]="!canProcess(order) || processingOrders"
+                (click)="processOrder(order)">
+          {{
     processingOrders
       ? 'Generating...'
       : 'Process Order'
-            }}
-          </button>
-        </div>
+          }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Lifecycle -->
+    <div class="lifecycle">
+      <div class="lifecycle-step complete">
+        <span class="step-dot"></span>
+        <span>Received</span>
       </div>
 
-      <!-- Lifecycle -->
-      <div class="lifecycle">
-        <div class="lifecycle-step complete">
-          <span class="step-dot"></span>
-          <span>Received</span>
-        </div>
-
-        <div class="lifecycle-step complete">
-          <span class="step-dot"></span>
-          <span>Validated</span>
-        </div>
-
-        <div class="lifecycle-step current">
-          <span class="step-dot"></span>
-          <span>{{ order.status }}</span>
-        </div>
-
-        <div class="lifecycle-step">
-          <span class="step-dot"></span>
-          <span>Fulfilled</span>
-        </div>
-
-        <div class="lifecycle-step">
-          <span class="step-dot"></span>
-          <span>Closed</span>
-        </div>
+      <div class="lifecycle-step complete">
+        <span class="step-dot"></span>
+        <span>Validated</span>
       </div>
 
-      <!-- Operational Fields -->
-      <div class="operational-grid">
+      <div class="lifecycle-step current">
+        <span class="step-dot"></span>
+        <span>{{ order.status }}</span>
+      </div>
 
-        <div class="info-panel">
-          <div class="section-label">Order Identity</div>
+      <div class="lifecycle-step">
+        <span class="step-dot"></span>
+        <span>Fulfilled</span>
+      </div>
 
-          <div class="field-list">
-            <div class="field-row">
-              <span>Order ID</span>
-              <strong class="mono">{{ order.orderId }}</strong>
-            </div>
+      <div class="lifecycle-step">
+        <span class="step-dot"></span>
+        <span>Closed</span>
+      </div>
+    </div>
 
+    <!-- Operational Fields -->
+    <div class="operational-grid">
+
+      <div class="info-panel">
+        <div class="section-label">Order Identity</div>
+
+        <div class="field-list">
+          <div class="field-row">
+            <span>Order ID</span>
+            <strong class="mono">{{ order.orderId }}</strong>
+          </div>
+
+          <ng-container *ngIf="!isConsumer(order)">
             <div class="field-row">
               <span>Computyme ID</span>
               <strong>{{ order.computymeOrderId || 'Pending' }}</strong>
@@ -455,68 +498,97 @@
               <span>Account</span>
               <strong>{{ order.accountNumber || '—' }}</strong>
             </div>
+          </ng-container>
 
+          <ng-container *ngIf="isConsumer(order)">
             <div class="field-row">
-              <span>Source</span>
-              <strong>{{ order.source }} · {{ order.orderType }}</strong>
+              <span>Channel Order</span>
+              <strong class="mono">{{ order.systemReference || '—' }}</strong>
             </div>
-          </div>
-        </div>
 
-        <div class="info-panel">
-          <div class="info-panel-header">
-            <div class="section-label">Ship To</div>
-
-            <button type="button"
-                    class="address-edit-button"
-                    (click)="openAddressEditor(order)">
-              <i class="pi pi-pencil"></i>
-              Change Address
-            </button>
-          </div>
-
-          <div class="full-address" *ngIf="order.shippingAddress; else noDetailAddress">
-
-            <strong>{{ order.shippingAddress?.address1 }}</strong>
-
-            <span *ngIf="order.shippingAddress?.address2">
-              {{ order.shippingAddress?.address2 }}
-            </span>
-
-            <span>
-              {{ order.shippingAddress?.city }},
-              {{ order.shippingAddress?.state }}
-              {{ order.shippingAddress?.postalCode }}
-            </span>
-
-            <span>{{ order.shippingAddress?.country }}</span>
-          </div>
-
-          <ng-template #noDetailAddress>
-            <div class="faint">No shipping address available.</div>
-          </ng-template>
-        </div>
-
-        <div class="info-panel credit-panel">
-          <div class="section-label">Credit and Holds</div>
-
-          <div class="field-list">
             <div class="field-row">
-              <span>Available Balance</span>
-              <strong>
-                {{
+              <span>Store</span>
+              <strong>{{ order.storeId || '—' }}</strong>
+            </div>
+
+            <div class="field-row">
+              <span>Email</span>
+              <strong>{{ order.shipEmail || '—' }}</strong>
+            </div>
+
+            <div class="field-row">
+              <span>Phone</span>
+              <strong>{{ order.shipPhone || '—' }}</strong>
+            </div>
+          </ng-container>
+
+          <div class="field-row">
+            <span>Source</span>
+            <strong>{{ order.source }} · {{ order.orderType }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-panel">
+        <div class="info-panel-header">
+          <div class="section-label">Ship To</div>
+
+          <button type="button"
+                  class="address-edit-button"
+                  (click)="openAddressEditor(order)">
+            <i class="pi pi-pencil"></i>
+            Change Address
+          </button>
+        </div>
+
+        <div class="full-address" *ngIf="order.shippingAddress; else noDetailAddress">
+
+          <strong *ngIf="isConsumer(order)">
+            {{ order.shippingAddress?.firstName }}
+            {{ order.shippingAddress?.lastName }}
+          </strong>
+
+          <strong>{{ order.shippingAddress?.address1 }}</strong>
+
+          <span *ngIf="order.shippingAddress?.address2">
+            {{ order.shippingAddress?.address2 }}
+          </span>
+
+          <span>
+            {{ order.shippingAddress?.city }},
+            {{ order.shippingAddress?.state }}
+            {{ order.shippingAddress?.postalCode }}
+          </span>
+
+          <span>{{ order.shippingAddress?.country }}</span>
+        </div>
+
+        <ng-template #noDetailAddress>
+          <div class="faint">No shipping address available.</div>
+        </ng-template>
+      </div>
+
+      <div class="info-panel credit-panel"
+           *ngIf="!isConsumer(order)">
+        <div class="section-label">Credit and Holds</div>
+
+        <div class="field-list">
+          <div class="field-row">
+            <span>Available Balance</span>
+            <strong>
+              {{
                 order.availableBalance !== undefined
                   ? (order.availableBalance | currency)
                   : '—'
-                }}
-              </strong>
-            </div>
+              }}
+            </strong>
+          </div>
 
-            <div class="field-row">
-              <span>Net Available</span>
-              <strong [class.negative-value]="
-                        order.netAvailable != null &&
-                      order.netAvailable < 0
+          <div class="field-row">
+            <span>Net Available</span>
+            <strong [class.negative-value]="
+                    order.netAvailable != null &&
+                    order.netAvailable < 0
               ">
               {{
                 order.netAvailable !== undefined
@@ -524,162 +596,454 @@
                   : '—'
               }}
             </strong>
-            </div>
+          </div>
 
-            <div class="field-row">
-              <span>Credit Status</span>
-              <strong>{{ order.creditStatus || '—' }}</strong>
-            </div>
+          <div class="field-row">
+            <span>Credit Status</span>
+            <strong>{{ order.creditStatus || '—' }}</strong>
+          </div>
 
-            <div class="field-row">
-              <span>Automatic Hold</span>
-              <strong>{{ order.autoHold ? 'Yes' : 'No' }}</strong>
-            </div>
+          <div class="field-row">
+            <span>Automatic Hold</span>
+            <strong>{{ order.autoHold ? 'Yes' : 'No' }}</strong>
+          </div>
 
-            <div class="field-row">
-              <span>Hold Override</span>
-              <strong>{{ order.holdOverride ? 'Yes' : 'No' }}</strong>
-            </div>
+          <div class="field-row">
+            <span>Hold Override</span>
+            <strong>{{ order.holdOverride ? 'Yes' : 'No' }}</strong>
           </div>
         </div>
-
-        <div class="info-panel">
-          <div class="section-label">Shipping and Payment</div>
-
-          <div class="field-list">
-            <div class="field-row">
-              <span>Shipping Method</span>
-              <strong>{{ order.shippingMethod }}</strong>
-            </div>
-
-            <div class="field-row">
-              <span>Payment</span>
-              <strong>{{ order.paymentMethod }}</strong>
-            </div>
-
-            <div class="field-row">
-              <span>Shipping Notes</span>
-              <strong>{{ order.shippingNotes || '—' }}</strong>
-            </div>
-
-            <div class="field-row">
-              <span>Free Shipping</span>
-
-              <button type="button"
-                      class="free-shipping-toggle"
-                      [class.active]="order.freeShipping"
-                      [disabled]="savingFreeShipping"
-                      (click)="toggleFreeShipping(order)">
-                <i class="pi pi-truck"></i>
-
-                {{ order.freeShipping ? 'Enabled' : 'Enable' }}
-              </button>
-            </div>
-
-            <div class="field-row">
-              <span>System Reference</span>
-              <strong>{{ order.systemReference }}</strong>
-            </div>
-
-
-            <div class="field-row total-row">
-              <span>Order Total</span>
-              <strong>{{ order.total | currency }}</strong>
-            </div>
-          </div>
-        </div>
-
       </div>
 
-      <!-- Complete Line Detail -->
-      <div class="line-detail-section">
-        <div class="section-header">
-          <div>
-            <div class="section-label">Order Lines</div>
-            <div class="section-subtitle">
-              Product, inventory, cost, notes, and special pricing
+      <div class="info-panel">
+        <div class="section-label">Shipping and Payment</div>
+
+        <div class="field-list">
+          <div class="field-row">
+            <span>Shipping Method</span>
+            <strong>{{ order.shippingMethod }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>Payment</span>
+            <strong>{{ order.paymentMethod }}</strong>
+          </div>
+
+          <div class="field-row">
+            <span>Shipping Notes</span>
+
+            <strong *ngIf="!editingNotes">
+              {{ order.shippingNotes || '—' }}
+
+              <button *ngIf="!isConsumer(order) && canEditOrder(order)"
+                      type="button"
+                      class="icon-action"
+                      title="Change shipping notes"
+                      (click)="startNotesEdit(order)">
+                <i class="pi pi-pencil"></i>
+              </button>
+            </strong>
+
+            <div class="notes-edit" *ngIf="editingNotes">
+              <input type="text"
+                     maxlength="50"
+                     [(ngModel)]="notesDraft"
+                     [disabled]="savingNotes"
+                     (keyup.enter)="saveNotes(order)"
+                     (keyup.escape)="cancelNotesEdit()">
+
+              <button type="button"
+                      class="icon-action"
+                      title="Save notes"
+                      [disabled]="savingNotes"
+                      (click)="saveNotes(order)">
+                <i class="pi pi-check"></i>
+              </button>
+
+              <button type="button"
+                      class="icon-action delete-line"
+                      title="Cancel"
+                      [disabled]="savingNotes"
+                      (click)="cancelNotesEdit()">
+                <i class="pi pi-times"></i>
+              </button>
             </div>
           </div>
 
-          <button type="button" class="btn btn-secondary">
-            Add Line
-          </button>
+          <div class="field-row" *ngIf="!isConsumer(order)">
+            <span>Free Shipping</span>
+
+            <button type="button"
+                    class="free-shipping-toggle"
+                    [class.active]="order.freeShipping"
+                    [disabled]="savingFreeShipping"
+                    (click)="toggleFreeShipping(order)">
+              <i class="pi pi-truck"></i>
+
+              {{ order.freeShipping ? 'Enabled' : 'Enable' }}
+            </button>
+          </div>
+
+          <div class="field-row">
+            <span>System Reference</span>
+            <strong>{{ order.systemReference }}</strong>
+          </div>
+
+
+          <div class="field-row total-row">
+            <span>Order Total</span>
+            <strong>{{ order.total | currency }}</strong>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Complete Line Detail -->
+    <div class="line-detail-section">
+      <div class="section-header">
+        <div>
+          <div class="section-label">Order Lines</div>
+          <div class="section-subtitle">
+            Product, inventory, cost, notes, and special pricing
+          </div>
         </div>
 
-        <div class="table-responsive">
-          <table class="line-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Description</th>
-                <th class="number-column">Quantity</th>
-                <th>Stock</th>
-                <th class="number-column">Unit Cost</th>
-                <th class="number-column">Net</th>
-                <th>Notes</th>
-                <th>Special</th>
-                <th class="line-actions-column">Actions</th>
-              </tr>
-            </thead>
+        <button type="button" class="btn btn-secondary">
+          Add Line
+        </button>
+      </div>
 
-            <tbody>
-              <tr *ngFor="let line of order.lines">
-                <td class="mono">{{ line.sku }}</td>
-                <td>
-                  <strong>{{ line.description }}</strong>
-                </td>
-                <td class="number-column">{{ line.quantity }}</td>
-                <td>
-                  <span class="stock-badge"
-                        [class.out-of-stock]="line.stockStatus !== 'YES'">
-                    {{ line.stockStatus || '—' }}
-                  </span>
-                </td>
-                <td class="number-column">
-                  {{ line.unitCost | currency }}
-                </td>
-                <td class="number-column">
-                  {{ line.total | currency }}
-                </td>
-                <td>{{ line.notes || '—' }}</td>
-                <td>{{ line.specialName || '—' }}</td>
-                <td class="line-actions-column">
-                  <button type="button" class="icon-action" title="Edit line">
+      <div class="table-responsive">
+        <table class="line-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Description</th>
+              <th class="number-column">Quantity</th>
+              <th>Stock</th>
+              <th class="number-column">Unit Cost</th>
+              <th class="number-column">Net</th>
+              <th>Notes</th>
+              <th>Special</th>
+              <th class="line-actions-column">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let line of order.lines">
+              <td class="mono">{{ line.sku }}</td>
+              <td>
+                <strong>{{ line.description }}</strong>
+              </td>
+              <td class="number-column">
+                <ng-container *ngIf="editingLineId !== line.lineId">
+                  {{ line.quantity }}
+                </ng-container>
+
+                <input *ngIf="editingLineId === line.lineId"
+                       type="number"
+                       min="1"
+                       step="1"
+                       class="line-quantity-input"
+                       [(ngModel)]="editLineQuantity"
+                       [disabled]="savingLine"
+                       (keyup.enter)="saveLineEdit(order, line)"
+                       (keyup.escape)="cancelLineEdit()">
+              </td>
+              <td>
+                <span class="stock-badge"
+                      [class.out-of-stock]="line.stockStatus !== 'YES'">
+                  {{ line.stockStatus || '—' }}
+                </span>
+              </td>
+              <td class="number-column">
+                {{ line.unitCost | currency }}
+              </td>
+              <td class="number-column">
+                {{ line.total | currency }}
+              </td>
+              <td>{{ line.notes || '—' }}</td>
+              <td>{{ line.specialName || '—' }}</td>
+              <td class="line-actions-column">
+                <ng-container *ngIf="editingLineId !== line.lineId">
+                  <button type="button"
+                          class="icon-action"
+                          title="Change quantity"
+                          [disabled]="!canEditOrder(order) || !line.lineId"
+                          (click)="startLineEdit(line)">
                     <i class="pi pi-pencil"></i>
                   </button>
 
                   <button type="button"
                           class="icon-action delete-line"
-                          title="Remove line">
+                          title="Remove line"
+                          [disabled]="!canEditOrder(order) || !line.lineId"
+                          (click)="openRemoveLine(line)">
                     <i class="pi pi-trash"></i>
                   </button>
-                </td>
-              </tr>
-            </tbody>
+                </ng-container>
 
-            <tfoot>
-              <tr>
-                <td colspan="5">Order Total</td>
-                <td class="number-column">
-                  {{ order.total | currency }}
-                </td>
-                <td colspan="3"></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+                <ng-container *ngIf="editingLineId === line.lineId">
+                  <button type="button"
+                          class="icon-action"
+                          title="Save quantity"
+                          [disabled]="savingLine"
+                          (click)="saveLineEdit(order, line)">
+                    <i class="pi pi-check"></i>
+                  </button>
+
+                  <button type="button"
+                          class="icon-action delete-line"
+                          title="Cancel"
+                          [disabled]="savingLine"
+                          (click)="cancelLineEdit()">
+                    <i class="pi pi-times"></i>
+                  </button>
+                </ng-container>
+              </td>
+            </tr>
+          </tbody>
+
+          <tfoot>
+            <tr>
+              <td colspan="5">Order Total</td>
+              <td class="number-column">
+                {{ order.total | currency }}
+              </td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="rejection-note"
+         *ngIf="order.status === 'Rejected'">
+      <i class="pi pi-ban"></i>
+
+      <div>
+        <strong>Order Rejected</strong>
+        <span>{{ order.rejectionReason }}</span>
+      </div>
+    </div>
+
+  </div>
+
+  </ng-container>
+
+  <!-- Sent -->
+  <ng-container *ngIf="sentTabActive">
+
+    <div class="order-toolbar">
+      <div class="filter-fields">
+        <label class="review-toggle">
+          <input type="checkbox"
+                 [(ngModel)]="sentAttentionOnly">
+          Only rejected or overdue
+        </label>
       </div>
 
-      <div class="rejection-note"
-           *ngIf="order.status === 'Rejected'">
-        <i class="pi pi-ban"></i>
+      <div class="toolbar-actions">
+        <button type="button"
+                class="btn btn-secondary"
+                [disabled]="sentLoading"
+                (click)="loadSentOrders()">
+          <i class="pi pi-refresh"></i>
+          {{ sentLoading ? 'Loading...' : 'Refresh' }}
+        </button>
+      </div>
+    </div>
 
-        <div>
-          <strong>Order Rejected</strong>
-          <span>{{ order.rejectionReason }}</span>
+    <div class="address-error" *ngIf="sentError">{{ sentError }}</div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="orders-table sent-table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Customer</th>
+              <th>Sent</th>
+              <th>To</th>
+              <th>Status</th>
+              <th>Answer</th>
+              <th class="sent-actions-column">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let sent of filteredSentOrders"
+                [class.held-row]="sent.exportState === 'FAILED'">
+
+              <td>
+                <span class="order-number">{{ sent.orderId }}</span>
+                <div class="order-meta">
+                  <span>{{ sent.channel === 'consumer' ? 'Consumer' : 'Warehouse' }}</span>
+                </div>
+              </td>
+
+              <td>
+                <div class="customer-name">{{ sent.customerName || '—' }}</div>
+                <div class="customer-reference">{{ sent.reference }}</div>
+              </td>
+
+              <td>
+                <div class="nowrap">{{ sent.sentAt | date:'MM/dd/yy h:mm a' }}</div>
+                <div class="review-sub">{{ sent.sentBy }}</div>
+              </td>
+
+              <td>
+                <div>{{ sent.destination }}</div>
+                <div class="review-sub">{{ sent.fileName }}</div>
+              </td>
+
+              <td>
+                <span class="status-badge"
+                      [ngClass]="getSentStateClass(sent)">
+                  {{ getSentStateLabel(sent) }}
+                </span>
+              </td>
+
+              <td>
+                <div *ngIf="sent.destinationOrderId">
+                  Order {{ sent.destinationOrderId }}
+                </div>
+                <div *ngIf="sent.responseReason">{{ sent.responseReason }}</div>
+
+                <div class="sent-shipment"
+                     *ngFor="let shipment of sent.shipments">
+                  <i class="pi pi-truck"></i>
+                  <span>{{ shipment.carrier || 'Shipped' }}</span>
+                  <strong>{{ shipment.trackingNumber || 'no tracking number' }}</strong>
+                  <span class="review-sub" *ngIf="shipment.shippedAt">
+                    {{ shipment.shippedAt | date:'MM/dd/yy' }}
+                  </span>
+                </div>
+                <div class="review-sub" *ngIf="sent.respondedAt">
+                  {{ sent.respondedAt | date:'MM/dd/yy h:mm a' }}
+                  <span *ngIf="sent.respondedBy">· {{ sent.respondedBy }}</span>
+                </div>
+              </td>
+
+              <td class="sent-actions-column">
+                <button type="button"
+                        class="row-action"
+                        *ngIf="sent.exportState !== 'ACKNOWLEDGED'"
+                        (click)="openSentAction('confirm', sent)">
+                  Confirmed
+                </button>
+
+                <button type="button"
+                        class="row-action reject-action"
+                        *ngIf="sent.exportState !== 'FAILED'"
+                        (click)="openSentAction('fail', sent)">
+                  Rejected
+                </button>
+
+                <button type="button"
+                        class="row-action"
+                        *ngIf="sent.canReopen"
+                        (click)="openSentAction('reopen', sent)">
+                  Reopen
+                </button>
+              </td>
+            </tr>
+
+            <tr *ngIf="filteredSentOrders.length === 0 && !sentLoading">
+              <td colspan="7" class="empty-state">
+                <i class="pi pi-send"></i>
+                <div>No sent orders to show.</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Record a response, or reopen -->
+    <div class="modal-backdrop"
+         *ngIf="sentActionTarget as target"
+         (click)="closeSentAction()">
+
+      <div class="reject-modal" (click)="$event.stopPropagation()">
+
+        <div class="modal-header">
+          <div>
+            <div class="eyebrow">
+              {{
+                sentActionMode === 'confirm'
+                  ? 'Record Confirmation'
+                  : sentActionMode === 'fail'
+                    ? 'Record Rejection'
+                    : 'Reopen Order'
+              }}
+            </div>
+            <h2>{{ target.orderId }}</h2>
+            <div class="subtitle">
+              {{ target.customerName }} · sent to {{ target.destination }}
+            </div>
+          </div>
+
+          <button type="button"
+                  class="modal-close"
+                  (click)="closeSentAction()">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+
+        <div class="reject-warning" *ngIf="sentActionMode === 'reopen'">
+          <i class="pi pi-exclamation-triangle"></i>
+          <div>
+            <strong>This order goes back to Open.</strong>
+            <span>
+              It has already been sent to {{ target.destination }}. Reopening
+              does not recall it there; processing it again sends it again.
+            </span>
+          </div>
+        </div>
+
+        <div class="field reject-field" *ngIf="sentActionMode === 'confirm'">
+          <label for="sentActionNumber">
+            {{ target.destination }} Order Number (optional)
+          </label>
+          <input id="sentActionNumber"
+                 type="text"
+                 maxlength="50"
+                 [(ngModel)]="sentActionNumber">
+        </div>
+
+        <div class="field reject-field" *ngIf="sentActionMode !== 'confirm'">
+          <label for="sentActionReason">Reason</label>
+
+          <textarea id="sentActionReason"
+                    rows="3"
+                    maxlength="500"
+                    [(ngModel)]="sentActionReason"
+                    [class.invalid]="!!sentActionError"
+                    (input)="sentActionError = ''">
+          </textarea>
+        </div>
+
+        <div class="validation-error" *ngIf="sentActionError">
+          {{ sentActionError }}
+        </div>
+
+        <div class="modal-actions">
+          <button type="button"
+                  class="btn btn-secondary"
+                  (click)="closeSentAction()">
+            Cancel
+          </button>
+
+          <button type="button"
+                  class="btn btn-primary"
+                  [disabled]="sentActionSaving"
+                  (click)="confirmSentAction()">
+            {{ sentActionSaving ? 'Saving...' : 'Save' }}
+          </button>
         </div>
       </div>
-
     </div>
 
   </ng-container>
@@ -698,13 +1062,36 @@
       </div>
 
       <div class="toolbar-actions">
+
+        <button type="button"
+                class="btn btn-primary"
+                [disabled]="posImporting"
+                (click)="importPosOrders()">
+          <i class="pi pi-download"></i>
+          {{ posImporting ? 'Importing...' : 'Import POS Orders' }}
+        </button>
+
+        <!-- new for EDI -->
+        <button type="button"
+                class="btn btn-primary"
+                [disabled]="ediImporting"
+                (click)="importEdiOrders()">
+          <i class="pi pi-download"></i>
+          {{ ediImporting ? 'Importing...' : 'Import EDI Orders' }}
+        </button>
+
+
         <button type="button"
                 class="btn btn-secondary"
                 [disabled]="reviewLoading"
                 (click)="loadReviewOrders()">
+
           <i class="pi pi-refresh"></i>
           {{ reviewLoading ? 'Loading...' : 'Refresh' }}
         </button>
+
+
+
       </div>
     </div>
 
@@ -835,6 +1222,14 @@
           </button>
 
           <button type="button"
+                  class="btn btn-primary"
+                  *ngIf="canFixReview(held) && !reviewEditing"
+                  (click)="startReviewEdit()">
+            <i class="pi pi-pencil"></i>
+            Fix and Release
+          </button>
+
+          <button type="button"
                   class="btn btn-danger"
                   *ngIf="canRejectReview(held)"
                   (click)="openReviewReject(held)">
@@ -852,8 +1247,7 @@
             <strong>Why this order is held</strong>
             <span *ngFor="let problem of held.problems">
               {{ problem.code }}<ng-container *ngIf="problem.field">
-                ({{ problem.field }})
-              </ng-container>:
+                ({{ problem.field }})</ng-container>:
               {{ problem.message }}
             </span>
           </div>
@@ -863,10 +1257,8 @@
              *ngIf="held.state === 'REJECTED' && held.reviewNote">
           <i class="pi pi-ban"></i>
           <div>
-            <strong>
-              Rejected by {{ held.reviewedBy }}
-              on {{ held.reviewedAt | date:'MM/dd/yy h:mm a' }}
-            </strong>
+            <strong>Rejected by {{ held.reviewedBy }}
+              on {{ held.reviewedAt | date:'MM/dd/yy h:mm a' }}</strong>
             <span>{{ held.reviewNote }}</span>
           </div>
         </div>
@@ -885,35 +1277,190 @@
         </div>
 
         <div class="table-responsive">
-          <table class="line-table review-lines">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Description</th>
-                <th>Qty</th>
-                <th>Unit</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let line of held.lines">
-                <td>
-                  <span *ngIf="line.sku">{{ line.sku }}</span>
-                  <span class="review-problem" *ngIf="!line.sku">NO SKU</span>
-                </td>
-                <td>{{ line.productName }}</td>
-                <td>{{ line.quantity }}</td>
-                <td>{{ line.unitPrice | currency:(held.currency || 'USD') }}</td>
-                <td>{{ line.lineTotal | currency:(held.currency || 'USD') }}</td>
-              </tr>
+        <table class="line-table review-lines">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Description</th>
+              <th>Qty</th>
+              <th>Unit</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let line of held.lines">
+              <td>
+                <span *ngIf="line.sku">{{ line.sku }}</span>
+                <span class="review-problem" *ngIf="!line.sku">NO SKU</span>
+              </td>
+              <td>{{ line.productName }}</td>
+              <td>{{ line.quantity }}</td>
+              <td>{{ line.unitPrice | currency:(held.currency || 'USD') }}</td>
+              <td>{{ line.lineTotal | currency:(held.currency || 'USD') }}</td>
+            </tr>
 
-              <tr *ngIf="held.lines.length === 0">
-                <td colspan="5" class="empty-state">
-                  No lines could be read from this order.
-                </td>
-              </tr>
-            </tbody>
-          </table>
+            <tr *ngIf="held.lines.length === 0">
+              <td colspan="5" class="empty-state">
+                No lines could be read from this order.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+
+        <!-- Fix and release -->
+        <div class="review-edit" *ngIf="reviewEditing">
+
+          <div class="section-label">Correct this order</div>
+          <div class="section-subtitle">
+            Your changes are saved to the held order and audited. The
+            document as received is not changed.
+          </div>
+
+          <div class="review-edit-line"
+               *ngFor="let line of reviewEditLines">
+
+            <div class="review-edit-line-name">
+              <strong>{{ line.productName || 'Line ' + line.lineId }}</strong>
+              <span *ngIf="line.originalSku">Was {{ line.originalSku }}</span>
+              <span *ngIf="!line.originalSku">No product code received</span>
+              <span *ngIf="line.problem && line.originalSku"
+                    style="color: #c0392b; font-weight: 600;">
+                {{ line.problem }}
+              </span>
+            </div>
+
+            <div class="field review-edit-sku">
+              <label>PRO Product Code</label>
+              <input type="text"
+                     [(ngModel)]="line.sku"
+                     placeholder="Product code">
+            </div>
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    (click)="openProductSearch(line)">
+              <i class="pi pi-search"></i>
+              Find
+            </button>
+
+
+            <button type="button"
+                    class="btn"
+                    [ngClass]="line.remove ? 'btn-secondary' : 'btn-danger'"
+                    (click)="line.remove = !line.remove; closeProductSearch()">
+              <i class="pi" [ngClass]="line.remove ? 'pi-undo' : 'pi-trash'"></i>
+              {{ line.remove ? 'Keep' : 'Remove' }}
+            </button>
+
+            <div class="review-product-search"
+                 *ngIf="productSearchLineId === line.lineId">
+
+              <div class="review-product-search-bar">
+                <input type="text"
+                       [(ngModel)]="productSearchTerm"
+                       placeholder="Code or description, 2 characters or more"
+                       (keyup.enter)="runProductSearch()">
+
+                <button type="button"
+                        class="btn btn-secondary"
+                        [disabled]="productSearching || productSearchTerm.trim().length < 2"
+                        (click)="runProductSearch()">
+                  {{ productSearching ? 'Searching...' : 'Search' }}
+                </button>
+
+                <button type="button"
+                        class="btn btn-secondary"
+                        (click)="closeProductSearch()">
+                  Close
+                </button>
+              </div>
+
+              <button type="button"
+                      class="review-product-result"
+                      *ngFor="let product of productResults"
+                      (click)="pickProduct(product)">
+                <strong>{{ product.productCode }}</strong>
+                <span>{{ product.modelName }}</span>
+              </button>
+
+              <div class="review-sub"
+                   *ngIf="productSearched && productResults.length === 0">
+                No products found.
+              </div>
+            </div>
+          </div>
+
+          <div class="section-label review-edit-heading">Ship To</div>
+
+          <div class="ds-form-grid">
+            <div class="field">
+              <label>First Name</label>
+              <input type="text" [(ngModel)]="reviewEditShipTo.firstName">
+            </div>
+
+            <div class="field">
+              <label>Last Name</label>
+              <input type="text" [(ngModel)]="reviewEditShipTo.lastName">
+            </div>
+
+            <div class="field full-width">
+              <label>Address Line 1</label>
+              <input type="text" [(ngModel)]="reviewEditShipTo.line1">
+            </div>
+
+            <div class="field full-width">
+              <label>Address Line 2</label>
+              <input type="text" [(ngModel)]="reviewEditShipTo.line2">
+            </div>
+
+            <div class="field">
+              <label>City</label>
+              <input type="text" [(ngModel)]="reviewEditShipTo.city">
+            </div>
+
+            <div class="field">
+              <label>State</label>
+              <input type="text" [(ngModel)]="reviewEditShipTo.region">
+            </div>
+
+            <div class="field">
+              <label>Postal Code</label>
+              <input type="text" [(ngModel)]="reviewEditShipTo.postalCode">
+            </div>
+
+            <div class="field">
+              <label>Country</label>
+              <input type="text" [(ngModel)]="reviewEditShipTo.country">
+            </div>
+
+            <div class="field">
+              <label>Phone</label>
+              <input type="text" [(ngModel)]="reviewEditShipTo.phone">
+            </div>
+
+            <div class="field">
+              <label>Customer Email</label>
+              <input type="email" [(ngModel)]="reviewEditEmail">
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button"
+                    class="btn btn-secondary"
+                    [disabled]="reviewReleasing"
+                    (click)="cancelReviewEdit()">
+              Cancel
+            </button>
+
+            <button type="button"
+                    class="btn btn-primary"
+                    [disabled]="reviewReleasing"
+                    (click)="releaseReviewOrder()">
+              <i class="pi pi-check"></i>
+              {{ reviewReleasing ? 'Checking...' : 'Save and Release' }}
+            </button>
+          </div>
         </div>
 
         <pre class="review-raw" *ngIf="reviewRawVisible">{{ reviewRawText }}</pre>
@@ -1014,7 +1561,8 @@
         </button>
       </div>
 
-      <div class="address-mode-tabs">
+      <div class="address-mode-tabs"
+           *ngIf="!addressEditorIsConsumer">
         <button type="button"
                 [class.active]="addressEditorMode === 'saved'"
                 (click)="addressEditorMode = 'saved'">
@@ -1117,20 +1665,24 @@
 
           <div class="address-section-heading">
             <div>
-              <strong>Drop Ship Destination</strong>
+              <strong>
+                {{ addressEditorIsConsumer ? 'Ship To' : 'Drop Ship Destination' }}
+              </strong>
               <span>
                 Recipient details sent to fulfillment.
               </span>
             </div>
 
-            <span class="default-address-badge">
+            <span class="default-address-badge"
+                  *ngIf="!addressEditorIsConsumer">
               Drop Ship
             </span>
           </div>
 
           <div class="ds-form-grid">
 
-            <div class="field full-width">
+            <div class="field full-width"
+                 *ngIf="!addressEditorIsConsumer">
               <label>Company</label>
               <input type="text"
                      [(ngModel)]="dsAddress.companyName">
@@ -1198,7 +1750,8 @@
 
           </div>
 
-          <div class="fulfillment-preview">
+          <div class="fulfillment-preview"
+               *ngIf="!addressEditorIsConsumer">
             <span>Fulfillment Address2</span>
 
             <strong>
@@ -1234,6 +1787,79 @@
         </button>
 
       </div>
+    </div>
+  </div>
+
+  <!--------------------------------------------------------------------------------------------------------------------->
+  <!-- Remove Line Modal -->
+  <div class="modal-backdrop"
+       *ngIf="removeLineTarget as line"
+       (click)="closeRemoveLine()">
+
+    <div class="reject-modal"
+         (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <div>
+          <div class="eyebrow">Remove Line · Order {{ selectedOrder?.orderId }}</div>
+          <h2>{{ line.sku }}</h2>
+          <div class="subtitle">
+            {{ line.description }} · quantity {{ line.quantity }}
+          </div>
+        </div>
+
+        <button type="button"
+                class="modal-close"
+                (click)="closeRemoveLine()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="reject-warning">
+        <i class="pi pi-exclamation-triangle"></i>
+
+        <div>
+          <strong>This line will be taken off the order.</strong>
+          <span>
+            The line and the reason are written to the order audit history.
+          </span>
+        </div>
+      </div>
+
+      <div class="field reject-field">
+        <label for="removeLineReason">Reason for Removal</label>
+
+        <textarea id="removeLineReason"
+                  rows="3"
+                  maxlength="500"
+                  [(ngModel)]="removeLineReason"
+                  [class.invalid]="removeLineReasonError"
+                  placeholder="Enter the reason this line is being removed..."
+                  (input)="removeLineReasonError = false">
+        </textarea>
+
+        <div class="validation-error"
+             *ngIf="removeLineReasonError">
+          A reason is required.
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button"
+                class="btn btn-secondary"
+                (click)="closeRemoveLine()">
+          Cancel
+        </button>
+
+        <button type="button"
+                class="btn btn-danger"
+                [disabled]="savingLine"
+                (click)="confirmRemoveLine()">
+          <i class="pi pi-trash"></i>
+          {{ savingLine ? 'Removing...' : 'Remove Line' }}
+        </button>
+      </div>
+
     </div>
   </div>
 

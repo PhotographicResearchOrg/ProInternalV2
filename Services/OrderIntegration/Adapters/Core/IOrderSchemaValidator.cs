@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 
 
-namespace ProInternal.Services.OrderIntegration
+namespace ProInternal.Services.OrderIntegration.Adapters.Core
 {
     public interface IOrderSchemaValidator
     {

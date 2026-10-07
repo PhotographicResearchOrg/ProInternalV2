@@ -1,5 +1,6 @@
 ﻿using Json.Schema;
 using ProInternal.Models.OrderIntegration;
+using ProInternal.Services.OrderIntegration.Adapters.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;

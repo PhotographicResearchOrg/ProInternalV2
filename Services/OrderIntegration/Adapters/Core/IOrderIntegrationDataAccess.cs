@@ -1,6 +1,6 @@
 ﻿using ProInternal.Models.OrderIntegration;
 using ProInternal.Models.OrderIntegration.Shopify;
-namespace ProInternal.Services.OrderIntegration;
+namespace ProInternal.Services.OrderIntegration.Adapters.Core;
 
 public interface IOrderIntegrationDataAccess
 {

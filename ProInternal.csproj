@@ -247,13 +247,11 @@
   <ItemGroup>
     <Folder Include="ClientApp\src\app\prointernalengine\components\dashboards\BRM\" />
     <Folder Include="ClientApp\src\app\prointernalengine\components\dashboards\Marketing\" />
-    <Folder Include="ClientApp\src\app\prointernalengine\components\dashboards\Orders\" />
     <Folder Include="ClientApp\src\app\prointernalengine\components\instantrebate\rebate-setup\" />
     <Folder Include="ClientApp\src\app\prointernalengine\components\Vendor\" />
     <Folder Include="ClientApp\src\assets\NewFolder\" />
     <Folder Include="Adapters\" />
     <Folder Include="Schemas\Product\" />
-    <Folder Include="Services\OrderIntegration\Adapters\Inbound\EDI\" />
     <Folder Include="wwwroot\AutomationInvoice\" />
   </ItemGroup>
 
