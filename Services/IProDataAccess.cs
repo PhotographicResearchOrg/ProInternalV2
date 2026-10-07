@@ -88,6 +88,7 @@ GetSellThroughExportData(
         // Vendor card
         VendorCardDto? GetVendorCard(int vendorId);
         void ToggleVendorActive(int vendorId, AuditActor actor);
+        int CreateVendor(CreateVendorDto vendor, AuditActor actor);
 
         VendorTermsDto? GetVendorTerms(int vendorId);
         void UpsertVendorTerms(VendorTermsDto terms, AuditActor actor);

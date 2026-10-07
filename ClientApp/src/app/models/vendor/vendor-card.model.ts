@@ -22,6 +22,43 @@ export interface VendorTerms {
   countryOfOrigin?: string;
 }
 
+// POST api/VendorCard -- mirrors CreateVendorDto. Field set follows
+// Schemas/OrderIntegration/v1.0/vendors/vendor.schema.json; name, status
+// and currency are required, vendorId is auto-assigned when omitted.
+export type VendorStatus = 'ACTIVE' | 'INACTIVE';
+export type VendorSupplyModel = 'WAREHOUSE' | 'DIRECT_SHIP';
+export type VendorContactRole =
+  'SALES' | 'ORDERS' | 'ACCOUNTS_RECEIVABLE' | 'RETURNS' | 'EDI' | 'PROGRAMS' | 'PRODUCT' | 'EXECUTIVE' | 'OTHER';
+
+export interface CreateVendorRequest {
+  vendorId?: number | null;
+  name: string;
+  status: VendorStatus;
+  legalName?: string;
+  shortName?: string;
+  category?: string;
+  ourAccountNumber?: string;
+  websiteUrl?: string;
+  notes?: string;
+  managedBy?: string;
+  addressLine1?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+  phone?: string;
+  currency: string;
+  paymentTermsCode?: string;
+  creditLimit?: number | null;
+  minimumOrder?: number | null;
+  supplyModels?: VendorSupplyModel[];
+  contactRole?: VendorContactRole | null;
+  contactName?: string;
+  contactTitle?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+}
+
 export interface VendorStats {
   activeContracts: number;
   priceListCount: number;

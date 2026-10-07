@@ -288,6 +288,83 @@ namespace ProInternal.Services
             LogFieldChange(conn, vendorId, "Vendor", "Active", wasActive, !wasActive, actor);
         }
 
+        // Vendor, terms and the optional primary contact go in one
+        // transaction so a failure never leaves a half-created vendor.
+        // Returns the new VendorId, or -1 when the requested id is taken.
+        public int CreateVendor(CreateVendorDto vendor, AuditActor actor)
+        {
+            using var conn = GetConnection();
+            using var tx = conn.BeginTransaction();
+
+            var parameters = new DynamicParameters();
+            parameters.Add("@VendorId", vendor.VendorId);
+            parameters.Add("@Name", vendor.Name);
+            parameters.Add("@IsActive", vendor.Status == "ACTIVE");
+            parameters.Add("@LegalName", vendor.LegalName);
+            parameters.Add("@ShortName", vendor.ShortName);
+            parameters.Add("@Category", vendor.Category);
+            parameters.Add("@AccountNumber", vendor.OurAccountNumber);
+            parameters.Add("@RepName", vendor.ManagedBy);
+            parameters.Add("@Website", vendor.WebsiteUrl);
+            parameters.Add("@Notes", vendor.Notes);
+            parameters.Add("@Address", vendor.AddressLine1);
+            parameters.Add("@City", vendor.City);
+            parameters.Add("@State", vendor.Region);
+            parameters.Add("@Zip", vendor.PostalCode);
+            parameters.Add("@Country", vendor.HasAddress ? vendor.Country : null);
+            parameters.Add("@Phone", vendor.Phone);
+            parameters.Add("@CreatedBy", actor.ChangedBy);
+
+            var vendorId = conn.QuerySingle<int>("PIV2CreateVendor", parameters, tx, commandType: CommandType.StoredProcedure);
+            if (vendorId < 0)
+            {
+                tx.Rollback();
+                return -1;
+            }
+
+            var terms = new VendorTermsDto
+            {
+                VendorId = vendorId,
+                Currency = vendor.Currency,
+                PaymentTerms = vendor.PaymentTermsCode,
+                CreditLimit = vendor.CreditLimit,
+                MinimumOrder = vendor.MinimumOrder,
+                DropShipEnabled = vendor.SupplyModels?.Contains("DIRECT_SHIP") == true
+            };
+            conn.Execute("PIV2UpsertVendorTerms", terms, tx, commandType: CommandType.StoredProcedure);
+
+            if (vendor.HasContact)
+            {
+                var groupParams = new DynamicParameters();
+                groupParams.Add("@VendorId", vendorId);
+                groupParams.Add("@GroupName", HumanizeEnumValue(vendor.ContactRole!));
+                groupParams.Add("@SortOrder", 0);
+                var groupId = conn.QuerySingle<int>("PIV2AddVendorContactGroup", groupParams, tx, commandType: CommandType.StoredProcedure);
+
+                var contactParams = new DynamicParameters();
+                contactParams.Add("@VendorContactGroupId", groupId);
+                contactParams.Add("@Name", vendor.ContactName);
+                contactParams.Add("@Title", vendor.ContactTitle);
+                contactParams.Add("@Email", vendor.ContactEmail);
+                contactParams.Add("@Phone", vendor.ContactPhone);
+                contactParams.Add("@IsPrimary", true);
+                conn.Execute("PIV2AddVendorContact", contactParams, tx, commandType: CommandType.StoredProcedure);
+            }
+
+            tx.Commit();
+
+            LogFieldChange(conn, vendorId, "Vendor", "Created", null, vendor.Name, actor);
+
+            return vendorId;
+        }
+
+        // "ACCOUNTS_RECEIVABLE" -> "Accounts receivable"
+        private static string HumanizeEnumValue(string value)
+        {
+            var words = value.Replace('_', ' ').ToLowerInvariant();
+            return words.Length == 0 ? words : char.ToUpperInvariant(words[0]) + words.Substring(1);
+        }
+
         public VendorTermsDto? GetVendorTerms(int vendorId)
         {
             using var conn = GetConnection();
@@ -1513,8 +1590,9 @@ namespace ProInternal.Services
 
             command.Parameters.AddWithValue("@VendorId", vendorId);
 
-            connection.Open();
-            command.ExecuteNonQuery();
+            if(connection.State != ConnectionState.Open)
+				connection.Open();
+			command.ExecuteNonQuery();
         }
 
 

@@ -3,8 +3,13 @@ import { DataService } from 'src/app/services/data.service';
 import { Vendor } from 'src/app/models/accounts/vendor';
 import { MessageService } from 'primeng/api';
 import { Router } from '@angular/router';
+import { CreateVendorRequest, VendorContactRole } from 'src/app/models/vendor/vendor-card.model';
 
 type Visibility = 'all' | 'Yes' | 'No';
+
+// Values from Schemas/OrderIntegration/v1.0/vendors/vendor.enums.json
+const CONTACT_ROLES: VendorContactRole[] =
+  ['SALES', 'ORDERS', 'ACCOUNTS_RECEIVABLE', 'RETURNS', 'EDI', 'PROGRAMS', 'PRODUCT', 'EXECUTIVE', 'OTHER'];
 
 @Component({
   selector: 'app-vendor-grid',
@@ -29,6 +34,23 @@ export class VendorGridComponent implements OnInit {
 
   visibility: Visibility = 'all';
   exporting = false;
+
+  // ---- dialog state: New vendor ----
+  createDialogVisible = false;
+  creating = false;
+  newVendor: CreateVendorRequest = this.emptyVendor();
+  // field-level validation errors from the last failed save, keyed by
+  // lowercased API property name (e.g. "contactemail" -> message)
+  formErrors: { [field: string]: string } = {};
+
+  statusOptions = [
+    { label: 'Active', value: 'ACTIVE' },
+    { label: 'Inactive', value: 'INACTIVE' }
+  ];
+  contactRoleOptions = CONTACT_ROLES.map(r => ({
+    value: r,
+    label: r.charAt(0) + r.slice(1).toLowerCase().replace(/_/g, ' ')
+  }));
 
   // Same palette as the vendor card's brandColors
   brandColors = [
@@ -121,6 +143,56 @@ export class VendorGridComponent implements OnInit {
     table.filterGlobal(input, 'contains');
   }
 
+
+  // --- New vendor ---
+  private emptyVendor(): CreateVendorRequest {
+    return { name: '', status: 'ACTIVE', currency: 'USD', country: 'US', supplyModels: ['WAREHOUSE'], contactRole: null };
+  }
+
+  openCreateVendor(): void {
+    this.formErrors = {};
+    this.newVendor = this.emptyVendor();
+    this.createDialogVisible = true;
+  }
+
+  saveNewVendor(): void {
+    if (!this.newVendor.name?.trim() || !this.newVendor.currency?.trim() || this.creating) return;
+
+    this.creating = true;
+    this.dataService.createVendor(this.newVendor).subscribe({
+      next: res => {
+        this.creating = false;
+        this.createDialogVisible = false;
+        // open the new vendor's card to carry on filling it in
+        this.router.navigate(['/vendor-card'], { queryParams: { vendorId: res.vendorId } });
+      },
+      error: err => {
+        this.creating = false;
+        this.handleSaveError(err, 'Could not create vendor');
+      }
+    });
+  }
+
+  // ASP.NET ValidationProblemDetails: { errors: { Field: [msg, ...] } }
+  private handleSaveError(err: any, fallbackMsg: string): void {
+    const apiErrors = err?.error?.errors;
+    if (apiErrors && typeof apiErrors === 'object') {
+      const parsed: { [field: string]: string } = {};
+      for (const key of Object.keys(apiErrors)) {
+        const messages = apiErrors[key];
+        parsed[key.toLowerCase()] = Array.isArray(messages) ? messages[0] : String(messages);
+      }
+      this.formErrors = parsed;
+      this.messageService.add({ severity: 'warn', summary: 'Check the form', detail: 'Please fix the highlighted fields' });
+    } else {
+      this.formErrors = {};
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: fallbackMsg });
+    }
+  }
+
+  fieldError(field: string): string {
+    return this.formErrors[field.toLowerCase()] || '';
+  }
 
   exportVendors() {
     this.exporting = true;

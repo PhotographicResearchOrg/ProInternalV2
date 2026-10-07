@@ -53,7 +53,7 @@ import {
   VendorCard, VendorTerms, VendorContactGroupApi, VendorContactApi, VendorContractApi,
   VendorPriceListApi, VendorPolicies, VendorFreightPolicy, VendorShippingPolicy, VendorReturnPolicy,
   VendorRebateProgramApi, VendorCustomFieldApi, VendorCustomFieldDefinitionApi, VendorAuditLogEntryApi,
-  VendorFileApi, VendorFileCategory
+  VendorFileApi, VendorFileCategory, CreateVendorRequest
 } from 'src/app/models/vendor/vendor-card.model';
 
 @Injectable()
@@ -362,6 +362,9 @@ export class DataService {
     return this.api.post<void>(`API/Listings/vendors/${vendorId}/toggle-web`, {});
   }
   // Vendor card
+  createVendor(vendor: CreateVendorRequest): Observable<{ vendorId: number }> {
+    return this.api.post<{ vendorId: number }>(`API/VendorCard`, vendor);
+  }
   getVendorCard(vendorId: number): Observable<VendorCard> {
     return this.api.get<VendorCard>(`API/VendorCard/${vendorId}`);
   }

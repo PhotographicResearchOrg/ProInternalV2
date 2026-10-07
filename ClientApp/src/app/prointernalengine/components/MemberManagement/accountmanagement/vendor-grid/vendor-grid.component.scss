@@ -12,6 +12,7 @@
   --tealSoft: #dff1ef;
   --green: #166534;
   --amber: #a15c07;
+  --red: #b4231f;
   --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
   font-family: var(--sans);
@@ -128,6 +129,105 @@
   &:disabled {
     opacity: .6;
     cursor: default;
+  }
+
+  &.primary {
+    color: #fff;
+    background: var(--teal);
+    border-color: var(--teal);
+
+    &:hover:not(:disabled) {
+      background: #0b6a62;
+    }
+  }
+}
+
+/* ---- new vendor dialog (mirrors vendor-card dialogs) ---- */
+.dlg-section {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin: 18px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--borderSoft);
+
+  &:first-child {
+    margin-top: 0;
+  }
+
+  .opt {
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 4px;
+  }
+}
+
+.dlg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dlg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+
+  &.span2 {
+    grid-column: 1 / -1;
+  }
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sub);
+  }
+
+  input, textarea {
+    width: 100%;
+  }
+
+  .req {
+    color: var(--red);
+  }
+}
+
+:host ::ng-deep .dlg-field .p-dropdown {
+  width: 100%;
+}
+
+.dlg-hint {
+  color: var(--faint);
+  font-size: 11.5px;
+}
+
+.dlg-err {
+  color: var(--red);
+  font-size: 11.5px;
+}
+
+.dlg-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.dlg-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  label {
+    font-weight: 400;
+    color: var(--ink);
   }
 }
 

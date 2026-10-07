@@ -5,10 +5,12 @@ using ProInternal.Models.Vendor;
 using ProInternal.Services;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -44,6 +46,95 @@ namespace ProInternal.Controllers
         private AuditActor GetAuditActor()
         {
             return new AuditActor(GetChangedBy(), GetSessionId());
+        }
+
+        [HttpPost]
+        public IActionResult CreateVendor([FromBody] CreateVendorDto vendor)
+        {
+            if (!ValidateNewVendor(vendor)) return ValidationProblem(ModelState);
+
+            var id = _prodataAccess.CreateVendor(vendor, GetAuditActor());
+            if (id < 0)
+            {
+                ModelState.AddModelError(nameof(vendor.VendorId), $"Vendor number {vendor.VendorId} is already in use.");
+                return ValidationProblem(ModelState);
+            }
+            return Ok(new { vendorId = id });
+        }
+
+        // Trims/normalizes the DTO in place, then applies the rules from
+        // vendor.schema.json that data annotations can't express.
+        private bool ValidateNewVendor(CreateVendorDto v)
+        {
+            static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+            static string? Upper(string? s) => Clean(s)?.ToUpperInvariant();
+
+            v.Name = Clean(v.Name) ?? "";
+            v.Status = Upper(v.Status) ?? "";
+            v.LegalName = Clean(v.LegalName);
+            v.ShortName = Clean(v.ShortName);
+            v.Category = Upper(v.Category);
+            v.OurAccountNumber = Clean(v.OurAccountNumber);
+            v.WebsiteUrl = Clean(v.WebsiteUrl);
+            v.Notes = Clean(v.Notes);
+            v.ManagedBy = Clean(v.ManagedBy);
+            v.AddressLine1 = Clean(v.AddressLine1);
+            v.City = Clean(v.City);
+            v.Region = Clean(v.Region);
+            v.PostalCode = Clean(v.PostalCode);
+            v.Country = Upper(v.Country);
+            v.Phone = Clean(v.Phone);
+            v.Currency = Upper(v.Currency) ?? "";
+            v.PaymentTermsCode = Clean(v.PaymentTermsCode);
+            v.SupplyModels = v.SupplyModels?.Select(Upper).Where(s => s != null).Select(s => s!).Distinct().ToList();
+            v.ContactRole = Upper(v.ContactRole);
+            v.ContactName = Clean(v.ContactName);
+            v.ContactTitle = Clean(v.ContactTitle);
+            v.ContactEmail = Clean(v.ContactEmail);
+            v.ContactPhone = Clean(v.ContactPhone);
+
+            if (v.Name.Length == 0)
+                ModelState.AddModelError(nameof(v.Name), "Vendor name is required.");
+            if (!VendorSchemaEnums.VendorStatus.Contains(v.Status))
+                ModelState.AddModelError(nameof(v.Status), "Choose Active or Inactive.");
+            if (!Regex.IsMatch(v.Currency, "^[A-Z]{3}$"))
+                ModelState.AddModelError(nameof(v.Currency), "Use a 3-letter ISO 4217 code, e.g. USD.");
+            if (v.Category != null && !Regex.IsMatch(v.Category, "^[A-Z][A-Z0-9_]*$"))
+                ModelState.AddModelError(nameof(v.Category), "Use a category code: letters, digits and underscores, starting with a letter.");
+            if (v.WebsiteUrl != null &&
+                !(Uri.TryCreate(v.WebsiteUrl, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)))
+                ModelState.AddModelError(nameof(v.WebsiteUrl), "Enter a full URL, e.g. https://example.com.");
+
+            // An address, when given, needs line1, city and country.
+            if (v.HasAddress)
+            {
+                if (v.AddressLine1 == null)
+                    ModelState.AddModelError(nameof(v.AddressLine1), "Street is required when an address is entered.");
+                if (v.City == null)
+                    ModelState.AddModelError(nameof(v.City), "City is required when an address is entered.");
+                else if (Regex.IsMatch(v.City, @",\s*[A-Za-z]{2}\s*$"))
+                    ModelState.AddModelError(nameof(v.City), "Enter the state separately, not as \"City, ST\".");
+                if (v.Country == null || !Regex.IsMatch(v.Country, "^[A-Z]{2}$"))
+                    ModelState.AddModelError(nameof(v.Country), "Use a 2-letter country code, e.g. US.");
+            }
+
+            if (v.SupplyModels != null && v.SupplyModels.Any(m => !VendorSchemaEnums.SupplyModel.Contains(m)))
+                ModelState.AddModelError(nameof(v.SupplyModels), "Choose Warehouse and/or Direct ship.");
+
+            // A contact needs a role, a name, and an email or phone.
+            if (v.HasContact)
+            {
+                if (v.ContactRole == null || !VendorSchemaEnums.ContactRole.Contains(v.ContactRole))
+                    ModelState.AddModelError(nameof(v.ContactRole), "Choose the contact's role.");
+                if (v.ContactName == null)
+                    ModelState.AddModelError(nameof(v.ContactName), "Contact name is required.");
+                if (v.ContactEmail == null && v.ContactPhone == null)
+                    ModelState.AddModelError(nameof(v.ContactEmail), "Enter an email or a phone for the contact.");
+                if (v.ContactEmail != null && !new EmailAddressAttribute().IsValid(v.ContactEmail))
+                    ModelState.AddModelError(nameof(v.ContactEmail), "Enter a valid email address.");
+            }
+
+            return ModelState.IsValid;
         }
 
         [HttpGet("{vendorId}")]

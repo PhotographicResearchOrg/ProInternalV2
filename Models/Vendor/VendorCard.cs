@@ -18,6 +18,79 @@ namespace ProInternal.Models.Vendor
         public VendorStatsDto Stats { get; set; }
     }
 
+    // Vocabularies from Schemas/OrderIntegration/v1.0/vendors/vendor.enums.json
+    // that the create-vendor form uses.
+    public static class VendorSchemaEnums
+    {
+        public static readonly string[] VendorStatus = { "ACTIVE", "INACTIVE" };
+        public static readonly string[] SupplyModel = { "WAREHOUSE", "DIRECT_SHIP" };
+        public static readonly string[] ContactRole =
+            { "SALES", "ORDERS", "ACCOUNTS_RECEIVABLE", "RETURNS", "EDI", "PROGRAMS", "PRODUCT", "EXECUTIVE", "OTHER" };
+    }
+
+    // New vendor, shaped after the canonical vendor contract
+    // (vendor.schema.json). Required there: vendorId, vendor.name,
+    // vendor.status, terms.currency. VendorId is optional here -- the next
+    // free id is assigned when omitted. Flat rather than nested so validation
+    // errors key straight onto form fields. Lengths match the target columns
+    // (dbo.Vendor for name/address/phone/website, dbo.VendorProfile,
+    // dbo.VendorTerms, dbo.VendorCardContact).
+    public class CreateVendorDto
+    {
+        [Range(1, int.MaxValue)]
+        public int? VendorId { get; set; }
+
+        // ---- vendor ----
+        [Required, StringLength(200)]
+        public string Name { get; set; }
+
+        [Required]
+        public string Status { get; set; }
+
+        [StringLength(200)] public string? LegalName { get; set; }
+        [StringLength(100)] public string? ShortName { get; set; }
+        [StringLength(50)] public string? Category { get; set; }
+        [StringLength(50)] public string? OurAccountNumber { get; set; }
+        [StringLength(100)] public string? WebsiteUrl { get; set; }
+        [StringLength(2000)] public string? Notes { get; set; }
+
+        // audit.managedBy -- the PRO employee who owns the relationship
+        [StringLength(150)] public string? ManagedBy { get; set; }
+
+        // ---- MAIN address ----
+        [StringLength(100)] public string? AddressLine1 { get; set; }
+        [StringLength(50)] public string? City { get; set; }
+        [StringLength(50)] public string? Region { get; set; }
+        [StringLength(50)] public string? PostalCode { get; set; }
+        [StringLength(2)] public string? Country { get; set; }
+        [StringLength(50)] public string? Phone { get; set; }
+
+        // ---- terms ----
+        [Required]
+        public string Currency { get; set; }
+
+        [StringLength(100)] public string? PaymentTermsCode { get; set; }
+
+        [Range(0, 999999999999.99)] public decimal? CreditLimit { get; set; }
+        [Range(0, 999999999999.99)] public decimal? MinimumOrder { get; set; }
+
+        // ---- supply ----
+        public List<string>? SupplyModels { get; set; }
+
+        // ---- primary contact (optional; one role) ----
+        public string? ContactRole { get; set; }
+        [StringLength(150)] public string? ContactName { get; set; }
+        [StringLength(150)] public string? ContactTitle { get; set; }
+        [StringLength(200)] public string? ContactEmail { get; set; }
+        [StringLength(50)] public string? ContactPhone { get; set; }
+
+        public bool HasAddress =>
+            AddressLine1 != null || City != null || Region != null || PostalCode != null;
+
+        public bool HasContact =>
+            ContactRole != null || ContactName != null || ContactTitle != null || ContactEmail != null || ContactPhone != null;
+    }
+
     public class VendorStatsDto
     {
         public int ActiveContracts { get; set; }

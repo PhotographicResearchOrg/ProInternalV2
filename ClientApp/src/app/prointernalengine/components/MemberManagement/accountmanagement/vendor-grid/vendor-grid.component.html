@@ -13,6 +13,9 @@
       <button class="iconbtn" (click)="exportVendors()" [disabled]="exporting">
         <i [class]="exporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"></i> Export
       </button>
+      <button class="iconbtn primary" (click)="openCreateVendor()">
+        <i class="pi pi-plus"></i> New vendor
+      </button>
     </div>
 
     <div class="stripe">
@@ -113,3 +116,167 @@
     </p-table>
   </section>
 </div>
+
+<!-- New vendor. Fields follow Schemas/OrderIntegration/v1.0/vendors/vendor.schema.json:
+     name, status and currency are required; everything else is optional. -->
+<p-dialog header="New vendor" [(visible)]="createDialogVisible" [modal]="true" [style]="{width: '640px'}"
+          [breakpoints]="{'700px': '95vw'}" [draggable]="false" [dismissableMask]="false">
+
+  <div class="dlg-section">Vendor</div>
+  <div class="dlg-grid">
+    <div class="dlg-field span2">
+      <label>Vendor name <span class="req">*</span></label>
+      <input pInputText [(ngModel)]="newVendor.name" maxlength="200" [class.p-invalid]="fieldError('name')" />
+      <small class="dlg-err" *ngIf="fieldError('name')">{{ fieldError('name') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Status <span class="req">*</span></label>
+      <p-selectButton [options]="statusOptions" [(ngModel)]="newVendor.status" optionLabel="label" optionValue="value" [allowEmpty]="false"></p-selectButton>
+      <small class="dlg-err" *ngIf="fieldError('status')">{{ fieldError('status') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Vendor number</label>
+      <input pInputText type="number" min="1" [(ngModel)]="newVendor.vendorId" placeholder="Auto-assign" [class.p-invalid]="fieldError('vendorid')" />
+      <small class="dlg-hint" *ngIf="!fieldError('vendorid')">Leave blank for the next free number, or match the Computyme vendor number.</small>
+      <small class="dlg-err" *ngIf="fieldError('vendorid')">{{ fieldError('vendorid') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Legal name</label>
+      <input pInputText [(ngModel)]="newVendor.legalName" maxlength="200" placeholder="If different (1099s, remittance)" [class.p-invalid]="fieldError('legalname')" />
+      <small class="dlg-err" *ngIf="fieldError('legalname')">{{ fieldError('legalname') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Short name</label>
+      <input pInputText [(ngModel)]="newVendor.shortName" maxlength="100" placeholder="Search key" [class.p-invalid]="fieldError('shortname')" />
+      <small class="dlg-err" *ngIf="fieldError('shortname')">{{ fieldError('shortname') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Our account number</label>
+      <input pInputText [(ngModel)]="newVendor.ourAccountNumber" maxlength="50" placeholder="PRO's account at this vendor" [class.p-invalid]="fieldError('ouraccountnumber')" />
+      <small class="dlg-err" *ngIf="fieldError('ouraccountnumber')">{{ fieldError('ouraccountnumber') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Category code</label>
+      <input pInputText [(ngModel)]="newVendor.category" maxlength="50" placeholder="e.g. CAMERA_ACCESSORIES" [class.p-invalid]="fieldError('category')" />
+      <small class="dlg-err" *ngIf="fieldError('category')">{{ fieldError('category') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Website</label>
+      <input pInputText [(ngModel)]="newVendor.websiteUrl" maxlength="100" placeholder="https://" [class.p-invalid]="fieldError('websiteurl')" />
+      <small class="dlg-err" *ngIf="fieldError('websiteurl')">{{ fieldError('websiteurl') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Relationship manager</label>
+      <input pInputText [(ngModel)]="newVendor.managedBy" maxlength="150" placeholder="PRO employee" [class.p-invalid]="fieldError('managedby')" />
+      <small class="dlg-err" *ngIf="fieldError('managedby')">{{ fieldError('managedby') }}</small>
+    </div>
+    <div class="dlg-field span2">
+      <label>Notes</label>
+      <textarea pInputTextarea rows="2" [(ngModel)]="newVendor.notes" maxlength="2000" [class.p-invalid]="fieldError('notes')"></textarea>
+      <small class="dlg-err" *ngIf="fieldError('notes')">{{ fieldError('notes') }}</small>
+    </div>
+  </div>
+
+  <div class="dlg-section">Main address</div>
+  <div class="dlg-grid">
+    <div class="dlg-field span2">
+      <label>Street</label>
+      <input pInputText [(ngModel)]="newVendor.addressLine1" maxlength="100" [class.p-invalid]="fieldError('addressline1')" />
+      <small class="dlg-err" *ngIf="fieldError('addressline1')">{{ fieldError('addressline1') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>City</label>
+      <input pInputText [(ngModel)]="newVendor.city" maxlength="50" [class.p-invalid]="fieldError('city')" />
+      <small class="dlg-err" *ngIf="fieldError('city')">{{ fieldError('city') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>State / region</label>
+      <input pInputText [(ngModel)]="newVendor.region" maxlength="50" [class.p-invalid]="fieldError('region')" />
+      <small class="dlg-err" *ngIf="fieldError('region')">{{ fieldError('region') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Postal code</label>
+      <input pInputText [(ngModel)]="newVendor.postalCode" maxlength="50" [class.p-invalid]="fieldError('postalcode')" />
+      <small class="dlg-err" *ngIf="fieldError('postalcode')">{{ fieldError('postalcode') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Country</label>
+      <input pInputText [(ngModel)]="newVendor.country" maxlength="2" placeholder="US" [class.p-invalid]="fieldError('country')" />
+      <small class="dlg-err" *ngIf="fieldError('country')">{{ fieldError('country') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Main phone</label>
+      <input pInputText [(ngModel)]="newVendor.phone" maxlength="50" [class.p-invalid]="fieldError('phone')" />
+      <small class="dlg-err" *ngIf="fieldError('phone')">{{ fieldError('phone') }}</small>
+    </div>
+  </div>
+
+  <div class="dlg-section">Terms &amp; supply</div>
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Currency <span class="req">*</span></label>
+      <input pInputText [(ngModel)]="newVendor.currency" maxlength="3" placeholder="USD" [class.p-invalid]="fieldError('currency')" />
+      <small class="dlg-err" *ngIf="fieldError('currency')">{{ fieldError('currency') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Payment terms</label>
+      <input pInputText [(ngModel)]="newVendor.paymentTermsCode" maxlength="100" placeholder="2%10 NET30" [class.p-invalid]="fieldError('paymenttermscode')" />
+      <small class="dlg-err" *ngIf="fieldError('paymenttermscode')">{{ fieldError('paymenttermscode') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Credit limit</label>
+      <input pInputText type="number" min="0" [(ngModel)]="newVendor.creditLimit" [class.p-invalid]="fieldError('creditlimit')" />
+      <small class="dlg-err" *ngIf="fieldError('creditlimit')">{{ fieldError('creditlimit') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Minimum order</label>
+      <input pInputText type="number" min="0" [(ngModel)]="newVendor.minimumOrder" [class.p-invalid]="fieldError('minimumorder')" />
+      <small class="dlg-err" *ngIf="fieldError('minimumorder')">{{ fieldError('minimumorder') }}</small>
+    </div>
+    <div class="dlg-field span2">
+      <label>Supply model</label>
+      <div class="dlg-checks">
+        <span class="dlg-check"><p-checkbox name="supply" value="WAREHOUSE" [(ngModel)]="newVendor.supplyModels" inputId="supplyWh"></p-checkbox><label for="supplyWh">Warehouse — ships to a PRO warehouse</label></span>
+        <span class="dlg-check"><p-checkbox name="supply" value="DIRECT_SHIP" [(ngModel)]="newVendor.supplyModels" inputId="supplyDs"></p-checkbox><label for="supplyDs">Direct ship — ships to the retailer</label></span>
+      </div>
+      <small class="dlg-err" *ngIf="fieldError('supplymodels')">{{ fieldError('supplymodels') }}</small>
+    </div>
+  </div>
+
+  <div class="dlg-section">Primary contact <span class="opt">optional</span></div>
+  <div class="dlg-grid">
+    <div class="dlg-field">
+      <label>Role</label>
+      <p-dropdown [options]="contactRoleOptions" [(ngModel)]="newVendor.contactRole" optionLabel="label" optionValue="value"
+                  placeholder="Select a role" [showClear]="true" appendTo="body"
+                  [class.p-invalid]="fieldError('contactrole')"></p-dropdown>
+      <small class="dlg-err" *ngIf="fieldError('contactrole')">{{ fieldError('contactrole') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Name</label>
+      <input pInputText [(ngModel)]="newVendor.contactName" maxlength="150" [class.p-invalid]="fieldError('contactname')" />
+      <small class="dlg-err" *ngIf="fieldError('contactname')">{{ fieldError('contactname') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Title</label>
+      <input pInputText [(ngModel)]="newVendor.contactTitle" maxlength="150" [class.p-invalid]="fieldError('contacttitle')" />
+      <small class="dlg-err" *ngIf="fieldError('contacttitle')">{{ fieldError('contacttitle') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Email</label>
+      <input pInputText type="email" [(ngModel)]="newVendor.contactEmail" maxlength="200" [class.p-invalid]="fieldError('contactemail')" />
+      <small class="dlg-err" *ngIf="fieldError('contactemail')">{{ fieldError('contactemail') }}</small>
+    </div>
+    <div class="dlg-field">
+      <label>Phone</label>
+      <input pInputText [(ngModel)]="newVendor.contactPhone" maxlength="50" [class.p-invalid]="fieldError('contactphone')" />
+      <small class="dlg-err" *ngIf="fieldError('contactphone')">{{ fieldError('contactphone') }}</small>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="createDialogVisible = false"></button>
+    <button pButton label="Create vendor" [loading]="creating"
+            [disabled]="!newVendor.name.trim() || !newVendor.currency.trim()" (click)="saveNewVendor()"></button>
+  </ng-template>
+</p-dialog>
