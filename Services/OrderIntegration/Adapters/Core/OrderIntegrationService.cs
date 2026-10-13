@@ -4,6 +4,9 @@ using ProInternal.Services.OrderIntegration.Adapters.Inbound;
 using ProInternal.Services.OrderIntegration.Adapters.Inbound.Edi;
 using ProInternal.Services.OrderIntegration.Adapters.Inbound.Pos;
 using ProInternal.Services.OrderIntegration.Adapters.Outbound.Computyme;
+using ProInternal.Services.OrderIntegration.Adapters.Outbound.Delivery;
+using ProInternal.Services.OrderIntegration.Adapters.Outbound.VendorDirect;
+using ProInternal.Services.OrderIntegration.Adapters.Outbox;
 using ProInternal.Services.OrderIntegration.Adapters.Core;
 using System.Data.Common;
 using System.Security.Cryptography;
@@ -38,6 +41,10 @@ public sealed class OrderIntegrationService
     private readonly IComputymeOrderAdapter  _computymeAdapter;
     private readonly ILogger<OrderIntegrationService>  _logger;
     private readonly string _computymeOutputPath;
+    private readonly IOrderOutboxDataAccess _outbox;
+    private readonly IVendorDirectDataAccess? _vendorDirectOverride;
+    private readonly ProInternal.Helpers.AwsSecretHelper? _secretHelper;
+    private IVendorDirectDataAccess? _vendorDirect;
 
     /* Inbound order files */
     private readonly IOrderInboxDataAccess _inbox;
@@ -49,15 +56,21 @@ public sealed class OrderIntegrationService
         IOrderIntegrationDataAccess dataAccess,
         IOrderSchemaValidator schemaValidator,
         IComputymeOrderAdapter computymeAdapter,
+        IOrderOutboxDataAccess outbox,
         IOrderInboxDataAccess inbox,
         IPosOrderAdapter posAdapter,
         IEdiPurchaseOrderAdapter ediAdapter,
         IConfiguration configuration,
-        ILogger<OrderIntegrationService> logger)
+        ILogger<OrderIntegrationService> logger,
+        ProInternal.Helpers.AwsSecretHelper? secretHelper = null,
+        IVendorDirectDataAccess? vendorDirect = null)
     {
+        _secretHelper = secretHelper;
+        _vendorDirectOverride = vendorDirect;
         _dataAccess = dataAccess;
         _schemaValidator = schemaValidator;
         _computymeAdapter = computymeAdapter;
+        _outbox = outbox;
         _inbox = inbox;
         _posAdapter = posAdapter;
         _ediAdapter = ediAdapter;
@@ -88,6 +101,7 @@ public sealed class OrderIntegrationService
 
         var errors = new Dictionary<string, List<string>>(  StringComparer.OrdinalIgnoreCase);
         var records =new List<OrderExportRecord>();
+        var directOnly = 0;
         foreach (var orderId in orderIds.Distinct())
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -142,6 +156,21 @@ public sealed class OrderIntegrationService
                 continue;
             }
 
+            // Computyme gets the warehouse and drop-ship lines only.
+            order = WithoutVendorDirect(order);
+
+            if (order is null)
+            {
+                // Nothing for Computyme: the lines ship direct or were already sent.
+                directOnly++;
+
+                _logger.LogInformation(
+                    "Order {OrderId} has nothing left to send to Computyme and was left out of the file.",
+                    orderId);
+
+                continue;
+            }
+
             var canonicalJson =
                 JsonSerializer.Serialize(order,IntegrationJsonOptions);
 
@@ -191,7 +220,9 @@ public sealed class OrderIntegrationService
         {
             return new OrderExportResult(
                 false,
-                "The Computyme file was not generated.",
+                directOnly > 0 && errors.Count == 0
+                    ? "The selected orders have nothing left to send to Computyme."
+                    : "The Computyme file was not generated.",
                 batchId,
                 FileName: null,
                 ProcessedCount: 0,
@@ -363,6 +394,638 @@ public sealed class OrderIntegrationService
             AdapterOutput: null,
             ExportStatus: "FAILED",
             ErrorsJson: JsonSerializer.Serialize(errors,IntegrationJsonOptions));
+    }
+
+    /* ---- one side of an order ---- */
+
+    /*
+     * The part of an order Computyme fulfills: every line that is not in a
+     * direct vendor ship group and has not been sent yet. Returns the order
+     * untouched when that is all of it, and null when nothing is left.
+     */
+    private static CanonicalOrder? WithoutVendorDirect(CanonicalOrder order)
+    {
+        var vendorGroupIds = order.Fulfillment.FulfillmentGroups
+            .Where(group => group.FulfillmentType == FulfillmentType.VENDOR_DIRECT)
+            .Select(group => group.GroupId)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var items = order.Items
+            .Where(item =>
+                (item.FulfillmentGroupId is null ||
+                 !vendorGroupIds.Contains(item.FulfillmentGroupId)) &&
+                !AlreadySent(item))
+            .ToList();
+
+        if (items.Count == order.Items.Count)
+            return order;
+
+        return items.Count == 0
+            ? null
+            : BuildPart(order, items, keepShipping: true);
+    }
+
+    /* One vendor's lines that have not been sent yet. Null when none are left. */
+    private static CanonicalOrder? VendorDirectPart(CanonicalOrder order, string groupId)
+    {
+        var items = order.Items
+            .Where(item => item.FulfillmentGroupId == groupId && !AlreadySent(item))
+            .ToList();
+
+        return items.Count == 0
+            ? null
+            : BuildPart(order, items, keepShipping: false);
+    }
+
+    /* The same order, cut down to the given lines, with totals for those lines. */
+    private static CanonicalOrder BuildPart(
+        CanonicalOrder order,
+        List<CanonicalOrderItem> items,
+        bool keepShipping)
+    {
+        var currency = order.Order.Currency;
+        var subtotal = items.Sum(item => MoneyAmount(item.LineTotal));
+        var discounts = items.SelectMany(item => item.LineDiscounts).Sum(discount => MoneyAmount(discount.Amount));
+        var shipping = keepShipping ? MoneyAmount(order.Pricing.ShippingTotal) : 0m;
+
+        return new CanonicalOrder
+        {
+            SchemaVersion = order.SchemaVersion,
+            Metadata = order.Metadata,
+            Source = order.Source,
+            Customer = order.Customer,
+            Addresses = order.Addresses,
+            Order = order.Order,
+
+            /* The order's shipping charge stays with the warehouse side. */
+            Pricing = new OrderPricing
+            {
+                Subtotal = ToMoney(subtotal, currency),
+                DiscountTotal = ToMoney(discounts, currency),
+                ShippingTotal = ToMoney(shipping, currency),
+                TaxTotal = keepShipping ? order.Pricing.TaxTotal : null,
+                GrandTotal = ToMoney(subtotal + shipping, currency),
+                OrderDiscounts = keepShipping ? order.Pricing.OrderDiscounts : new List<LineDiscount>()
+            },
+
+            Items = items,
+
+            Fulfillment = new Fulfillment
+            {
+                FulfillmentGroups = order.Fulfillment.FulfillmentGroups
+                    .Where(group => items.Any(item => item.FulfillmentGroupId == group.GroupId))
+                    .ToList()
+            },
+
+            Payments = order.Payments,
+            Workflow = order.Workflow,
+            References = order.References,
+            Extensions = order.Extensions,
+            Audit = order.Audit
+        };
+    }
+
+    /* Item status 5: the line already went out. */
+    private static bool AlreadySent(CanonicalOrderItem item)
+    {
+        return item.References is not null &&
+               item.References.TryGetValue("proOrderItemStatusId", out var status) &&
+               status == "5";
+    }
+
+    private static decimal MoneyAmount(Money? money)
+    {
+        return money is null
+            ? 0m
+            : decimal.Parse(money.Amount, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static Money ToMoney(decimal amount, string currency)
+    {
+        return new Money
+        {
+            Amount = amount.ToString("0.00##", System.Globalization.CultureInfo.InvariantCulture),
+            Currency = currency
+        };
+    }
+
+    /* ==================================================================
+       Orders going out to direct ship vendors
+
+       For each selected order, each vendor's unsent lines are sent to
+       that vendor by the vendor's own method:
+
+         EDI     one file per order, written to the vendor's folder
+         EMAIL   one file holding every order, emailed
+         FTP     that same file, uploaded
+         SFTP    that same file, uploaded (not installed yet)
+
+       Every send is saved to the outbox before it is delivered, and the
+       lines are marked sent only after delivery succeeds. One order or
+       one vendor failing does not stop the others.
+
+       Settings:
+         Vendor table, Dvs columns          per-vendor method and cost
+         OrderIntegration:VendorDirect      BillTo (Name, Address, City,
+                                            State, Zip), EmailFrom
+       ================================================================== */
+
+    private const string VendorDestinationPrefix = "VENDOR-";
+    private const string VendorEmailSubject = "PRO Group. DROP SHIP Purchase Order";
+
+    private sealed record VendorOrderPart(int OrderId, CanonicalOrder Order, string CanonicalJson);
+
+    public async Task<OrderExportResult> ExportToVendorsAsync(
+        IReadOnlyCollection<string> orderIds,
+        string? generatedBy,
+        CancellationToken cancellationToken,
+        string actionSource = "Order Toolbench",
+        IReadOnlySet<string>? onlyParts = null)
+    {
+        if (orderIds.Count == 0)
+        {
+            throw new ArgumentException("At least one order ID is required.", nameof(orderIds));
+        }
+
+        var errors = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var partsByVendor = new Dictionary<string, List<VendorOrderPart>>(StringComparer.Ordinal);
+
+        /* 1. Each order's unsent lines, grouped by vendor. */
+        foreach (var orderId in orderIds.Distinct())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!int.TryParse(orderId, out var numericOrderId))
+            {
+                AddError(errors, orderId, "A numeric OrderId is required.");
+                continue;
+            }
+
+            CanonicalOrder? order;
+
+            try
+            {
+                order = _dataAccess.GetCanonicalOrder(orderId);
+            }
+            catch (Exception ex)
+            {
+                AddError(errors, orderId, ex.Message);
+                continue;
+            }
+
+            if (order is null)
+            {
+                AddError(errors, orderId, "The order was not found.");
+                continue;
+            }
+
+            var found = 0;
+
+            foreach (var group in order.Fulfillment.FulfillmentGroups
+                         .Where(group => group.FulfillmentType == FulfillmentType.VENDOR_DIRECT))
+            {
+                /* Only the vendors that were picked, when some were. */
+                if (onlyParts is not null &&
+                    !onlyParts.Contains(VendorPartKey(orderId, group.VendorId)))
+                {
+                    found++;
+                    continue;
+                }
+
+                var part = VendorDirectPart(order, group.GroupId);
+
+                if (part is null)
+                    continue;
+
+                found++;
+
+                var validation = _schemaValidator.Validate(part);
+
+                if (!validation.IsValid)
+                {
+                    foreach (var message in validation.Errors)
+                        AddError(errors, orderId, message);
+
+                    continue;
+                }
+
+                var vendorId = group.VendorId ?? string.Empty;
+
+                if (!partsByVendor.TryGetValue(vendorId, out var vendorParts))
+                {
+                    vendorParts = new List<VendorOrderPart>();
+                    partsByVendor[vendorId] = vendorParts;
+                }
+
+                vendorParts.Add(new VendorOrderPart(
+                    numericOrderId,
+                    part,
+                    JsonSerializer.Serialize(part, IntegrationJsonOptions)));
+            }
+
+            if (found == 0)
+            {
+                AddError(errors, orderId, "The order has no direct vendor ship lines left to send.");
+            }
+        }
+
+        var sent = 0;
+        var lastBatchId = Guid.Empty;
+        string? lastFileName = null;
+
+        if (partsByVendor.Count > 0)
+        {
+            var billTo = ReadVendorBillTo();
+            var builtAt = DateTime.Now;
+
+            /* 2. One vendor at a time. */
+            foreach (var (vendorId, vendorParts) in partsByVendor)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var vendor = int.TryParse(vendorId, out var numericVendorId)
+                    ? VendorDirect.GetVendorDirectSettings(numericVendorId)
+                    : null;
+
+                if (vendor is null || !vendor.Enabled || string.IsNullOrWhiteSpace(vendor.Method))
+                {
+                    foreach (var part in vendorParts)
+                    {
+                        AddError(errors, part.OrderId.ToString(),
+                            $"Vendor {vendor?.Name ?? vendorId} is not set up for direct vendor ship.");
+                    }
+
+                    continue;
+                }
+
+                /* Build every order first. One that cannot be built is left out. */
+                var ready = new List<(VendorOrderPart Part, string Rows)>();
+
+                foreach (var part in vendorParts)
+                {
+                    try
+                    {
+                        ready.Add((part, VendorDirectOrderAdapter.StandardRows(part.Order, vendor, billTo, builtAt)));
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        AddError(errors, part.OrderId.ToString(), ex.Message);
+                    }
+                }
+
+                if (ready.Count == 0)
+                    continue;
+
+                var destination = VendorDestinationPrefix + vendor.VendorId;
+                var method = vendor.Method.Trim().ToUpperInvariant();
+                var standardFileName = $"{builtAt:yyyyMMdd.HHmmss}.csv";
+                var delivered = new List<(VendorOrderPart Part, string Rows)>();
+
+                if (vendor.IsEdi)
+                {
+                    /* One file per order, into the pickup folder. */
+                    foreach (var entry in ready)
+                    {
+                        var fileName = $"{vendor.VendorId}_{entry.Part.OrderId}.csv";
+                        var content = VendorDirectOrderAdapter.EdiFile(entry.Part.Order, vendor, billTo, builtAt);
+
+                        var batchId = await SendVendorFileAsync(
+                            destination,
+                            fileName,
+                            vendor.Destination ?? string.Empty,
+                            content,
+                            [new OrderExportRecord(entry.Part.OrderId, entry.Part.CanonicalJson, content, "GENERATED", null)],
+                            bytes => FileDelivery.WriteToFolderAsync(vendor.Destination, fileName, bytes, cancellationToken),
+                            generatedBy,
+                            actionSource,
+                            errors,
+                            cancellationToken);
+
+                        if (batchId is null)
+                            continue;
+
+                        delivered.Add(entry);
+                        lastBatchId = batchId.Value;
+                        lastFileName = fileName;
+                    }
+                }
+                else
+                {
+                    /* One file holding every order for this vendor. */
+                    var content =
+                        VendorDirectOrderAdapter.StandardHeader + "\r\n" +
+                        string.Concat(ready.Select(entry => entry.Rows));
+
+                    Func<byte[], Task> deliver = method switch
+                    {
+                        "EMAIL" => bytes => FileDelivery.SendEmailAsync(
+                            _configuration, vendor.EmailTo, vendor.EmailCc,
+                            VendorEmailSubject, VendorEmailBody(standardFileName),
+                            standardFileName, bytes, cancellationToken),
+
+                        "FTP" => bytes => FileDelivery.UploadFtpAsync(
+                            vendor.Destination, vendor.Password, standardFileName, bytes, cancellationToken),
+
+                        "SFTP" => bytes => FileDelivery.UploadSftpAsync(
+                            vendor.Destination, vendor.Password, standardFileName, bytes, cancellationToken),
+
+                        _ => _ => throw new InvalidOperationException(
+                            $"Vendor {vendor.Name} has an unknown delivery method '{vendor.Method}'.")
+                    };
+
+                    var batchId = await SendVendorFileAsync(
+                        destination,
+                        standardFileName,
+                        (method == "EMAIL" ? vendor.EmailTo : vendor.Destination) ?? string.Empty,
+                        content,
+                        ready
+                            .Select(entry => new OrderExportRecord(
+                                entry.Part.OrderId, entry.Part.CanonicalJson, entry.Rows, "GENERATED", null))
+                            .ToList(),
+                        deliver,
+                        generatedBy,
+                        actionSource,
+                        errors,
+                        cancellationToken);
+
+                    if (batchId is not null)
+                    {
+                        delivered.AddRange(ready);
+                        lastBatchId = batchId.Value;
+                        lastFileName = standardFileName;
+                    }
+                }
+
+                sent += delivered.Count;
+
+                /*
+                 * A vendor that does not get the file by email: the people
+                 * listed still get a copy, so they can see what went out.
+                 * A copy that fails does not undo the send.
+                 */
+                if (delivered.Count > 0 &&
+                    method != "EMAIL" &&
+                    (!string.IsNullOrWhiteSpace(vendor.EmailTo) || !string.IsNullOrWhiteSpace(vendor.EmailCc)))
+                {
+                    try
+                    {
+                        var copy =
+                            VendorDirectOrderAdapter.StandardHeader + "\r\n" +
+                            string.Concat(delivered.Select(entry => entry.Rows));
+
+                        await FileDelivery.SendEmailAsync(
+                            _configuration, vendor.EmailTo, vendor.EmailCc,
+                            VendorEmailSubject, VendorEmailBody(standardFileName),
+                            standardFileName, new UTF8Encoding(false).GetBytes(copy), cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "The orders for {Destination} were sent, but the email copy could not be.",
+                            destination);
+                    }
+                }
+            }
+        }
+
+        var failed = errors.Count;
+
+        return new OrderExportResult(
+            sent > 0,
+            sent == 0
+                ? "Nothing was sent to a vendor."
+                : failed == 0
+                    ? $"{sent} order(s) sent to the vendor."
+                    : $"{sent} order(s) sent to the vendor. {failed} could not be sent.",
+            lastBatchId,
+            lastFileName,
+            sent,
+            errors);
+    }
+
+    /*
+     * Saves the file to the outbox, delivers it, and only then marks its
+     * lines sent. Returns the batch id, or null when delivery failed (the
+     * outbox row is marked FAILED and the lines stay open).
+     */
+    private async Task<Guid?> SendVendorFileAsync(
+        string destination,
+        string fileName,
+        string outputPath,
+        string content,
+        IReadOnlyList<OrderExportRecord> records,
+        Func<byte[], Task> deliver,
+        string? generatedBy,
+        string actionSource,
+        Dictionary<string, List<string>> errors,
+        CancellationToken cancellationToken)
+    {
+        var batchId = Guid.NewGuid();
+        var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(content);
+
+        await _dataAccess.SaveExportAsync(
+            new OrderExportBatch(
+                batchId,
+                destination,
+                fileName,
+                outputPath,
+                ExportStatus: "GENERATED",
+                generatedBy,
+                FileContent: content,
+                FileHash: Convert.ToHexString(SHA256.HashData(bytes)),
+                ErrorsJson: null,
+                Orders: records),
+            cancellationToken);
+
+        try
+        {
+            await deliver(bytes);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "File {File} for {Destination} could not be delivered.", fileName, destination);
+
+            var message = $"The file for {destination} could not be delivered: {ex.Message}";
+
+            await _dataAccess.SetExportStatusAsync(
+                batchId,
+                "FAILED",
+                JsonSerializer.Serialize(
+                    new Dictionary<string, List<string>> { ["FILE"] = [message] },
+                    IntegrationJsonOptions),
+                cancellationToken);
+
+            foreach (var record in records)
+                AddError(errors, record.OrderId.ToString(), message);
+
+            return null;
+        }
+
+        await _dataAccess.SetExportStatusAsync(batchId, "WRITTEN", errorsJson: null, cancellationToken);
+        await _outbox.MarkSentAsync(batchId, generatedBy, actionSource, cancellationToken);
+
+        return batchId;
+    }
+
+    /*
+     * PRO's bill-to on every vendor file. These are today's values, exactly
+     * as the legacy file has them (the space after "Rd." included). Set
+     * OrderIntegration:VendorDirect:BillTo in appsettings only to change them.
+     */
+    private VendorBillTo ReadVendorBillTo()
+    {
+        var section = _configuration.GetSection("OrderIntegration:VendorDirect:BillTo");
+
+        return new VendorBillTo(
+            section["Name"] ?? "Photographic Research Org Inc.",
+            section["Address"] ?? "240 Long Hill Cross Rd. ",
+            section["City"] ?? "Shelton",
+            section["State"] ?? "CT",
+            section["Zip"] ?? "06484");
+    }
+
+    /* Created on first use, so nothing has to be registered for it. */
+    private IVendorDirectDataAccess VendorDirect =>
+        _vendorDirect ??= _vendorDirectOverride
+            ?? new VendorDirectDataAccess(
+                _configuration,
+                _secretHelper ?? throw new InvalidOperationException(
+                    "Direct vendor ship needs AwsSecretHelper, and it was not provided to OrderIntegrationService."));
+
+    /* "orderId|vendorId": one vendor's side of one order. */
+    public static string VendorPartKey(string? orderId, string? vendorId)
+    {
+        return $"{orderId?.Trim()}|{vendorId?.Trim()}";
+    }
+
+    /*
+     * Sends a clearly marked test file the way the vendor's orders go:
+     * by email, or uploaded by FTP. An EDI vendor's test is emailed to
+     * the people listed and never written to the pickup folder, where
+     * it would be read as a real order.
+     */
+    public async Task<VendorDirectResult> SendVendorTestAsync(
+        int vendorId,
+        CancellationToken cancellationToken)
+    {
+        var vendor = VendorDirect.GetVendorDirectSettings(vendorId);
+
+        if (vendor is null)
+            return new VendorDirectResult(false, "The vendor was not found.");
+
+        if (string.IsNullOrWhiteSpace(vendor.Method))
+            return new VendorDirectResult(false, "Choose a delivery method and save before sending a test.");
+
+        var builtAt = DateTime.Now;
+        var fileName = $"TEST_{builtAt:yyyyMMdd.HHmmss}.csv";
+
+        var content =
+            VendorDirectOrderAdapter.StandardHeader + "\r\n" +
+            "TEST,PRO TEST FILE - NOT AN ORDER - PLEASE IGNORE" +
+            new string(',', VendorDirectOrderAdapter.StandardHeader.Count(character => character == ',') - 1) +
+            "\r\n";
+
+        var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(content);
+        var method = vendor.Method.Trim().ToUpperInvariant();
+
+        try
+        {
+            switch (method)
+            {
+                case "FTP":
+                    await FileDelivery.UploadFtpAsync(
+                        vendor.Destination, vendor.Password, fileName, bytes, cancellationToken);
+
+                    return new VendorDirectResult(true, $"Test file {fileName} was uploaded to {vendor.Name}.");
+
+                case "SFTP":
+                    await FileDelivery.UploadSftpAsync(
+                        vendor.Destination, vendor.Password, fileName, bytes, cancellationToken);
+
+                    return new VendorDirectResult(true, $"Test file {fileName} was uploaded to {vendor.Name}.");
+
+                case "EMAIL":
+                case "EDI":
+                    await FileDelivery.SendEmailAsync(
+                        _configuration, vendor.EmailTo, vendor.EmailCc,
+                        "TEST - " + VendorEmailSubject,
+                        "This is a test from PRO. It is not an order.\r\n\r\n" + fileName + "\r\n",
+                        fileName, bytes, cancellationToken);
+
+                    return new VendorDirectResult(
+                        true,
+                        method == "EDI"
+                            ? "A test email was sent to the people listed. Nothing was written to the EDI folder."
+                            : $"A test email was sent for {vendor.Name}.");
+
+                default:
+                    return new VendorDirectResult(false, $"Unknown delivery method '{vendor.Method}'.");
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "The test send for vendor {VendorId} failed.", vendorId);
+
+            return new VendorDirectResult(false, "The test was not delivered: " + ex.Message);
+        }
+    }
+
+    /* What a vendor's settings must have before they are saved. Null when they are fine. */
+    public static string? CheckVendorSettings(VendorDirectVendor vendor)
+    {
+        var method = vendor.Method?.Trim().ToUpperInvariant();
+        var costBase = vendor.CostBase?.Trim().ToUpperInvariant();
+
+        if (!string.IsNullOrEmpty(method) &&
+            method is not ("EMAIL" or "EDI" or "FTP" or "SFTP"))
+        {
+            return "The delivery method must be EMAIL, EDI, FTP or SFTP.";
+        }
+
+        if (!string.IsNullOrEmpty(costBase) &&
+            costBase is not ("MEMBER_PRICE" or "CARTON_PRICE" or "MAP" or "CONSUMER_RETAIL" or "DISTRIBUTOR_COST"))
+        {
+            return "The cost base is not one of the choices.";
+        }
+
+        if (vendor.CostPercent is < 0 or > 100)
+            return "The percentage must be between 0 and 100.";
+
+        if (!vendor.Enabled)
+            return null;
+
+        /* Switched on: it has to be able to deliver. */
+        return method switch
+        {
+            null or "" => "Choose a delivery method before switching this vendor on.",
+            "EMAIL" when string.IsNullOrWhiteSpace(vendor.EmailTo) =>
+                "Enter who the order goes to before switching this vendor on.",
+            "EDI" when string.IsNullOrWhiteSpace(vendor.Destination) =>
+                "Enter the EDI folder before switching this vendor on.",
+            "FTP" when vendor.Destination?.Trim().StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) != true =>
+                "The FTP destination must look like ftp://user@host/path.",
+            "SFTP" => "SFTP is not installed yet, so this vendor cannot be switched on with it.",
+            _ => null
+        };
+    }
+
+    private static string VendorEmailBody(string fileName)
+    {
+        return "The following file is attached:\r\n\r\n" + fileName + "\r\n";
+    }
+
+    private static void AddError(
+        Dictionary<string, List<string>> errors,
+        string orderId,
+        string message)
+    {
+        if (!errors.TryGetValue(orderId, out var list))
+        {
+            list = new List<string>();
+            errors[orderId] = list;
+        }
+
+        list.Add(message);
     }
 
     /* ==================================================================

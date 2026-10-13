@@ -84,8 +84,17 @@ const routes: Routes = [
       { path: 'vendor-card', component: VendorCardComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor' } },
       { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },
       { path: 'shippingmonitor', component: ShipmentMonitorComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Monitor' } },
-      { path: 'productedit', component: ProductEditComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Edit' } },
-      { path: 'credits', component: CreditsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Credits' }},
+
+      {
+        path: 'productedit', component: ProductEditComponent, canActivate: [AuthGuard],
+        canDeactivate: [(c: ProductEditComponent) => c.canDeactivate()], data: { breadcrumb: 'Product Edit' }
+      },
+      {
+        path: 'productedit/:id', component: ProductEditComponent, canActivate: [AuthGuard],
+        canDeactivate: [(c: ProductEditComponent) => c.canDeactivate()], data: { breadcrumb: 'Product Edit' }
+      },
+
+      { path: 'credits', component: CreditsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Credits' } },
       { path: 'vendor-billing', component: VendorBillingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Vendor Billing' } },
       { path: 'sellthrough', component: VendorSellthroughComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor - Vendor Sellthrough' } },
       { path: 'shopify-admin', component: ShopifyAdminComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shopify Admin' }},

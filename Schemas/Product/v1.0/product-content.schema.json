@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/products/product-content.schema.json",
+  "title": "Canonical Product Content",
+  "description": "What people read about a product, in each language, and where it is shown. One record per product, tied to it through productId. It is separate from the product record because content is written and translated by different people on a different schedule, and because a warehouse, a 3PL, or an ERP has no use for it while the B2B site, Shopify, or a CMS needs little else. Identity, barcodes, prices, costs, and logistics stay on the product record and are not repeated. Unknown fields are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "productId"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Contract version. Additive changes bump the minor version; breaking changes create a new major version."
+    },
+    "productId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The product this content belongs to."
+    },
+    "visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "published"
+      ],
+      "description": "Whether the product is shown, and in which countries. Independent of product.forSale: a product can be shown and not for sale.",
+      "properties": {
+        "published": {
+          "type": "boolean"
+        },
+        "markets": {
+          "type": "array",
+          "default": [],
+          "uniqueItems": true,
+          "description": "Countries the product is shown in. Empty = the home market only.",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          }
+        }
+      }
+    },
+    "categories": {
+      "type": "array",
+      "default": [],
+      "description": "Where the product sits in the catalog. A product may sit in several categories; at most one is primary. Category names and their translations belong to the category, not the product.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "categoryId"
+        ],
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "isPrimary": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "contains": {
+        "properties": {
+          "isPrimary": {
+            "const": true
+          }
+        },
+        "required": [
+          "isPrimary"
+        ]
+      },
+      "minContains": 0,
+      "maxContains": 1
+    },
+    "defaultLocale": {
+      "$ref": "#/$defs/Locale",
+      "description": "The locale shown when the reader's own is missing. Must be one of locales[]."
+    },
+    "locales": {
+      "type": "array",
+      "default": [],
+      "description": "The content, once per locale. A locale is a language, or a language in a country when the wording differs there (en, en-GB, fr-CA).",
+      "items": {
+        "$ref": "#/$defs/LocalizedContent"
+      }
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object"
+      },
+      "default": {}
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "createdBy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updatedBy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "A published product has content to show and a locale to fall back on.",
+      "if": {
+        "properties": {
+          "visibility": {
+            "properties": {
+              "published": {
+                "const": true
+              }
+            },
+            "required": [
+              "published"
+            ]
+          }
+        },
+        "required": [
+          "visibility"
+        ]
+      },
+      "then": {
+        "required": [
+          "defaultLocale",
+          "locales"
+        ],
+        "properties": {
+          "locales": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "Locale": {
+      "type": "string",
+      "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+      "examples": [
+        "en",
+        "en-GB",
+        "fr-CA",
+        "de",
+        "ja"
+      ]
+    },
+    "LocalizedContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "locale",
+        "name"
+      ],
+      "properties": {
+        "locale": {
+          "$ref": "#/$defs/Locale"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The product name as shown in this locale."
+        },
+        "shortDescription": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "featuresHtml": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Features as one block of HTML, for content written before features were a list. New and translated content uses features[]."
+        },
+        "specsHtml": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Specs as one block of HTML, for content written before specs were label and value. New and translated content uses specs[]."
+        },
+        "features": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "specs": {
+          "type": "array",
+          "default": [],
+          "description": "Label and value as shown. Measurements are written for the locale (in or cm); the canonical weight and size stay on the product.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "value"
+            ],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "documents": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "url"
+            ],
+            "properties": {
+              "type": {
+                "$ref": "product.enums.json#/$defs/DocumentType"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://"
+              }
+            }
+          }
+        },
+        "outOfStockMessage": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

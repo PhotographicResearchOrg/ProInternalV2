@@ -73,7 +73,7 @@ GetSellThroughExportData(
         void ResolveGovernanceIssue(int id);
 
         IEnumerable<ShopifyGovernanceIssueDto> GetShopifyGovernanceIssues();
-        void ShopifyTaxonomyReview( int id, string disposition);
+        void ShopifyTaxonomyReview(int id, string disposition);
         decimal GetDropShipThreshold();
         void SetDropShipThreshold(
             decimal value,
@@ -134,7 +134,7 @@ GetSellThroughExportData(
         IEnumerable<VendorLookupDto> SearchVendor(string term, string type);
 
 
-       
+
 
 
 
@@ -173,7 +173,7 @@ GetSellThroughExportData(
 
         void UpdateVendorImage(int vendorId, string imageUrl);
 
-        List<PermissionDto> GetAllPermissions();  
+        List<PermissionDto> GetAllPermissions();
         List<UserWithRoles> GetUsersWithRoles();
         List<RoleDto> GetAllRoles();
 
@@ -200,7 +200,7 @@ GetSellThroughExportData(
 
 
         void CreatePermission(string permissionName, string description, string? routePath);
-        void RenamePermission(string oldName, string newName , string Description);
+        void RenamePermission(string oldName, string newName, string Description);
 
         void DeletePermission(string permissionName);
 
@@ -220,13 +220,13 @@ GetSellThroughExportData(
         CommecntsMetrics getCommentsrMetrics();
         List<SpecialOrdersSummary> getOrdersSnapshot();
         LoginResponse login(string username, string password);
-        
+
         List<ProInternal.Models.Accounts.ShippingErrorRecord> getAccounts();
 
         List<Products> getProducts(string searchCriteria);
 
         List<MemberGateSummary> GetMemberGateSummary(string searchCriteria);
-        
+
         List<Brands> getBrands();
 
         QuarterlyRebates saveData(QuarterlyRebates data, DateTime issueDate);
@@ -248,7 +248,7 @@ GetSellThroughExportData(
         List<GatedProducts> getGatedRetailers();
         List<Products> QuickSearchProducts();
         int Exclusion_CreateGroup(string groupName);
-		void Exclusion_AddProductsToGroup(int productExclusionGroupID, List<string> productCodes);
+        void Exclusion_AddProductsToGroup(int productExclusionGroupID, List<string> productCodes);
         void Exclusion_ExcludeCompanyGroups(int companyID, List<int> productExclusionGroupID);
         void Exclusions_ExcludeCompanyBrands(int companyID, List<int> brandID);
         List<CompanyBrandExclusion> Exclusions_GetCompanyBrandExclusions(int companyID);
@@ -260,18 +260,20 @@ GetSellThroughExportData(
         List<string> GetUniqueCountries();
         List<Brands> GetExcludedBrandsByCountry(string country);
         void ApplyCountryBrandExclusion(CountryBrandRequest data);
-        VendorUserResponse saveVendorUser(VendorUser user);        
+        VendorUserResponse saveVendorUser(VendorUser user);
         List<VendorStock> GetVendorStock();
         List<VendorSearch> getAllVendors();
         List<InvoiceRecord> GetInvoices();
         public void savePatronageData(List<PatronageUpload> data, DateTime issueDate);
-        List<PatronageUpload>GetRecentPatronageLoad();
+        List<PatronageUpload> GetRecentPatronageLoad();
         List<PatronageHistorical> GetPatronageHistorical();
 
 
         string? GetPrimaryProductDescriptionByProCode(int proCode);
 
         IEnumerable<ShopifyTaxonomyAuditDto> GetShopifyTaxonomyAudit();
+
+        ProductSearchPage SearchProducts(ProductSearchQuery query);
 
     }
 

@@ -74,7 +74,7 @@
   <div class="channel-tabs">
     <button type="button"
             class="channel-tab"
-            [class.active]="!reviewTabActive && !sentTabActive && activeChannel === 'warehouse'"
+            [class.active]="!reviewTabActive && !sentTabActive && !vendorTabActive && activeChannel === 'warehouse'"
             (click)="selectChannel('warehouse')">
       <i class="pi pi-building"></i>
       Warehouse Fulfillment
@@ -83,11 +83,20 @@
 
     <button type="button"
             class="channel-tab"
-            [class.active]="!reviewTabActive && !sentTabActive && activeChannel === 'consumer'"
+            [class.active]="!reviewTabActive && !sentTabActive && !vendorTabActive && activeChannel === 'consumer'"
             (click)="selectChannel('consumer')">
       <i class="pi pi-shopping-bag"></i>
       Consumer Orders
       <span class="tab-count">{{ consumerOrderCount }}</span>
+    </button>
+
+    <button type="button"
+            class="channel-tab"
+            [class.active]="vendorTabActive"
+            (click)="openVendorTab()">
+      <i class="pi pi-truck"></i>
+      Direct Vendor Ship
+      <span class="tab-count">{{ vendorOrders.length }}</span>
     </button>
 
     <button type="button"
@@ -114,6 +123,153 @@
   </div>
 
   <ng-container *ngIf="!reviewTabActive && !sentTabActive">
+
+  <!-- Direct Vendor Ship: order parts a vendor ships -->
+  <ng-container *ngIf="vendorTabActive">
+
+    <div class="order-toolbar">
+      <div class="filter-fields">
+        <div class="review-sub">
+          Lines a vendor ships instead of the warehouse. Each row is one
+          order's lines for one vendor.
+        </div>
+      </div>
+
+      <div class="toolbar-actions">
+        <button type="button"
+                class="btn btn-secondary"
+                [disabled]="vendorLoading"
+                (click)="loadVendorOrders()">
+          <i class="pi pi-refresh"></i>
+          {{ vendorLoading ? 'Loading...' : 'Refresh' }}
+        </button>
+
+        <button type="button"
+                class="btn btn-primary"
+                [disabled]="selectedVendorParts.size === 0 || vendorSending"
+                (click)="sendSelectedVendorParts()">
+          {{ vendorSending ? 'Sending...' : 'Send to Vendor' }}
+
+          <span class="selection-count"
+                *ngIf="selectedVendorParts.size && !vendorSending">
+            {{ selectedVendorParts.size }}
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <div class="address-error" *ngIf="vendorError">{{ vendorError }}</div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="orders-table operational-table">
+          <thead>
+            <tr>
+              <th class="select-column">
+                <input type="checkbox"
+                       [checked]="allVendorPartsSelected"
+                       [disabled]="sendableVendorParts.length === 0"
+                       (change)="toggleAllVendorParts($event)">
+              </th>
+              <th>Order</th>
+              <th>Member</th>
+              <th>Vendor</th>
+              <th>Lines</th>
+              <th>Entered</th>
+              <th class="number-column">Value</th>
+              <th class="actions-column">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let part of vendorOrders"
+                class="order-row"
+                [class.selected-row]="selectedOrder?.orderId === part.orderId"
+                [class.held-row]="!canSendVendorPart(part)"
+                (click)="openVendorOrder(part)">
+
+              <td class="select-column">
+                <input type="checkbox"
+                       [checked]="selectedVendorParts.has(vendorPartKey(part))"
+                       [disabled]="!canSendVendorPart(part)"
+                       (click)="$event.stopPropagation()"
+                       (change)="toggleVendorPart(part, $event)">
+              </td>
+
+              <td>
+                <span class="order-number">{{ part.orderId }}</span>
+
+                <div class="order-meta">
+                  <span *ngIf="part.poNumber">PO: {{ part.poNumber }}</span>
+                </div>
+
+                <span class="side-badge"
+                      *ngIf="warehouseSideLabel(part)">
+                  Mixed · {{ warehouseSideLabel(part) }}
+                </span>
+              </td>
+
+              <td>
+                <div class="customer-name">{{ part.customerName }}</div>
+                <div class="customer-reference">
+                  Account {{ part.accountNumber || '—' }}
+                  <span *ngIf="part.city"> · {{ part.city }}, {{ part.state }}</span>
+                </div>
+              </td>
+
+              <td>
+                <div class="customer-name">{{ part.vendorName }}</div>
+                <div class="review-sub">
+                  {{ part.vendorMethod || 'Not set up on the vendor screen' }}
+                  · {{ part.orderType }}
+                </div>
+              </td>
+
+              <td>
+                <div>{{ part.openLines }} open · {{ part.openUnits }} units</div>
+                <div class="review-sub" *ngIf="part.sentLines > 0">
+                  {{ part.sentLines }} already sent
+                </div>
+              </td>
+
+              <td class="nowrap">
+                {{ part.enteredDate | date:'MM/dd/yyyy' }}
+              </td>
+
+              <td class="number-column nowrap">
+                {{ part.openValue | currency }}
+              </td>
+
+              <td class="actions-column">
+                <button type="button"
+                        class="row-action"
+                        *ngIf="canSendVendorPart(part)"
+                        [disabled]="vendorSending"
+                        (click)="sendVendorPart(part, $event)">
+                  Send
+                </button>
+
+                <span class="status-badge status-hold"
+                      *ngIf="!canSendVendorPart(part)">
+                  {{ vendorBlockReason(part) }}
+                </span>
+              </td>
+            </tr>
+
+            <tr *ngIf="vendorOrders.length === 0 && !vendorLoading">
+              <td colspan="8" class="empty-state">
+                <i class="pi pi-truck"></i>
+                <div>No open orders have lines a vendor ships.</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </ng-container>
+
+  <ng-container *ngIf="!vendorTabActive">
 
   <!-- Toolbar -->
   <div class="order-toolbar">
@@ -260,6 +416,11 @@
                   {{ order.systemReference }}
                 </span>
               </div>
+
+              <span class="side-badge"
+                    *ngIf="vendorSideBadge(order) as badge">
+                {{ badge }}
+              </span>
             </td>
 
             <td>
@@ -374,6 +535,8 @@
     </div>
   </div>
 
+  </ng-container>
+
   <!-- Full Order Inspector -->
   <div class="order-detail-card"
        *ngIf="selectedOrder as order">
@@ -432,6 +595,7 @@
 
         <button type="button"
                 class="btn btn-primary"
+                *ngIf="!vendorTabActive"
                 [disabled]="!canProcess(order) || processingOrders"
                 (click)="processOrder(order)">
           {{
@@ -714,6 +878,24 @@
         </button>
       </div>
 
+      <div class="side-strip" *ngIf="orderSides.length > 0">
+        <span class="side-strip-label">This order ships from more than one place:</span>
+
+        <span class="side-badge"
+              *ngFor="let side of orderSides"
+              [class.side-done]="side.open === 0">
+          {{ side.label }}:
+          {{ side.open > 0 ? side.open + ' open' : 'sent' }}
+          <ng-container *ngIf="side.open > 0 && side.sent > 0">
+            · {{ side.sent }} sent
+          </ng-container>
+        </span>
+
+        <span class="review-sub">
+          Greyed lines belong to the other side and are changed from its tab.
+        </span>
+      </div>
+
       <div class="table-responsive">
         <table class="line-table">
           <thead>
@@ -731,10 +913,15 @@
           </thead>
 
           <tbody>
-            <tr *ngFor="let line of order.lines">
+            <tr *ngFor="let line of order.lines"
+                [class.other-side-line]="isOtherSideLine(line)">
               <td class="mono">{{ line.sku }}</td>
               <td>
                 <strong>{{ line.description }}</strong>
+
+                <div class="review-sub" *ngIf="lineSideLabel(line) as sideLabel">
+                  {{ sideLabel }}
+                </div>
               </td>
               <td class="number-column">
                 <ng-container *ngIf="editingLineId !== line.lineId">
@@ -770,7 +957,7 @@
                   <button type="button"
                           class="icon-action"
                           title="Change quantity"
-                          [disabled]="!canEditOrder(order) || !line.lineId"
+                          [disabled]="!canEditLine(order, line)"
                           (click)="startLineEdit(line)">
                     <i class="pi pi-pencil"></i>
                   </button>
@@ -778,7 +965,7 @@
                   <button type="button"
                           class="icon-action delete-line"
                           title="Remove line"
-                          [disabled]="!canEditOrder(order) || !line.lineId"
+                          [disabled]="!canEditLine(order, line)"
                           (click)="openRemoveLine(line)">
                     <i class="pi pi-trash"></i>
                   </button>
@@ -879,7 +1066,7 @@
               <td>
                 <span class="order-number">{{ sent.orderId }}</span>
                 <div class="order-meta">
-                  <span>{{ sent.channel === 'consumer' ? 'Consumer' : 'Warehouse' }}</span>
+                  <span>{{ sentSideLabel(sent) }}</span>
                 </div>
               </td>
 
@@ -894,7 +1081,7 @@
               </td>
 
               <td>
-                <div>{{ sent.destination }}</div>
+                <div>{{ sentDestinationLabel(sent) }}</div>
                 <div class="review-sub">{{ sent.fileName }}</div>
               </td>
 
@@ -981,7 +1168,7 @@
             </div>
             <h2>{{ target.orderId }}</h2>
             <div class="subtitle">
-              {{ target.customerName }} · sent to {{ target.destination }}
+              {{ target.customerName }} · sent to {{ sentDestinationLabel(target) }}
             </div>
           </div>
 
@@ -995,9 +1182,15 @@
         <div class="reject-warning" *ngIf="sentActionMode === 'reopen'">
           <i class="pi pi-exclamation-triangle"></i>
           <div>
-            <strong>This order goes back to Open.</strong>
+            <strong>
+              {{
+                target.channel === 'consumer'
+                  ? 'This order goes back to Open.'
+                  : 'Only the ' + sentSideLabel(target) + ' side of this order goes back to Open.'
+              }}
+            </strong>
             <span>
-              It has already been sent to {{ target.destination }}. Reopening
+              It has already been sent to {{ sentDestinationLabel(target) }}. Reopening
               does not recall it there; processing it again sends it again.
             </span>
           </div>
@@ -1005,7 +1198,7 @@
 
         <div class="field reject-field" *ngIf="sentActionMode === 'confirm'">
           <label for="sentActionNumber">
-            {{ target.destination }} Order Number (optional)
+            {{ sentDestinationLabel(target) }} Order Number (optional)
           </label>
           <input id="sentActionNumber"
                  type="text"

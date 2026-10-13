@@ -7,6 +7,7 @@ using ProInternal.Services.OrderIntegration;
 using ProInternal.Services.OrderIntegration.Adapters.Core;
 using ProInternal.Services.OrderIntegration.Adapters.Inbound;
 using ProInternal.Services.OrderIntegration.Adapters.Outbound;
+using ProInternal.Services.OrderIntegration.Adapters.Outbound.VendorDirect;
 using ProInternal.Services.OrderIntegration.Adapters.Outbox;
 using System.Collections.Generic;
 using System.Security.Claims;
@@ -27,6 +28,7 @@ namespace ProInternal.Controllers
         private readonly IOrderOutboxDataAccess _outbox;
         private readonly ConsumerOrderExportService _consumerExport;
         private readonly IConfiguration _configuration;
+        private readonly IVendorDirectDataAccess _vendorDirect;
 
         public OrdersController(
             IOrdersDataAccess ordersDataAccess,
@@ -35,8 +37,11 @@ namespace ProInternal.Controllers
             IOrderSchemaValidator orderSchemaValidator,
             IOrderOutboxDataAccess outbox,
             ConsumerOrderExportService consumerExport,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ProInternal.Helpers.AwsSecretHelper secretHelper)
         {
+            /* Direct vendor ship reads through its own class, so no registration is needed. */
+            _vendorDirect = new VendorDirectDataAccess(configuration, secretHelper);
             _ordersDataAccess = ordersDataAccess;
             _orderIntegrationService = orderIntegrationService;
             _orderIntegrationDataAccess = orderIntegrationDataAccess;
@@ -102,6 +107,77 @@ namespace ProInternal.Controllers
              * results, so return the structured result to Angular.
              */
             return Ok(result);
+        }
+
+        // ---------------------------------------------------------------
+        // Direct vendor ship: the tab and the send. Vendor and brand
+        // settings are on the vendor's own screen (VendorDirectShipController).
+        // ---------------------------------------------------------------
+
+        /* Open orders with lines a vendor ships, one row per order per vendor. */
+        [HttpGet("vendor-direct")]
+        public async Task<ActionResult<IEnumerable<VendorDirectOrderRow>>> GetVendorDirectOrders(
+            [FromQuery] int days,
+            CancellationToken cancellationToken)
+        {
+            return Ok(
+                await _vendorDirect.GetVendorDirectOrdersAsync(
+                    days > 0 ? days : 365,
+                    cancellationToken));
+        }
+
+        /* Vendor names, so the Sent tab can show "Tiffen" for VENDOR-8009. */
+        [HttpGet("vendor-direct/names")]
+        public async Task<ActionResult<IEnumerable<VendorDirectName>>> GetVendorDirectNames(
+            CancellationToken cancellationToken)
+        {
+            return Ok(await _vendorDirect.GetVendorNamesAsync(cancellationToken));
+        }
+
+        /* Sends the picked order parts, each to its own vendor. */
+        [HttpPost("vendor-direct/process")]
+        public async Task<ActionResult<OrderExportResult>> ProcessVendorDirectOrders(
+            [FromBody] VendorDirectProcessRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (Denied(OrderPermissions.Review))
+                return Forbid();
+
+            var parts = (request.Parts ?? new List<VendorDirectPartRef>())
+                .Where(part => !string.IsNullOrWhiteSpace(part.OrderId) && part.VendorId > 0)
+                .ToList();
+
+            if (parts.Count == 0)
+                return BadRequest("Select at least one order.");
+
+            var actionBy = GetCurrentUser();
+
+            if (string.IsNullOrWhiteSpace(actionBy))
+                return Unauthorized("Unable to identify the current user.");
+
+            /* Lines are marked sent inside the service, once each file is delivered. */
+            return Ok(
+                await _orderIntegrationService.ExportToVendorsAsync(
+                    parts.Select(part => part.OrderId!.Trim()).Distinct().ToList(),
+                    actionBy,
+                    cancellationToken,
+                    ToolbenchSource,
+                    parts
+                        .Select(part => OrderIntegrationService.VendorPartKey(
+                            part.OrderId, part.VendorId.ToString()))
+                        .ToHashSet()));
+        }
+
+        /* Which side each line of an order belongs to, for the order detail. */
+        [HttpGet("{orderId}/line-sides")]
+        public async Task<ActionResult<IEnumerable<OrderLineSide>>> GetOrderLineSides(
+            string orderId,
+            CancellationToken cancellationToken)
+        {
+            if (!int.TryParse(orderId, out var id))
+                return BadRequest("A valid OrderId is required.");
+
+            return Ok(await _vendorDirect.GetOrderLineSidesAsync(id, cancellationToken));
         }
 
         [HttpGet]
@@ -575,7 +651,8 @@ namespace ProInternal.Controllers
         [HttpPost("sent/response")]
         public async Task<ActionResult<OrderEditResponse>> SetSentResponse(
             [FromBody] SentOrderResponseRequest request,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            [FromQuery] string? destination = null)
         {
             if (Denied(OrderPermissions.Review))
                 return Forbid();
@@ -593,6 +670,22 @@ namespace ProInternal.Controllers
             if (string.IsNullOrWhiteSpace(actionBy))
                 return Unauthorized("Unable to identify the current user.");
 
+            /* Which side of the order the reply is for: COMPUTYME or VENDOR-<id>. */
+            if (_outbox is IOrderOutboxSides sides)
+            {
+                return Ok(
+                    await sides.SetSideResponseAsync(
+                        request.Channel,
+                        orderId,
+                        destination,
+                        state,
+                        request.DestinationOrderId,
+                        request.Reason,
+                        actionBy,
+                        ToolbenchSource,
+                        cancellationToken));
+            }
+
             return Ok(
                 await _outbox.SetResponseAsync(
                     request.Channel,
@@ -609,7 +702,8 @@ namespace ProInternal.Controllers
         [HttpPost("reopen")]
         public async Task<ActionResult<OrderEditResponse>> ReopenOrder(
             [FromBody] ReopenOrderRequestV2 request,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            [FromQuery] string? destination = null)
         {
             if (Denied(OrderPermissions.Review))
                 return Forbid();
@@ -624,6 +718,20 @@ namespace ProInternal.Controllers
 
             if (string.IsNullOrWhiteSpace(actionBy))
                 return Unauthorized("Unable to identify the current user.");
+
+            /* Only the named side reopens. The other side of a mixed order is left alone. */
+            if (_outbox is IOrderOutboxSides sides)
+            {
+                return Ok(
+                    await sides.ReopenSideAsync(
+                        request.Channel,
+                        orderId,
+                        destination,
+                        request.Reason.Trim(),
+                        actionBy,
+                        ToolbenchSource,
+                        cancellationToken));
+            }
 
             return Ok(
                 await _outbox.ReopenAsync(

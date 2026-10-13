@@ -69,6 +69,9 @@ export interface OrderLine {
   unitCost?: number;
   notes?: string;
   specialName?: string;
+
+  /* Which side of the order ships this line. Filled in by the screen. */
+  side?: OrderLineSide;
 }
 
 
@@ -370,6 +373,9 @@ export interface SentOrder {
   reference?: string;
 
   destination?: string;
+
+  /* The vendor's name when the order part went to a vendor. Filled in by the screen. */
+  destinationName?: string;
   fileName?: string;
   batchId?: string;
   sentAt?: string;
@@ -442,4 +448,48 @@ export interface PosImportSummary {
   duplicates: number;
   skipped: number;
   results: PosImportFileResult[];
+}
+
+
+// ---- Direct vendor ship ----
+
+/* One open order part that a vendor ships. */
+export interface VendorDirectOrder {
+  orderId: string;
+  destination: string;
+  vendorId?: number;
+  vendorName: string;
+  vendorEnabled: boolean;
+  vendorMethod?: string;
+
+  openLines: number;
+  sentLines: number;
+  openUnits: number;
+  openValue: number;
+
+  /* The warehouse side of the same order. Both zero when there is none. */
+  warehouseOpenLines: number;
+  warehouseSentLines: number;
+
+  customerName?: string;
+  accountNumber?: string;
+  poNumber?: string;
+  enteredDate: string;
+  orderStatus?: string;
+  orderType?: string;
+  autoHold: boolean;
+  holdOverride: boolean;
+  creditStatus?: string;
+  city?: string;
+  state?: string;
+}
+
+/* Which side one order line belongs to. Status 5 means it has been sent. */
+export interface OrderLineSide {
+  orderItemId: number;
+  destination: string;
+  isDirectVendorShip: boolean;
+  orderItemStatusId: number;
+  vendorId?: number;
+  vendorName?: string;
 }

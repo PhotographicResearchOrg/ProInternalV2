@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.PowerBI.Api.Models;
 using ProInternal.Helpers;
@@ -11,6 +11,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using ProInternal.Models.OrderIntegration.Shopify;
+using ProInternal.Services.OrderIntegration.Adapters.Outbound.VendorDirect;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -24,6 +25,8 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
         public OrderIntegrationDataAccess(IConfiguration config, AwsSecretHelper helper) : base(config, helper, "ProConnectionString")
         {
         }
+
+        private const string VendorGroupPrefix = "FG-VENDOR-";
 
         private static readonly JsonSerializerOptions IntegrationJsonOptions =
                 new(JsonSerializerDefaults.Web)
@@ -183,6 +186,10 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
                 {
                     throw new InvalidOperationException($"DROPSHIP_QUANTITY_INVALID: Order item " + $"{item.OrderItemId} has an invalid " + $"dropship quantity.");
                 }
+                if (item.IsDirectVendorShip && item.VendorId is null)
+                {
+                    throw new InvalidOperationException($"DIRECT_VENDOR_MISSING: Order item " + $"{item.OrderItemId} ships direct from the vendor, " + $"but its brand has no vendor assigned.");
+                }
                 RequireValue(item.Sku, $"ITEM_SKU_MISSING: Order item " + $"{item.OrderItemId}");
             }
         }
@@ -215,6 +222,21 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
             var items = new List<CanonicalOrderItem>();
             foreach (var sourceItem in sourceItems)
             {
+                // Direct vendor ship: the whole line goes to the vendor's group.
+                if (sourceItem.IsDirectVendorShip)
+                {
+                    items.Add(
+                        BuildItem(
+                            sourceItem,
+                            sourceItem.Quantity,
+                            sourceItem.OrderItemId.ToString(),
+                            VendorGroupPrefix + sourceItem.VendorId!.Value,
+                            currency
+                        )
+                    );
+                    continue;
+                }
+
                 var warehouseQuantity =
                     sourceItem.Quantity -
                     sourceItem.DropShipQuantity;
@@ -250,13 +272,37 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
                 }
             }
 
+            // Vendor file ship-to name: the person who placed the order, or the
+            // name on the address for a drop-ship order (type 5). The buyer's
+            // email rides along for the EDI vendor's ship instructions.
+            var isDropShipOrder = header.OrderTypeId == 5;
+
+            var vendorShipTo = WithContact(
+                shippingAddress,
+                isDropShipOrder ? shippingAddress.FirstName : header.OrderedByFirstName,
+                isDropShipOrder ? shippingAddress.LastName : header.OrderedByLastName,
+                header.OrderedByEmail);
+
             var fulfillmentGroups =
                 BuildFulfillmentGroups(
                     items,
                     shippingAddress,
+                    vendorShipTo,
                     header.ShippingMethod,
                     orderStatus
                 );
+
+            var orderReferences = new Dictionary<string, string>
+            {
+                ["proOrderId"] = header.OrderId,
+                ["proOrderSectionId"] = section.OrderSectionId.ToString()
+            };
+
+            if (header.ShipToAddressId is not null)
+                orderReferences["shipToAddressId"] = header.ShipToAddressId.Value.ToString();
+
+            if (!string.IsNullOrWhiteSpace(header.ComputymeShipTo))
+                orderReferences["computymeShipTo"] = header.ComputymeShipTo.Trim();
             var subtotal = items.Sum(x => ParseAmount(x.LineTotal));
             var discountTotal = items.SelectMany(x => x.LineDiscounts).Sum(x => ParseAmount(x.Amount));
             var shippingTotal = header.ShippingTotal;
@@ -328,11 +374,7 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
                     ExportStatus = exportStatus
                 },
 
-                References = new Dictionary<string, string>
-                {
-                    ["proOrderId"] = header.OrderId,
-                    ["proOrderSectionId"] = section.OrderSectionId.ToString()
-                }
+                References = orderReferences
             };
         }
 
@@ -359,6 +401,39 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
                 );
             }
 
+            var references = new Dictionary<string, string>
+            {
+                ["proOrderItemId"] = source.OrderItemId.ToString(),
+                ["proOrderSectionId"] = source.OrderSectionId.ToString(),
+                ["proOrderItemStatusId"] = source.OrderItemStatusId.ToString()
+            };
+
+            if (!string.IsNullOrWhiteSpace(source.CatalogNumber))
+                references["vendorCatalogNumber"] = source.CatalogNumber.Trim();
+
+            if (!string.IsNullOrWhiteSpace(source.Upc))
+                references["upc"] = source.Upc.Trim();
+
+            if (source.SpecialId is not null)
+                references["proSpecialId"] = source.SpecialId.Value.ToString();
+
+            // What the vendor cost can be worked out from. Direct lines only.
+            var extensions = new Dictionary<string, JsonElement>();
+
+            if (source.IsDirectVendorShip)
+            {
+                extensions["vendorDirect"] = JsonSerializer.SerializeToElement(
+                    new
+                    {
+                        actualUnitPrice = source.ActualUnitPrice,
+                        cartonPrice = source.CartonPrice,
+                        map = source.MapPrice,
+                        consumerRetail = source.ConsumerRetail,
+                        distributorCost = source.DistributorCost
+                    },
+                    IntegrationJsonOptions);
+            }
+
             return new CanonicalOrderItem
             {
                 LineId = lineId,
@@ -371,16 +446,13 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
                 LineDiscounts = discounts,
                 LineTotal = CreateMoney(lineTotal, currency),
                 FulfillmentGroupId = fulfillmentGroupId,
-                References = new Dictionary<string, string>
-                {
-                    ["proOrderItemId"] = source.OrderItemId.ToString(),
-                    ["proOrderSectionId"] = source.OrderSectionId.ToString()
-                }
+                References = references,
+                Extensions = extensions
             };
         }
 
         private static List<FulfillmentGroup>
-            BuildFulfillmentGroups(List<CanonicalOrderItem> items, Address shippingAddress, string? shippingMethod, OrderStatus orderStatus)
+            BuildFulfillmentGroups(List<CanonicalOrderItem> items, Address shippingAddress, Address vendorShipTo, string? shippingMethod, OrderStatus orderStatus)
         {
             var groups = new List<FulfillmentGroup>();
             var fulfillmentStatus = MapFulfillmentStatus(orderStatus);
@@ -409,6 +481,25 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
                     ShippingMethod = shippingMethod
                 }
                 );
+            }
+
+            var vendorGroupIds = items
+                .Select(x => x.FulfillmentGroupId)
+                .Where(id => id != null && id.StartsWith(VendorGroupPrefix, StringComparison.Ordinal))
+                .Distinct()
+                .ToList();
+
+            foreach (var groupId in vendorGroupIds)
+            {
+                groups.Add(new FulfillmentGroup
+                {
+                    GroupId = groupId!,
+                    FulfillmentType = FulfillmentType.VENDOR_DIRECT,
+                    Status = fulfillmentStatus,
+                    ShipTo = vendorShipTo,
+                    VendorId = groupId![VendorGroupPrefix.Length..],
+                    ShippingMethod = shippingMethod
+                });
             }
 
             return groups;
@@ -441,6 +532,26 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
                 Country = source.Country!.Trim().ToUpperInvariant(),
                 Phone = phone,
                 Email = email
+            };
+        }
+
+        private static Address WithContact(Address source, string? firstName, string? lastName, string? email)
+        {
+            return new Address
+            {
+                FirstName = firstName,
+                LastName = lastName,
+                Name = source.Name,
+                Attention = source.Attention,
+                Line1 = source.Line1,
+                Line2 = source.Line2,
+                City = source.City,
+                Region = source.Region,
+                PostalCode = source.PostalCode,
+                Country = source.Country,
+                Phone = source.Phone,
+                Email = string.IsNullOrWhiteSpace(email) ? source.Email : email.Trim(),
+                Residential = source.Residential
             };
         }
 
@@ -584,6 +695,11 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
             public DateTime? ApprovedDate { get; init; }
             public int? ShippingMethodCode { get; init; }
             public string? ShippingMethod { get; init; }
+            public string? OrderedByFirstName { get; init; }
+            public string? OrderedByLastName { get; init; }
+            public string? OrderedByEmail { get; init; }
+            public int? ShipToAddressId { get; init; }
+            public string? ComputymeShipTo { get; init; }
         }
 
         private sealed class OrderAddressRow
@@ -630,6 +746,14 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Core
             public int? SpecialId { get; init; }
             public int? OrderBundleId { get; init; }
             public int? SortID { get; init; }
+            public bool IsDirectVendorShip { get; init; }
+            public int? VendorId { get; init; }
+            public string? CatalogNumber { get; init; }
+            public string? Upc { get; init; }
+            public decimal? CartonPrice { get; init; }
+            public decimal? MapPrice { get; init; }
+            public decimal? ConsumerRetail { get; init; }
+            public decimal? DistributorCost { get; init; }
         }
     }
 }

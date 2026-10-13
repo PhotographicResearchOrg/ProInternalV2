@@ -53,6 +53,17 @@
         "RETAILER_DIRECT"
       ]
     },
+    "DirectShipCostBasis": {
+      "type": "string",
+      "description": "Added in 1.1. The product price a direct-ship order cost starts from. MEMBER_PRICE = what the retailer pays PRO. CARTON_PRICE = the carton-quantity price. MAP = minimum advertised price. CONSUMER_RETAIL = suggested retail. DISTRIBUTOR_COST = what PRO pays the vendor.",
+      "enum": [
+        "MEMBER_PRICE",
+        "CARTON_PRICE",
+        "MAP",
+        "CONSUMER_RETAIL",
+        "DISTRIBUTOR_COST"
+      ]
+    },
     "OrderTransmissionMethod": {
       "type": "string",
       "description": "How PRO sends orders to the vendor. EXCEL uses the single PRO standard layout.",
@@ -65,9 +76,11 @@
     },
     "FileDelivery": {
       "type": "string",
+      "description": "How an order file travels. FTP added in 1.1 for vendors that cannot take SFTP.",
       "enum": [
         "EMAIL",
-        "SFTP"
+        "SFTP",
+        "FTP"
       ]
     },
     "InvoiceIntakeMethod": {

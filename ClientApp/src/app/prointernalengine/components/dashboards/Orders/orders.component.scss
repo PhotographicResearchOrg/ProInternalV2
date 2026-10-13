@@ -2166,3 +2166,53 @@
     font-family: var(--mono);
   }
 }
+
+/* DIRECT VENDOR SHIP */
+
+.side-badge {
+  display: inline-flex;
+  margin-top: 4px;
+  padding: 2px 7px;
+  color: var(--violet);
+  background: var(--violet-soft);
+  border: 1px solid #cfc8ee;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+
+  &.side-done {
+    color: var(--green);
+    background: var(--green-soft);
+    border-color: #bfe3cd;
+  }
+}
+
+.side-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+
+  .side-badge {
+    margin-top: 0;
+  }
+}
+
+.side-strip-label {
+  color: var(--sub);
+  font-weight: 700;
+}
+
+/* A line the other side ships: visible, not editable here. */
+.line-table tr.other-side-line td {
+  color: var(--faint);
+  background: #f6f7f9;
+
+  strong {
+    font-weight: 500;
+  }
+}
+

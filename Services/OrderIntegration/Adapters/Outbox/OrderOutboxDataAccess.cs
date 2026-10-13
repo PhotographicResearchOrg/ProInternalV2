@@ -11,7 +11,26 @@ using System.Threading.Tasks;
 
 namespace ProInternal.Services.OrderIntegration.Adapters.Outbox
 {
-    public class OrderOutboxDataAccess : BaseDataAccess, IOrderOutboxDataAccess
+    /*
+     * Reopen and "record a reply" for one side of an order: the warehouse
+     * side (COMPUTYME) or a vendor's (VENDOR-<id>). Kept as its own small
+     * interface so IOrderOutboxDataAccess does not change.
+     */
+    public interface IOrderOutboxSides
+    {
+        Task<OrderEditResponse> SetSideResponseAsync(
+            string? channel, int orderId, string? destination, string state,
+            string? destinationOrderId, string? reason,
+            string? actionBy, string actionSource,
+            CancellationToken cancellationToken);
+
+        Task<OrderEditResponse> ReopenSideAsync(
+            string? channel, int orderId, string? destination, string reason,
+            string actionBy, string actionSource,
+            CancellationToken cancellationToken);
+    }
+
+    public class OrderOutboxDataAccess : BaseDataAccess, IOrderOutboxDataAccess, IOrderOutboxSides
     {
         public OrderOutboxDataAccess(IConfiguration config, AwsSecretHelper helper)
             : base(config, helper, "ProConnectionString")
@@ -100,6 +119,56 @@ namespace ProInternal.Services.OrderIntegration.Adapters.Outbox
                     Reason = reason,
                     ActionBy = actionBy,
                     ActionSource = actionSource
+                },
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+        }
+
+        public async Task<OrderEditResponse> SetSideResponseAsync(
+            string? channel, int orderId, string? destination, string state,
+            string? destinationOrderId, string? reason,
+            string? actionBy, string actionSource,
+            CancellationToken cancellationToken)
+        {
+            using var conn = GetConnection();
+
+            return await conn.QuerySingleAsync<OrderEditResponse>(new CommandDefinition(
+                "dbo.PIV2_OrderIntegrationExport_SetResponse",
+                new
+                {
+                    Channel = channel,
+                    OrderId = orderId,
+                    Destination = string.IsNullOrWhiteSpace(destination) ? null : destination.Trim(),
+                    State = state,
+                    DestinationOrderId = destinationOrderId,
+                    Reason = reason,
+                    ActionBy = actionBy,
+                    ActionSource = actionSource
+                },
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+        }
+
+        public async Task<OrderEditResponse> ReopenSideAsync(
+            string? channel, int orderId, string? destination, string reason,
+            string actionBy, string actionSource,
+            CancellationToken cancellationToken)
+        {
+            /* Only a dealer order has sides. */
+            if (IsConsumer(channel) || string.IsNullOrWhiteSpace(destination))
+                return await ReopenAsync(channel, orderId, reason, actionBy, actionSource, cancellationToken);
+
+            using var conn = GetConnection();
+
+            return await conn.QuerySingleAsync<OrderEditResponse>(new CommandDefinition(
+                "dbo.PIV2_Orders_Reopen",
+                new
+                {
+                    OrderId = orderId,
+                    Reason = reason,
+                    ActionBy = actionBy,
+                    ActionSource = actionSource,
+                    Destination = destination.Trim()
                 },
                 commandType: CommandType.StoredProcedure,
                 cancellationToken: cancellationToken));

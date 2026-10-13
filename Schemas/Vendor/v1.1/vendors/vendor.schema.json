@@ -10,7 +10,7 @@
     "schemaVersion": {
       "type": "string",
       "description": "Contract version. Additive changes bump the minor version; breaking changes create a new major version.",
-      "const": "1.0"
+      "const": "1.1"
     },
 
     "metadata": {
@@ -339,7 +339,14 @@
             "delivery": { "anyOf": [{ "$ref": "vendor.enums.json#/$defs/FileDelivery" }, { "type": "null" }] },
             "destination": {
               "type": ["string", "null"],
-              "description": "Email address, SFTP path, or portal URL. Not used for EDI (the edi block carries the partner identity)."
+              "description": "Email address, FTP or SFTP address, or portal URL. Not used for EDI (the edi block carries the partner identity). Never carries a password."
+            },
+            "copyTo": {
+              "type": "array",
+              "default": [],
+              "uniqueItems": true,
+              "description": "Added in 1.1. Who is copied on each order sent: PRO staff, or further vendor addresses.",
+              "items": { "type": "string", "format": "email" }
             }
           },
           "allOf": [
@@ -360,6 +367,16 @@
             }
           ]
         },
+        "directShipCost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["basis"],
+          "description": "Added in 1.1. The unit cost PRO puts on a direct-ship order to this vendor: the basis price less discountPercent. A line the retailer bought on a special is always sent at the special price, with nothing taken off.",
+          "properties": {
+            "basis": { "$ref": "vendor.enums.json#/$defs/DirectShipCostBasis" },
+            "discountPercent": { "anyOf": [{ "$ref": "#/$defs/Percent" }, { "type": "null" }] }
+          }
+        },
         "invoiceIntake": {
           "type": "array",
           "minItems": 1,
@@ -379,6 +396,11 @@
           "if": { "properties": { "models": { "contains": { "const": "DIRECT_SHIP" } } }, "required": ["models"] },
           "then": { "required": ["directShipOrderChannels"] },
           "else": { "not": { "required": ["directShipOrderChannels"] } }
+        },
+        {
+          "description": "A direct-ship cost rule exists only for DIRECT_SHIP vendors.",
+          "if": { "required": ["directShipCost"] },
+          "then": { "properties": { "models": { "contains": { "const": "DIRECT_SHIP" } } } }
         }
       ]
     },

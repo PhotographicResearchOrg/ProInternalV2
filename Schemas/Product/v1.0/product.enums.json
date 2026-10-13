@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/products/product.enums.json",
+  "title": "Product Enumerations",
+  "description": "Canonical product vocabularies, owned by PRO. Adapters map their codes TO these values, never the reverse. Add members over minor versions; never repurpose one.",
+  "$defs": {
+    "ProductStatus": {
+      "type": "string",
+      "description": "ACTIVE = a current product. DISCONTINUED = no longer supplied; may still sell until stock runs out, and may name a replacement. INACTIVE = not in use.",
+      "enum": ["ACTIVE", "DISCONTINUED", "INACTIVE"]
+    },
+    "DefectiveDisposition": {
+      "type": "string",
+      "description": "DISCARD = the dealer throws it away. RETURN_TO_WAREHOUSE = sent to PRO's warehouse. RETURN_TO_VENDOR = sent straight to the vendor. RETURN_TO_HQ = sent to PRO headquarters.",
+      "enum": ["DISCARD", "RETURN_TO_WAREHOUSE", "RETURN_TO_VENDOR", "RETURN_TO_HQ"]
+    },
+    "DocumentType": {
+      "type": "string",
+      "enum": ["INSTRUCTIONS", "FAQ", "SPEC_SHEET", "WARRANTY", "OTHER"]
+    },
+    "WeightUnit": { "type": "string", "enum": ["LB", "KG"] },
+    "LengthUnit": { "type": "string", "enum": ["IN", "CM"] }
+  }
+}

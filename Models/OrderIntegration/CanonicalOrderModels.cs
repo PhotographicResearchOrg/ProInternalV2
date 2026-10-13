@@ -464,7 +464,8 @@ public enum FulfillmentType
     WAREHOUSE,
     DROPSHIP,
     PICKUP,
-    HYBRID
+    HYBRID,
+    VENDOR_DIRECT
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]

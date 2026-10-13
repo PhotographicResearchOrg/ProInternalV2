@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/brands/brand.enums.json",
+  "title": "Brand enumerations",
+  "$defs": {
+    "BrandStatus": {
+      "type": "string",
+      "enum": ["ACTIVE", "INACTIVE"],
+      "description": "INACTIVE brands stay on record for history but take no new products or orders."
+    }
+  }
+}

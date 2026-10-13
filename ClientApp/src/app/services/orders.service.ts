@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
 import { OrdersMetrics } from 'src/app/models/Dashboard/OrdersMetrics';
-import { PosImportSummary, SentOrder, ProductLookup, HeldOrderReleaseRequest, HeldOrderReleaseResult, OrderEditResponse, OrderInboxReviewItem, OrderInboxReviewDetail, OrderInboxActionResponse, OrderExportResult , OrderAuditRecord, UpdateOrderShipToRequest,OrderShipToOption,OrderActionResponse,OrderChannel,OrderRecord,OverrideOrderHoldRequest,ProcessOrdersRequest,RejectOrderRequest,RemoveOrderLineRequest,ReopenOrderRequest,UpdateOrderLineRequest,UpdateShippingNotesRequest} from 'src/app/models/orders/OrderModels';
+import { VendorDirectOrder, OrderLineSide, PosImportSummary, SentOrder, ProductLookup, HeldOrderReleaseRequest, HeldOrderReleaseResult, OrderEditResponse, OrderInboxReviewItem, OrderInboxReviewDetail, OrderInboxActionResponse, OrderExportResult , OrderAuditRecord, UpdateOrderShipToRequest,OrderShipToOption,OrderActionResponse,OrderChannel,OrderRecord,OverrideOrderHoldRequest,ProcessOrdersRequest,RejectOrderRequest,RemoveOrderLineRequest,ReopenOrderRequest,UpdateOrderLineRequest,UpdateShippingNotesRequest} from 'src/app/models/orders/OrderModels';
 
 
 @Injectable({
@@ -275,13 +275,13 @@ export class OrdersService {
   }
 
   setSentResponse(
-    order: { orderId: string; channel: OrderChannel },
+    order: { orderId: string; channel: OrderChannel; destination?: string },
     state: 'ACKNOWLEDGED' | 'FAILED',
     destinationOrderId: string,
     reason: string
   ): Observable<OrderEditResponse> {
     return this.api.post<OrderEditResponse>(
-      'API/Orders/sent/response',
+      'API/Orders/sent/response' + this.sideQuery(order.destination),
       {
         orderId: order.orderId,
         channel: order.channel,
@@ -293,16 +293,52 @@ export class OrdersService {
   }
 
   reopenOrder(
-    order: { orderId: string; channel: OrderChannel },
+    order: { orderId: string; channel: OrderChannel; destination?: string },
     reason: string
   ): Observable<OrderEditResponse> {
     return this.api.post<OrderEditResponse>(
-      'API/Orders/reopen',
+      'API/Orders/reopen' + this.sideQuery(order.destination),
       {
         orderId: order.orderId,
         channel: order.channel,
         reason
       }
+    );
+  }
+
+  /* Names which side of an order a reply or a reopen is for: COMPUTYME or VENDOR-<id>. */
+  private sideQuery(destination?: string): string {
+    return destination
+      ? `?destination=${encodeURIComponent(destination)}`
+      : '';
+  }
+
+
+  // ---- Direct vendor ship -----------------------------------------
+  // Sending only. Vendor and brand settings are on the vendor's own screen.
+
+  getVendorDirectOrders(): Observable<VendorDirectOrder[]> {
+    return this.api.get<VendorDirectOrder[]>('API/Orders/vendor-direct');
+  }
+
+  /* Vendor names by destination, e.g. VENDOR-8009. */
+  getVendorDirectNames(): Observable<{ destination: string; name?: string }[]> {
+    return this.api.get<{ destination: string; name?: string }[]>('API/Orders/vendor-direct/names');
+  }
+
+  /* Sends the picked order parts, each to its own vendor. */
+  processVendorDirectOrders(
+    parts: { orderId: string; vendorId: number }[]
+  ): Observable<OrderExportResult> {
+    return this.api.post<OrderExportResult>(
+      'API/Orders/vendor-direct/process',
+      { parts }
+    );
+  }
+
+  getOrderLineSides(orderId: string): Observable<OrderLineSide[]> {
+    return this.api.get<OrderLineSide[]>(
+      `API/Orders/${encodeURIComponent(orderId)}/line-sides`
     );
   }
 }
