@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/compliance/map-violation.schema.json",
+  "title": "PRO MAP violation",
+  "description": "One MAP violation: the product is blocked for the member from startDate to endDate. Penalty days are derived from the dates.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "memberNumber", "productCode", "startDate", "endDate", "recordedAt"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "violationId": { "type": "integer", "minimum": 1 },
+    "memberNumber": { "$ref": "../members/member.enums.json#/$defs/MemberNumber" },
+    "productCode": { "type": "string", "minLength": 1, "maxLength": 50 },
+    "startDate": { "type": "string", "format": "date" },
+    "endDate": { "type": "string", "format": "date" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "recordedBy": { "$ref": "../members/member.enums.json#/$defs/UserRef" },
+    "note": { "type": "string", "maxLength": 1000 },
+    "evidenceDocumentId": { "type": "integer", "minimum": 1 }
+  }
+}

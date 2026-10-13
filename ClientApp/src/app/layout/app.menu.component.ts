@@ -183,6 +183,13 @@ export class AppMenuComponent implements OnInit {
                 label: 'Sell Through Management',
                 icon: 'pi pi-chart-line',
                 routerLink: ['/sellthrough']
+              },
+
+              // Moved from Account Management: this screen manages vendor accounts
+              can('/accountmanagement') && {
+                label: 'Vendor Accounts',
+                icon: 'pi pi-cog',
+                routerLink: ['/accountmanagement']
               }
             ]
           },
@@ -190,7 +197,8 @@ export class AppMenuComponent implements OnInit {
         {
           label: 'Account Management', icon: 'pi pi-briefcase',
           items: [
-            can('/accountmanagement') && { label: 'Account Management', icon: 'pi pi-cog', routerLink: ['/accountmanagement'] }, 
+            can('/members') && { label: 'Member Desk', icon: 'pi pi-id-card', routerLink: ['/members'] },
+            can('/members/access-rules') && { label: 'Access Rules', icon: 'pi pi-shield', routerLink: ['/members/access-rules'] }
           ]
         },
 

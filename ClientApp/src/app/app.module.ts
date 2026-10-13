@@ -94,11 +94,14 @@ import { PaymentAdministrationComponent } from './prointernalengine/components/d
 import { FileAppComponent } from './prointernalengine/components/apps/file/file.app.component';
 import { OrdersComponent } from './prointernalengine/components/dashboards/Orders/orders.component';
 import { EdiManagementComponent } from './prointernalengine/components/dashboards/Orders/edi-management/edi-management.component';
-
+import { MemberDeskComponent } from './prointernalengine/components/MemberManagement/member-desk/member-desk.component';
+import { AccessRulesComponent } from './prointernalengine/components/MemberManagement/member-desk/access-rules.component';
 
 @NgModule({
   declarations:
     [
+      MemberDeskComponent,
+      AccessRulesComponent,
     OrdersComponent,
     EdiManagementComponent,
     FileAppComponent,

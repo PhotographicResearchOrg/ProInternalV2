@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
@@ -33,6 +33,7 @@ using System.Security;
 using System.Threading.Tasks;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using MemberDesk = ProInternal.Models.Member;
 
 
 namespace ProInternal.Services
@@ -1479,6 +1480,7 @@ namespace ProInternal.Services
                 return response;
             }
         }
+        #endregion
 
 
 
@@ -2297,6 +2299,191 @@ GetShopifyGovernanceIssues()
 
         #endregion
 
+
+        #region Member Desk
+        // Member Desk models live in ProInternal.Models.Member. The alias keeps them from
+        // colliding with existing models that share a name.
+
+
+        public List<MemberDesk.MemberListItem> Member_Search(string term)
+        {
+            using var conn = GetConnection();
+            return conn.Query<MemberDesk.MemberListItem>(
+                "dbo.PIV2_Member_Search",
+                new { Term = term, Top = 2000 },   // whole roster (about 650) so the type tabs are complete
+                commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public MemberDesk.MemberDetail Member_Get(string accountNumber, bool sqlIsMaster)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple(
+                "dbo.PIV2_Member_Get",
+                new { AccountNumber = accountNumber, SqlIsMaster = sqlIsMaster },
+                commandType: CommandType.StoredProcedure);
+
+            var header = multi.Read<MemberDesk.MemberHeader>().FirstOrDefault();
+            if (header == null) return null;
+
+            return new MemberDesk.MemberDetail
+            {
+                Header          = header,
+                Locations       = multi.Read<MemberDesk.MemberLocation>().ToList(),
+                Contacts        = multi.Read<MemberDesk.MemberContact>().ToList(),
+                Grants          = multi.Read<MemberDesk.MemberGrant>().ToList(),
+                BrandExclusions = multi.Read<MemberDesk.MemberBrandExclusion>().ToList(),
+                GroupExclusions = multi.Read<MemberDesk.MemberGroupExclusion>().ToList(),
+                MapViolations   = multi.Read<MemberDesk.MemberMapViolation>().ToList(),
+                Documents       = multi.Read<MemberDesk.MemberDocument>().ToList(),
+                Related         = multi.Read<MemberDesk.MemberRelated>().ToList(),
+                AccessLog       = multi.Read<MemberDesk.MemberAccessLogEntry>().ToList()
+            };
+        }
+
+        public void Member_Save(string accountNumber, MemberDesk.MemberSaveRequest m, bool sqlIsMaster, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute(
+                "dbo.PIV2_Member_Save",
+                new
+                {
+                    AccountNumber = accountNumber,
+                    SqlIsMaster = sqlIsMaster,
+                    UpdatedBy = user,
+                    m.Name, m.LegalName, m.Status, m.PortalEnabled, m.JoinDate,
+                    m.Phone, m.Fax, m.Email, m.Website,
+                    m.AccountRole, m.ParentAccountNumber, m.BillToParent, m.PreviousAccountNumber,
+                    m.PaymentMethod, m.DefaultPaymentMethod, m.PaymentMethodReason,
+                    m.PriceCountry, m.CurrencyCode, m.LanguageCode, m.FulfillmentCenter,
+                    m.MarkupExempt, m.MarkupExemptReason,
+                    m.DuesFrequency, m.InstantRebateOverride, m.PatronagePayoutMethod,
+                    m.CreditLimit, m.CreditHoldSince, m.CreditHoldReason,
+                    m.EzPayAllowed, m.DuesEnrolled, m.ShippingZone, m.AirDuringPeak
+                },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public List<MemberDesk.AccessRule> AccessRule_List()
+        {
+            using var conn = GetConnection();
+            return conn.Query<MemberDesk.AccessRule>("dbo.PIV2_AccessRule_List",
+                commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public int AccessRule_Save(MemberDesk.AccessRule r, string user)
+        {
+            using var conn = GetConnection();
+            return conn.QuerySingle<int>(
+                "dbo.PIV2_AccessRule_Save",
+                new
+                {
+                    r.AuthorizationId, r.Code, r.Name, r.Description, r.BusinessReason, r.Status,
+                    r.BrandId, r.VendorId, r.UnlocksAuthorizedPrice, r.SegmentType, r.MemberTypes,
+                    r.RequiresCustomCatalog, r.RequiresPortalEnabled, r.ReviewStatus, r.ReviewBy,
+                    User = user
+                },
+                commandType: CommandType.StoredProcedure,
+                commandTimeout: 300);   // re-applies the rule to every member
+        }
+
+        public List<MemberDesk.AccessRuleMember> AccessRule_Members(string code)
+        {
+            using var conn = GetConnection();
+            return conn.Query<MemberDesk.AccessRuleMember>("dbo.PIV2_AccessRule_Members",
+                new { Code = code }, commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public void MemberAuthorization_Grant(string accountNumber, MemberDesk.GrantRequest g, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberAuthorization_Grant",
+                new { AccountNumber = accountNumber, g.Code, g.Reason, User = user, g.EvidenceDocumentId },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public void MemberAuthorization_Revoke(int memberAuthorizationId, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberAuthorization_Revoke",
+                new { MemberAuthorizationId = memberAuthorizationId, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public int MemberDocument_Add(string accountNumber, string documentType, string title, string fileName,
+                                      string storageKey, string contentType, long sizeBytes, DateTime? expiresOn, string user)
+        {
+            using var conn = GetConnection();
+            return conn.QuerySingle<int>("dbo.PIV2_MemberDocument_Add",
+                new
+                {
+                    AccountNumber = accountNumber, DocumentType = documentType, Title = title, FileName = fileName,
+                    StorageKey = storageKey, ContentType = contentType, SizeBytes = sizeBytes, ExpiresOn = expiresOn, User = user
+                },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public MemberDesk.MemberDocumentFile MemberDocument_Get(int documentId)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<MemberDesk.MemberDocumentFile>("dbo.PIV2_MemberDocument_Get",
+                new { DocumentId = documentId }, commandType: CommandType.StoredProcedure);
+        }
+
+        public void MemberDocument_Review(int documentId, MemberDesk.DocumentReviewRequest r, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberDocument_Review",
+                new { DocumentId = documentId, r.Status, r.Note, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public void MemberDocument_Delete(int documentId, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberDocument_Delete",
+                new { DocumentId = documentId, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public void MapViolation_Add(string accountNumber, MemberDesk.MapViolationRequest v, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MapViolation_Add",
+                new { AccountNumber = accountNumber, v.ProductCode, v.StartDate, v.PenaltyDays, v.Note, v.EvidenceDocumentId, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public void MapViolation_End(int violationId, MemberDesk.MapViolationEndRequest v, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MapViolation_End",
+                new { ViolationId = violationId, v.EndDate, v.Note, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public List<MemberDesk.BrandOption> Brand_List()
+        {
+            using var conn = GetConnection();
+            return conn.Query<MemberDesk.BrandOption>("dbo.PIV2_Brand_List",
+                commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public void MemberBrand_Allow(string accountNumber, int brandId, string reason, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberBrand_Allow",
+                new { AccountNumber = accountNumber, BrandId = brandId, Reason = reason, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public void MemberBrand_Block(string accountNumber, int brandId, string reason, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberBrand_Block",
+                new { AccountNumber = accountNumber, BrandId = brandId, Reason = reason, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+        #endregion
+
     }
 }
-        #endregion

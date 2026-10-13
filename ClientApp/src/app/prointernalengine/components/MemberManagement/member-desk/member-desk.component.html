@@ -1,0 +1,740 @@
+<p-toast></p-toast>
+
+<div class="desk-page">
+
+  <!-- =========================================================== LIST -->
+  <ng-container *ngIf="!accountNumber">
+    <header class="desk-header">
+      <div>
+        <div class="eyebrow">Account Management</div>
+        <h1>Member Desk</h1>
+        <div class="subtitle">Find a member to see and maintain their account, access, documents and MAP history.</div>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" routerLink="/members/access-rules"><i class="pi pi-shield"></i>Access Rules</a>
+      </div>
+    </header>
+
+    <nav class="channel-tabs">
+      <button type="button" class="channel-tab" [class.active]="typeFilter === 0" (click)="typeFilter = 0">
+        <i class="pi pi-users"></i>All<span class="tab-count">{{ countType(0) }}</span>
+      </button>
+      <button type="button" class="channel-tab" [class.active]="typeFilter === 1" (click)="typeFilter = 1">
+        <i class="pi pi-user"></i>Members<span class="tab-count">{{ countType(1) }}</span>
+      </button>
+      <button type="button" class="channel-tab" [class.active]="typeFilter === 2" (click)="typeFilter = 2">
+        <i class="pi pi-sitemap"></i>Affiliates<span class="tab-count">{{ countType(2) }}</span>
+      </button>
+      <button type="button" class="channel-tab" [class.active]="typeFilter === 3" (click)="typeFilter = 3">
+        <i class="pi pi-briefcase"></i>Clients<span class="tab-count">{{ countType(3) }}</span>
+      </button>
+    </nav>
+
+    <div class="desk-toolbar">
+      <div class="filter-fields">
+        <div class="field search-field">
+          <label>Search</label>
+          <span class="input-with-icon">
+            <i class="pi" [ngClass]="searching ? 'pi-spin pi-spinner' : 'pi-search'"></i>
+            <input type="text" placeholder="Account number, name or city" [ngModel]="term" (ngModelChange)="onSearch($event)" />
+          </span>
+        </div>
+        <div class="field status-field">
+          <label>Show</label>
+          <select [(ngModel)]="statusFilter">
+            <option value="ALL">Everyone</option>
+            <option value="HOLD">On credit hold</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="check-row"><input type="checkbox" [(ngModel)]="showInactive" />Show inactive ({{ inactiveCount }})</label>
+        </div>
+      </div>
+      <div class="result-note" *ngIf="results.length >= 2000">Showing the first 2,000. Narrow the search to see more.</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="desk-table list-table">
+          <thead>
+            <tr>
+              <th style="width: 110px">Account</th>
+              <th>Member</th>
+              <th style="width: 170px">Type</th>
+              <th style="width: 220px">Location</th>
+              <th style="width: 230px">Status</th>
+              <th class="arrow-column"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="desk-row" *ngFor="let m of filtered" (click)="open(m)">
+              <td><span class="account-number">{{ m.accountNumber }}</span></td>
+              <td>
+                <div class="member-name">{{ m.name }}</div>
+                <div class="member-sub" *ngIf="m.legalName && m.legalName !== m.name">{{ m.legalName }}</div>
+              </td>
+              <td>
+                {{ typeLabel(m.memberType) }}
+                <span class="status-badge status-progress" *ngIf="m.accountRole">{{ m.accountRole }}</span>
+                <div class="member-sub" *ngIf="m.parentAccountNumber">billed via {{ m.parentAccountNumber }}</div>
+              </td>
+              <td>
+                {{ m.city }}<span *ngIf="m.state">, {{ m.state }}</span>
+                <div class="member-sub">{{ m.country }}</div>
+              </td>
+              <td>
+                <span class="status-badge status-ready" *ngIf="m.status !== 'INACTIVE' && !m.onCreditHold">Active</span>
+                <span class="status-badge status-exception" *ngIf="m.status === 'INACTIVE'">Inactive</span>
+                <span class="status-badge status-hold" *ngIf="m.onCreditHold">Credit hold</span>
+              </td>
+              <td class="arrow-column"><i class="pi pi-angle-right"></i></td>
+            </tr>
+            <tr *ngIf="!filtered.length && !searching">
+              <td colspan="6" class="empty-state">
+                <i class="pi pi-search"></i>
+                <div>No members match.</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- =========================================================== DETAIL -->
+  <ng-container *ngIf="accountNumber">
+    <div class="desk-card empty-state" *ngIf="loading && !detail">
+      <i class="pi pi-spin pi-spinner"></i>
+      <div>Loading {{ accountNumber }}…</div>
+    </div>
+
+    <ng-container *ngIf="detail && form as f">
+      <header class="desk-header">
+        <div>
+          <button type="button" class="back-link" (click)="back()"><i class="pi pi-arrow-left"></i>Member Desk</button>
+          <div class="eyebrow">{{ typeLabel(detail.header.memberType) }} · Account {{ detail.header.accountNumber }}</div>
+          <h1>{{ detail.header.name }}</h1>
+          <div class="subtitle">
+            <span *ngIf="detail.header.legalName">{{ detail.header.legalName }} · </span>
+            {{ detail.header.city }}<span *ngIf="detail.header.state">, {{ detail.header.state }}</span> {{ detail.header.country }}
+          </div>
+          <div class="badge-strip">
+            <span class="status-badge status-ready" *ngIf="detail.header.status !== 'INACTIVE'">Active</span>
+            <span class="status-badge status-exception" *ngIf="detail.header.status === 'INACTIVE'">Inactive</span>
+            <span class="status-badge status-progress" *ngIf="detail.header.accountRole">{{ detail.header.accountRole }}</span>
+            <span class="status-badge status-hold" *ngIf="detail.header.creditHoldSince">Credit hold since {{ detail.header.creditHoldSince | date:'MM/dd/yy' }}</span>
+            <span class="status-badge status-hold" *ngIf="detail.header.holdEveryOrder">Every order held</span>
+            <span class="status-badge status-exception" *ngIf="detail.header.hasCustomCatalog">Custom catalog</span>
+            <span class="status-badge status-violet" *ngIf="detail.header.billToParent">Billed to {{ detail.header.parentAccountNumber }}</span>
+          </div>
+        </div>
+        <div>
+          <div class="header-actions">
+            <button type="button" class="btn btn-secondary" (click)="load()"><i class="pi pi-refresh"></i>Refresh</button>
+            <button type="button" class="btn btn-primary" [disabled]="saving" (click)="save()">
+              <i class="pi" [ngClass]="saving ? 'pi-spin pi-spinner' : 'pi-check'"></i>Save
+            </button>
+          </div>
+          <div class="summary-sub" style="text-align: right" *ngIf="detail.header.updateDate">
+            Updated {{ detail.header.updateDate | date:'short' }}<span *ngIf="detail.header.updatedBy"> by {{ detail.header.updatedBy }}</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- summary -->
+      <section class="summary-grid">
+        <div class="summary-card" [class.alert-card]="detail.header.creditHoldSince" (click)="tab = 'payment'">
+          <div class="summary-label">Credit</div>
+          <div class="summary-value">{{ detail.header.creditLimit != null ? (detail.header.creditLimit | currency:'USD':'symbol':'1.0-0') : '—' }}</div>
+          <div class="summary-sub">{{ detail.header.creditHoldSince ? 'On hold: ' + (detail.header.creditHoldReason || 'no reason given') : 'Limit · not on hold' }}</div>
+        </div>
+        <div class="summary-card" (click)="tab = 'payment'">
+          <div class="summary-label">Checkout</div>
+          <div class="summary-value text-value">{{ f.billToParent ? 'Parent pays' : paymentLabel(f.paymentMethod) }}</div>
+          <div class="summary-sub">{{ detail.header.ezPayAllowed ? 'EZPay authorized' : 'No EZPay' }} · {{ f.currencyCode }} · {{ f.languageCode }}</div>
+        </div>
+        <div class="summary-card" [class.warning-card]="activeViolations" (click)="tab = activeViolations ? 'map' : 'access'">
+          <div class="summary-label">Access</div>
+          <div class="summary-value">{{ detail.brandExclusions.length }}</div>
+          <div class="summary-sub">brands blocked · {{ activeGrants.length }} grant{{ activeGrants.length === 1 ? '' : 's' }}<span *ngIf="activeViolations"> · {{ activeViolations }} MAP active</span></div>
+        </div>
+        <div class="summary-card" [class.warning-card]="pendingDocuments || expiredDocuments" (click)="tab = 'documents'">
+          <div class="summary-label">Documents</div>
+          <div class="summary-value">{{ detail.documents.length }}</div>
+          <div class="summary-sub">{{ pendingDocuments }} to review<span *ngIf="expiredDocuments"> · {{ expiredDocuments }} expired</span></div>
+        </div>
+      </section>
+
+      <div class="lock-note" *ngIf="locked">
+        <i class="pi pi-lock"></i>
+        <span>Fields marked <span class="computyme-chip">Computyme</span> are read live from Computyme and can't be edited here until cutover.</span>
+      </div>
+
+      <nav class="channel-tabs">
+        <button type="button" class="channel-tab" *ngFor="let t of visibleTabs" [class.active]="tab === t.key" (click)="tab = t.key">
+          <i [class]="t.icon"></i>{{ t.label }}
+          <span class="tab-count" *ngIf="tabCount(t.key) !== null" [class.tab-count-alert]="t.key === 'map' && tabCount(t.key)">{{ tabCount(t.key) }}</span>
+        </button>
+      </nav>
+
+      <div class="desk-card">
+
+        <!-- ------------------------------------------------ PROFILE -->
+        <ng-container *ngIf="tab === 'profile'">
+          <div class="panel-grid">
+            <div class="panel-stack">
+              <div class="info-panel">
+                <div class="section-label">Identity</div>
+                <div class="form-grid">
+                  <div class="field span-6">
+                    <label>Name</label>
+                    <input type="text" [(ngModel)]="f.name" maxlength="100" />
+                    <span class="hint" *ngIf="detail.header.computymeName && detail.header.computymeName !== f.name">Computyme prints “{{ detail.header.computymeName }}” on invoices today</span>
+                  </div>
+                  <div class="field span-6">
+                    <label>Legal name</label>
+                    <input type="text" [(ngModel)]="f.legalName" maxlength="150" />
+                  </div>
+                  <div class="field span-3">
+                    <label>Member type</label>
+                    <input type="text" [value]="typeLabel(detail.header.memberType)" disabled />
+                    <span class="hint">Set by the account number. A type change is a renumber.</span>
+                  </div>
+                  <div class="field span-3">
+                    <label>Account role</label>
+                    <select [(ngModel)]="f.accountRole">
+                      <option *ngFor="let o of roleOptions" [ngValue]="o.value">{{ o.label }}</option>
+                    </select>
+                  </div>
+                  <div class="field span-3">
+                    <label>Status</label>
+                    <select [(ngModel)]="f.status">
+                      <option *ngFor="let o of statusOptions" [ngValue]="o.value">{{ o.label }}</option>
+                    </select>
+                  </div>
+                  <div class="field span-3">
+                    <label>Join date</label>
+                    <input type="date" [(ngModel)]="f.joinDate" />
+                  </div>
+                  <div class="field span-4"><label>Phone</label><input type="text" [(ngModel)]="f.phone" maxlength="30" /></div>
+                  <div class="field span-4"><label>Fax</label><input type="text" [(ngModel)]="f.fax" maxlength="30" /></div>
+                  <div class="field span-4"><label>Email</label><input type="email" [(ngModel)]="f.email" maxlength="100" /></div>
+                  <div class="field span-12"><label>Website</label><input type="text" [(ngModel)]="f.website" placeholder="https://" maxlength="200" /></div>
+                </div>
+              </div>
+
+              <div class="info-panel">
+                <div class="section-label">Billing structure</div>
+                <div class="form-grid">
+                  <div class="field span-4">
+                    <label>Parent account</label>
+                    <input type="text" [(ngModel)]="f.parentAccountNumber" placeholder="e.g. 7000" maxlength="6" />
+                    <span class="hint" *ngIf="detail.header.parentName">{{ detail.header.parentName }}</span>
+                  </div>
+                  <div class="field span-4 align-end">
+                    <label class="check-row"><input type="checkbox" [(ngModel)]="f.billToParent" />Invoices go to the parent</label>
+                  </div>
+                  <div class="field span-4">
+                    <label>Previous account number</label>
+                    <input type="text" [(ngModel)]="f.previousAccountNumber" placeholder="after a renumber" maxlength="6" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-stack">
+              <div class="info-panel">
+                <div class="section-label">Bill-to</div>
+                <div class="full-address">
+                  <strong>{{ detail.header.name }}</strong>
+                  <span>{{ detail.header.address1 }}<ng-container *ngIf="detail.header.address2">, {{ detail.header.address2 }}</ng-container></span>
+                  <span>{{ detail.header.city }}, {{ detail.header.state }} {{ detail.header.zip }}</span>
+                  <span>{{ detail.header.country }}</span>
+                </div>
+              </div>
+
+              <div class="info-panel">
+                <div class="section-label">Contacts</div>
+                <div class="field-list">
+                  <div class="field-row" *ngFor="let c of detail.contacts">
+                    <span>{{ c.role }}</span>
+                    <strong>{{ c.firstName }} {{ c.lastName }}<br /><span class="faint">{{ c.email }} {{ c.phone }}</span></strong>
+                  </div>
+                  <div class="faint" *ngIf="!detail.contacts.length">No contacts linked.</div>
+                </div>
+                <div class="section-subtitle" style="margin-top: 8px">Contacts are site users; manage them in Security Admin.</div>
+              </div>
+
+              <div class="info-panel">
+                <div class="section-label">Record</div>
+                <div class="field-list">
+                  <div class="field-row"><span>Created</span><strong>{{ detail.header.enterDate ? (detail.header.enterDate | date:'MM/dd/yy') : '—' }}</strong></div>
+                  <div class="field-row"><span>Computyme type</span><strong class="mono">{{ detail.header.computymeType || '—' }}</strong></div>
+                  <div class="field-row"><span>Terms</span><strong>{{ detail.header.terms || '—' }}</strong></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ------------------------------------------------ LOCATIONS -->
+        <ng-container *ngIf="tab === 'locations'">
+          <div class="section-header">
+            <div>
+              <div class="section-label">Locations</div>
+              <div class="section-subtitle">Addresses and store hours are edited on the B2B account page; this is the member's full list.</div>
+            </div>
+          </div>
+          <div class="panel-table">
+            <div class="table-responsive">
+              <table class="desk-table compact">
+                <thead><tr><th>Address</th><th style="width: 150px">Type</th><th style="width: 150px">Computyme ship-to</th><th style="width: 240px"></th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let l of detail.locations" [class.muted-row]="!l.isActive">
+                    <td>
+                      <div class="member-name" *ngIf="l.companyName">{{ l.companyName }}</div>
+                      {{ l.address1 }}<span *ngIf="l.address2">, {{ l.address2 }}</span>
+                      <div class="member-sub">{{ l.city }}, {{ l.state }} {{ l.zip }} {{ l.country }}</div>
+                    </td>
+                    <td>{{ l.addressTypeName }}</td>
+                    <td class="mono">{{ l.computymeShipTo === null || l.computymeShipTo === undefined ? (l.isDefaultShipTo ? 'default' : '—') : '-' + l.computymeShipTo }}</td>
+                    <td>
+                      <span class="status-badge status-progress" *ngIf="l.isBillTo">Bill-to</span>
+                      <span class="status-badge status-ready" *ngIf="l.isDefaultShipTo">Default ship-to</span>
+                      <span class="status-badge" *ngIf="!l.isActive">Inactive</span>
+                    </td>
+                  </tr>
+                  <tr *ngIf="!detail.locations.length"><td colspan="4" class="empty-inline">No addresses on file.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ------------------------------------------------ PAYMENT & CREDIT -->
+        <ng-container *ngIf="tab === 'payment'">
+          <div class="panel-grid">
+            <div class="info-panel">
+              <div class="section-label">Checkout on the B2B site</div>
+              <div class="form-grid">
+                <div class="field span-6">
+                  <label>Payment method</label>
+                  <select [(ngModel)]="f.paymentMethod" [disabled]="f.billToParent">
+                    <option *ngFor="let o of paymentOptions" [ngValue]="o.value">{{ o.label }}</option>
+                  </select>
+                  <span class="hint" *ngIf="f.billToParent">Billed to {{ f.parentAccountNumber }}: the parent pays.</span>
+                </div>
+                <div class="field span-6" *ngIf="f.paymentMethod === 2">
+                  <label>Default at checkout</label>
+                  <select [(ngModel)]="f.defaultPaymentMethod">
+                    <option [ngValue]="null">Choose</option>
+                    <option *ngFor="let o of defaultOptions" [ngValue]="o.value">{{ o.label }}</option>
+                  </select>
+                </div>
+                <div class="field span-12" *ngIf="f.paymentMethod === 1">
+                  <label>Why card only</label>
+                  <input type="text" [(ngModel)]="f.paymentMethodReason" placeholder="e.g. Past due 60+ days; card until current" maxlength="400" />
+                </div>
+              </div>
+              <div class="field-list" style="margin-top: 12px">
+                <div class="field-row"><span>Cards on file</span><strong class="mono">{{ detail.header.authorizeNetCustomerProfileId ? 'Authorize.Net ' + detail.header.authorizeNetCustomerProfileId : 'None' }}</strong></div>
+                <div class="field-row"><span>Card fee</span><strong>3.5%</strong></div>
+              </div>
+            </div>
+
+            <div class="info-panel" [ngClass]="detail.header.creditHoldSince ? 'hold-panel' : 'credit-panel'">
+              <div class="section-label">Credit <span class="computyme-chip" *ngIf="locked">Computyme</span></div>
+              <div class="form-grid">
+                <div class="field span-6">
+                  <label>Credit limit (USD)</label>
+                  <input type="number" min="0" step="100" [(ngModel)]="f.creditLimit" [disabled]="locked" />
+                </div>
+                <div class="field span-6">
+                  <label>Credit hold since</label>
+                  <input type="date" [(ngModel)]="f.creditHoldSince" [disabled]="locked" />
+                </div>
+                <div class="field span-12">
+                  <label>Hold reason</label>
+                  <input type="text" [(ngModel)]="f.creditHoldReason" [disabled]="locked || !f.creditHoldSince" maxlength="400" />
+                  <span class="hint">Orders are taken but not released to the warehouse until the hold is overridden.</span>
+                </div>
+                <div class="field span-12">
+                  <label class="check-row" [class.disabled]="locked"><input type="checkbox" [(ngModel)]="f.ezPayAllowed" [disabled]="locked" />EZPay authorized</label>
+                </div>
+              </div>
+              <div class="warn-note" style="margin: 12px 0 0" *ngIf="detail.header.holdEveryOrder">
+                <i class="pi pi-exclamation-triangle"></i>
+                <span>Every order is held for review<ng-container *ngIf="detail.header.holdEveryOrderReason">: {{ detail.header.holdEveryOrderReason }}</ng-container></span>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ------------------------------------------------ MARKET -->
+        <ng-container *ngIf="tab === 'market'">
+          <div class="panel-grid">
+            <div class="panel-stack">
+              <div class="info-panel">
+                <div class="section-label">Pricing, currency and language</div>
+                <div class="form-grid">
+                  <div class="field span-3">
+                    <label>Price country</label>
+                    <input type="text" [(ngModel)]="f.priceCountry" maxlength="2" style="text-transform: uppercase" />
+                    <span class="hint">Bill-to country: {{ detail.header.country || '—' }}</span>
+                  </div>
+                  <div class="field span-3">
+                    <label>Currency</label>
+                    <select [(ngModel)]="f.currencyCode">
+                      <option *ngFor="let o of currencyOptions" [ngValue]="o.value">{{ o.label }}</option>
+                    </select>
+                  </div>
+                  <div class="field span-3">
+                    <label>Language</label>
+                    <select [(ngModel)]="f.languageCode">
+                      <option *ngFor="let o of languageOptions" [ngValue]="o.value">{{ o.label }}</option>
+                    </select>
+                  </div>
+                  <div class="field span-3">
+                    <label>Fulfillment center</label>
+                    <select [(ngModel)]="f.fulfillmentCenter">
+                      <option *ngFor="let o of centerOptions" [ngValue]="o.value">{{ o.label }}</option>
+                    </select>
+                    <span class="hint" *ngIf="!f.fulfillmentCenter">Default: {{ defaultCenter === 'PA' ? 'PA warehouse' : 'Netherlands 3PL' }}</span>
+                  </div>
+                  <div class="field span-4 align-end">
+                    <label class="check-row"><input type="checkbox" [(ngModel)]="f.markupExempt" />Exempt from the member-type markup</label>
+                  </div>
+                  <div class="field span-8" *ngIf="f.markupExempt">
+                    <label>Why exempt</label>
+                    <input type="text" [(ngModel)]="f.markupExemptReason" maxlength="400" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="info-panel">
+              <div class="section-label">Shipping <span class="computyme-chip" *ngIf="locked">Computyme</span></div>
+              <div class="form-grid">
+                <div class="field span-12">
+                  <label>Shipping zone</label>
+                  <input type="number" min="1" max="15" [(ngModel)]="f.shippingZone" [disabled]="locked" />
+                </div>
+                <div class="field span-12">
+                  <label class="check-row" [class.disabled]="locked"><input type="checkbox" [(ngModel)]="f.airDuringPeak" [disabled]="locked" />Ship by air during the holidays</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ------------------------------------------------ PROGRAMS -->
+        <ng-container *ngIf="tab === 'programs'">
+          <div class="form-grid">
+            <div class="info-panel span-4">
+              <div class="section-label">Dues <span class="computyme-chip" *ngIf="locked">Computyme</span></div>
+              <div class="field">
+                <label class="check-row" [class.disabled]="locked || detail.header.memberType === 3">
+                  <input type="checkbox" [(ngModel)]="f.duesEnrolled" [disabled]="locked || detail.header.memberType === 3" />Pays dues
+                </label>
+              </div>
+              <div class="field">
+                <label>Frequency</label>
+                <select [(ngModel)]="f.duesFrequency" [disabled]="locked || detail.header.memberType === 3">
+                  <option *ngFor="let o of duesOptions" [ngValue]="o.value">{{ o.label }}</option>
+                </select>
+                <span class="hint" *ngIf="detail.header.memberType === 3">Clients do not pay dues.</span>
+                <span class="hint" *ngIf="locked && detail.header.memberType !== 3">Computyme DUES field: {{ detail.header.computymeDues ?? 'blank (monthly)' }}</span>
+              </div>
+            </div>
+            <div class="info-panel span-4">
+              <div class="section-label">Instant rebates</div>
+              <div class="field">
+                <label>Eligibility</label>
+                <select [(ngModel)]="f.instantRebateOverride" [disabled]="f.billToParent">
+                  <option *ngFor="let o of rebateOptions" [ngValue]="o.value">{{ o.label }}</option>
+                </select>
+                <span class="hint">Default: members only. Accounts billed to a parent are never eligible.</span>
+              </div>
+            </div>
+            <div class="info-panel span-4">
+              <div class="section-label">Patronage & quarterly</div>
+              <div class="field">
+                <label>Payout</label>
+                <select [(ngModel)]="f.patronagePayoutMethod"
+                        [disabled]="detail.header.memberType !== 1 || (f.priceCountry && f.priceCountry.toUpperCase() !== 'US')">
+                  <option *ngFor="let o of payoutOptions" [ngValue]="o.value">{{ o.label }}</option>
+                </select>
+                <span class="hint">US members only.</span>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ------------------------------------------------ ACCESS -->
+        <ng-container *ngIf="tab === 'access'">
+          <div class="panel-grid">
+            <div class="panel-stack">
+              <div>
+                <div class="section-header">
+                  <div>
+                    <div class="section-label">Brands this member can't buy</div>
+                    <div class="section-subtitle">Allow lifts a block for this member. Rule blocks keep your reason on a grant; hand-set blocks are removed.</div>
+                  </div>
+                </div>
+                <div class="panel-table">
+                  <table class="desk-table compact">
+                    <thead><tr><th>Brand</th><th style="width: 110px">Source</th><th>Why</th><th class="actions-column" style="width: 90px"></th></tr></thead>
+                    <tbody>
+                      <tr *ngFor="let x of detail.brandExclusions">
+                        <td><strong>{{ x.brandName || ('Brand ' + x.brandId) }}</strong></td>
+                        <td><span class="status-badge" [ngClass]="x.source === 'RULE' ? 'status-progress' : 'status-exception'">{{ x.source === 'RULE' ? 'Rule' : 'Manual' }}</span></td>
+                        <td class="member-sub mono">{{ x.source === 'RULE' ? x.ruleCodes : 'Set by hand' }}</td>
+                        <td class="actions-column"><button type="button" class="row-action approve-action" (click)="allowBrand(x)">Allow</button></td>
+                      </tr>
+                      <tr *ngIf="!detail.brandExclusions.length"><td colspan="4" class="empty-inline">None. This member can buy every brand.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="add-bar" style="margin-top: 0">
+                <div class="form-grid">
+                  <div class="field span-8">
+                    <label>Block a brand for this member</label>
+                    <select [(ngModel)]="blockBrandId">
+                      <option [ngValue]="null">Choose a brand…</option>
+                      <option *ngFor="let b of blockableBrands" [ngValue]="b.brandId">{{ b.brandName }}</option>
+                    </select>
+                  </div>
+                  <div class="field span-4 align-end">
+                    <button type="button" class="btn btn-warning" style="width: 100%" [disabled]="!blockBrandId" (click)="blockBrand()"><i class="pi pi-ban"></i>Block</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="info-panel">
+                <div class="section-label">Product exclusion groups</div>
+                <span class="status-badge" *ngFor="let g of detail.groupExclusions">{{ g.groupName || ('Group ' + g.groupId) }}</span>
+                <span class="faint" *ngIf="!detail.groupExclusions.length">None.</span>
+              </div>
+            </div>
+
+            <div class="panel-stack">
+              <div class="info-panel">
+                <div class="section-header">
+                  <div class="section-label">Grants</div>
+                  <a class="link" routerLink="/members/access-rules">What the rules say</a>
+                </div>
+                <div class="field-list">
+                  <div class="field-row" *ngFor="let g of activeGrants">
+                    <div>
+                      <strong>{{ g.name }}</strong>
+                      <div class="member-sub">{{ g.reason }}</div>
+                      <div class="member-sub">{{ g.grantedOn | date:'MM/dd/yy' }} · {{ g.grantedBy }}</div>
+                    </div>
+                    <button type="button" class="row-action reject-action" (click)="revoke(g)">Revoke</button>
+                  </div>
+                  <div class="faint" *ngIf="!activeGrants.length">No grants. The rules apply in full.</div>
+                </div>
+
+                <div class="add-bar">
+                  <div class="form-grid">
+                    <div class="field span-12">
+                      <label>Grant an exemption</label>
+                      <select [(ngModel)]="grantCode">
+                        <option [ngValue]="null">Choose a rule…</option>
+                        <option *ngFor="let r of activeRules" [ngValue]="r.code">{{ r.name }}</option>
+                      </select>
+                    </div>
+                    <div class="field span-12">
+                      <label>Reason</label>
+                      <input type="text" [(ngModel)]="grantReason" placeholder="e.g. Authorized by Videndum, letter on file" maxlength="400" />
+                    </div>
+                    <div class="span-12">
+                      <button type="button" class="btn btn-primary" (click)="addGrant()"><i class="pi pi-plus"></i>Grant</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="info-panel" *ngIf="legacyGrants.length">
+                <div class="section-label">Legacy authorizations</div>
+                <span class="status-badge" *ngFor="let g of legacyGrants">{{ g.name }}</span>
+                <div class="section-subtitle" style="margin-top: 8px">For the record. GFX pricing still reads Computyme until cutover.</div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ------------------------------------------------ DOCUMENTS -->
+        <ng-container *ngIf="tab === 'documents'">
+          <div class="info-panel" style="margin-bottom: 16px">
+            <div class="section-label">Add a document</div>
+            <div class="form-grid">
+              <div class="field span-3">
+                <label>Type</label>
+                <select [(ngModel)]="uploadType">
+                  <option *ngFor="let o of documentTypes" [ngValue]="o.value">{{ o.label }}</option>
+                </select>
+              </div>
+              <div class="field span-3"><label>Title</label><input type="text" [(ngModel)]="uploadTitle" maxlength="200" /></div>
+              <div class="field span-2"><label>Expires</label><input type="date" [(ngModel)]="uploadExpires" /></div>
+              <div class="field span-2"><label>File</label><input type="file" (change)="onFile($event)" /></div>
+              <div class="field span-2 align-end">
+                <button type="button" class="btn btn-primary" style="width: 100%" [disabled]="uploading || !uploadFile" (click)="upload()">
+                  <i class="pi" [ngClass]="uploading ? 'pi-spin pi-spinner' : 'pi-upload'"></i>Upload
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-table">
+            <div class="table-responsive">
+              <table class="desk-table compact">
+                <thead><tr><th>Document</th><th style="width: 140px">Uploaded</th><th style="width: 110px">Expires</th><th style="width: 200px">Review</th><th class="actions-column" style="width: 200px"></th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let d of detail.documents">
+                    <td>
+                      <button type="button" class="link" (click)="view(d)">{{ d.title || d.fileName }}</button>
+                      <div class="member-sub">{{ docLabel(d.documentType) }}</div>
+                    </td>
+                    <td>{{ d.uploadedAt | date:'MM/dd/yy' }}<div class="member-sub">{{ d.uploadedBy }}</div></td>
+                    <td>
+                      <span *ngIf="!d.expiresOn" class="faint">—</span>
+                      <span *ngIf="d.expiresOn" [class.status-badge]="expired(d)" [class.status-hold]="expired(d)">{{ d.expiresOn | date:'MM/dd/yy' }}</span>
+                    </td>
+                    <td>
+                      <span class="status-badge" [ngClass]="d.reviewStatus === 'APPROVED' ? 'status-ready' : d.reviewStatus === 'REJECTED' ? 'status-hold' : 'status-exception'">{{ d.reviewStatus === 'PENDING' ? 'To review' : (d.reviewStatus | titlecase) }}</span>
+                      <div class="member-sub" *ngIf="d.reviewNote">{{ d.reviewNote }}</div>
+                    </td>
+                    <td class="actions-column">
+                      <button type="button" class="row-action approve-action" *ngIf="d.reviewStatus !== 'APPROVED'" (click)="approve(d)">Approve</button>
+                      <button type="button" class="row-action reject-action" *ngIf="d.reviewStatus !== 'REJECTED'" (click)="reject(d)">Reject</button>
+                      <button type="button" class="row-action" title="Remove" (click)="removeDocument(d)"><i class="pi pi-trash"></i></button>
+                    </td>
+                  </tr>
+                  <tr *ngIf="!detail.documents.length"><td colspan="5" class="empty-inline">No documents on file.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ------------------------------------------------ MAP -->
+        <ng-container *ngIf="tab === 'map'">
+          <div class="info-panel" style="margin-bottom: 16px">
+            <div class="section-label">Record a violation</div>
+            <div class="form-grid">
+              <div class="field span-2"><label>Product code</label><input type="text" [(ngModel)]="violation.productCode" maxlength="50" /></div>
+              <div class="field span-2"><label>Starts</label><input type="date" [(ngModel)]="violation.startDate" /></div>
+              <div class="field span-2"><label>Days blocked</label><input type="number" min="1" max="3650" [(ngModel)]="violation.penaltyDays" /></div>
+              <div class="field span-4"><label>What happened</label><input type="text" [(ngModel)]="violation.note" maxlength="1000" /></div>
+              <div class="field span-2 align-end">
+                <button type="button" class="btn btn-warning" style="width: 100%" (click)="addViolation()"><i class="pi pi-flag"></i>Record</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-table">
+            <div class="table-responsive">
+              <table class="desk-table compact">
+                <thead><tr><th>Product</th><th style="width: 260px">Blocked</th><th>Note</th><th class="actions-column" style="width: 170px"></th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let v of detail.mapViolations" [class.muted-row]="!v.isActive">
+                    <td><span class="account-number">{{ v.productCode }}</span><div class="member-sub">{{ v.modelName }}</div></td>
+                    <td class="nowrap">{{ v.startDate | date:'MM/dd/yy' }} – {{ v.endDate | date:'MM/dd/yy' }} <span class="faint">({{ v.penaltyDays }} days)</span></td>
+                    <td>{{ v.note }}<div class="member-sub" *ngIf="v.createdBy">{{ v.createdBy }}</div></td>
+                    <td class="actions-column">
+                      <span class="status-badge status-hold" *ngIf="v.isActive">Active</span>
+                      <button type="button" class="row-action" *ngIf="v.isActive" (click)="endViolation(v)">End</button>
+                      <span class="status-badge" *ngIf="!v.isActive">Ended</span>
+                    </td>
+                  </tr>
+                  <tr *ngIf="!detail.mapViolations.length"><td colspan="4" class="empty-inline">No MAP violations.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ------------------------------------------------ HISTORY -->
+        <ng-container *ngIf="tab === 'history'">
+          <div class="section-header">
+            <div>
+              <div class="section-label">History</div>
+              <div class="section-subtitle">Every change to this member, newest first: field changes on save, blocks, exemptions and what the rules did.</div>
+            </div>
+            <div class="field status-field">
+              <select [(ngModel)]="historyFilter">
+                <option value="ALL">Everything</option>
+                <option value="PROFILE">Field changes</option>
+                <option value="ACCESS">Access changes</option>
+              </select>
+            </div>
+          </div>
+          <div class="panel-table">
+            <div class="table-responsive">
+              <table class="desk-table compact">
+                <thead><tr><th style="width: 150px">When</th><th style="width: 160px">What</th><th style="width: 160px">Brand</th><th>Detail</th><th style="width: 170px">Who</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let h of history">
+                    <td class="nowrap">{{ h.loggedAt + 'Z' | date:'MM/dd/yy h:mm a' }}</td>
+                    <td><span class="status-badge" [ngClass]="logLabel(h.action).css">{{ logLabel(h.action).text }}</span></td>
+                    <td>{{ h.brandName || (h.brandId ? 'Brand ' + h.brandId : '') }}<div class="member-sub mono" *ngIf="h.ruleCode">{{ h.ruleCode }}</div></td>
+                    <td>{{ h.detail }}</td>
+                    <td class="member-sub">{{ h.changedBy }}</td>
+                  </tr>
+                  <tr *ngIf="!history.length"><td colspan="5" class="empty-inline">Nothing recorded yet. Changes are logged from the moment the history was installed.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ------------------------------------------------ RELATED -->
+        <ng-container *ngIf="tab === 'related'">
+          <div class="panel-table">
+            <table class="desk-table compact">
+              <thead><tr><th style="width: 180px">Relationship</th><th style="width: 110px">Account</th><th>Name</th><th class="arrow-column"></th></tr></thead>
+              <tbody>
+                <tr class="desk-row" *ngFor="let r of detail.related" [routerLink]="['/members', r.accountNumber]">
+                  <td>{{ r.relation === 'CHILD' ? 'Billed through us' : r.relation === 'PREVIOUS' ? 'Formerly' : 'Renumbered to' }}</td>
+                  <td><span class="account-number">{{ r.accountNumber }}</span></td>
+                  <td>{{ r.name }}</td>
+                  <td class="arrow-column"><i class="pi pi-angle-right"></i></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </ng-container>
+      </div>
+    </ng-container>
+  </ng-container>
+</div>
+
+<!-- =========================================================== REASON MODAL -->
+<div class="modal-backdrop" *ngIf="reasonModal as m" (click)="reasonModal = null">
+  <div class="desk-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">{{ m.eyebrow }}</div>
+        <h2>{{ m.title }}</h2>
+        <div class="subtitle">{{ m.subtitle }}</div>
+      </div>
+      <button type="button" class="modal-close" (click)="reasonModal = null"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-warning" [class.info]="!m.danger">
+      <i class="pi" [ngClass]="m.danger ? 'pi-exclamation-triangle' : 'pi-info-circle'"></i>
+      <span>{{ m.warning }}</span>
+    </div>
+    <div class="field">
+      <label>{{ m.label }}</label>
+      <textarea [(ngModel)]="m.note" maxlength="1000" [class.invalid]="m.touched && m.required && m.note.trim().length < 3"></textarea>
+      <div class="validation-error" *ngIf="m.touched && m.required && m.note.trim().length < 3">A reason is required.</div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" (click)="reasonModal = null">Cancel</button>
+      <button type="button" class="btn" [ngClass]="m.danger ? 'btn-danger' : 'btn-primary'" (click)="confirmReason()">{{ m.confirmLabel }}</button>
+    </div>
+  </div>
+</div>

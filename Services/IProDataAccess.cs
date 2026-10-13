@@ -1,4 +1,4 @@
-﻿using Azure.Core;
+using Azure.Core;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -20,12 +20,12 @@ using ProInternal.Models.Vendor;
 using ProInternal.Models.WH;
 using ProInternal.Services;
 using System;
-using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using static ProInternal.Controllers.AuthController;
+using MemberDesk = ProInternal.Models.Member;
 
 namespace ProInternal.Services
 {
@@ -274,6 +274,33 @@ GetSellThroughExportData(
         IEnumerable<ShopifyTaxonomyAuditDto> GetShopifyTaxonomyAudit();
 
         ProductSearchPage SearchProducts(ProductSearchQuery query);
+
+        #region Member Desk
+        // Member Desk models live in ProInternal.Models.Member. The alias keeps them from
+        // colliding with existing models that share a name.
+
+        List<MemberDesk.MemberListItem> Member_Search(string term);
+        MemberDesk.MemberDetail Member_Get(string accountNumber, bool sqlIsMaster);
+        void Member_Save(string accountNumber, MemberDesk.MemberSaveRequest member, bool sqlIsMaster, string user);
+        List<MemberDesk.AccessRule> AccessRule_List();
+        int AccessRule_Save(MemberDesk.AccessRule rule, string user);
+        List<MemberDesk.AccessRuleMember> AccessRule_Members(string code);
+        void MemberAuthorization_Grant(string accountNumber, MemberDesk.GrantRequest grant, string user);
+        void MemberAuthorization_Revoke(int memberAuthorizationId, string user);
+        int MemberDocument_Add(string accountNumber, string documentType, string title, string fileName,
+                               string storageKey, string contentType, long sizeBytes, DateTime? expiresOn, string user);
+        MemberDesk.MemberDocumentFile MemberDocument_Get(int documentId);
+        void MemberDocument_Review(int documentId, MemberDesk.DocumentReviewRequest review, string user);
+        void MemberDocument_Delete(int documentId, string user);
+        void MapViolation_Add(string accountNumber, MemberDesk.MapViolationRequest violation, string user);
+        void MapViolation_End(int violationId, MemberDesk.MapViolationEndRequest end, string user);
+        List<MemberDesk.BrandOption> Brand_List();
+        void MemberBrand_Allow(string accountNumber, int brandId, string reason, string user);
+        void MemberBrand_Block(string accountNumber, int brandId, string reason, string user);
+        #endregion
+
+
+
 
     }
 

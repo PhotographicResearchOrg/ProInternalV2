@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/access/access-rule.schema.json",
+  "title": "PRO brand access rule",
+  "description": "A written rule that keeps a brand from a segment of members unless they hold a grant, or a grant-only authorization that unlocks a price. Every rule carries its own explanation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "code", "name", "description", "businessReason", "status", "segment", "reviewStatus"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "ruleId": { "type": "integer", "minimum": 1 },
+    "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,39}$" },
+    "name": { "type": "string", "minLength": 3, "maxLength": 100 },
+    "description": { "type": "string", "minLength": 10, "maxLength": 500, "description": "Plain English: who cannot buy what, and who is exempt." },
+    "businessReason": { "type": "string", "minLength": 5, "maxLength": 500, "description": "Why the rule exists." },
+    "status": { "$ref": "../members/member.enums.json#/$defs/RuleStatus" },
+    "brandId": { "type": ["integer", "null"], "minimum": 1 },
+    "vendorId": { "type": "integer", "minimum": 1, "description": "The vendor that authorizes members, for vendor programs." },
+    "unlocksAuthorizedPrice": { "type": "boolean", "default": false },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "$ref": "../members/member.enums.json#/$defs/SegmentType" },
+        "memberTypes": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "$ref": "../members/member.enums.json#/$defs/MemberType" }
+        },
+        "requiresCustomCatalog": { "type": "boolean", "default": false },
+        "requiresPortalEnabled": { "type": "boolean", "default": false }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "MEMBER_TYPE" } } },
+          "then": { "required": ["memberTypes"] },
+          "else": { "not": { "required": ["memberTypes"] } } }
+      ]
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approvedBy", "approvedOn"],
+      "properties": {
+        "approvedBy": { "$ref": "../members/member.enums.json#/$defs/UserRef" },
+        "approvedOn": { "type": "string", "format": "date" }
+      }
+    },
+    "reviewStatus": { "$ref": "../members/member.enums.json#/$defs/RuleReviewStatus" },
+    "reviewBy": { "type": "string", "format": "date" }
+  },
+  "allOf": [
+    {
+      "description": "An active rule must do something: exclude a brand, or unlock a price. LEGACY and RETIRED rules may be record-only.",
+      "anyOf": [
+        { "properties": { "status": { "enum": ["LEGACY", "RETIRED"] } } },
+        { "required": ["brandId"], "properties": { "brandId": { "type": "integer" } } },
+        { "required": ["unlocksAuthorizedPrice"], "properties": { "unlocksAuthorizedPrice": { "const": true } } }
+      ]
+    },
+    {
+      "description": "A brand exclusion needs a segment to apply to.",
+      "if": { "required": ["brandId"], "properties": { "brandId": { "type": "integer" } } },
+      "then": { "properties": { "segment": { "properties": { "type": { "not": { "const": "NONE" } } } } } }
+    },
+    {
+      "description": "A reviewed rule names who approved it.",
+      "if": { "properties": { "reviewStatus": { "const": "REVIEWED" } } },
+      "then": { "required": ["approval"] }
+    }
+  ]
+}

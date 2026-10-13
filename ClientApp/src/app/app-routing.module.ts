@@ -39,6 +39,9 @@ import { IrSetupDashboardComponent } from './prointernalengine/components/instan
 import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component';
 import { OrdersComponent } from './prointernalengine/components/dashboards/Orders/orders.component';
 import { EdiManagementComponent } from './prointernalengine/components/dashboards/Orders/edi-management/edi-management.component';
+import { MemberDeskComponent } from './prointernalengine/components/MemberManagement/member-desk/member-desk.component';
+import { AccessRulesComponent } from './prointernalengine/components/MemberManagement/member-desk/access-rules.component';
+
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
@@ -80,6 +83,11 @@ const routes: Routes = [
       { path: 'exclusions/group', component: ExclusionGroupsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Exclusion Groups' } },
       { path: 'exclusion/group/company', component: ExclusionGroupCompanyComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Company Exclusion Groups' } },
       { path: 'accountmanagement', component: AccountManagementComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Account Management' } },
+
+      { path: 'members', component: MemberDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Member Desk' } },
+      { path: 'members/access-rules', component: AccessRulesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Access Rules' } },
+      { path: 'members/:accountNumber', component: MemberDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Member' } },
+
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
       { path: 'vendor-card', component: VendorCardComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor' } },
       { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/documents/member-document.schema.json",
+  "title": "PRO member document",
+  "description": "A file held for a member (certificate, agreement, W-9...). The file lives in the document store; this is its record and Accounting's review.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "memberNumber", "type", "fileName", "storageKey", "uploadedAt", "uploadedBy", "review"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "documentId": { "type": "integer", "minimum": 1 },
+    "memberNumber": { "$ref": "../members/member.enums.json#/$defs/MemberNumber" },
+    "type": { "$ref": "../members/member.enums.json#/$defs/DocumentType" },
+    "title": { "type": "string", "maxLength": 200 },
+    "fileName": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "storageKey": { "type": "string", "pattern": "^member-documents/[0-9]{1,6}/\\S+$" },
+    "uploadedAt": { "type": "string", "format": "date-time" },
+    "uploadedBy": { "$ref": "../members/member.enums.json#/$defs/UserRef" },
+    "expiresOn": { "type": "string", "format": "date" },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "$ref": "../members/member.enums.json#/$defs/DocumentReviewStatus" },
+        "reviewedBy": { "$ref": "../members/member.enums.json#/$defs/UserRef" },
+        "reviewedAt": { "type": "string", "format": "date-time" },
+        "note": { "type": "string", "maxLength": 1000 }
+      },
+      "allOf": [
+        { "if": { "properties": { "status": { "enum": ["APPROVED", "REJECTED"] } } },
+          "then": { "required": ["reviewedBy", "reviewedAt"] },
+          "else": { "not": { "anyOf": [ { "required": ["reviewedBy"] }, { "required": ["reviewedAt"] } ] } } },
+        { "if": { "properties": { "status": { "const": "REJECTED" } } },
+          "then": { "required": ["note"] } }
+      ]
+    }
+  }
+}
