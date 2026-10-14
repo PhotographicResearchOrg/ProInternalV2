@@ -102,6 +102,116 @@ export interface ProductTranslateResult {
   failures: { locale: string; message: string }[];
 }
 
+/* ---- market pricing: exchange rates, conversion, price history ---- */
+
+export interface ExchangeRate {
+  exchangeRateId: number;
+  currency: string;
+  unitsPerUsd: number;          // $1 buys this many units
+  rateDate: string;             // the date the source published it
+  source: 'ECB' | 'MANUAL';
+  status?: 'PENDING' | 'ACCEPTED' | 'REJECTED' | null;
+  reason?: string | null;
+  expiresOn?: string | null;
+  createdBy?: string | null;
+  createdAt?: string | null;
+  decidedBy?: string | null;
+  decidedAt?: string | null;
+  clearedBy?: string | null;
+  clearedAt?: string | null;
+  clearedReason?: string | null;
+  /* pending rows: the rate this one would replace */
+  currentUnitsPerUsd?: number | null;
+  currentRateDate?: string | null;
+  currentSource?: string | null;
+}
+
+export interface ExchangeRateBoard {
+  current: ExchangeRate[];
+  pending: ExchangeRate[];
+  history: ExchangeRate[];
+  added?: number | null;
+  feedDate?: string | null;
+}
+
+export interface MarketOption {
+  country: string;
+  name: string;
+  currency: string;
+  locale: string;
+  isHome: boolean;
+  upliftPercent: number;
+  roundTo: number;
+}
+
+export interface MoneyValue { amount: string; currency: string; }
+
+export interface ConvertPricesRequest {
+  source: Record<string, MoneyValue>;
+  countries: string[];
+}
+
+export interface ConvertedMarket {
+  country: string;
+  currency: string;
+  prices: Record<string, MoneyValue>;
+  exchangeRateId: number | null;
+  unitsPerUsd: number;
+  rateDate: string | null;
+  rateSource: string | null;
+  upliftPercent: number;
+  roundTo: number;
+}
+
+export interface ConvertPricesResult {
+  results: ConvertedMarket[];
+  failures: { country: string; message: string }[];
+}
+
+export interface MarketPriceMeta {
+  country: string;
+  method: 'CONVERTED' | 'MANUAL' | null;
+  exchangeRateId: number | null;
+  unitsPerUsd: number | null;
+  rateDate: string | null;
+  upliftPercent: number | null;
+  sourceHash: string | null;
+}
+
+export interface PriceLogRow {
+  logId: number;
+  country: string;
+  priceKey: string;
+  currency: string | null;
+  oldAmount: number | null;
+  newAmount: number | null;
+  method: 'CONVERTED' | 'MANUAL' | 'REMOVED';
+  exchangeRateId: number | null;
+  unitsPerUsd: number | null;
+  rateDate: string | null;
+  upliftPercent: number | null;
+  reason: string | null;
+  changedBy: string;
+  changedAt: string;
+}
+
+export interface ProductPricingAudit {
+  markets: MarketPriceMeta[];
+  history: PriceLogRow[];
+}
+
+/* Sent with a save: how each market's prices were made, and why any converted price was overridden. */
+export interface PriceAudit {
+  reason: string | null;
+  markets: {
+    country: string;
+    method: 'CONVERTED' | 'MANUAL';
+    exchangeRateId: number | null;
+    upliftPercent: number | null;
+    sourceHash: string | null;
+  }[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -118,11 +228,12 @@ export class ProductContractService {
     productId: number | string,
     product: unknown,
     content: unknown,
-    followInventoryMarker: boolean
+    followInventoryMarker: boolean,
+    priceAudit: PriceAudit | null = null
   ): Observable<ProductSaveResult> {
     return this.api.post<ProductSaveResult>(
       `API/products/${encodeURIComponent(String(productId))}/contract`,
-      { product, content, followInventoryMarker }
+      { product, content, followInventoryMarker, priceAudit }
     );
   }
 
@@ -146,5 +257,47 @@ export class ProductContractService {
       .join('&');
 
     return this.api.get<ProductSearchPage>(`API/products/contract/search${qs ? '?' + qs : ''}`);
+  }
+
+  // ---- market pricing ----
+
+  getExchangeRates(): Observable<ExchangeRateBoard> {
+    return this.api.get<ExchangeRateBoard>('API/products/contract/exchange-rates');
+  }
+
+  /* Pulls the ECB rates now. New rates come back pending; nothing is used until accepted. */
+  refreshExchangeRates(): Observable<ExchangeRateBoard> {
+    return this.api.post<ExchangeRateBoard>('API/products/contract/exchange-rates/refresh', {});
+  }
+
+  decideExchangeRates(ids: number[], accept: boolean, reason?: string | null): Observable<ExchangeRateBoard> {
+    return this.api.post<ExchangeRateBoard>('API/products/contract/exchange-rates/decide', { ids, accept, reason: reason || null });
+  }
+
+  /* A rate set by hand: used straight away, needs a reason. */
+  overrideExchangeRate(body: { currency: string; unitsPerUsd: number; reason: string; expiresOn?: string | null }): Observable<ExchangeRateBoard> {
+    return this.api.post<ExchangeRateBoard>('API/products/contract/exchange-rates/override', body);
+  }
+
+  clearExchangeRate(exchangeRateId: number, reason?: string | null): Observable<ExchangeRateBoard> {
+    return this.api.post<ExchangeRateBoard>(
+      `API/products/contract/exchange-rates/${encodeURIComponent(String(exchangeRateId))}/clear`,
+      { reason: reason || null }
+    );
+  }
+
+  getMarkets(): Observable<MarketOption[]> {
+    return this.api.get<MarketOption[]>('API/products/contract/markets');
+  }
+
+  /* Converts the US prices into markets. Nothing is saved until the product is saved. */
+  convertPrices(body: ConvertPricesRequest): Observable<ConvertPricesResult> {
+    return this.api.post<ConvertPricesResult>('API/products/contract/convert-prices', body);
+  }
+
+  getPricingAudit(productId: number | string): Observable<ProductPricingAudit> {
+    return this.api.get<ProductPricingAudit>(
+      `API/products/${encodeURIComponent(String(productId))}/contract/pricing-audit`
+    );
   }
 }

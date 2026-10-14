@@ -60,6 +60,14 @@ namespace ProInternal.Services.ProductContract
 
         /* True leaves direct vendor ship to the inventory marker. */
         public bool FollowInventoryMarker { get; set; } = true;
+
+        /*
+         * How each market's prices were made, and why any converted price was overridden:
+         *   { "reason": "...", "markets": [ { "country": "DE", "method": "CONVERTED",
+         *     "exchangeRateId": 41, "upliftPercent": 0, "sourceHash": "9a1c03ff" } ] }
+         * Read by dbo.PIV2_ProductMarketPrice_Audit and _SetMethod.
+         */
+        public JsonObject? PriceAudit { get; set; }
     }
 
     public sealed class ProductSaveResult
@@ -83,6 +91,15 @@ namespace ProInternal.Services.ProductContract
         Task<ProductPageData?> GetAsync(int productId, bool sqlIsMaster, CancellationToken cancellationToken);
         Task<ProductSaveResult> SaveAsync(int productId, ProductSaveRequest request, string updatedBy, bool sqlIsMaster, CancellationToken cancellationToken);
         Task<List<ProductBrandOption>> GetBrandsAsync(CancellationToken cancellationToken);
+
+        // ---- market pricing: exchange rates, markets, conversion history ----
+        Task<ExchangeRateBoard> GetExchangeRatesAsync(CancellationToken cancellationToken);
+        Task<int> AddPulledRatesAsync(IEnumerable<PulledRate> rates, string user, CancellationToken cancellationToken);
+        Task DecideExchangeRatesAsync(IEnumerable<int> ids, bool accept, string? reason, string user, CancellationToken cancellationToken);
+        Task<RateActionResult> OverrideExchangeRateAsync(OverrideRateRequest request, string user, CancellationToken cancellationToken);
+        Task<RateActionResult> ClearExchangeRateAsync(int exchangeRateId, string? reason, string user, CancellationToken cancellationToken);
+        Task<List<MarketRow>> GetMarketsAsync(CancellationToken cancellationToken);
+        Task<ProductPricingAudit> GetPricingAuditAsync(int productId, CancellationToken cancellationToken);
     }
 
     public class ProductContractDataAccess : BaseDataAccess, IProductContractDataAccess
@@ -153,8 +170,40 @@ namespace ProInternal.Services.ProductContract
              * then the translation status is written back onto them. If either
              * fails, neither is kept, so AI text can never lose its "not
              * reviewed" mark.
+             *
+             * Market prices: every change is logged against what is stored
+             * BEFORE the save overwrites it, and how each market was priced
+             * (converted at which rate, or by hand) is written back AFTER.
+             * A refused audit (override without a reason, conversion at a
+             * rate nobody accepted) saves nothing.
              */
             using var transaction = conn.BeginTransaction();
+
+            var priceAudit = request.PriceAudit?.ToJsonString();
+
+            var audit = await conn.QuerySingleAsync<ProductSaveResult>(new CommandDefinition(
+                "dbo.PIV2_ProductMarketPrice_Audit",
+                new
+                {
+                    ProductId = productId,
+                    ProductJson = request.Product!.ToJsonString(),
+                    MetaJson = priceAudit,
+                    User = updatedBy
+                },
+                transaction,
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+
+            if (!audit.Success)
+            {
+                transaction.Rollback();
+                return new ProductSaveResult
+                {
+                    Success = false,
+                    Message = "The product was not saved.",
+                    Problems = new List<string> { audit.Message }
+                };
+            }
 
             var saved = await conn.QuerySingleAsync<ProductSaveResult>(new CommandDefinition(
                 "dbo.PIV2_Product_Save",
@@ -187,8 +236,128 @@ namespace ProInternal.Services.ProductContract
                     cancellationToken: cancellationToken));
             }
 
+            await conn.ExecuteAsync(new CommandDefinition(
+                "dbo.PIV2_ProductMarketPrice_SetMethod",
+                new { ProductId = productId, MetaJson = priceAudit },
+                transaction,
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+
             transaction.Commit();
             return saved;
+        }
+
+        // ---------------------------------------------------------------
+        // Market pricing: exchange rates (pulled, accepted, or set by hand),
+        // markets, and how each product's market prices were made.
+        // ---------------------------------------------------------------
+
+        public async Task<ExchangeRateBoard> GetExchangeRatesAsync(CancellationToken cancellationToken)
+        {
+            using var conn = GetConnection();
+
+            using var results = await conn.QueryMultipleAsync(new CommandDefinition(
+                "dbo.PIV2_ExchangeRate_Get",
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+
+            return new ExchangeRateBoard
+            {
+                Current = (await results.ReadAsync<ExchangeRateRow>()).ToList(),
+                Pending = (await results.ReadAsync<ExchangeRateRow>()).ToList(),
+                History = (await results.ReadAsync<ExchangeRateRow>()).ToList()
+            };
+        }
+
+        /* Stores a pull as PENDING; returns how many rates were new. */
+        public async Task<int> AddPulledRatesAsync(IEnumerable<PulledRate> rates, string user, CancellationToken cancellationToken)
+        {
+            var json = JsonSerializer.Serialize(rates.Select(r => new
+            {
+                currency = r.Currency,
+                unitsPerUsd = r.UnitsPerUsd,
+                rateDate = r.RateDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            }));
+
+            using var conn = GetConnection();
+
+            return await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+                "dbo.PIV2_ExchangeRate_AddPulled",
+                new { RatesJson = json, User = user },
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+        }
+
+        public async Task DecideExchangeRatesAsync(
+            IEnumerable<int> ids, bool accept, string? reason, string user, CancellationToken cancellationToken)
+        {
+            using var conn = GetConnection();
+
+            await conn.ExecuteAsync(new CommandDefinition(
+                "dbo.PIV2_ExchangeRate_Decide",
+                new { IdsJson = JsonSerializer.Serialize(ids), Accept = accept, Reason = reason, User = user },
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+        }
+
+        public async Task<RateActionResult> OverrideExchangeRateAsync(
+            OverrideRateRequest request, string user, CancellationToken cancellationToken)
+        {
+            using var conn = GetConnection();
+
+            return await conn.QuerySingleAsync<RateActionResult>(new CommandDefinition(
+                "dbo.PIV2_ExchangeRate_Override",
+                new
+                {
+                    Currency = (request.Currency ?? "").Trim().ToUpperInvariant(),
+                    UnitsPerUSD = request.UnitsPerUsd,
+                    Reason = request.Reason,
+                    ExpiresOn = request.ExpiresOn?.Date,
+                    User = user
+                },
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+        }
+
+        public async Task<RateActionResult> ClearExchangeRateAsync(
+            int exchangeRateId, string? reason, string user, CancellationToken cancellationToken)
+        {
+            using var conn = GetConnection();
+
+            return await conn.QuerySingleAsync<RateActionResult>(new CommandDefinition(
+                "dbo.PIV2_ExchangeRate_Clear",
+                new { ExchangeRateId = exchangeRateId, Reason = reason, User = user },
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+        }
+
+        public async Task<List<MarketRow>> GetMarketsAsync(CancellationToken cancellationToken)
+        {
+            using var conn = GetConnection();
+
+            var rows = await conn.QueryAsync<MarketRow>(new CommandDefinition(
+                "dbo.PIV2_Market_Get",
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+
+            return rows.ToList();
+        }
+
+        public async Task<ProductPricingAudit> GetPricingAuditAsync(int productId, CancellationToken cancellationToken)
+        {
+            using var conn = GetConnection();
+
+            using var results = await conn.QueryMultipleAsync(new CommandDefinition(
+                "dbo.PIV2_ProductPricing_GetAudit",
+                new { ProductId = productId },
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+
+            return new ProductPricingAudit
+            {
+                Markets = (await results.ReadAsync<MarketPriceMeta>()).ToList(),
+                History = (await results.ReadAsync<PriceLogRow>()).ToList()
+            };
         }
 
         /*

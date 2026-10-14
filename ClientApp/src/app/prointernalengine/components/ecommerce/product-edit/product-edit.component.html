@@ -367,7 +367,12 @@
                 <span class="v mono">{{ show(product.pricing.memberPrice) }}</span>
               </div>
               <div class="field" *ngFor="let m of product.marketPricing">
-                <span class="k">{{ countryName(m.country) }}</span>
+                <span class="k">
+                  {{ countryName(m.country) }}
+                  <span class="cf-type" *ngIf="conversionState(m) === 'MANUAL'">by hand</span>
+                  <span class="badge" *ngIf="conversionState(m) === 'SOURCE_CHANGED' || conversionState(m) === 'RATE_MOVED'"
+                        [ngStyle]="{color: P.amber, background: P.amberSoft}">recheck</span>
+                </span>
                 <span class="v mono">{{ show(m.memberPrice) }}</span>
               </div>
             </div>
@@ -461,6 +466,113 @@
 
       <!-- ---------- Pricing ---------- -->
       <div *ngIf="activeSection === 'pricing'" class="stack">
+
+        <!-- Exchange rates: pulled on demand, used only once accepted -->
+        <section class="card">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: P.tealSoft, color: P.teal}"><i class="pi pi-sync"></i></span>
+            <h3>Exchange rates <span class="cf-type">per $1</span></h3>
+            <div class="act addrow">
+              <button type="button" class="iconbtn" (click)="showRateHistory = !showRateHistory">
+                <i class="pi pi-history"></i> {{ showRateHistory ? 'Hide history' : 'History' }}
+              </button>
+              <button type="button" class="btn-primary" [disabled]="ratesBusy" (click)="refreshRates()">
+                <i class="pi" [class.pi-download]="!ratesBusy" [class.pi-spin]="ratesBusy" [class.pi-spinner]="ratesBusy"></i>
+                Refresh rates
+              </button>
+            </div>
+          </header>
+          <div class="card-body">
+            <div class="problems" *ngIf="ratesError"><i class="pi pi-exclamation-circle"></i><div>{{ ratesError }}</div></div>
+
+            <p class="muted-p">
+              Refresh pulls the European Central Bank's published reference rates. A pulled rate is not used until someone accepts it.
+              A rate typed here is used straight away and needs a reason. Every rate is kept.
+            </p>
+
+            <!-- waiting for a decision -->
+            <div class="fx-pending" *ngIf="rates?.pending?.length">
+              <div class="fx-pending-head">
+                <b>{{ rates?.pending?.length }} pulled, waiting to be accepted</b>
+                <button type="button" class="btn-primary" [disabled]="ratesBusy" (click)="acceptAllPending()"><i class="pi pi-check"></i> Accept all</button>
+              </div>
+              <div class="fx-row fx-head">
+                <span>Currency</span><span>Now → pulled</span><span>Change</span><span>Source</span><span></span>
+              </div>
+              <div class="fx-row" *ngFor="let r of rates?.pending; trackBy: trackRate">
+                <span class="mono strong">{{ r.currency }}</span>
+                <span class="mono">{{ r.currentUnitsPerUsd ?? '—' }} → <b>{{ r.unitsPerUsd }}</b></span>
+                <span><span class="badge" [ngStyle]="{color: P.amber, background: '#fff'}">{{ rateChange(r) }}</span></span>
+                <span class="sub">ECB, published {{ shortDate(r.rateDate) }}<br>pulled by {{ r.createdBy }}</span>
+                <span class="fx-actions">
+                  <button type="button" class="iconbtn" [disabled]="ratesBusy" (click)="acceptRates([r.exchangeRateId])"><i class="pi pi-check"></i> Accept</button>
+                  <button type="button" class="iconbtn danger" [disabled]="ratesBusy" (click)="rejectRate(r)"><i class="pi pi-times"></i> Reject</button>
+                </span>
+              </div>
+            </div>
+
+            <!-- in force -->
+            <div class="fx-row fx-head">
+              <span>Currency</span><span>$1 buys</span><span>Source</span><span>Published</span><span></span>
+            </div>
+            <div class="fx-row" *ngFor="let r of rates?.current; trackBy: trackRate">
+              <span class="mono strong">{{ r.currency }}</span>
+              <span class="mono">{{ r.unitsPerUsd }}</span>
+              <span>
+                <span class="badge" *ngIf="r.source === 'MANUAL'" [ngStyle]="{color: P.violet, background: P.violetSoft}" [title]="r.reason || ''">Manual</span>
+                <span class="badge" *ngIf="r.source !== 'MANUAL'" [ngStyle]="{color: P.teal, background: P.tealSoft}">ECB</span>
+                <span class="sub">accepted by {{ r.decidedBy || '—' }}</span>
+              </span>
+              <span class="mono">
+                {{ shortDate(r.rateDate) }}
+                <span class="badge" *ngIf="(rateAgeDays(r) ?? 0) > 7" [ngStyle]="{color: P.amber, background: P.amberSoft}">{{ rateAgeDays(r) }} days old</span>
+                <span class="sub" *ngIf="r.expiresOn">until {{ shortDate(r.expiresOn) }}</span>
+              </span>
+              <span class="fx-actions">
+                <button type="button" class="iconbtn danger" *ngIf="r.source === 'MANUAL'" [disabled]="ratesBusy" (click)="clearOverride(r)">Withdraw</button>
+              </span>
+            </div>
+            <div class="cf-empty" *ngIf="rates && !rates.current.length">No accepted rates yet. Refresh, then accept.</div>
+
+            <!-- type a rate -->
+            <div class="fx-override">
+              <span class="lab">Set a rate by hand</span>
+              <div class="inline fx-labels">
+                <span>Currency</span><span>$1 buys</span><span>Reason</span><span>Expires (optional)</span><span></span>
+              </div>
+              <div class="inline">
+                <select class="unit" [(ngModel)]="overrideRate.currency">
+                  <option value="">Currency</option>
+                  <option *ngFor="let c of overrideCurrencies" [value]="c">{{ c }}</option>
+                </select>
+                <input type="number" min="0" step="0.0001" placeholder="$1 buys" [(ngModel)]="overrideRate.unitsPerUsd">
+                <input type="text" class="grow" placeholder="Reason (required)" [(ngModel)]="overrideRate.reason">
+                <input type="date" class="fx-date" title="Stops applying after this date. Leave empty to keep it until a newer rate is accepted."
+                       [class.empty]="!overrideRate.expiresOn" [(ngModel)]="overrideRate.expiresOn">
+                <button type="button" class="iconbtn" [disabled]="ratesBusy || !!overrideProblem" [title]="overrideProblem" (click)="saveOverride()">
+                  <i class="pi pi-pencil"></i> Use this rate
+                </button>
+              </div>
+            </div>
+
+            <!-- every rate ever pulled or typed -->
+            <div class="fx-history" *ngIf="showRateHistory">
+              <div class="fx-row fx-head"><span>Currency</span><span>Rate</span><span>Status</span><span>When · who</span><span>Reason</span></div>
+              <div class="fx-row" *ngFor="let r of rates?.history; trackBy: trackRate">
+                <span class="mono strong">{{ r.currency }}</span>
+                <span class="mono">{{ r.unitsPerUsd }} <span class="sub">{{ r.source }} · {{ shortDate(r.rateDate) }}</span></span>
+                <span>{{ r.clearedAt ? 'WITHDRAWN' : r.status }}</span>
+                <span class="sub">
+                  {{ r.createdAt | date:'MMM d, y HH:mm' }} {{ r.createdBy }}
+                  <ng-container *ngIf="r.decidedBy"> · decided {{ r.decidedAt | date:'MMM d HH:mm' }} {{ r.decidedBy }}</ng-container>
+                  <ng-container *ngIf="r.clearedBy"> · withdrawn {{ r.clearedAt | date:'MMM d HH:mm' }} {{ r.clearedBy }}</ng-container>
+                </span>
+                <span class="sub">{{ r.clearedReason || r.reason || '' }}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <div class="grid cols2">
           <section class="card">
             <header class="card-head">
@@ -476,6 +588,23 @@
                 </div>
                 <ng-container *ngTemplateOutlet="moneyInput; context: { m: product.pricing.shippingSurcharge, locked: false }"></ng-container>
                 <div class="qty"></div>
+              </div>
+
+              <!-- the US prices in each market's currency, at today's rate: display only -->
+              <div class="fx-equiv" *ngIf="equivalentCurrencies.length">
+                <div class="fx-equiv-row fx-head" [style.grid-template-columns]="'1.4fr repeat(' + (equivalentCurrencies.length + 1) + ', 1fr)'">
+                  <span>At today's rate</span><span class="num">USD</span>
+                  <span class="num" *ngFor="let c of equivalentCurrencies">{{ c }}</span>
+                </div>
+                <ng-container *ngFor="let row of priceRows">
+                  <div class="fx-equiv-row" *ngIf="product.pricing[row.key].amount"
+                       [style.grid-template-columns]="'1.4fr repeat(' + (equivalentCurrencies.length + 1) + ', 1fr)'">
+                    <span>{{ row.label }}</span>
+                    <span class="mono num">{{ product.pricing[row.key].amount }}</span>
+                    <span class="mono num" *ngFor="let c of equivalentCurrencies">{{ equivalent(row.key, c) }}</span>
+                  </div>
+                </ng-container>
+                <div class="hint">Straight conversion for comparison. Not saved; the market prices below are what is sold at.</div>
               </div>
             </div>
           </section>
@@ -503,22 +632,77 @@
         <section class="card" *ngFor="let market of product.marketPricing">
           <header class="card-head">
             <span class="ci" [ngStyle]="{background: P.blueSoft, color: P.blue}"><i class="pi pi-globe"></i></span>
-            <h3>{{ countryName(market.country) }} <span class="cf-type">{{ market.country }}</span></h3>
-            <div class="act"><button type="button" class="iconbtn danger" (click)="removeMarket(market)"><i class="pi pi-trash"></i> Remove market</button></div>
+            <h3>
+              {{ countryName(market.country) }} <span class="cf-type">{{ market.country }}</span>
+              <span class="badge" *ngIf="conversionLabel(market)"
+                    [ngStyle]="{color: conversionColor(market).fg, background: conversionColor(market).bg}">{{ conversionLabel(market) }}</span>
+            </h3>
+            <div class="act addrow">
+              <button type="button" class="btn-ai" [disabled]="converting || !hasHomePrice" (click)="convertMarket(market)"
+                      [title]="'Convert the US prices to ' + marketCurrency(market) + ' at the accepted rate'">
+                <i class="pi" [class.pi-sync]="!converting" [class.pi-spin]="converting" [class.pi-spinner]="converting"></i> Convert from USD
+              </button>
+              <button type="button" class="iconbtn danger" (click)="removeMarket(market)"><i class="pi pi-trash"></i> Remove market</button>
+            </div>
           </header>
           <div class="card-body">
-            <ng-container *ngTemplateOutlet="priceTable; context: { prices: market, locked: false }"></ng-container>
+            <ng-container *ngTemplateOutlet="priceTable; context: { prices: market, locked: false, market: market }"></ng-container>
+          </div>
+        </section>
+
+        <section class="card" *ngIf="overriddenMarkets.length">
+          <div class="card-body form">
+            <label class="fld">
+              <span class="lab">Why were converted prices changed by hand?
+                <span class="hint">{{ overriddenMarkets.length }} market(s); kept in the price history</span></span>
+              <input type="text" [(ngModel)]="priceReason" (ngModelChange)="touch()" placeholder="e.g. Matched the UK street price">
+            </label>
           </div>
         </section>
 
         <section class="card">
           <div class="card-body addrow">
-            <span class="muted-p" style="margin:0">A country with no prices here is not priced there. Nothing is converted.</span>
+            <button type="button" class="btn-ai" *ngIf="convertTargets.length"
+                    [disabled]="converting || !hasHomePrice" (click)="convertAll()"
+                    [title]="'Convert the US prices into every market it is priced or shown in'">
+              <i class="pi" [class.pi-sync]="!converting" [class.pi-spin]="converting" [class.pi-spinner]="converting"></i>
+              Convert all markets ({{ convertTargets.length }})
+            </button>
+            <span class="muted-p" style="margin:0">A country with no prices here is not priced there. Converting uses the accepted rate, then the market's uplift and rounding; you can change any number after.</span>
             <select [(ngModel)]="newMarketCountry">
               <option value="">Add a market…</option>
               <option *ngFor="let c of availableMarkets" [value]="c.code">{{ c.name }}</option>
             </select>
             <button type="button" class="btn-primary" [disabled]="!newMarketCountry" (click)="addMarket()"><i class="pi pi-plus"></i> Add</button>
+          </div>
+        </section>
+
+        <!-- every change to a market price: who, when, how, why -->
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-list"></i></span>
+            <h3>Price history <span class="cf-type">{{ priceHistory.length }}</span></h3>
+            <div class="act">
+              <button type="button" class="iconbtn" *ngIf="priceHistory.length" (click)="showPriceHistory = !showPriceHistory">
+                {{ showPriceHistory ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+          </header>
+          <div class="card-body">
+            <div class="cf-empty" *ngIf="!priceHistory.length">No market price changes recorded yet.</div>
+            <ng-container *ngIf="showPriceHistory">
+              <div class="fx-row fx-head fx-log"><span>When · who</span><span>Market · price</span><span>Change</span><span>How</span><span>Reason</span></div>
+              <div class="fx-row fx-log" *ngFor="let h of priceHistory">
+                <span class="sub">{{ h.changedAt | date:'MMM d, y HH:mm' }}<br>{{ h.changedBy }}</span>
+                <span>{{ countryName(h.country) }} · {{ priceKeyLabel(h.priceKey) }}</span>
+                <span class="mono">{{ logAmount(h.oldAmount, h.currency) }} → {{ logAmount(h.newAmount, h.currency) }}</span>
+                <span>
+                  {{ h.method === 'CONVERTED' ? 'Converted' : h.method === 'REMOVED' ? 'Removed' : 'By hand' }}
+                  <span class="sub" *ngIf="h.unitsPerUsd">at {{ h.unitsPerUsd }} · {{ shortDate(h.rateDate) }}{{ h.upliftPercent ? ' · +' + h.upliftPercent + '%' : '' }}</span>
+                </span>
+                <span class="sub">{{ h.reason || '' }}</span>
+              </div>
+            </ng-container>
           </div>
         </section>
       </div>
@@ -939,27 +1123,28 @@
 <!-- ===================== reusable templates ===================== -->
 
 <!-- one amount with its currency -->
-<ng-template #moneyInput let-m="m" let-locked="locked">
+<ng-template #moneyInput let-m="m" let-locked="locked" let-market="market">
   <div class="inline money">
-    <input type="text" class="mono" inputmode="decimal" placeholder="—" [disabled]="locked" [(ngModel)]="m.amount" (ngModelChange)="touch()">
-    <select class="unit" [disabled]="locked" [(ngModel)]="m.currency" (ngModelChange)="touch()">
+    <input type="text" class="mono" inputmode="decimal" placeholder="—" [disabled]="locked" [(ngModel)]="m.amount" (ngModelChange)="priceEdited(market)">
+    <select class="unit" [disabled]="locked" [(ngModel)]="m.currency" (ngModelChange)="priceEdited(market)">
       <option *ngFor="let c of currencies" [value]="c">{{ c }}</option>
     </select>
   </div>
 </ng-template>
 
 <!-- the selling prices of one market -->
-<ng-template #priceTable let-prices="prices" let-locked="locked">
+<ng-template #priceTable let-prices="prices" let-locked="locked" let-market="market">
   <div class="pricerow" *ngFor="let row of priceRows">
     <div class="plab">
       <div class="n">{{ row.label }}</div>
       <div class="hint">{{ row.hint }}</div>
+      <div class="hint conv" *ngIf="market && usdEquivalent(market, row.key)">{{ usdEquivalent(market, row.key) }}</div>
     </div>
-    <ng-container *ngTemplateOutlet="moneyInput; context: { m: prices[row.key], locked: locked }"></ng-container>
+    <ng-container *ngTemplateOutlet="moneyInput; context: { m: prices[row.key], locked: locked, market: market }"></ng-container>
     <div class="qty">
       <ng-container *ngIf="row.key === 'cartonPrice'">
         <span class="hint">at</span>
-        <input type="number" min="2" step="1" placeholder="qty" [disabled]="locked" [(ngModel)]="prices.cartonQuantity" (ngModelChange)="touch()">
+        <input type="number" min="2" step="1" placeholder="qty" [disabled]="locked" [(ngModel)]="prices.cartonQuantity" (ngModelChange)="priceEdited(market)">
       </ng-container>
     </div>
   </div>

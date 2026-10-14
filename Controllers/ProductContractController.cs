@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using ProInternal.Helpers;
 using ProInternal.Services.ProductContract;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -136,6 +137,124 @@ namespace ProInternal.Controllers
         public async Task<ActionResult<IEnumerable<ProductBrandOption>>> GetBrands(CancellationToken cancellationToken)
         {
             return Ok(await _products.GetBrandsAsync(cancellationToken));
+        }
+
+        // ---------------------------------------------------------------
+        // Market pricing. Rates are pulled from the ECB only when someone
+        // clicks Refresh, and are used only once someone accepts them. A
+        // rate set by hand needs a reason. Accepting and setting rates use
+        // the same permission as saving a product; to narrow it, add the
+        // check to the three rate POSTs.
+        // ---------------------------------------------------------------
+
+        [HttpGet("contract/exchange-rates")]
+        public async Task<ActionResult<ExchangeRateBoard>> GetExchangeRates(CancellationToken cancellationToken)
+        {
+            return Ok(await _products.GetExchangeRatesAsync(cancellationToken));
+        }
+
+        /* Pull the ECB file now. New rates come back PENDING: nothing changes until someone accepts. */
+        [HttpPost("contract/exchange-rates/refresh")]
+        public async Task<ActionResult<ExchangeRateBoard>> RefreshExchangeRates(CancellationToken cancellationToken)
+        {
+            var user = CurrentUserName();
+            if (string.IsNullOrWhiteSpace(user)) return Unauthorized("Unable to identify the current user.");
+
+            ProductCurrency.EcbPull pull;
+
+            try
+            {
+                pull = await ProductCurrency.FetchEcbAsync(cancellationToken);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(502, ex.Message);
+            }
+
+            /* Only the currencies PRO prices or buys in: the market currencies plus the usual cost currencies. */
+            var wanted = (await _products.GetMarketsAsync(cancellationToken))
+                .Select(m => m.Currency)
+                .Concat(ProductCurrency.CostCurrencies)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var added = await _products.AddPulledRatesAsync(
+                pull.Rates.Where(r => wanted.Contains(r.Currency)), user, cancellationToken);
+
+            var board = await _products.GetExchangeRatesAsync(cancellationToken);
+            board.Added = added;
+            board.FeedDate = pull.RateDate;
+            return Ok(board);
+        }
+
+        [HttpPost("contract/exchange-rates/decide")]
+        public async Task<ActionResult<ExchangeRateBoard>> DecideExchangeRates(
+            [FromBody] DecideRatesRequest request, CancellationToken cancellationToken)
+        {
+            var user = CurrentUserName();
+            if (string.IsNullOrWhiteSpace(user)) return Unauthorized("Unable to identify the current user.");
+            if (request?.Ids is null || request.Ids.Count == 0) return BadRequest("Choose at least one rate.");
+
+            await _products.DecideExchangeRatesAsync(request.Ids, request.Accept, request.Reason, user, cancellationToken);
+            return Ok(await _products.GetExchangeRatesAsync(cancellationToken));
+        }
+
+        /* A rate typed by a person: used straight away, needs a reason. */
+        [HttpPost("contract/exchange-rates/override")]
+        public async Task<ActionResult<ExchangeRateBoard>> OverrideExchangeRate(
+            [FromBody] OverrideRateRequest request, CancellationToken cancellationToken)
+        {
+            var user = CurrentUserName();
+            if (string.IsNullOrWhiteSpace(user)) return Unauthorized("Unable to identify the current user.");
+            if (request is null) return BadRequest("No rate was sent.");
+
+            var result = await _products.OverrideExchangeRateAsync(request, user, cancellationToken);
+            if (!result.Success) return BadRequest(result.Message);
+
+            return Ok(await _products.GetExchangeRatesAsync(cancellationToken));
+        }
+
+        /* Withdraw a manual rate early: the last accepted ECB rate applies again. */
+        [HttpPost("contract/exchange-rates/{exchangeRateId:int}/clear")]
+        public async Task<ActionResult<ExchangeRateBoard>> ClearExchangeRate(
+            int exchangeRateId, [FromBody] ClearRateRequest? request, CancellationToken cancellationToken)
+        {
+            var user = CurrentUserName();
+            if (string.IsNullOrWhiteSpace(user)) return Unauthorized("Unable to identify the current user.");
+
+            var result = await _products.ClearExchangeRateAsync(exchangeRateId, request?.Reason, user, cancellationToken);
+            if (!result.Success) return BadRequest(result.Message);
+
+            return Ok(await _products.GetExchangeRatesAsync(cancellationToken));
+        }
+
+        [HttpGet("contract/markets")]
+        public async Task<ActionResult<IEnumerable<MarketRow>>> GetMarkets(CancellationToken cancellationToken)
+        {
+            return Ok(await _products.GetMarketsAsync(cancellationToken));
+        }
+
+        /*
+         * Converts the home prices sent into the markets asked for, at the
+         * accepted rates plus each market's uplift and rounding. Saves
+         * nothing: the page fills the form and the normal save stores it.
+         */
+        [HttpPost("contract/convert-prices")]
+        public async Task<ActionResult<ConvertPricesResult>> ConvertPrices(
+            [FromBody] ConvertPricesRequest request, CancellationToken cancellationToken)
+        {
+            if (request is null || request.Countries.Count == 0) return BadRequest("Choose at least one market.");
+
+            var markets = await _products.GetMarketsAsync(cancellationToken);
+            var rates = (await _products.GetExchangeRatesAsync(cancellationToken)).Current;
+
+            return Ok(ProductCurrency.ConvertPrices(request, markets, rates));
+        }
+
+        /* How each market was priced, and every market price change. */
+        [HttpGet("{productId:int}/contract/pricing-audit")]
+        public async Task<ActionResult<ProductPricingAudit>> GetPricingAudit(int productId, CancellationToken cancellationToken)
+        {
+            return Ok(await _products.GetPricingAuditAsync(productId, cancellationToken));
         }
 
         /* The signed-in user's name, whichever claim the login token carries it in. */
