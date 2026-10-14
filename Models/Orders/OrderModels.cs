@@ -60,6 +60,9 @@ namespace ProInternal.Models.Orders
 
     public class OrderRecordDto
     {
+        public string? StoreId { get; set; }
+        public string? ShipPhone { get; set; }
+        public string? ShipEmail { get; set; }
 
         public bool FreeShipping { get; set; }
         public bool HasSpecial { get; set; }

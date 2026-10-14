@@ -344,8 +344,8 @@ export class VendorCardComponent implements OnInit {
   toggleWeb(): void {
     this.dataService.toggleVendorWebStatus(this.id).subscribe({
       next: () => {
-        this.onWeb = !this.onWeb;
-        this.showToast(this.onWeb ? 'Vendor is live on web' : 'Vendor hidden from web');
+    this.onWeb = !this.onWeb;
+    this.showToast(this.onWeb ? 'Vendor is live on web' : 'Vendor hidden from web');
       },
       error: () => this.showToast('Could not update web status')
     });

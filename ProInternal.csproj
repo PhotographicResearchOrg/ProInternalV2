@@ -13,27 +13,30 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.101.4" />
-    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.100.11" />
-    <PackageReference Include="Dapper" Version="2.1.79" />
-    <PackageReference Include="EPPlus" Version="8.7.0" />
-    <PackageReference Include="JsonSchema.Net" Version="9.4.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
-    <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="10.0.11" />
-    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="10.0.11" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.11">
+    <PackageReference Include="Amazon.S3" Version="0.35.1" />
+    <PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.101.10" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.102.3" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.104.3" />
+    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.100.17" />
+    <PackageReference Include="Dapper" Version="2.1.89" />
+    <PackageReference Include="EPPlus" Version="8.7.1" />
+    <PackageReference Include="JsonSchema.Net" Version="9.4.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Playwright" Version="1.62.0" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.63.0" />
     <PackageReference Include="Microsoft.PowerBI.Api" Version="5.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="PDFsharp" Version="6.2.4" />
-    <PackageReference Include="Spire.PDF" Version="12.8.5" />
-    <PackageReference Include="Spire.XLS" Version="16.8.2" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.2.3" />
+    <PackageReference Include="Spire.PDF" Version="12.10.0" />
+    <PackageReference Include="Spire.XLS" Version="16.9.2" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.3.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -247,12 +250,10 @@
   <ItemGroup>
     <Folder Include="ClientApp\src\app\prointernalengine\components\dashboards\BRM\" />
     <Folder Include="ClientApp\src\app\prointernalengine\components\dashboards\Marketing\" />
-    <Folder Include="ClientApp\src\app\prointernalengine\components\dashboards\Orders\" />
     <Folder Include="ClientApp\src\app\prointernalengine\components\instantrebate\rebate-setup\" />
     <Folder Include="ClientApp\src\app\prointernalengine\components\Vendor\" />
     <Folder Include="ClientApp\src\assets\NewFolder\" />
     <Folder Include="Adapters\" />
-    <Folder Include="Services\OrderIntegration\Adapters\Inbound\EDI\" />
     <Folder Include="wwwroot\AutomationInvoice\" />
   </ItemGroup>
 

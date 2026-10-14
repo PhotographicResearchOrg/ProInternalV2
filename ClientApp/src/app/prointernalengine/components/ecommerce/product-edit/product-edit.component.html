@@ -1,209 +1,966 @@
-<p-toast></p-toast>
+<div class="app">
 
-<form [formGroup]="form" class="card gap-3">
-  <!-- Header -->
-  <div class="header-row">
-    <div class="title">
-      <div class="badge">Edit Product</div>
-      <h2>{{ form.get('modelName')?.value || 'Product' }}</h2>
-      <div class="sub">{{ form.get('productCode')?.value }}</div>
+  <!-- ===================== Left rail ===================== -->
+  <nav class="rail">
+    <div class="brandmark">
+      <span class="box"><i class="pi pi-box"></i></span>
+      <span>Product Desk</span>
+    </div>
+    <button type="button" class="rail-btn" [class.active]="mode === 'find'" (click)="backToFinder()">
+      <i class="pi pi-search"></i><span>Find products</span>
+    </button>
+
+    <ng-container *ngIf="mode === 'edit'">
+      <div class="rail-sep"><span>{{ product.product.sku || 'Product' }}</span></div>
+      <button *ngFor="let n of navSections"
+              type="button"
+              class="rail-btn" [class.active]="activeSection === n.id"
+              [disabled]="loading || !!loadError"
+              (click)="setSection(n.id)">
+        <i [class]="n.icon"></i><span>{{ n.label }}</span>
+        <span class="rail-count" *ngIf="problemCount(n.id) as count">{{ count }}</span>
+      </button>
+    </ng-container>
+
+    <ng-container *ngIf="recent.length">
+      <div class="rail-sep"><span>Recently opened</span></div>
+      <button *ngFor="let r of recent" type="button" class="rail-btn recent"
+              [class.active]="mode === 'edit' && r.id === product.productId"
+              [title]="r.code + ' · ' + r.name" (click)="open(r.id)">
+        <i class="pi pi-history"></i>
+        <span class="recent-text"><b>{{ r.code }}</b> {{ r.name }}</span>
+      </button>
+    </ng-container>
+
+    <div class="rail-foot" *ngIf="mode === 'edit' && page">
+      <div class="k">Ships from</div>
+      <div class="v">{{ shipsFromLabel }}</div>
+    </div>
+    <div class="rail-foot" *ngIf="mode === 'find'">
+      <div class="k">Shortcut</div>
+      <div class="v"><kbd>/</kbd> jump to a product</div>
+    </div>
+  </nav>
+
+  <!-- ===================== Right column ===================== -->
+  <div class="col">
+
+    <!-- Jump bar: on every screen -->
+    <div class="jumpbar">
+      <button type="button" class="iconbtn back" *ngIf="mode === 'edit'" (click)="backToFinder()">
+        <i class="pi pi-arrow-left"></i> Products
+      </button>
+      <div class="jump" role="combobox" [attr.aria-expanded]="jumpOpen && !!jumpTerm.trim()" aria-haspopup="listbox">
+        <i class="pi" [class.pi-search]="!jumpLoading" [class.pi-spin]="jumpLoading" [class.pi-spinner]="jumpLoading"></i>
+        <input #jumpInput type="text" autocomplete="off" spellcheck="false"
+               placeholder="Jump to a product: code, name, UPC/EAN, or scan a barcode"
+               aria-label="Jump to a product" aria-controls="jump-list"
+               [(ngModel)]="jumpTerm" (ngModelChange)="onJumpInput()"
+               (keydown)="onJumpKey($event)" (focus)="jumpOpen = true" (blur)="onJumpBlur()">
+        <kbd class="jump-kbd" *ngIf="!jumpTerm">/</kbd>
+
+        <div class="jump-list" id="jump-list" role="listbox" *ngIf="jumpOpen && jumpTerm.trim().length >= 2">
+          <button type="button" role="option" class="jump-row" *ngFor="let r of jumpResults; let i = index"
+                  [class.hi]="i === jumpIndex" [attr.aria-selected]="i === jumpIndex"
+                  (mousedown)="$event.preventDefault(); open(r.productId)" (mouseenter)="jumpIndex = i">
+            <span class="jr-code">{{ r.productCode }}</span>
+            <span class="jr-name">{{ r.name }}</span>
+            <span class="jr-meta">{{ brandName(r) }}</span>
+            <span class="badge" [ngStyle]="{color: statusColor(r.status).fg, background: statusColor(r.status).bg}">{{ statusLabel(r.status) }}</span>
+          </button>
+          <div class="jump-empty" *ngIf="!jumpLoading && jumpResults.length === 0">No product matches “{{ jumpTerm.trim() }}”.</div>
+          <button type="button" class="jump-all" (mousedown)="$event.preventDefault(); seeAllResults()">
+            <i class="pi pi-list"></i> See all results for “{{ jumpTerm.trim() }}” <kbd>Enter</kbd>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div class="actions">
-      <button pButton type="button" label="Tech Specs" class="p-button-text" (click)="goTechSpecs()" icon="pi pi-sliders-h"></button>
-      <button pButton type="button" label="Save" (click)="save()" icon="pi pi-check"></button>
-    </div>
-  </div>
-
-  <p-divider></p-divider>
-
-  <div class="grid form-grid">
-    <!-- Left column -->
-    <div class="col-12 md:col-6">
-      <p-panel header="Basics">
-        <div class="p-fluid formgrid grid">
-          <div class="field col-12">
-            <label>Product Code</label>
-            <input pInputText formControlName="productCode" readonly>
-          </div>
-
-          <div class="field col-12">
-            <label>Model Name *</label>
-            <input pInputText formControlName="modelName">
-          </div>
-
-          <div class="field col-6">
-            <label>Model Version</label>
-            <input pInputText formControlName="modelVersion">
-          </div>
-
-          <div class="field col-6">
-            <label>Prop 65</label>
-            <input pInputText formControlName="p65">
-          </div>
-
-          <div class="field col-12 toggles">
-            <p-inputSwitch formControlName="isActive"></p-inputSwitch><span>Active</span>
-            <p-inputSwitch formControlName="isPublic"></p-inputSwitch><span>Public</span>
-            <p-inputSwitch formControlName="isForSale"></p-inputSwitch><span>For Sale</span>
-            <p-inputSwitch formControlName="shippingHold"></p-inputSwitch><span>Shipping Hold</span>
-            <p-inputSwitch formControlName="isDiscontinued" [disabled]="true"></p-inputSwitch><span>Discontinued</span>
-            <p-inputSwitch formControlName="requireSerialForSar"></p-inputSwitch><span>Require Serial for SAR</span>
-            <p-inputSwitch formControlName="specialOrder"></p-inputSwitch><span>Special Order</span>
-            <p-inputSwitch formControlName="newProdOverride"></p-inputSwitch><span>New Product Override</span>
-          </div>
-
-          <div class="field col-12">
-            <label>Replacement Code</label>
-            <input pInputText formControlName="replacementCode">
+    <!-- ===================== Finder ===================== -->
+    <ng-container *ngIf="mode === 'find'">
+      <header class="vhead">
+        <div class="vhead-top">
+          <div class="logo"><i class="pi pi-search"></i></div>
+          <div style="min-width:0;flex:1">
+            <div class="vtitle"><h1>Products</h1></div>
+            <div class="vmeta sansmeta">
+              {{ searching && !searched ? 'Searching…' : (total | number) + ' product' + (total === 1 ? '' : 's') + (filtersActive ? ' match' : '') }}
+            </div>
           </div>
         </div>
-      </p-panel>
 
-      <p-panel header="Descriptions" class="mt-3">
-        <div class="p-fluid formgrid grid">
-          <div class="field col-12">
-            <label>Features</label>
-            <textarea pInputTextarea rows="4" formControlName="features"></textarea>
+        <div class="filters">
+          <label class="fld grow">
+            <span class="lab">Search</span>
+            <input type="text" autocomplete="off" placeholder="Code, name, UPC, EAN, catalog #"
+                   [(ngModel)]="finder.term" (ngModelChange)="search()">
+          </label>
+          <label class="fld">
+            <span class="lab">Brand</span>
+            <select [(ngModel)]="finder.brandId" (ngModelChange)="search()">
+              <option value="">All brands</option>
+              <option *ngFor="let b of brandOptions" [value]="b.brandId">{{ b.name }}</option>
+            </select>
+          </label>
+          <label class="fld">
+            <span class="lab">Status</span>
+            <select [(ngModel)]="finder.status" (ngModelChange)="search()">
+              <option value="">Any status</option>
+              <option *ngFor="let s of statuses" [value]="s.value">{{ s.label }}</option>
+            </select>
+          </label>
+          <label class="fld">
+            <span class="lab">Ships from</span>
+            <select [(ngModel)]="finder.shipsFrom" (ngModelChange)="search()">
+              <option value="">Anywhere</option>
+              <option value="WAREHOUSE">PRO warehouse</option>
+              <option value="DIRECT">Vendor direct</option>
+            </select>
+          </label>
+          <label class="fld">
+            <span class="lab">For sale</span>
+            <select [(ngModel)]="finder.forSale" (ngModelChange)="search()">
+              <option value="">Either</option>
+              <option value="YES">For sale</option>
+              <option value="NO">Switched off</option>
+            </select>
+          </label>
+          <label class="fld">
+            <span class="lab">Missing data</span>
+            <select [(ngModel)]="finder.gap" (ngModelChange)="search()">
+              <option value="">Don't filter</option>
+              <option *ngFor="let g of gapOptions" [value]="g.value">{{ g.label }}</option>
+            </select>
+          </label>
+          <button type="button" class="iconbtn clear" *ngIf="filtersActive" (click)="clearFilters()">
+            <i class="pi pi-filter-slash"></i> Clear
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <div class="problems" *ngIf="searchError">
+          <i class="pi pi-exclamation-circle"></i>
+          <div>{{ searchError }} <button type="button" class="linkbtn" (click)="search(false)">Retry</button></div>
+        </div>
+
+        <section class="card">
+          <div class="results" [class.busy]="searching">
+            <div class="tbl-head res-cols">
+              <button type="button" class="th" (click)="sortBy('CODE')">Code <i [class]="sortIcon('CODE')"></i></button>
+              <button type="button" class="th" (click)="sortBy('NAME')">Name <i [class]="sortIcon('NAME')"></i></button>
+              <button type="button" class="th" (click)="sortBy('BRAND')">Brand · vendor <i [class]="sortIcon('BRAND')"></i></button>
+              <span class="th">Status</span>
+              <span class="th">Ships</span>
+              <button type="button" class="th num" (click)="sortBy('PRICE')">Member <i [class]="sortIcon('PRICE')"></i></button>
+              <span class="th num">MAP</span>
+              <button type="button" class="th num" (click)="sortBy('AVAILABLE')">Avail. <i [class]="sortIcon('AVAILABLE')"></i></button>
+              <span class="th">Gaps</span>
+            </div>
+
+            <a class="tbl-row res-cols res-row" *ngFor="let r of results; trackBy: trackRow"
+               [attr.href]="router ? routeBase + '/' + r.productId : null"
+               (click)="$event.preventDefault(); openRow(r, $event)" (auxclick)="$event.preventDefault(); openRow(r, $event)"
+               tabindex="0" (keydown.enter)="openRow(r)">
+              <span class="mono strong">{{ r.productCode }}</span>
+              <span class="ell">
+                {{ r.name }}
+                <span class="sub mono" *ngIf="r.upc || r.ean">{{ r.upc || r.ean }}</span>
+              </span>
+              <span class="ell">{{ brandName(r) }}<span class="sub">{{ rowVendor(r) }}</span></span>
+              <span>
+                <span class="badge" [ngStyle]="{color: statusColor(r.status).fg, background: statusColor(r.status).bg}">{{ statusLabel(r.status) }}</span>
+                <span class="badge off" *ngIf="!r.forSale">Not for sale</span>
+              </span>
+              <span>
+                <span class="badge" *ngIf="r.shipsDirect" [ngStyle]="{color: P.violet, background: P.violetSoft}"><i class="pi pi-truck"></i> Direct</span>
+                <span class="badge" *ngIf="!r.shipsDirect" [ngStyle]="{color: P.teal, background: P.tealSoft}">Warehouse</span>
+              </span>
+              <span class="mono num">{{ price(r.memberPrice) }}</span>
+              <span class="mono num">{{ price(r.mapPrice) }}</span>
+              <span class="mono num">{{ r.shipsDirect ? '—' : (r.available ?? '—') }}</span>
+              <span class="gaps">
+                <span class="gap" *ngFor="let g of rowGaps(r)">{{ g }}</span>
+              </span>
+            </a>
+
+            <div class="empty" *ngIf="searched && !searching && !searchError && results.length === 0">
+              <i class="pi pi-inbox"></i>
+              <div>No products match.</div>
+              <button type="button" class="iconbtn" *ngIf="filtersActive" (click)="clearFilters()">Clear filters</button>
+            </div>
+            <div class="empty" *ngIf="!searched && searching"><i class="pi pi-spin pi-spinner"></i><div>Loading products…</div></div>
           </div>
-          <div class="field col-12">
-            <label>Specs</label>
-            <textarea pInputTextarea rows="4" formControlName="specs"></textarea>
+
+          <div class="pager" *ngIf="total > 0">
+            <span class="muted">{{ firstShown | number }}–{{ lastShown | number }} of {{ total | number }}</span>
+            <label class="psize">
+              Rows
+              <select [(ngModel)]="finder.pageSize" (ngModelChange)="search()">
+                <option *ngFor="let s of pageSizes" [ngValue]="s">{{ s }}</option>
+              </select>
+            </label>
+            <button type="button" class="iconbtn" [disabled]="finder.page <= 1 || searching" (click)="goToPage(1)" title="First page"><i class="pi pi-angle-double-left"></i></button>
+            <button type="button" class="iconbtn" [disabled]="finder.page <= 1 || searching" (click)="goToPage(finder.page - 1)"><i class="pi pi-angle-left"></i> Prev</button>
+            <span class="mono">{{ finder.page }} / {{ pageCount }}</span>
+            <button type="button" class="iconbtn" [disabled]="finder.page >= pageCount || searching" (click)="goToPage(finder.page + 1)">Next <i class="pi pi-angle-right"></i></button>
+            <button type="button" class="iconbtn" [disabled]="finder.page >= pageCount || searching" (click)="goToPage(pageCount)" title="Last page"><i class="pi pi-angle-double-right"></i></button>
           </div>
-          <div class="field col-12">
-            <label>FAQ</label>
-            <textarea pInputTextarea rows="3" formControlName="faq"></textarea>
+        </section>
+      </main>
+    </ng-container>
+
+    <!-- ===================== One product ===================== -->
+    <ng-container *ngIf="mode === 'edit'">
+
+    <div class="loadbar" *ngIf="loading"><span></span></div>
+
+    <!-- Header -->
+    <header class="vhead" *ngIf="page">
+      <div class="vhead-top">
+        <div class="logo"><i class="pi pi-box"></i></div>
+        <div style="min-width:0;flex:1">
+          <div class="vtitle">
+            <h1>{{ product.product.name || 'New product' }}</h1>
+            <span class="badge" [ngStyle]="{color: statusColor(product.product.status).fg, background: statusColor(product.product.status).bg}">
+              <span class="dot" [ngStyle]="{background: statusColor(product.product.status).fg}"></span>{{ statusLabel(product.product.status) }}
+            </span>
+            <span class="badge" *ngIf="shipsDirect" [ngStyle]="{color: P.violet, background: P.violetSoft}">
+              <i class="pi pi-truck"></i> Direct vendor ship
+            </span>
           </div>
-          <div class="field col-12">
-            <label>Out of Stock Message</label>
-            <textarea pInputTextarea rows="2" formControlName="outOfStockMessage"></textarea>
-          </div>
-          <div class="field col-6">
-            <label>Stock Due Date</label>
-            <p-calendar formControlName="stockDueDate" [showIcon]="true" dateFormat="yy-mm-dd"></p-calendar>
+          <div class="vmeta">
+            <span>{{ product.product.sku }}</span>
+            <span *ngIf="product.identifiers.upc">UPC {{ product.identifiers.upc }}</span>
+            <span *ngIf="product.identifiers.ean">EAN {{ product.identifiers.ean }}</span>
+            <span class="sans" *ngIf="brand as b">{{ b.name }} · {{ b.vendorName }}</span>
           </div>
         </div>
-      </p-panel>
+        <div class="toggles">
+          <div class="togline">
+            <i class="pi pi-power-off"></i>
+            <button type="button" class="toggle" (click)="toggleForSale()">
+              <span class="track" [class.on]="product.product.forSale"><span class="knob"></span></span>
+              <span class="tlabel" [ngStyle]="{color: product.product.forSale ? P.ink : P.faint}">{{ product.product.forSale ? 'For sale' : 'Not for sale' }}</span>
+            </button>
+          </div>
+          <div class="togline">
+            <i class="pi pi-globe"></i>
+            <button type="button" class="toggle" (click)="togglePublished()">
+              <span class="track teal" [class.on]="content.published"><span class="knob"></span></span>
+              <span class="tlabel" [ngStyle]="{color: content.published ? P.ink : P.faint}">{{ content.published ? 'Shown on web' : 'Hidden on web' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
-      <p-panel header="Tags" class="mt-3">
-        <p-chips formControlName="tags"
-                 (onAdd)="onTagAdd($event)"
-                 (onRemove)="onTagRemove($event)"
-                 [separator]="','">
-        </p-chips>
-      </p-panel>
-    </div>
+      <div class="stripe">
+        <div class="stat"><div class="k">Member price</div><div class="v">{{ show(product.pricing.memberPrice) }}</div></div>
+        <div class="stat"><div class="k">MAP</div><div class="v">{{ show(product.pricing.map) }}</div></div>
+        <div class="stat"><div class="k">Margin</div><div class="v" [style.color]="P.teal">{{ margin }}</div></div>
+        <div class="stat"><div class="k">Markets priced</div><div class="v">{{ product.marketPricing.length + 1 }}</div></div>
+        <div class="stat"><div class="k">Languages</div><div class="v">{{ content.locales.length }}</div></div>
+        <div class="stat"><div class="k">Available</div><div class="v">{{ shipsDirect ? '—' : (page?.live?.unitsAvailable ?? '—') }}</div></div>
 
-    <!-- Right column -->
-    <div class="col-12 md:col-6">
-      <p-panel header="Brand & Category">
-        <div class="p-fluid formgrid grid">
-          <div class="field col-12">
-            <label>Brand</label>
-            <p-dropdown [options]="brands"
-                        optionLabel="brandName"
-                        optionValue="brandId"
-                        formControlName="brandId"
-                        placeholder="Select a brand">
-              <ng-template pTemplate="item" let-b>
-                <div class="flex align-items-center justify-content-between w-full">
-                  <span>{{ b.brandName }}</span>
-                  <i *ngIf="b.displayBrandRebate" class="pi pi-percentage"></i>
+        <div class="savebar">
+          <span class="unsaved" *ngIf="dirty"><span class="dot" [style.background]="P.amber"></span> Unsaved changes</span>
+          <button type="button" class="iconbtn" [disabled]="!dirty || saving" (click)="discard()">Discard</button>
+          <button type="button" class="btn-primary" [disabled]="!dirty || saving" (click)="save()">
+            <i class="pi pi-check"></i> {{ saving ? 'Saving...' : 'Save' }}
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <main>
+
+      <div class="problems" *ngIf="loadError">
+        <i class="pi pi-exclamation-circle"></i>
+        <div>
+          {{ loadError }}
+          <button type="button" class="linkbtn" (click)="load()">Retry</button>
+          <button type="button" class="linkbtn" (click)="backToFinder()">Back to products</button>
+        </div>
+      </div>
+
+      <div class="skeleton" *ngIf="loading && !page">
+        <div class="sk w40"></div><div class="sk w70"></div><div class="sk w55"></div><div class="sk w65"></div>
+      </div>
+
+      <ng-container *ngIf="page">
+
+      <div class="lockbar" *ngIf="locked && page && ['identity', 'pricing', 'supply'].includes(activeSection)">
+        <i class="pi pi-lock"></i>
+        Fields marked <span class="cf-type">Computyme</span> are still fed by Computyme and cannot be changed here yet.
+      </div>
+
+      <!-- problems in the section being viewed -->
+      <div class="problems" *ngIf="activeSection !== 'overview' && problemsFor(activeSection).length">
+        <i class="pi pi-exclamation-circle"></i>
+        <div>
+          <div *ngFor="let pr of problemsFor(activeSection)">{{ pr.text }}</div>
+        </div>
+      </div>
+
+      <!-- ---------- Overview ---------- -->
+      <div *ngIf="activeSection === 'overview'" class="stack">
+        <div *ngIf="!product.product.forSale" class="warn">
+          <i class="pi pi-exclamation-triangle"></i>
+          This product is switched off for sale on every channel.
+        </div>
+
+        <section class="card" *ngIf="serverProblems.length">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: P.redSoft, color: P.red}"><i class="pi pi-times-circle"></i></span>
+            <h3>Not saved</h3>
+          </header>
+          <div class="card-body">
+            <div class="field" *ngFor="let text of serverProblems"><span class="k" [style.color]="P.red">{{ text }}</span></div>
+          </div>
+        </section>
+
+        <section class="card" *ngIf="problems.length">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: P.redSoft, color: P.red}"><i class="pi pi-exclamation-circle"></i></span>
+            <h3>{{ problems.length }} to fix before this can be saved</h3>
+          </header>
+          <div class="card-body">
+            <button type="button" class="fixrow" *ngFor="let pr of problems" (click)="setSection(pr.section)">
+              <span>{{ pr.text }}</span><i class="pi pi-chevron-right"></i>
+            </button>
+          </div>
+        </section>
+
+        <section class="card" *ngIf="advisories.length">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: P.amberSoft, color: P.amber}"><i class="pi pi-info-circle"></i></span>
+            <h3>Gaps a 3PL or an international partner will ask about</h3>
+          </header>
+          <div class="card-body">
+            <div class="field" *ngFor="let note of advisories"><span class="k">{{ note }}</span></div>
+          </div>
+        </section>
+
+        <div class="grid fit">
+          <section class="card">
+            <header class="card-head">
+              <span class="ci"><i class="pi pi-truck"></i></span><h3>How it ships</h3>
+              <div class="act"><button type="button" class="iconbtn" (click)="setSection('supply')"><i class="pi pi-pencil"></i> Edit</button></div>
+            </header>
+            <div class="card-body">
+              <div class="field"><span class="k">Ships from</span><span class="v strong">{{ shipsFromLabel }}</span></div>
+              <div class="field"><span class="k">Brand</span><span class="v">{{ brand?.name || '—' }}</span></div>
+              <div class="field"><span class="k">Vendor</span><span class="v">{{ vendorLabel || '—' }}</span></div>
+              <div class="field"><span class="k">Dealer drop ship</span><span class="v mono">{{ product.supply.dropShipEligible ? 'Allowed' : 'Not allowed' }}</span></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <header class="card-head">
+              <span class="ci" [ngStyle]="{background: P.amberSoft, color: P.amber}"><i class="pi pi-dollar"></i></span><h3>Prices by market</h3>
+              <div class="act"><button type="button" class="iconbtn" (click)="setSection('pricing')"><i class="pi pi-pencil"></i> Edit</button></div>
+            </header>
+            <div class="card-body">
+              <div class="field">
+                <span class="k">{{ countryName(homeCountry) }} <span class="cf-type">home</span></span>
+                <span class="v mono">{{ show(product.pricing.memberPrice) }}</span>
+              </div>
+              <div class="field" *ngFor="let m of product.marketPricing">
+                <span class="k">{{ countryName(m.country) }}</span>
+                <span class="v mono">{{ show(m.memberPrice) }}</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <header class="card-head">
+              <span class="ci" [ngStyle]="{background: P.blueSoft, color: P.blue}"><i class="pi pi-globe"></i></span><h3>Languages</h3>
+              <div class="act"><button type="button" class="iconbtn" (click)="setSection('content')"><i class="pi pi-pencil"></i> Edit</button></div>
+            </header>
+            <div class="card-body">
+              <div class="field" *ngFor="let l of content.locales">
+                <span class="k">{{ localeLabel(l.locale) }} <span class="cf-type">{{ l.locale }}</span></span>
+                <span class="v">
+                  {{ translated(l) }}
+                  <span class="badge" *ngIf="translationLabel(l) && l.translation?.method === 'AI'"
+                        [ngStyle]="{color: translationColor(l).fg, background: translationColor(l).bg}">{{ translationLabel(l) }}</span>
+                </span>
+              </div>
+              <div class="cf-empty" *ngIf="content.locales.length === 0">No content yet.</div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ---------- Identity & Barcodes ---------- -->
+      <div *ngIf="activeSection === 'identity'" class="grid fit">
+        <section class="card">
+          <header class="card-head"><span class="ci"><i class="pi pi-id-card"></i></span><h3>Identity</h3></header>
+          <div class="card-body form">
+            <label class="fld">
+              <span class="lab">Product code <span class="hint">never changes</span></span>
+              <input type="text" class="mono" disabled [ngModel]="product.product.sku">
+            </label>
+            <label class="fld">
+              <span class="lab">Name <span class="hint">internal; the name shown to buyers is under Content & Languages</span></span>
+              <input type="text" [(ngModel)]="product.product.name" (ngModelChange)="touch()">
+            </label>
+            <label class="fld">
+              <span class="lab">Brand</span>
+              <select [(ngModel)]="product.brandId" (ngModelChange)="touch()">
+                <option [ngValue]="null">No brand</option>
+                <option *ngFor="let b of brandOptions" [ngValue]="b.brandId">{{ b.name }} · {{ b.vendorName }}</option>
+              </select>
+            </label>
+            <div class="row2">
+              <label class="fld">
+                <span class="lab">Status <span class="cf-type" *ngIf="locked">Computyme</span></span>
+                <select [disabled]="locked" [(ngModel)]="product.product.status" (ngModelChange)="touch()">
+                  <option *ngFor="let s of statuses" [ngValue]="s.value">{{ s.label }}</option>
+                </select>
+              </label>
+              <label class="fld">
+                <span class="lab">Replaced by <span class="hint">discontinued only</span></span>
+                <input type="text" [disabled]="product.product.status !== 'DISCONTINUED'"
+                       [(ngModel)]="product.product.replacementSku" (ngModelChange)="touch()">
+              </label>
+            </div>
+            <label class="fld">
+              <span class="lab">Notes</span>
+              <textarea rows="2" [(ngModel)]="product.product.notes" (ngModelChange)="touch()"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: P.blueSoft, color: P.blue}"><i class="pi pi-qrcode"></i></span><h3>Barcodes & part numbers</h3>
+          </header>
+          <div class="card-body form">
+            <p class="muted-p">UPC and EAN are separate. A 3PL or an international partner asks for one or the other by name.</p>
+            <label class="fld">
+              <span class="lab">UPC <span class="hint">12 digits</span> <span class="cf-type" *ngIf="locked">Computyme</span></span>
+              <input type="text" class="mono" maxlength="12" inputmode="numeric" [disabled]="locked" [(ngModel)]="product.identifiers.upc" (ngModelChange)="touch()">
+            </label>
+            <label class="fld">
+              <span class="lab">EAN <span class="hint">13 digits</span></span>
+              <input type="text" class="mono" maxlength="13" inputmode="numeric" [(ngModel)]="product.identifiers.ean" (ngModelChange)="touch()">
+            </label>
+            <label class="fld">
+              <span class="lab">Case GTIN <span class="hint">14 digits, on the shipping case</span></span>
+              <input type="text" class="mono" maxlength="14" inputmode="numeric" [(ngModel)]="product.identifiers.caseGtin" (ngModelChange)="touch()">
+            </label>
+            <label class="fld">
+              <span class="lab">Vendor catalog number <span class="cf-type" *ngIf="locked">Computyme</span></span>
+              <input type="text" class="mono" [disabled]="locked" [(ngModel)]="product.identifiers.vendorCatalogNumber" (ngModelChange)="touch()">
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------- Pricing ---------- -->
+      <div *ngIf="activeSection === 'pricing'" class="stack">
+        <div class="grid cols2">
+          <section class="card">
+            <header class="card-head">
+              <span class="ci" [ngStyle]="{background: P.amberSoft, color: P.amber}"><i class="pi pi-dollar"></i></span>
+              <h3>{{ countryName(homeCountry) }} <span class="cf-type">home market</span> <span class="cf-type" *ngIf="locked">Computyme</span></h3>
+            </header>
+            <div class="card-body">
+              <ng-container *ngTemplateOutlet="priceTable; context: { prices: product.pricing, locked: locked }"></ng-container>
+              <div class="pricerow">
+                <div class="plab">
+                  <div class="n">Shipping surcharge</div>
+                  <div class="hint">Extra shipping per unit: heavy, oversize or restricted</div>
                 </div>
-              </ng-template>
-            </p-dropdown>
-          </div>
+                <ng-container *ngTemplateOutlet="moneyInput; context: { m: product.pricing.shippingSurcharge, locked: false }"></ng-container>
+                <div class="qty"></div>
+              </div>
+            </div>
+          </section>
 
-          <div class="field col-6" *ngIf="showBrandRebate">
-            <label>Brand Rebate (%)</label>
-            <input pInputText type="number" step="0.01" formControlName="brandRebate">
-          </div>
-
-          <div class="field col-6">
-            <label>Top Category ID</label>
-            <input pInputText type="number" formControlName="topCatId">
-          </div>
-
-          <div class="field col-6">
-            <label>Category ID</label>
-            <input pInputText type="number" formControlName="categoryId">
-          </div>
-
-          <div class="field col-6">
-            <label>Multiple</label>
-            <input pInputText formControlName="multiple" readonly>
-          </div>
-
-          <div class="field col-6">
-            <label>Carton</label>
-            <input pInputText formControlName="carton" readonly>
-          </div>
-        </div>
-      </p-panel>
-
-      <p-panel header="Accessories" class="mt-3">
-        <div class="list-grid" formArrayName="accessories">
-          <div class="row" *ngFor="let _ of accessoriesFA.controls; let i = index" [formGroupName]="i">
-            <input pInputText placeholder="Product Code" formControlName="productCode" (blur)="lookupRow('accessory', i)">
-            <span class="ml-2 model">{{ accessoriesFA.at(i).get('modelName')?.value }}</span>
-            <button pButton type="button" icon="pi pi-times" class="p-button-text p-button-sm" (click)="removeRow('accessory', i)"></button>
-          </div>
-          <button pButton type="button" label="Add" class="p-button-text" (click)="addAccessoryRow()" icon="pi pi-plus"></button>
-        </div>
-      </p-panel>
-
-      <p-panel header="Related Products" class="mt-3">
-        <div class="list-grid" formArrayName="relatedProducts">
-          <div class="row" *ngFor="let _ of relatedFA.controls; let i = index" [formGroupName]="i">
-            <input pInputText placeholder="Product Code" formControlName="productCode" (blur)="lookupRow('related', i)">
-            <span class="ml-2 model">{{ relatedFA.at(i).get('modelName')?.value }}</span>
-            <button pButton type="button" icon="pi pi-times" class="p-button-text p-button-sm" (click)="removeRow('related', i)"></button>
-          </div>
-          <button pButton type="button" label="Add" class="p-button-text" (click)="addRelatedRow()" icon="pi pi-plus"></button>
-        </div>
-      </p-panel>
-
-
-      <p-panel header="Groups" class="mt-3">
-        <div class="p-fluid formgrid grid">
-          <div class="field col-4"><label>Color Name</label><input pInputText formControlName="variationColorName"></div>
-          <div class="field col-4"><label>Color Hex</label><input pInputText formControlName="variationColorHex"></div>
-          <div class="field col-4"><label>Size</label><input pInputText formControlName="variationSize"></div>
+          <section class="card">
+            <header class="card-head">
+              <span class="ci" [ngStyle]="{background: P.redSoft, color: P.red}"><i class="pi pi-lock"></i></span>
+              <h3>Cost <span class="cf-type">confidential</span></h3>
+            </header>
+            <div class="card-body form">
+              <p class="muted-p">Never sent to dealers or the web. A cost can be in the vendor's own currency.</p>
+              <div class="fld">
+                <span class="lab">Distributor cost <span class="hint">what PRO pays the vendor</span></span>
+                <ng-container *ngTemplateOutlet="moneyInput; context: { m: product.pricing.distributorCost, locked: false }"></ng-container>
+              </div>
+              <div class="fld">
+                <span class="lab">Landed cost <span class="hint">in the warehouse, with freight and duty</span> <span class="cf-type" *ngIf="locked">Computyme</span></span>
+                <ng-container *ngTemplateOutlet="moneyInput; context: { m: product.pricing.landedCost, locked: locked }"></ng-container>
+              </div>
+              <div class="note">Margin on member price: <b>{{ margin }}</b></div>
+            </div>
+          </section>
         </div>
 
-        <div class="mt-2" *ngIf="form.get('isGroupDefault')?.value && groupFA.length > 1" formArrayName="group">
-          <div class="text-900 font-medium mb-2">Group Members</div>
-          <ul class="group-list">
-            <ng-container *ngFor="let _ of groupFA.controls; let i = index">
-              <li class="group-item" [formGroupName]="i"
-                  *ngIf="groupFA.at(i).get('productCode')?.value !== form.get('productCode')?.value">
-                <span>{{ groupFA.at(i).get('productCode')?.value }}</span>
-                <button pButton type="button" class="p-button-text p-button-sm"
-                        (click)="removeFromGroup(groupFA.at(i).get('productCode')?.value)"
-                        icon="pi pi-trash"></button>
-              </li>
-            </ng-container>
-          </ul>
-        </div>
-
-
-        <div class="mt-2" *ngIf="!form.get('isGroupDefault')?.value">
-          <div class="text-900 font-medium mb-2">Add to Group</div>
-          <div class="flex align-items-center gap-2">
-            <input id="groupCodeInput" pInputText placeholder="Group Code">
-            <button pButton type="button" label="Add" (click)="addToGroup()" icon="pi pi-plus"></button>
+        <section class="card" *ngFor="let market of product.marketPricing">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: P.blueSoft, color: P.blue}"><i class="pi pi-globe"></i></span>
+            <h3>{{ countryName(market.country) }} <span class="cf-type">{{ market.country }}</span></h3>
+            <div class="act"><button type="button" class="iconbtn danger" (click)="removeMarket(market)"><i class="pi pi-trash"></i> Remove market</button></div>
+          </header>
+          <div class="card-body">
+            <ng-container *ngTemplateOutlet="priceTable; context: { prices: market, locked: false }"></ng-container>
           </div>
-        </div>
-      </p-panel>
+        </section>
 
-      <p-panel header="Upload Files" class="mt-3">
-        <p-fileUpload mode="advanced"
-                      name="files[]"
-                      [auto]="true"
-                      chooseLabel="Upload"
-                      [url]="'/api/files/products/' + (form.get('productCode')?.value || '')">
-        </p-fileUpload>
-      </p-panel>
+        <section class="card">
+          <div class="card-body addrow">
+            <span class="muted-p" style="margin:0">A country with no prices here is not priced there. Nothing is converted.</span>
+            <select [(ngModel)]="newMarketCountry">
+              <option value="">Add a market…</option>
+              <option *ngFor="let c of availableMarkets" [value]="c.code">{{ c.name }}</option>
+            </select>
+            <button type="button" class="btn-primary" [disabled]="!newMarketCountry" (click)="addMarket()"><i class="pi pi-plus"></i> Add</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------- Supply & Shipping ---------- -->
+      <div *ngIf="activeSection === 'supply'" class="grid fit">
+        <section class="card">
+          <header class="card-head"><span class="ci"><i class="pi pi-truck"></i></span><h3>Who ships it</h3></header>
+          <div class="card-body form">
+            <div class="freehero" [ngStyle]="{background: shipsDirect ? P.violetSoft : P.tealSoft}">
+              <div class="k" [style.color]="shipsDirect ? P.violet : P.teal">Orders for this product ship</div>
+              <div class="v" [style.color]="shipsDirect ? P.violet : P.teal" style="font-size:18px">{{ shipsFromLabel }}</div>
+            </div>
+
+            <label class="fld">
+              <span class="lab">Direct vendor ship <span class="hint">the vendor ships to the dealer; the order never goes to the warehouse</span></span>
+              <select [(ngModel)]="product.supply.directMode" (ngModelChange)="touch()">
+                <option value="MARKER">Inventory marker decides (now: {{ markerSaysDirect ? 'direct' : 'warehouse' }})</option>
+                <option value="DIRECT">Always direct</option>
+                <option value="WAREHOUSE">Never direct</option>
+              </select>
+            </label>
+
+            <label class="fld">
+              <span class="lab">Vendor number <span class="hint">only when the brand does not settle it, e.g. a house brand made by many vendors</span></span>
+              <input type="text" class="mono" inputmode="numeric" [(ngModel)]="product.supply.vendorId" (ngModelChange)="touch()"
+                     [placeholder]="brand?.vendorId ? 'Brand vendor: ' + brand?.vendorId + ' ' + (brand?.vendorName || '') : ''">
+            </label>
+
+            <div class="note" *ngIf="page?.computymeActualVendor || page?.computymeVendorGroup">
+              In Computyme: actual vendor <b>{{ page?.computymeActualVendor || '—' }}</b>, vendor group <b>{{ page?.computymeVendorGroup || '—' }}</b>
+            </div>
+
+            <div class="note" *ngIf="brand?.directShipAll">
+              <b>{{ brand?.name }}</b> is set to ship everything direct, so this product ships direct whatever the box above says.
+            </div>
+
+            <label class="check">
+              <input type="checkbox" [disabled]="locked" [(ngModel)]="product.supply.specialOrder" (ngModelChange)="touch()">
+              <span><b>Special order</b> <span class="cf-type" *ngIf="locked">Computyme</span><span class="hint">Not stocked; ordered from the vendor when a dealer orders it.</span></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: P.amberSoft, color: P.amber}"><i class="pi pi-send"></i></span><h3>Dealer ordering</h3>
+          </header>
+          <div class="card-body form">
+            <label class="check">
+              <input type="checkbox" [(ngModel)]="product.supply.dropShipEligible" (ngModelChange)="touch()">
+              <span><b>Dealer drop ship allowed</b><span class="hint">A dealer may have this shipped to their own customer. Not the same as direct vendor ship.</span></span>
+            </label>
+            <div class="row2">
+              <label class="fld">
+                <span class="lab">Order multiple <span class="cf-type" *ngIf="locked">Computyme</span></span>
+                <input type="number" min="1" step="1" [disabled]="locked" [(ngModel)]="product.supply.orderMultiple" (ngModelChange)="touch()">
+              </label>
+              <label class="fld">
+                <span class="lab">Units per case <span class="cf-type" *ngIf="locked">Computyme</span></span>
+                <input type="number" min="1" step="1" [disabled]="locked" [(ngModel)]="product.supply.unitsPerCase" (ngModelChange)="touch()">
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: P.redSoft, color: P.red}"><i class="pi pi-replay"></i></span><h3>Defective returns</h3>
+          </header>
+          <div class="card-body form">
+            <label class="fld">
+              <span class="lab">When a dealer reports a unit defective</span>
+              <select [(ngModel)]="product.returns.defectiveDisposition" (ngModelChange)="touch()">
+                <option value="">Not set</option>
+                <option *ngFor="let d of dispositions" [value]="d.value">{{ d.label }}</option>
+              </select>
+            </label>
+            <p class="muted-p" style="margin:0">The default for this product. A return authorization starts from it and can decide otherwise for one claim.</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------- Reorder ---------- -->
+      <div *ngIf="activeSection === 'reorder'" class="stack">
+        <div class="warn" *ngIf="shipsDirect">
+          <i class="pi pi-info-circle"></i>
+          This product ships direct from the vendor, so PRO does not stock or reorder it.
+        </div>
+
+        <div class="grid fit">
+          <section class="card">
+            <header class="card-head"><span class="ci"><i class="pi pi-sliders-h"></i></span><h3>Reorder settings</h3></header>
+            <div class="card-body form">
+              <div class="row2">
+                <label class="fld">
+                  <span class="lab">Minimum stock <span class="hint">reorder below this</span></span>
+                  <input type="number" min="0" step="1" [(ngModel)]="product.replenishment.minimumStock" (ngModelChange)="touch()">
+                </label>
+                <label class="fld">
+                  <span class="lab">Months of supply <span class="hint">an order should cover</span></span>
+                  <input type="number" min="0" step="0.5" [(ngModel)]="product.replenishment.monthsSupply" (ngModelChange)="touch()">
+                </label>
+              </div>
+              <div class="field"><span class="k">Buys from</span><span class="v strong">{{ vendorLabel || '—' }}</span></div>
+              <div class="field"><span class="k">Units per case</span><span class="v mono">{{ product.supply.unitsPerCase || '—' }}</span></div>
+              <div class="field"><span class="k">Distributor cost</span><span class="v mono">{{ show(product.pricing.distributorCost) }}</span></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <header class="card-head">
+              <span class="ci" [ngStyle]="{background: P.blueSoft, color: P.blue}"><i class="pi pi-chart-bar"></i></span>
+              <h3>Right now <span class="cf-type">from fulfillment</span></h3>
+            </header>
+            <div class="card-body">
+              <div class="field"><span class="k">Available to promise</span><span class="v mono strong">{{ page?.live?.unitsAvailable ?? '—' }}</span></div>
+              <div class="field"><span class="k">On member orders</span><span class="v mono">{{ page?.live?.unitsOnMemberOrders ?? '—' }}</span></div>
+              <div class="field"><span class="k">On order from the vendor</span><span class="v mono">{{ page?.live?.unitsOnOrder ?? '—' }}</span></div>
+              <div class="field" *ngIf="page?.live?.stockDue"><span class="k">Stock due</span><span class="v mono">{{ page?.live?.stockDue }}</span></div>
+
+              <div class="freehero reorderhero" *ngIf="suggestedOrder !== null"
+                   [ngStyle]="{background: suggestedOrder > 0 ? P.amberSoft : P.greenSoft}">
+                <div class="k" [style.color]="suggestedOrder > 0 ? P.amber : P.green">
+                  {{ suggestedOrder > 0 ? 'Below minimum. To get back to it, order' : 'At or above minimum' }}
+                </div>
+                <div class="v" *ngIf="suggestedOrder > 0" [style.color]="P.amber">{{ suggestedOrder | number }}</div>
+              </div>
+
+              <p class="muted-p" style="margin:10px 0">
+                A plain suggestion: enough to reach minimum stock, rounded up to a full case. The buyer's real rule is not built yet.
+              </p>
+
+              <button type="button" class="btn-primary" [disabled]="!suggestedOrder" (click)="addToPurchaseOrder()">
+                <i class="pi pi-plus"></i> Add to purchase order
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ---------- Size & Customs ---------- -->
+      <div *ngIf="activeSection === 'logistics'" class="grid fit">
+        <section class="card">
+          <header class="card-head"><span class="ci"><i class="pi pi-box"></i></span><h3>Weight & size</h3></header>
+          <div class="card-body form">
+            <p class="muted-p">Enter each once, in either system. The other is worked out for whoever needs it.</p>
+            <div class="fld">
+              <span class="lab">Weight</span>
+              <div class="inline">
+                <input type="number" min="0" step="0.01" [(ngModel)]="product.logistics.weight.value" (ngModelChange)="touch()">
+                <select class="unit" [(ngModel)]="product.logistics.weight.unit" (ngModelChange)="touch()">
+                  <option value="LB">lb</option><option value="KG">kg</option>
+                </select>
+                <span class="conv" *ngIf="weightOther">= {{ weightOther }}</span>
+              </div>
+            </div>
+            <div class="fld">
+              <span class="lab">Length × width × height</span>
+              <div class="inline">
+                <input type="number" min="0" step="0.1" [(ngModel)]="product.logistics.dimensions.length" (ngModelChange)="touch()">
+                <input type="number" min="0" step="0.1" [(ngModel)]="product.logistics.dimensions.width" (ngModelChange)="touch()">
+                <input type="number" min="0" step="0.1" [(ngModel)]="product.logistics.dimensions.height" (ngModelChange)="touch()">
+                <select class="unit" [(ngModel)]="product.logistics.dimensions.unit" (ngModelChange)="touch()">
+                  <option value="IN">in</option><option value="CM">cm</option>
+                </select>
+              </div>
+              <span class="conv" *ngIf="dimensionsOther">= {{ dimensionsOther }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: P.blueSoft, color: P.blue}"><i class="pi pi-flag"></i></span><h3>Customs & compliance</h3>
+          </header>
+          <div class="card-body form">
+            <div>
+              <label class="fld">
+                <span class="lab">Country of origin</span>
+                <select [(ngModel)]="product.logistics.countryOfOrigin" (ngModelChange)="touch()">
+                  <option value="">Not set</option>
+                  <option *ngFor="let c of originCountries" [value]="c.code">{{ c.name }}</option>
+                </select>
+              </label>
+            </div>
+            <div class="fld">
+              <span class="lab">HS code by importing country <span class="hint">digits only; dots are removed</span></span>
+              <div class="listrow" *ngFor="let hs of product.logistics.hsCodes; let i = index; trackBy: trackIndex">
+                <span class="hscountry">{{ countryName(hs.country) }}</span>
+                <input type="text" class="mono" maxlength="13" inputmode="numeric" [(ngModel)]="hs.code" (blur)="cleanHsCode(hs)" (ngModelChange)="touch()">
+                <button type="button" class="iconbtn danger" (click)="removeHsCode(i)"><i class="pi pi-times"></i></button>
+              </div>
+              <div class="addrow">
+                <select [(ngModel)]="newHsCountry">
+                  <option value="">Add a country…</option>
+                  <option *ngFor="let c of availableHsCountries" [value]="c.code">{{ c.name }}</option>
+                </select>
+                <button type="button" class="iconbtn" [disabled]="!newHsCountry" (click)="addHsCode()"><i class="pi pi-plus"></i> Add</button>
+              </div>
+            </div>
+            <label class="check">
+              <input type="checkbox" [(ngModel)]="product.logistics.containsLithiumBattery" (ngModelChange)="touch()">
+              <span><b>Contains a lithium battery</b></span>
+            </label>
+            <label class="check">
+              <input type="checkbox" [(ngModel)]="product.logistics.prop65Warning" (ngModelChange)="touch()">
+              <span><b>California Prop 65 warning</b></span>
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------- Content & Languages ---------- -->
+      <div *ngIf="activeSection === 'content'" class="stack">
+        <section class="card">
+          <header class="card-head">
+            <span class="ci"><i class="pi pi-eye"></i></span><h3>Where it is shown</h3>
+          </header>
+          <div class="card-body">
+            <div class="chips">
+              <button type="button" class="chip" *ngFor="let c of countries"
+                      [class.on]="c.code === homeCountry || content.markets.includes(c.code)"
+                      [disabled]="c.code === homeCountry"
+                      (click)="toggleContentMarket(c.code)">
+                {{ c.name }}<span class="cf-type" *ngIf="c.code === homeCountry">home</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <header class="card-head">
+            <span class="ci" [ngStyle]="{background: P.blueSoft, color: P.blue}"><i class="pi pi-globe"></i></span><h3>Languages</h3>
+            <div class="act addrow">
+              <button type="button" class="btn-ai" *ngIf="missingMarketLocales.length"
+                      [disabled]="isTranslating() || !defaultContent?.name"
+                      [title]="'AI-translate from ' + localeLabel(content.defaultLocale) + ' into: ' + missingMarketLabels"
+                      (click)="translateMissing()">
+                <i class="pi" [class.pi-bolt]="!isTranslating()" [class.pi-spin]="isTranslating()" [class.pi-spinner]="isTranslating()"></i>
+                Translate missing ({{ missingMarketLocales.length }})
+              </button>
+              <select [(ngModel)]="newLocale">
+                <option value="">Add a language…</option>
+                <option *ngFor="let o of availableLocales" [value]="o.locale">{{ o.label }}</option>
+              </select>
+              <button type="button" class="iconbtn" [disabled]="!newLocale" (click)="addLocale()"><i class="pi pi-plus"></i> Add</button>
+            </div>
+          </header>
+
+          <div class="langtabs">
+            <button type="button" class="langtab" *ngFor="let l of content.locales"
+                    [class.active]="activeLocale === l.locale" (click)="activeLocale = l.locale">
+              {{ localeLabel(l.locale) }}
+              <span class="cf-type">{{ translated(l) }}</span>
+              <span class="ai-dot" *ngIf="translationLabel(l) && l.translation?.method === 'AI'"
+                    [ngStyle]="{background: translationColor(l).fg}" [title]="translationLabel(l)"></span>
+            </button>
+          </div>
+
+          <div class="card-body form" *ngIf="locale as lang; else noLang">
+            <div class="langbar">
+              <label class="check" style="margin:0">
+                <input type="radio" name="defaultLocale" [checked]="content.defaultLocale === lang.locale" (change)="setDefaultLocale(lang.locale)">
+                <span><b>Default language</b><span class="hint">Shown when the reader's own is missing. Translations are made from it.</span></span>
+              </label>
+              <div class="langactions">
+                <button type="button" class="btn-ai" *ngIf="lang !== defaultContent"
+                        [disabled]="isTranslating() || !defaultContent?.name"
+                        (click)="translateLocale(lang)">
+                  <i class="pi" [class.pi-bolt]="!isTranslating(lang.locale)" [class.pi-spin]="isTranslating(lang.locale)" [class.pi-spinner]="isTranslating(lang.locale)"></i>
+                  {{ isTranslating(lang.locale) ? 'Translating…' : 'Translate from ' + localeLabel(content.defaultLocale) }}
+                </button>
+                <button type="button" class="iconbtn danger" (click)="removeLocale(lang)"><i class="pi pi-trash"></i> Remove language</button>
+              </div>
+            </div>
+
+            <div class="aibar" *ngIf="lang !== defaultContent && lang.translation?.method === 'AI'"
+                 [ngStyle]="{background: translationColor(lang).bg, borderColor: translationColor(lang).fg}">
+              <div class="aibar-main">
+                <span class="badge" [ngStyle]="{color: translationColor(lang).fg, background: '#fff'}">
+                  <i class="pi pi-bolt"></i> {{ translationLabel(lang) }}
+                </span>
+                <span class="aibar-meta">
+                  Translated from {{ localeLabel(lang.translation?.sourceLocale || '') }}
+                  {{ lang.translation?.translatedAt ? 'on ' + (lang.translation?.translatedAt | date:'MMM d, y') : '' }}
+                  <ng-container *ngIf="lang.translation?.reviewed && lang.translation?.reviewedBy">
+                    · reviewed by {{ lang.translation?.reviewedBy }}
+                    {{ lang.translation?.reviewedAt ? 'on ' + (lang.translation?.reviewedAt | date:'MMM d, y') : '' }}
+                  </ng-container>
+                </span>
+                <label class="check reviewtick">
+                  <input type="checkbox" [checked]="lang.translation?.reviewed" (change)="setReviewed(lang, $any($event.target).checked)">
+                  <span><b>Reviewed</b></span>
+                </label>
+              </div>
+              <div class="aibar-stale" *ngIf="isStale(lang)">
+                <i class="pi pi-exclamation-triangle"></i>
+                The {{ localeLabel(content.defaultLocale) }} text changed after this was translated. Retranslate, or recheck it by hand.
+              </div>
+              <div class="aibar-hold" *ngIf="!lang.translation?.reviewed && !isStale(lang)">
+                Held: not shown to buyers until someone who reads {{ localeLabel(lang.locale) }} ticks Reviewed and saves.
+              </div>
+              <ul class="aibar-notes" *ngIf="lang.notes.length">
+                <li *ngFor="let n of lang.notes"><i class="pi pi-flag"></i> {{ n }}</li>
+              </ul>
+            </div>
+
+            <label class="fld">
+              <span class="lab">Name</span>
+              <input type="text" [(ngModel)]="lang.name" (ngModelChange)="touch()"
+                     [placeholder]="lang !== defaultContent ? (defaultContent?.name || '') : ''">
+            </label>
+            <label class="fld">
+              <span class="lab">Short description</span>
+              <input type="text" [(ngModel)]="lang.shortDescription" (ngModelChange)="touch()"
+                     [placeholder]="lang !== defaultContent ? (defaultContent?.shortDescription || '') : ''">
+            </label>
+            <label class="fld">
+              <span class="lab">Description</span>
+              <textarea rows="4" [(ngModel)]="lang.description" (ngModelChange)="touch()"
+                        [placeholder]="lang !== defaultContent ? (defaultContent?.description || '') : ''"></textarea>
+            </label>
+
+            <label class="fld" *ngIf="lang.featuresHtml || lang.specsHtml || lang === defaultContent">
+              <span class="lab">Features as HTML <span class="hint">what the B2B site shows today</span></span>
+              <textarea rows="4" class="mono" [(ngModel)]="lang.featuresHtml" (ngModelChange)="touch()"></textarea>
+            </label>
+            <label class="fld" *ngIf="lang.featuresHtml || lang.specsHtml || lang === defaultContent">
+              <span class="lab">Specs as HTML <span class="hint">what the B2B site shows today</span></span>
+              <textarea rows="4" class="mono" [(ngModel)]="lang.specsHtml" (ngModelChange)="touch()"></textarea>
+            </label>
+
+            <div class="fld">
+              <span class="lab">Features
+                <span class="hint" *ngIf="lang !== defaultContent && defaultContent">{{ defaultContent.features.length }} in {{ localeLabel(content.defaultLocale) }}</span>
+              </span>
+              <div class="listrow" *ngFor="let f of lang.features; let i = index; trackBy: trackIndex">
+                <input type="text" [(ngModel)]="lang.features[i]" (ngModelChange)="touch()"
+                       [placeholder]="lang !== defaultContent ? (defaultContent?.features?.[i] || '') : ''">
+                <button type="button" class="iconbtn danger" (click)="removeFeature(lang, i)"><i class="pi pi-times"></i></button>
+              </div>
+              <button type="button" class="iconbtn" (click)="addFeature(lang)"><i class="pi pi-plus"></i> Add feature</button>
+            </div>
+
+            <div class="fld">
+              <span class="lab">Specs <span class="hint">write measurements the way this language reads them (in or cm)</span></span>
+              <div class="listrow" *ngFor="let s of lang.specs; let i = index; trackBy: trackIndex">
+                <input type="text" placeholder="Label" [(ngModel)]="s.label" (ngModelChange)="touch()">
+                <input type="text" placeholder="Value" [(ngModel)]="s.value" (ngModelChange)="touch()">
+                <button type="button" class="iconbtn danger" (click)="removeSpec(lang, i)"><i class="pi pi-times"></i></button>
+              </div>
+              <button type="button" class="iconbtn" (click)="addSpec(lang)"><i class="pi pi-plus"></i> Add spec</button>
+            </div>
+
+            <div class="fld">
+              <span class="lab">Documents</span>
+              <div class="listrow" *ngFor="let d of lang.documents; let i = index; trackBy: trackIndex">
+                <select class="unit wide" [(ngModel)]="d.type" (ngModelChange)="touch()">
+                  <option *ngFor="let t of documentTypes" [value]="t">{{ t }}</option>
+                </select>
+                <input type="text" placeholder="Title" [(ngModel)]="d.title" (ngModelChange)="touch()">
+                <input type="text" placeholder="https://…" [(ngModel)]="d.url" (ngModelChange)="touch()">
+                <button type="button" class="iconbtn danger" (click)="removeDocument(lang, i)"><i class="pi pi-times"></i></button>
+              </div>
+              <button type="button" class="iconbtn" (click)="addDocument(lang)"><i class="pi pi-plus"></i> Add document</button>
+            </div>
+
+            <label class="fld">
+              <span class="lab">Out of stock message</span>
+              <input type="text" [(ngModel)]="lang.outOfStockMessage" (ngModelChange)="touch()">
+            </label>
+          </div>
+          <ng-template #noLang>
+            <div class="card-body"><div class="cf-empty">No language yet. Add one to start writing content.</div></div>
+          </ng-template>
+        </section>
+      </div>
+
+      <!-- ---------- Categories ---------- -->
+      <div *ngIf="activeSection === 'categories'" class="stack">
+        <section class="card">
+          <header class="card-head"><span class="ci"><i class="pi pi-sitemap"></i></span><h3>Categories</h3></header>
+          <div class="card-body">
+            <div class="field" *ngFor="let id of page?.categoryPath || []; let i = index">
+              <span class="k">{{ ['Top category', 'Category', 'Sub-category'][i] || 'Category' }}</span>
+              <span class="v mono">{{ id }}</span>
+            </div>
+            <div class="cf-empty" *ngIf="!(page?.categoryPath || []).length">Not in any category.</div>
+          </div>
+        </section>
+        <div class="note">
+          Read from the product's current category today. Choosing categories here, by name and in several languages, waits for the category table and its contract.
+        </div>
+      </div>
+
+      <!-- ---------- Contract JSON ---------- -->
+      <div *ngIf="activeSection === 'contract'" class="grid fit">
+        <section class="card">
+          <header class="card-head"><span class="ci"><i class="pi pi-code"></i></span><h3>product.schema.json</h3></header>
+          <div class="card-body"><pre class="json">{{ productContract | json }}</pre></div>
+        </section>
+        <section class="card">
+          <header class="card-head"><span class="ci"><i class="pi pi-code"></i></span><h3>product-content.schema.json</h3></header>
+          <div class="card-body"><pre class="json">{{ contentContract | json }}</pre></div>
+        </section>
+      </div>
+
+      </ng-container>
+    </main>
+    </ng-container>
+  </div>
+
+  <!-- toast -->
+  <div class="toast-wrap" *ngIf="toastMsg"><div class="toast">{{ toastMsg }}</div></div>
+</div>
+
+<!-- ===================== reusable templates ===================== -->
+
+<!-- one amount with its currency -->
+<ng-template #moneyInput let-m="m" let-locked="locked">
+  <div class="inline money">
+    <input type="text" class="mono" inputmode="decimal" placeholder="—" [disabled]="locked" [(ngModel)]="m.amount" (ngModelChange)="touch()">
+    <select class="unit" [disabled]="locked" [(ngModel)]="m.currency" (ngModelChange)="touch()">
+      <option *ngFor="let c of currencies" [value]="c">{{ c }}</option>
+    </select>
+  </div>
+</ng-template>
+
+<!-- the selling prices of one market -->
+<ng-template #priceTable let-prices="prices" let-locked="locked">
+  <div class="pricerow" *ngFor="let row of priceRows">
+    <div class="plab">
+      <div class="n">{{ row.label }}</div>
+      <div class="hint">{{ row.hint }}</div>
+    </div>
+    <ng-container *ngTemplateOutlet="moneyInput; context: { m: prices[row.key], locked: locked }"></ng-container>
+    <div class="qty">
+      <ng-container *ngIf="row.key === 'cartonPrice'">
+        <span class="hint">at</span>
+        <input type="number" min="2" step="1" placeholder="qty" [disabled]="locked" [(ngModel)]="prices.cartonQuantity" (ngModelChange)="touch()">
+      </ng-container>
     </div>
   </div>
-</form>
+</ng-template>

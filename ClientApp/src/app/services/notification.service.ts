@@ -3,9 +3,11 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import { Notification } from 'src/app/models/notifications';
 import { DataService } from 'src/app/services/data.service';
 
+
 @Injectable({
   providedIn: 'root'
 })
+
 export class NotificationService {
   private notificationsSubject = new BehaviorSubject<Notification[]>([]);
   notifications$ = this.notificationsSubject.asObservable();
@@ -23,8 +25,6 @@ export class NotificationService {
       n.id === id ? { ...n, isRead: true } : n
     );
     this.notificationsSubject.next(updated);
-
-
     this.dataService.markNotificationAsRead(id).subscribe();
   }
 
@@ -37,25 +37,14 @@ export class NotificationService {
   }
 
 
-  set(notifications: Notification[]): void {
-    this.notificationsSubject.next(notifications);
-  }
+  set(notifications: Notification[]): void {this.notificationsSubject.next(notifications);}
 
-  get(): Observable<Notification[]> {
-    return this.notifications$;
-  }
+  get(): Observable<Notification[]> {return this.notifications$; }
 
   getUnreadCount(): number {
     return this.notificationsSubject.value.filter(n => !n.isRead).length;
   }
 
-  clear(): void {
-    this.notificationsSubject.next([]);
-  }
-
-
-
-
-
+  clear(): void {this.notificationsSubject.next([]);}
 
 }

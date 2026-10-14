@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
@@ -35,6 +35,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using MemberDesk = ProInternal.Models.Member;
 
 
 namespace ProInternal.Services
@@ -49,7 +50,7 @@ namespace ProInternal.Services
 
 
         public List<SellThroughExportDto>
-    GetSellThroughExportData(List<string> weeks,List<int> accounts)
+    GetSellThroughExportData(List<string> weeks, List<int> accounts)
         {
             using var conn = GetConnection();
 
@@ -844,7 +845,7 @@ namespace ProInternal.Services
           string actionSource)
         {
             using var conn = GetConnection();
-           // conn.Open();
+            // conn.Open();
 
             using var transaction = conn.BeginTransaction();
 
@@ -949,7 +950,7 @@ namespace ProInternal.Services
         // --------------------------------------------------
         // LINK FILE TO CREDIT + BATCH
         // --------------------------------------------------
-        public void LinkFileToCredit(int creditId,  Guid batchGuid, string fileId)
+        public void LinkFileToCredit(int creditId, Guid batchGuid, string fileId)
         {
             //using var db = Connection;
             using var conn = GetConnection();
@@ -1080,7 +1081,7 @@ namespace ProInternal.Services
 
 
 
-  
+
 
         public int InsertAccountingCredit(CreditRequestDto dto)
         {
@@ -1110,7 +1111,7 @@ namespace ProInternal.Services
 
                     // 🔥 FLATTEN FILE LIST → SINGLE VALUE
                     FileName = string.Join(",", dto.FileNames),
-                    
+
                     // SP expects CHAR(1)
                     ApplyEZPay = dto.EZPay ? "1" : "2",
 
@@ -1397,7 +1398,7 @@ namespace ProInternal.Services
         {
             using (var connection = GetConnection())
             {
-             //   connection.Open();
+                //   connection.Open();
 
                 try
                 {
@@ -1427,7 +1428,7 @@ namespace ProInternal.Services
                 catch (Exception ex)
                 {
                     // Rollback the transaction if an error occurs
-                
+
                     throw new Exception("Error processing shipping errors", ex);
                 }
             }
@@ -1605,7 +1606,7 @@ namespace ProInternal.Services
             var subscriptions = connection.Query<Subscription>("PIV2GetSubscriptions", commandType: CommandType.StoredProcedure
         ).ToList();
 
-        return subscriptions;
+            return subscriptions;
         }
 
 
@@ -1630,7 +1631,7 @@ namespace ProInternal.Services
         public IEnumerable<Member> GetMembers(int memberTypeId)
         {
             using var connection = GetConnection();
-    
+
 
             var members = connection.Query<Member>(
                 "PIV2GetMembers",
@@ -1648,7 +1649,7 @@ namespace ProInternal.Services
         public IEnumerable<Vendor> GetVendors()
         {
             using var connection = GetConnection();
-        
+
 
             var vendors = connection.Query<Vendor>(
                 "PIV2GetVendors",
@@ -1710,7 +1711,7 @@ namespace ProInternal.Services
         }
 
 
-        
+
 
 
         public void UpdateVendorImage(int vendorId, string imageUrl)
@@ -1745,7 +1746,7 @@ namespace ProInternal.Services
                             existingUser = user;
                             existingUser.Roles = new List<string>();
                             userDict.Add(existingUser.UserId, existingUser);
-                            
+
                         }
 
                         if (!string.IsNullOrEmpty(role) && !existingUser.Roles.Contains(role))
@@ -1867,7 +1868,7 @@ namespace ProInternal.Services
             }
         }
 
-        
+
         public void SaveUserExtraPermission(int userId, List<string> permissions)
         {
             using var conn = GetConnection();
@@ -2014,7 +2015,7 @@ namespace ProInternal.Services
             }
         }
 
-     
+
         public List<InvoiceRecord> GetInvoices()
         {
             using (IDbConnection connection = GetConnection())
@@ -2032,7 +2033,7 @@ namespace ProInternal.Services
             using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<VendorStock>("GetAllVendorStock").ToList();
-               
+
                 return output;
             }
         }
@@ -2063,7 +2064,7 @@ namespace ProInternal.Services
                 }
                 catch (Exception e)
                 {
-    
+
                     return new VendorUserResponse(); // Return empty response object on error
                 }
             }
@@ -2074,7 +2075,7 @@ namespace ProInternal.Services
             using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<VendorSearch>("getAllVendors").ToList();
-                
+
                 return output;
             }
         }
@@ -2095,7 +2096,7 @@ namespace ProInternal.Services
                     var user = output.Read<User>().FirstOrDefault();
                     if (user == null)
                         return response; // Return empty response (invalid login)
-                 
+
 
                     // 2. Second result set: Roles (List<string>)
                     var roles = output.Read<string>().ToList();
@@ -2110,7 +2111,7 @@ namespace ProInternal.Services
                     // Build final response
                     response.User = user;
                     response.Roles = roles;
-                    
+
                     response.Permissions = permissions;
 
                     response.ExtraPermissions = extraPermissions;
@@ -2127,8 +2128,9 @@ namespace ProInternal.Services
                 return response;
             }
         }
+        #endregion
 
-       
+
 
 
         public bool MarkProductComplete(int shippingErrorId, int productId, string updatedBy)
@@ -2162,7 +2164,7 @@ namespace ProInternal.Services
                 return output;
             }
         }
-        
+
         public List<Notification> GetNotificationsForUser(int userId)
         {
             using (IDbConnection connection = GetConnection())
@@ -2253,7 +2255,7 @@ namespace ProInternal.Services
         }
 
 
-        
+
         public List<PatronageUpload> GetRecentPatronageLoad()
         {
             using (IDbConnection connection = GetConnection())
@@ -2285,7 +2287,7 @@ namespace ProInternal.Services
                     var parameters = new { BatchID = batchID, Active = active };
 
                     var result = connection.Execute(
-                        "UpdatePatronageBatchActive",   
+                        "UpdatePatronageBatchActive",
                         parameters,
                         commandType: CommandType.StoredProcedure
                     );
@@ -2440,7 +2442,7 @@ namespace ProInternal.Services
                 }
                 catch (Exception e) { }
                 finally { }
-             
+
             }
         }
 
@@ -2596,9 +2598,9 @@ namespace ProInternal.Services
         public List<Brands> GetExcludedBrandsByCountry(string country)
         {
             using (IDbConnection connection = GetConnection())
-            {         
+            {
                 var output = connection.Query<Brands>("GetExcludedBrandsByCountry", new { country = country }).ToList();
-                
+
                 return output;
             }
         }
@@ -2614,7 +2616,7 @@ namespace ProInternal.Services
             }
 
         }
-            
+
 
 
         public void AssignBrandsToMember([FromBody] GatingAssignment assignment)
@@ -2647,7 +2649,7 @@ namespace ProInternal.Services
         {
             using (IDbConnection connection = GetConnection())
             {
-                var output = connection.Query<Products>("InternalGetProducts", new {searchCriteria =  searchCriteria }).ToList();
+                var output = connection.Query<Products>("InternalGetProducts", new { searchCriteria = searchCriteria }).ToList();
 
                 return output;
             }
@@ -2662,7 +2664,7 @@ namespace ProInternal.Services
                 return output;
             }
         }
-     
+
 
         public List<Products> QuickSearchProducts()
         {
@@ -2697,38 +2699,45 @@ namespace ProInternal.Services
 
 
 
-		#region Exclusions
-        public int Exclusion_CreateGroup(string groupName) {
-			using (IDbConnection connection = GetConnection()) {
-				var output = connection.Query<int>("Exclusions_CreateGroup @groupName", new { groupName = groupName}).FirstOrDefault();
-				return output;
-			}
-		}
+        #region Exclusions
+        public int Exclusion_CreateGroup(string groupName)
+        {
+            using (IDbConnection connection = GetConnection())
+            {
+                var output = connection.Query<int>("Exclusions_CreateGroup @groupName", new { groupName = groupName }).FirstOrDefault();
+                return output;
+            }
+        }
 
-        public void Exclusion_AddProductsToGroup(int productExclusionGroupID, List<string> productCodes) {
+        public void Exclusion_AddProductsToGroup(int productExclusionGroupID, List<string> productCodes)
+        {
 
-			DataTable productCodeTable = new DataTable();
+            DataTable productCodeTable = new DataTable();
 
-			productCodeTable.Columns.Add(new DataColumn("ProductCode", typeof(string)));
-			foreach (var code in productCodes) {
-				DataRow row = productCodeTable.NewRow();
-				row["ProductCode"] = code;
-				productCodeTable.Rows.Add(row);
-			}
+            productCodeTable.Columns.Add(new DataColumn("ProductCode", typeof(string)));
+            foreach (var code in productCodes)
+            {
+                DataRow row = productCodeTable.NewRow();
+                row["ProductCode"] = code;
+                productCodeTable.Rows.Add(row);
+            }
 
-			var p = new DynamicParameters();
-			p.Add("@ProductExclusionGroupID", productExclusionGroupID);
-			p.Add("@ProductCodes", productCodeTable.AsTableValuedParameter("ProductCodeList"));
+            var p = new DynamicParameters();
+            p.Add("@ProductExclusionGroupID", productExclusionGroupID);
+            p.Add("@ProductCodes", productCodeTable.AsTableValuedParameter("ProductCodeList"));
 
-			using (IDbConnection connection = GetConnection()) {
-				connection.Execute("Exclusions_AddProductsToGroup", p, commandType: CommandType.StoredProcedure);
-			}
-		}
+            using (IDbConnection connection = GetConnection())
+            {
+                connection.Execute("Exclusions_AddProductsToGroup", p, commandType: CommandType.StoredProcedure);
+            }
+        }
 
-        public void Exclusion_ExcludeCompanyGroups(int companyID, List<int> productExclusionGroupIDs) {
+        public void Exclusion_ExcludeCompanyGroups(int companyID, List<int> productExclusionGroupIDs)
+        {
             DataTable groupIds = new DataTable();
             groupIds.Columns.Add(new DataColumn("Id", typeof(int)));
-            foreach (int id in productExclusionGroupIDs) {
+            foreach (int id in productExclusionGroupIDs)
+            {
                 DataRow row = groupIds.NewRow();
                 row["Id"] = id;
                 groupIds.Rows.Add(row);
@@ -2736,33 +2745,39 @@ namespace ProInternal.Services
             var p = new DynamicParameters();
             p.Add("@CompanyId", companyID);
             p.Add("@ProductExclusionGroupIDs", groupIds.AsTableValuedParameter("IdList"));
-			using (IDbConnection connection = GetConnection()) {
-				connection.Execute("Exclusions_ExcludeCompanyGroups", p, commandType: CommandType.StoredProcedure);
-			}
-		}
+            using (IDbConnection connection = GetConnection())
+            {
+                connection.Execute("Exclusions_ExcludeCompanyGroups", p, commandType: CommandType.StoredProcedure);
+            }
+        }
 
-       public void Exclusions_ExcludeCompanyBrands(int companyID, List<int> brandIDs) {
-			DataTable brandIds = new DataTable();
-			brandIds.Columns.Add(new DataColumn("BrandId", typeof(int)));
-			foreach (int id in brandIDs) {
-				DataRow row = brandIds.NewRow();
-				row["BrandId"] = id;
-				brandIds.Rows.Add(row);
-			}
-			var p = new DynamicParameters();
-			p.Add("@CompanyId", companyID);
-			p.Add("@BrandIds", brandIds.AsTableValuedParameter("BrandIdList"));
-			using (IDbConnection connection = GetConnection()) {
-				connection.Execute("Exclusions_ExcludeCompanyBrands", p, commandType: CommandType.StoredProcedure);
-			}
-		}
+        public void Exclusions_ExcludeCompanyBrands(int companyID, List<int> brandIDs)
+        {
+            DataTable brandIds = new DataTable();
+            brandIds.Columns.Add(new DataColumn("BrandId", typeof(int)));
+            foreach (int id in brandIDs)
+            {
+                DataRow row = brandIds.NewRow();
+                row["BrandId"] = id;
+                brandIds.Rows.Add(row);
+            }
+            var p = new DynamicParameters();
+            p.Add("@CompanyId", companyID);
+            p.Add("@BrandIds", brandIds.AsTableValuedParameter("BrandIdList"));
+            using (IDbConnection connection = GetConnection())
+            {
+                connection.Execute("Exclusions_ExcludeCompanyBrands", p, commandType: CommandType.StoredProcedure);
+            }
+        }
 
-        public List<CompanyBrandExclusion> Exclusions_GetCompanyBrandExclusions(int companyID) {
-			using (IDbConnection connection = GetConnection()) {
-				var output = connection.Query<CompanyBrandExclusion>("Exclusions_GetCompanyBrandExclusions @CompanyID", new { CompanyID = companyID}).ToList();
-				return output;
-			}
-		}
+        public List<CompanyBrandExclusion> Exclusions_GetCompanyBrandExclusions(int companyID)
+        {
+            using (IDbConnection connection = GetConnection())
+            {
+                var output = connection.Query<CompanyBrandExclusion>("Exclusions_GetCompanyBrandExclusions @CompanyID", new { CompanyID = companyID }).ToList();
+                return output;
+            }
+        }
 
         public List<CompanyDto> GetCompaniesAssignedToGroupAsync(int groupId)
         {
@@ -2785,32 +2800,38 @@ namespace ProInternal.Services
             using (IDbConnection connection = GetConnection())
             {
                 var output = connection.Query<Products>("GetUnassignedProducts").ToList();
-              
+
                 return output;
             }
         }
 
 
 
-        public List<ProductExclusionGroup> Exclusions_GetExclusionGroups() {
-			using (IDbConnection connection = GetConnection()) {
-				var output = connection.Query<ProductExclusionGroup>("Exclusions_GetExclusionGroups").ToList();
-				return output;
-			}
+        public List<ProductExclusionGroup> Exclusions_GetExclusionGroups()
+        {
+            using (IDbConnection connection = GetConnection())
+            {
+                var output = connection.Query<ProductExclusionGroup>("Exclusions_GetExclusionGroups").ToList();
+                return output;
+            }
         }
 
-        public List<ProductExclusionGroupProduct> Exclusions_GetExclusionGroupProducts(int productExclusionGroupID) { 
- 			using (IDbConnection connection = GetConnection()) {
-				var output = connection.Query<ProductExclusionGroupProduct>("Exclusions_GetExclusionGroupProducts @ProductExclusionGroupID", new { ProductExclusionGroupID = productExclusionGroupID }).ToList();
-				return output;
-			}
-       }
+        public List<ProductExclusionGroupProduct> Exclusions_GetExclusionGroupProducts(int productExclusionGroupID)
+        {
+            using (IDbConnection connection = GetConnection())
+            {
+                var output = connection.Query<ProductExclusionGroupProduct>("Exclusions_GetExclusionGroupProducts @ProductExclusionGroupID", new { ProductExclusionGroupID = productExclusionGroupID }).ToList();
+                return output;
+            }
+        }
 
-        public List<CompanyGroupExclusion> Exclusions_GetCompanyGroupExclusions(int companyID) {
-			using (IDbConnection connection = GetConnection()) {
-				var output = connection.Query<CompanyGroupExclusion>("Exclusions_GetCompanyGroupExclusions @CompanyID", new { CompanyID = companyID }).ToList();
-				return output;
-			}
+        public List<CompanyGroupExclusion> Exclusions_GetCompanyGroupExclusions(int companyID)
+        {
+            using (IDbConnection connection = GetConnection())
+            {
+                var output = connection.Query<CompanyGroupExclusion>("Exclusions_GetCompanyGroupExclusions @CompanyID", new { CompanyID = companyID }).ToList();
+                return output;
+            }
 
         }
         #endregion
@@ -2828,7 +2849,7 @@ namespace ProInternal.Services
             );
         }
 
-        public void ShopifyTaxonomyReview(int id,string disposition)
+        public void ShopifyTaxonomyReview(int id, string disposition)
         {
             using var conn = GetConnection();
 
@@ -2871,6 +2892,284 @@ GetShopifyGovernanceIssues()
             );
         }
 
+
+        #region Product finder
+
+        private static readonly HashSet<string> SearchStatuses = new(StringComparer.OrdinalIgnoreCase) { "ACTIVE", "DISCONTINUED", "INACTIVE" };
+        private static readonly HashSet<string> SearchShips = new(StringComparer.OrdinalIgnoreCase) { "WAREHOUSE", "DIRECT" };
+        private static readonly HashSet<string> SearchGaps = new(StringComparer.OrdinalIgnoreCase) { "NO_BARCODE", "NO_EAN", "NO_WEIGHT", "NO_CUSTOMS" };
+        private static readonly HashSet<string> SearchSorts = new(StringComparer.OrdinalIgnoreCase) { "RELEVANCE", "CODE", "NAME", "BRAND", "PRICE", "AVAILABLE" };
+
+        /* Unknown filter values are dropped, never passed to SQL. */
+        private static string? PickSearchValue(string? value, HashSet<string> allowed)
+        {
+            var v = value?.Trim();
+            return !string.IsNullOrEmpty(v) && allowed.Contains(v) ? v.ToUpperInvariant() : null;
+        }
+
+        /* Product Desk finder and quick-jump box: dbo.PIV2_Products_Search. */
+        public ProductSearchPage SearchProducts(ProductSearchQuery query)
+        {
+            var page = query.Page < 1 ? 1 : query.Page;
+            var size = query.PageSize < 1 ? 50 : Math.Min(query.PageSize, 200);
+            var term = query.Term?.Trim();
+            if (term?.Length > 100) term = term[..100];
+
+            using var conn = GetConnection();
+
+            var rows = conn.Query<ProductSearchRow>(
+                "dbo.PIV2_Products_Search",
+                new
+                {
+                    Term = string.IsNullOrEmpty(term) ? null : term,
+                    query.BrandId,
+                    Status = PickSearchValue(query.Status, SearchStatuses),
+                    ShipsFrom = PickSearchValue(query.ShipsFrom, SearchShips),
+                    query.ForSale,
+                    Gap = PickSearchValue(query.Gap, SearchGaps),
+                    Sort = PickSearchValue(query.Sort, SearchSorts) ?? "RELEVANCE",
+                    query.Desc,
+                    Page = page,
+                    PageSize = size
+                },
+                commandType: CommandType.StoredProcedure,
+                commandTimeout: 30
+            ).ToList();
+
+            return new ProductSearchPage
+            {
+                Rows = rows,
+                Total = rows.Count > 0 ? rows[0].TotalCount : 0,
+                Page = page,
+                PageSize = size
+            };
+        }
+
+        #endregion
+
+
+        #region Member Desk
+        // Member Desk models live in ProInternal.Models.Member. The alias keeps them from
+        // colliding with existing models that share a name.
+
+
+        public List<MemberDesk.MemberListItem> Member_Search(string term)
+        {
+            using var conn = GetConnection();
+            return conn.Query<MemberDesk.MemberListItem>(
+                "dbo.PIV2_Member_Search",
+                new { Term = term, Top = 2000 },   // whole roster (about 650) so the type tabs are complete
+                commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public MemberDesk.MemberDetail Member_Get(string accountNumber, bool sqlIsMaster)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple(
+                "dbo.PIV2_Member_Get",
+                new { AccountNumber = accountNumber, SqlIsMaster = sqlIsMaster },
+                commandType: CommandType.StoredProcedure);
+
+            var header = multi.Read<MemberDesk.MemberHeader>().FirstOrDefault();
+            if (header == null) return null;
+
+            var detail = new MemberDesk.MemberDetail
+            {
+                Header          = header,
+                Locations       = multi.Read<MemberDesk.MemberLocation>().ToList(),
+                Contacts        = multi.Read<MemberDesk.MemberContact>().ToList(),
+                Grants          = multi.Read<MemberDesk.MemberGrant>().ToList(),
+                BrandExclusions = multi.Read<MemberDesk.MemberBrandExclusion>().ToList(),
+                GroupExclusions = multi.Read<MemberDesk.MemberGroupExclusion>().ToList(),
+                MapViolations   = multi.Read<MemberDesk.MemberMapViolation>().ToList(),
+                Documents       = multi.Read<MemberDesk.MemberDocument>().ToList(),
+                Related         = multi.Read<MemberDesk.MemberRelated>().ToList(),
+                AccessLog       = multi.Read<MemberDesk.MemberAccessLogEntry>().ToList()
+            };
+
+            if (detail.Header != null && int.TryParse(accountNumber, out var acct))
+            {
+                /* BRM comes from HubSpot over a linked server: never let it stop the member page loading. */
+                try
+                {
+                    using var brmConn = GetConnection();   // own connection: the member reader above is still open
+                    var brm = brmConn.QueryFirstOrDefault<MemberDesk.MemberBrm>("dbo.GetBRM", new { AccountNumber = acct },
+                                                                   commandType: CommandType.StoredProcedure, commandTimeout: 10);
+                    if (brm != null && brm.FirstName != "N/A") detail.Brm = brm;
+                }
+                catch { /* linked server unavailable: page shows no BRM */ }
+            }
+            return detail;
+        }
+
+        public void Member_Save(string accountNumber, MemberDesk.MemberSaveRequest m, bool sqlIsMaster, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute(
+                "dbo.PIV2_Member_Save",
+                new
+                {
+                    AccountNumber = accountNumber,
+                    SqlIsMaster = sqlIsMaster,
+                    UpdatedBy = user,
+                    m.Name, m.LegalName, m.Status, m.PortalEnabled, m.JoinDate,
+                    m.Phone, m.Fax, m.Email, m.Website,
+                    m.AccountRole, m.ParentAccountNumber, m.BillToParent, m.PreviousAccountNumber,
+                    m.PaymentMethod, m.DefaultPaymentMethod, m.PaymentMethodReason,
+                    m.PriceCountry, m.CurrencyCode, m.LanguageCode, m.FulfillmentCenter,
+                    m.MarkupExempt, m.MarkupExemptReason,
+                    m.DuesFrequency, m.InstantRebateOverride, m.PatronagePayoutMethod,
+                    m.CreditLimit, m.CreditHoldSince, m.CreditHoldReason,
+                    m.EzPayAllowed, m.DuesEnrolled, m.ShippingZone, m.AirDuringPeak
+                },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public List<MemberDesk.AccessRule> AccessRule_List()
+        {
+            using var conn = GetConnection();
+            return conn.Query<MemberDesk.AccessRule>("dbo.PIV2_AccessRule_List",
+                commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public int AccessRule_Save(MemberDesk.AccessRule r, string user)
+        {
+            using var conn = GetConnection();
+            return conn.QuerySingle<int>(
+                "dbo.PIV2_AccessRule_Save",
+                new
+                {
+                    r.AuthorizationId, r.Code, r.Name, r.Description, r.BusinessReason, r.Status,
+                    r.BrandId, r.VendorId, r.UnlocksAuthorizedPrice, r.SegmentType, r.MemberTypes,
+                    r.RequiresCustomCatalog, r.RequiresPortalEnabled, r.ReviewStatus, r.ReviewBy,
+                    User = user
+                },
+                commandType: CommandType.StoredProcedure,
+                commandTimeout: 300);   // re-applies the rule to every member
+        }
+
+        public List<MemberDesk.AccessRuleMember> AccessRule_Members(string code)
+        {
+            using var conn = GetConnection();
+            return conn.Query<MemberDesk.AccessRuleMember>("dbo.PIV2_AccessRule_Members",
+                new { Code = code }, commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public void MemberAuthorization_Grant(string accountNumber, MemberDesk.GrantRequest g, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberAuthorization_Grant",
+                new { AccountNumber = accountNumber, g.Code, g.Reason, User = user, g.EvidenceDocumentId },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public void MemberAuthorization_Revoke(int memberAuthorizationId, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberAuthorization_Revoke",
+                new { MemberAuthorizationId = memberAuthorizationId, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public int MemberDocument_Add(string accountNumber, string documentType, string title, string fileName,
+                                      string storageKey, string contentType, long sizeBytes, DateTime? expiresOn, string user)
+        {
+            using var conn = GetConnection();
+            return conn.QuerySingle<int>("dbo.PIV2_MemberDocument_Add",
+                new
+                {
+                    AccountNumber = accountNumber, DocumentType = documentType, Title = title, FileName = fileName,
+                    StorageKey = storageKey, ContentType = contentType, SizeBytes = sizeBytes, ExpiresOn = expiresOn, User = user
+                },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public MemberDesk.MemberDocumentFile MemberDocument_Get(int documentId)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<MemberDesk.MemberDocumentFile>("dbo.PIV2_MemberDocument_Get",
+                new { DocumentId = documentId }, commandType: CommandType.StoredProcedure);
+        }
+
+        public void MemberDocument_Review(int documentId, MemberDesk.DocumentReviewRequest r, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberDocument_Review",
+                new { DocumentId = documentId, r.Status, r.Note, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public void MemberDocument_Delete(int documentId, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberDocument_Delete",
+                new { DocumentId = documentId, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public void MapViolation_Add(string accountNumber, MemberDesk.MapViolationRequest v, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MapViolation_Add",
+                new { AccountNumber = accountNumber, v.ProductCode, v.StartDate, v.PenaltyDays, v.Note, v.EvidenceDocumentId, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public void MapViolation_End(int violationId, MemberDesk.MapViolationEndRequest v, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MapViolation_End",
+                new { ViolationId = violationId, v.EndDate, v.Note, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public List<MemberDesk.BrandOption> Brand_List()
+        {
+            using var conn = GetConnection();
+            return conn.Query<MemberDesk.BrandOption>("dbo.PIV2_Brand_List",
+                commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public void MemberBrand_Allow(string accountNumber, int brandId, string reason, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberBrand_Allow",
+                new { AccountNumber = accountNumber, BrandId = brandId, Reason = reason, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public void MemberBrand_Block(string accountNumber, int brandId, string reason, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("dbo.PIV2_MemberBrand_Block",
+                new { AccountNumber = accountNumber, BrandId = brandId, Reason = reason, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        /* Excel downloads: rows come back as column -> value, column names as the sheet headers. */
+        public List<Dictionary<string, object>> Member_Export(bool sqlIsMaster)
+        {
+            using var conn = GetConnection();
+            return conn.Query("dbo.PIV2_Member_Export", new { SqlIsMaster = sqlIsMaster },
+                              commandType: CommandType.StoredProcedure, commandTimeout: 120)
+                       .Select(r => new Dictionary<string, object>((IDictionary<string, object>)r)).ToList();
+        }
+
+        public List<Dictionary<string, object>> AccessRule_ExportMembers()
+        {
+            using var conn = GetConnection();
+            return conn.Query("dbo.PIV2_AccessRule_ExportMembers",
+                              commandType: CommandType.StoredProcedure, commandTimeout: 120)
+                       .Select(r => new Dictionary<string, object>((IDictionary<string, object>)r)).ToList();
+        }
+
+        public List<MemberDesk.ProductLookupItem> Product_Lookup(string term)
+        {
+            using var conn = GetConnection();
+            return conn.Query<MemberDesk.ProductLookupItem>("dbo.PIV2_Member_ProductLookup",
+                new { Term = term }, commandType: CommandType.StoredProcedure).ToList();
+        }
+        #endregion
+
     }
 }
-#endregion

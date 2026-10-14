@@ -55,6 +55,7 @@ import {
   VendorRebateProgramApi, VendorCustomFieldApi, VendorCustomFieldDefinitionApi, VendorAuditLogEntryApi,
   VendorFileApi, VendorFileCategory, CreateVendorRequest
 } from 'src/app/models/vendor/vendor-card.model';
+import { AccessRule, AccessRuleMember, MemberDetail, MemberListItem } from 'src/app/models/member/member-desk.models';
 
 @Injectable()
 export class DataService {
@@ -1051,6 +1052,80 @@ export class DataService {
   deleteHubspotCompany(companyId: string): Observable<any> {
     return this.api.delete(`API/hubspot/companies/${companyId}`);
   }
+
+  //region Member Desk  (API: MemberController, api/members)
+  private readonly memberBase = 'API/Members';
+
+  memberSearch(term: string): Observable<MemberListItem[]> {
+    return this.api.get<MemberListItem[]>(`${this.memberBase}?term=${encodeURIComponent(term ?? '')}`);
+  }
+  memberGet(accountNumber: string): Observable<MemberDetail> {
+    return this.api.get<MemberDetail>(`${this.memberBase}/${accountNumber}`);
+  }
+  memberSave(accountNumber: string, body: any): Observable<MemberDetail> {
+    return this.api.put<MemberDetail>(`${this.memberBase}/${accountNumber}`, body);
+  }
+
+  accessRules(): Observable<AccessRule[]> {
+    return this.api.get<AccessRule[]>(`${this.memberBase}/access-rules`);
+  }
+  accessRuleMembers(code: string): Observable<AccessRuleMember[]> {
+    return this.api.get<AccessRuleMember[]>(`${this.memberBase}/access-rules/${encodeURIComponent(code)}/members`);
+  }
+  saveAccessRule(rule: AccessRule): Observable<{ authorizationId: number }> {
+    return this.api.post<{ authorizationId: number }>(`${this.memberBase}/access-rules`, rule);
+  }
+  grantMemberAccess(accountNumber: string, code: string, reason: string, evidenceDocumentId?: number | null): Observable<MemberDetail> {
+    return this.api.post<MemberDetail>(`${this.memberBase}/${accountNumber}/grants`, { code, reason, evidenceDocumentId });
+  }
+  revokeMemberAccess(memberAuthorizationId: number): Observable<void> {
+    return this.api.delete<void>(`${this.memberBase}/grants/${memberAuthorizationId}`);
+  }
+
+  uploadMemberDocument(accountNumber: string, file: File, documentType: string, title: string, expiresOn: string | null): Observable<{ documentId: number }> {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    fd.append('documentType', documentType);
+    if (title) fd.append('title', title);
+    if (expiresOn) fd.append('expiresOn', expiresOn);
+    return this.api.postMultipartJson<{ documentId: number }>(`${this.memberBase}/${accountNumber}/documents`, fd);
+  }
+  memberDocumentUrl(documentId: number): Observable<{ url: string }> {
+    return this.api.get<{ url: string }>(`${this.memberBase}/documents/${documentId}/url`);
+  }
+  reviewMemberDocument(documentId: number, status: string, note: string | null): Observable<void> {
+    return this.api.put<void>(`${this.memberBase}/documents/${documentId}/review`, { status, note });
+  }
+  deleteMemberDocument(documentId: number): Observable<void> {
+    return this.api.delete<void>(`${this.memberBase}/documents/${documentId}`);
+  }
+
+  addMemberMapViolation(accountNumber: string, body: { productCode: string; startDate: string; penaltyDays: number; note?: string; evidenceDocumentId?: number | null }): Observable<MemberDetail> {
+    return this.api.post<MemberDetail>(`${this.memberBase}/${accountNumber}/map-violations`, body);
+  }
+  endMemberMapViolation(violationId: number, endDate: string, note: string): Observable<void> {
+    return this.api.put<void>(`${this.memberBase}/map-violations/${violationId}/end`, { endDate, note });
+  }
+  memberBrands(): Observable<{ brandId: number; brandName: string }[]> {
+    return this.api.get<{ brandId: number; brandName: string }[]>(`${this.memberBase}/brands`);
+  }
+  allowMemberBrand(accountNumber: string, brandId: number, reason: string | null): Observable<MemberDetail> {
+    return this.api.post<MemberDetail>(`${this.memberBase}/${accountNumber}/brands/${brandId}/allow`, { reason });
+  }
+  blockMemberBrand(accountNumber: string, brandId: number, reason: string | null): Observable<MemberDetail> {
+    return this.api.post<MemberDetail>(`${this.memberBase}/${accountNumber}/brands/${brandId}/block`, { reason });
+  }
+  memberExport(): Observable<{ [column: string]: any }[]> {
+    return this.api.get<{ [column: string]: any }[]>(`${this.memberBase}/export`);
+  }
+  accessRuleExport(): Observable<{ [column: string]: any }[]> {
+    return this.api.get<{ [column: string]: any }[]>(`${this.memberBase}/access-rules/export`);
+  }
+  memberProductLookup(term: string): Observable<{ productCode: string; modelName: string; brandName: string }[]> {
+    return this.api.get<{ productCode: string; modelName: string; brandName: string }[]>(`${this.memberBase}/products?term=${encodeURIComponent(term)}`);
+  }
+  //endregion Member Desk
+
 
 
 

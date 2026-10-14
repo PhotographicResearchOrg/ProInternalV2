@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/products/product.schema.json",
+  "title": "Canonical Product",
+  "description": "PRO's canonical product contract: what a product is, how it is identified, what it costs and sells for, and how it ships. PRO owns this contract; SQL is the system of record; every other system (Computyme, a 3PL, EDI, the B2B site, Shopify) connects through an adapter that maps to or from it. REQUIRED: identity, name, and status only. Everything else is optional, but when present it must be complete and consistent. Each adapter declares what it needs beyond the required minimum (a 3PL adapter, for example, refuses a product with no barcode or weight). Unknown fields are rejected. Stock on hand, quantities on order, and sales history are derived and never appear. Names and descriptions in each language, features, specs, documents, categories, and web visibility live in the product content contract; specials and rebates are separate contracts too. All reference productId.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "metadata", "product"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Contract version. Additive changes bump the minor version; breaking changes create a new major version.",
+      "const": "1.0"
+    },
+
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["productId"],
+      "properties": {
+        "productId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical, immutable product identifier owned by PRO SQL. Never another system's id (those live in references)."
+        },
+        "createdAt": { "type": ["string", "null"], "format": "date-time" },
+        "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sku", "name", "status"],
+      "properties": {
+        "sku": { "type": "string", "minLength": 1, "description": "PRO's product code: what dealers order by." },
+        "name": { "type": "string", "minLength": 1 },
+        "status": { "$ref": "product.enums.json#/$defs/ProductStatus" },
+        "forSale": {
+          "type": "boolean",
+          "default": true,
+          "description": "The master switch. False stops the product being sold on every channel, whatever its status."
+        },
+        "replacementSku": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "The sku that replaces a DISCONTINUED product."
+        },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+
+    "brandId": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Canonical brandId. The brand names the vendor; the product does not repeat it."
+    },
+
+    "identifiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Barcodes and part numbers. UPC and EAN are separate fields and never share one: a 3PL or an international partner asks for one or the other by name.",
+      "properties": {
+        "upc": { "type": ["string", "null"], "pattern": "^[0-9]{12}$", "description": "UPC-A, 12 digits." },
+        "ean": { "type": ["string", "null"], "pattern": "^[0-9]{13}$", "description": "EAN-13, 13 digits." },
+        "caseGtin": { "type": ["string", "null"], "pattern": "^[0-9]{14}$", "description": "GTIN-14 printed on the shipping case." },
+        "vendorCatalogNumber": { "type": ["string", "null"], "minLength": 1, "description": "The vendor's own part number for this product." }
+      }
+    },
+
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Current list prices and costs. Every amount carries its own currency. Specials and member-specific prices are not here. distributorCost and landedCost are confidential: adapters that face dealers or the web must not emit them.",
+      "properties": {
+        "memberPrice": { "$ref": "../common/money.schema.json", "description": "What a dealer pays PRO for one unit." },
+        "cartonPrice": { "$ref": "../common/money.schema.json", "description": "Unit price when the dealer buys cartonQuantity or more." },
+        "cartonQuantity": { "type": ["integer", "null"], "minimum": 2, "description": "Units that earn cartonPrice." },
+        "authorizedDealerPrice": { "$ref": "../common/money.schema.json", "description": "Unit price for the fixed set of dealers authorized for this product. Who is authorized is not product data: it lives in the member brand entitlement contract." },
+        "map": { "$ref": "../common/money.schema.json", "description": "Minimum advertised price." },
+        "consumerRetail": { "$ref": "../common/money.schema.json", "description": "Suggested retail price to the consumer." },
+        "distributorCost": { "$ref": "../common/money.schema.json", "description": "What PRO pays the vendor for one unit." },
+        "landedCost": { "$ref": "../common/money.schema.json", "description": "What one unit costs PRO once it is in the warehouse: vendor cost plus freight and duty." },
+        "dropShipCharge": { "$ref": "../common/money.schema.json", "description": "What PRO charges a dealer to ship one unit to the dealer's customer." },
+        "shippingSurcharge": { "$ref": "../common/money.schema.json", "description": "Extra shipping charged per unit, for a heavy, oversize, or restricted product." }
+      },
+      "allOf": [
+        {
+          "description": "A carton price must say how many units earn it.",
+          "if": { "required": ["cartonPrice"] },
+          "then": { "required": ["cartonQuantity"], "properties": { "cartonQuantity": { "type": "integer" } } }
+        }
+      ]
+    },
+
+    "marketPricing": {
+      "type": "array",
+      "default": [],
+      "description": "Selling prices for a country other than the home market, one entry per country. pricing above is the home market. A country with no entry is not priced there: nothing is converted or assumed. Costs are not per market and stay in pricing.",
+      "items": { "$ref": "#/$defs/MarketPrice" }
+    },
+
+    "supply": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How this product reaches the dealer.",
+      "properties": {
+        "directVendorShip": {
+          "type": "boolean",
+          "default": false,
+          "description": "The vendor ships this product to the dealer; PRO's warehouse does not. An order line is direct when this is true OR the brand's supply.directShipAll is true."
+        },
+        "dropShipEligible": {
+          "type": "boolean",
+          "default": false,
+          "description": "A dealer may have this product shipped to the dealer's own customer. Unrelated to directVendorShip."
+        },
+        "vendorId": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Canonical vendorId PRO buys this product from. Set it when the brand does not settle it: a house brand is made by many vendors. When absent, the brand's vendor applies."
+        },
+        "specialOrder": { "type": "boolean", "default": false, "description": "Not stocked; ordered from the vendor when a dealer orders it." },
+        "orderMultiple": { "type": ["integer", "null"], "minimum": 1, "description": "Dealers order in multiples of this many units." },
+        "unitsPerCase": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+
+    "logistics": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What a warehouse, 3PL, carrier, or customs broker needs. One weight and one set of dimensions, each with its unit; adapters convert.",
+      "properties": {
+        "weight": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value", "unit"],
+          "properties": {
+            "value": { "type": "number", "exclusiveMinimum": 0 },
+            "unit": { "$ref": "product.enums.json#/$defs/WeightUnit" }
+          }
+        },
+        "dimensions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["length", "width", "height", "unit"],
+          "properties": {
+            "length": { "type": "number", "exclusiveMinimum": 0 },
+            "width": { "type": "number", "exclusiveMinimum": 0 },
+            "height": { "type": "number", "exclusiveMinimum": 0 },
+            "unit": { "$ref": "product.enums.json#/$defs/LengthUnit" }
+          }
+        },
+        "countryOfOrigin": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$", "description": "ISO 3166-1 alpha-2." },
+        "hsCodes": {
+          "type": "array",
+          "default": [],
+          "description": "Harmonized tariff codes, one per importing country, because the digits after the sixth differ by country. Each is the current code and is replaced when that country's schedule changes.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["country", "code"],
+            "properties": {
+              "country": { "type": "string", "pattern": "^[A-Z]{2}$", "description": "ISO 3166-1 alpha-2 importing country." },
+              "code": { "type": "string", "pattern": "^[0-9]{6,10}$", "description": "Digits only, 6 to 10. No dots." }
+            }
+          }
+        },
+        "containsLithiumBattery": { "type": ["boolean", "null"] },
+        "prop65Warning": { "type": ["boolean", "null"], "description": "Carries a California Proposition 65 warning." }
+      }
+    },
+
+    "replenishment": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The settings a buyer reorders by. Stock on hand, quantities on order, and the suggested order are worked out from these and never stored here.",
+      "properties": {
+        "minimumStock": { "type": ["integer", "null"], "minimum": 0, "description": "Reorder when available stock falls below this." },
+        "monthsSupply": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "How many months of sales an order should cover." }
+      }
+    },
+
+    "returns": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The default for this product. A return authorization starts from it and may decide otherwise for one claim.",
+      "properties": {
+        "defectiveDisposition": {
+          "anyOf": [{ "$ref": "product.enums.json#/$defs/DefectiveDisposition" }, { "type": "null" }],
+          "description": "What a dealer does with a unit reported defective."
+        }
+      }
+    },
+
+    "references": {
+      "type": "object",
+      "description": "This product's id in every other system, keyed by system.",
+      "additionalProperties": { "type": "string" },
+      "default": {},
+      "examples": [{ "computymeProductId": "55168", "shopifyProductId": "8123456789" }]
+    },
+
+    "extensions": {
+      "type": "object",
+      "description": "Namespaced fields that only one system cares about. A field is promoted to canonical only when two or more systems need it. Never carries stock, on-order, or sales history.",
+      "additionalProperties": { "type": "object" },
+      "default": {},
+      "properties": {
+        "computyme": {
+          "type": "object",
+          "additionalProperties": true,
+          "propertyNames": {
+            "not": { "enum": ["L_REQ", "QTY_REC", "YTD", "SYTD", "PYTD", "MORD", "MPYR", "PO_NO", "PO_QTY", "QTY_BO", "ONORDER", "LAST_SALE"] }
+          }
+        }
+      }
+    },
+
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "createdBy": { "type": ["string", "null"] },
+        "updatedBy": { "type": ["string", "null"] }
+      }
+    }
+  },
+
+  "$defs": {
+    "MarketPrice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["country"],
+      "minProperties": 2,
+      "properties": {
+        "country": { "type": "string", "pattern": "^[A-Z]{2}$", "description": "ISO 3166-1 alpha-2 country these prices apply in." },
+        "memberPrice": { "$ref": "../common/money.schema.json" },
+        "cartonPrice": { "$ref": "../common/money.schema.json" },
+        "cartonQuantity": { "type": ["integer", "null"], "minimum": 2 },
+        "authorizedDealerPrice": { "$ref": "../common/money.schema.json" },
+        "map": { "$ref": "../common/money.schema.json" },
+        "consumerRetail": { "$ref": "../common/money.schema.json" },
+        "dropShipCharge": { "$ref": "../common/money.schema.json" }
+      },
+      "allOf": [
+        {
+          "description": "A carton price must say how many units earn it.",
+          "if": { "required": ["cartonPrice"] },
+          "then": { "required": ["cartonQuantity"], "properties": { "cartonQuantity": { "type": "integer" } } }
+        }
+      ]
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "A product the vendor ships direct must lead to a vendor: through its brand, or by naming the vendor itself.",
+      "if": {
+        "properties": { "supply": { "properties": { "directVendorShip": { "const": true } }, "required": ["directVendorShip"] } },
+        "required": ["supply"]
+      },
+      "then": {
+        "anyOf": [
+          { "required": ["brandId"], "properties": { "brandId": { "type": "string" } } },
+          { "properties": { "supply": { "required": ["vendorId"], "properties": { "vendorId": { "type": "string" } } } } }
+        ]
+      }
+    },
+    {
+      "description": "Only a DISCONTINUED product names a replacement.",
+      "if": {
+        "properties": { "product": { "properties": { "replacementSku": { "type": "string" } }, "required": ["replacementSku"] } }
+      },
+      "then": { "properties": { "product": { "properties": { "status": { "const": "DISCONTINUED" } } } } }
+    }
+  ]
+}

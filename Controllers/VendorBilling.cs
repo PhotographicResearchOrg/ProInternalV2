@@ -65,7 +65,7 @@ public class VendorBillingController : ControllerBase
 
         //var dto = await _extractor.ExtractPreviewAsync(file);
 
-        // 🔥 This already calls Python via uvicorn
+        // This already calls Python via uvicorn
        // var dto = await _Uvicorn.ExtractInvoicePreviewAsync(file);
         var dto = await _extractor.ExtractPreviewAsync(file);
         if (vendorId.HasValue)

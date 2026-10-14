@@ -1,0 +1,226 @@
+<p-toast></p-toast>
+
+<div class="desk-page">
+  <header class="desk-header">
+    <div>
+      <button type="button" class="back-link" routerLink="/members"><i class="pi pi-arrow-left"></i>Member Desk</button>
+      <div class="eyebrow">Account Management</div>
+      <h1>Access Rules</h1>
+      <div class="subtitle">Every rule that keeps a brand from a group of members, written out. Grants exempt individual members.</div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-secondary" (click)="load()"><i class="pi pi-refresh"></i>Refresh</button>
+      <button type="button" class="btn btn-primary" (click)="create()"><i class="pi pi-plus"></i>New rule</button>
+    </div>
+  </header>
+
+  <section class="summary-grid">
+    <div class="summary-card" (click)="filter = 'ACTIVE'">
+      <div class="summary-label">Active rules</div>
+      <div class="summary-value">{{ activeCount }}</div>
+      <div class="summary-sub">applied to members now</div>
+    </div>
+    <div class="summary-card" [class.warning-card]="needsReview" (click)="filter = 'NEEDS_REVIEW'">
+      <div class="summary-label">Needs review</div>
+      <div class="summary-value">{{ needsReview }}</div>
+      <div class="summary-sub">rules nobody has signed off</div>
+    </div>
+    <div class="summary-card" (click)="filter = 'ACTIVE'">
+      <div class="summary-label">Exclusions</div>
+      <div class="summary-value">{{ totalExcluded | number }}</div>
+      <div class="summary-sub">member × brand blocks from rules</div>
+    </div>
+    <div class="summary-card" (click)="filter = 'ACTIVE'">
+      <div class="summary-label">Grants</div>
+      <div class="summary-value">{{ totalGranted | number }}</div>
+      <div class="summary-sub">members exempted by name</div>
+    </div>
+  </section>
+
+  <nav class="channel-tabs">
+    <button type="button" class="channel-tab" [class.active]="filter === 'ACTIVE'" (click)="filter = 'ACTIVE'">
+      <i class="pi pi-check-circle"></i>Active<span class="tab-count">{{ activeCount }}</span>
+    </button>
+    <button type="button" class="channel-tab" [class.active]="filter === 'NEEDS_REVIEW'" (click)="filter = 'NEEDS_REVIEW'">
+      <i class="pi pi-exclamation-circle"></i>Needs review<span class="tab-count" [class.tab-count-alert]="needsReview">{{ needsReview }}</span>
+    </button>
+    <button type="button" class="channel-tab" [class.active]="filter === 'LEGACY'" (click)="filter = 'LEGACY'">
+      <i class="pi pi-history"></i>Legacy & retired<span class="tab-count">{{ legacyCount }}</span>
+    </button>
+    <button type="button" class="channel-tab" [class.active]="filter === 'ALL'" (click)="filter = 'ALL'">
+      <i class="pi pi-list"></i>All<span class="tab-count">{{ rules.length }}</span>
+    </button>
+  </nav>
+
+  <div class="table-card">
+    <div class="table-responsive">
+      <table class="desk-table list-table">
+        <thead>
+          <tr>
+            <th style="width: 250px">Rule</th>
+            <th>What it says</th>
+            <th style="width: 190px">Applies to</th>
+            <th style="width: 130px">Members</th>
+            <th class="actions-column" style="width: 80px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of shown">
+            <td>
+              <div class="member-name">{{ r.name }}</div>
+              <div class="member-sub mono">{{ r.code }}</div>
+              <div class="badge-strip" style="margin-top: 6px">
+                <span class="status-badge status-exception" *ngIf="r.status !== 'ACTIVE'">{{ r.status | titlecase }}</span>
+                <span class="status-badge status-exception" *ngIf="r.reviewStatus === 'NEEDS_REVIEW'">Needs review</span>
+                <span class="status-badge status-violet" *ngIf="r.unlocksAuthorizedPrice">Authorized price</span>
+              </div>
+            </td>
+            <td>
+              {{ r.description }}
+              <div class="member-sub" style="margin-top: 4px"><i class="pi pi-info-circle"></i> {{ r.businessReason }}</div>
+              <div class="member-sub" *ngIf="r.approvedBy">Approved by {{ r.approvedBy }} {{ r.approvedOn | date:'MM/dd/yy' }}</div>
+            </td>
+            <td>
+              {{ who(r) }}
+              <div class="member-sub" *ngIf="r.brandName">{{ r.brandName }}</div>
+            </td>
+            <td>
+              <button type="button" class="link" (click)="showMembers(r)">
+                <span class="mono">{{ r.membersExcluded || 0 }}</span> excluded<br />
+                <span class="mono">{{ r.membersGranted || 0 }}</span> granted
+              </button>
+            </td>
+            <td class="actions-column"><button type="button" class="row-action" (click)="edit(r)">Edit</button></td>
+          </tr>
+          <tr *ngIf="loading">
+            <td colspan="5" class="empty-state"><i class="pi pi-spin pi-spinner"></i><div>Loading rules…</div></td>
+          </tr>
+          <tr *ngIf="!loading && !shown.length">
+            <td colspan="5" class="empty-state"><i class="pi pi-shield"></i><div>No rules here.</div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- -------------------------------------------------------- editor -->
+<div class="modal-backdrop" *ngIf="editing as r" (click)="editing = null">
+  <div class="desk-modal wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">Access rule</div>
+        <h2>{{ r.authorizationId ? r.name : 'New rule' }}</h2>
+        <div class="subtitle mono" *ngIf="r.authorizationId">{{ r.code }}</div>
+      </div>
+      <button type="button" class="modal-close" (click)="editing = null"><i class="pi pi-times"></i></button>
+    </div>
+
+    <div class="modal-warning info">
+      <i class="pi pi-info-circle"></i>
+      <span>Saving applies the rule to every member straight away. Members with a grant stay exempt.</span>
+    </div>
+
+    <div class="form-grid">
+      <div class="field span-4">
+        <label>Code</label>
+        <input type="text" class="mono" [(ngModel)]="r.code" [disabled]="!!r.authorizationId" placeholder="CLIENT_CC_87" maxlength="40" />
+      </div>
+      <div class="field span-8">
+        <label>Name</label>
+        <input type="text" [(ngModel)]="r.name" maxlength="100" />
+      </div>
+      <div class="field span-12">
+        <label>What it says (plain English)</label>
+        <textarea [(ngModel)]="r.description" maxlength="500" placeholder="Clients with a custom catalog cannot buy Joby unless granted."></textarea>
+      </div>
+      <div class="field span-12">
+        <label>Why it exists</label>
+        <textarea [(ngModel)]="r.businessReason" maxlength="500" placeholder="Joby sells only to approved clients."></textarea>
+      </div>
+      <div class="field span-4">
+        <label>Brand id</label>
+        <input type="number" [(ngModel)]="r.brandId" />
+        <span class="hint" *ngIf="r.brandName">{{ r.brandName }}</span>
+      </div>
+      <div class="field span-4">
+        <label>Status</label>
+        <select [(ngModel)]="r.status">
+          <option *ngFor="let o of statusOptions" [ngValue]="o.value">{{ o.label | titlecase }}</option>
+        </select>
+      </div>
+      <div class="field span-4">
+        <label>Review</label>
+        <select [(ngModel)]="r.reviewStatus">
+          <option *ngFor="let o of reviewOptions" [ngValue]="o.value">{{ o.label }}</option>
+        </select>
+      </div>
+      <div class="field span-6">
+        <label>Applies to</label>
+        <select [(ngModel)]="r.segmentType">
+          <option *ngFor="let o of segmentOptions" [ngValue]="o.value">{{ o.label }}</option>
+        </select>
+      </div>
+      <div class="field span-6" *ngIf="r.segmentType === 'MEMBER_TYPE'">
+        <label>Member types</label>
+        <div class="check-stack">
+          <label class="check-row" *ngFor="let o of typeOptions">
+            <input type="checkbox" [ngModel]="hasType(o.value)" (ngModelChange)="toggleType(o.value, $event)" />{{ o.label }}
+          </label>
+        </div>
+      </div>
+      <div class="field span-12">
+        <div class="check-stack">
+          <label class="check-row"><input type="checkbox" [(ngModel)]="r.requiresCustomCatalog" />Only custom-catalog accounts</label>
+          <label class="check-row"><input type="checkbox" [(ngModel)]="r.requiresPortalEnabled" />Only active accounts (OnWeb)</label>
+          <label class="check-row"><input type="checkbox" [(ngModel)]="r.unlocksAuthorizedPrice" />Unlocks authorized price</label>
+        </div>
+      </div>
+      <div class="field span-4">
+        <label>Re-check by</label>
+        <input type="date" [(ngModel)]="r.reviewBy" />
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" (click)="editing = null">Cancel</button>
+      <button type="button" class="btn btn-primary" [disabled]="saving" (click)="save()">
+        <i class="pi" [ngClass]="saving ? 'pi-spin pi-spinner' : 'pi-check'"></i>Save and apply
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- -------------------------------------------------------- members -->
+<div class="modal-backdrop" *ngIf="membersOf as rule" (click)="membersOf = null">
+  <div class="desk-modal wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">Who this rule covers</div>
+        <h2>{{ rule.name }}</h2>
+        <div class="subtitle">{{ who(rule) }}</div>
+      </div>
+      <button type="button" class="modal-close" (click)="membersOf = null"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="panel-table">
+      <div class="table-responsive" style="max-height: 55vh; overflow-y: auto">
+        <table class="desk-table compact">
+          <thead><tr><th style="width: 100px">Account</th><th>Member</th><th style="width: 110px">Type</th><th style="width: 110px">Standing</th><th>Reason</th></tr></thead>
+          <tbody>
+            <tr class="desk-row" *ngFor="let m of members" [routerLink]="['/members', m.accountNumber]" (click)="membersOf = null">
+              <td><span class="account-number">{{ m.accountNumber }}</span></td>
+              <td>{{ m.name }}</td>
+              <td>{{ typeLabel(m.memberType) }}</td>
+              <td><span class="status-badge" [ngClass]="m.standing === 'GRANTED' ? 'status-ready' : 'status-hold'">{{ m.standing === 'GRANTED' ? 'Granted' : 'Excluded' }}</span></td>
+              <td class="member-sub">{{ m.reason }}</td>
+            </tr>
+            <tr *ngIf="!members.length"><td colspan="5" class="empty-inline">Nobody is covered by this rule.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" (click)="membersOf = null">Close</button>
+    </div>
+  </div>
+</div>

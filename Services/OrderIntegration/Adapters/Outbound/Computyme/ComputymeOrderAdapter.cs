@@ -1,4 +1,4 @@
-﻿using ProInternal.Models.OrderIntegration;
+using ProInternal.Models.OrderIntegration;
 using System.Globalization;
 using System.Text.Json;
 
@@ -82,8 +82,18 @@ public  class ComputymeOrderAdapter : IComputymeOrderAdapter
             errors.Add("Computyme requires at least one order item.");
         }
 
+        var vendorGroupIds = order.Fulfillment.FulfillmentGroups
+            .Where(group => group.FulfillmentType == FulfillmentType.VENDOR_DIRECT)
+            .Select(group => group.GroupId)
+            .ToHashSet(StringComparer.Ordinal);
+
         foreach (var item in order.Items)
         {
+            if (item.FulfillmentGroupId is not null && vendorGroupIds.Contains(item.FulfillmentGroupId))
+            {
+                errors.Add($"Line {item.LineId} is direct vendor ship and cannot be sent to Computyme.");
+            }
+
             if (item.Quantity <= 0)
             {
                 errors.Add($"Line {item.LineId} has an invalid quantity.");

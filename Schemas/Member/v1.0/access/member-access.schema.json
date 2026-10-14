@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/access/member-access.schema.json",
+  "title": "PRO member access",
+  "description": "What one member may and may not buy: grants against rules, brand exclusions with their source, and product group exclusions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "memberNumber"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "memberNumber": { "$ref": "../members/member.enums.json#/$defs/MemberNumber" },
+    "grants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ruleCode", "grantedOn", "grantedBy", "reason"],
+        "properties": {
+          "ruleCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,39}$" },
+          "grantedOn": { "type": "string", "format": "date" },
+          "grantedBy": { "$ref": "../members/member.enums.json#/$defs/UserRef" },
+          "reason": { "$ref": "../members/member.enums.json#/$defs/Reason" },
+          "evidenceDocumentId": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "brandExclusions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["brandId", "source"],
+        "properties": {
+          "brandId": { "type": "integer", "minimum": 1 },
+          "source": { "$ref": "../members/member.enums.json#/$defs/ExclusionSource" },
+          "ruleCodes": {
+            "type": "array", "minItems": 1, "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,39}$" }
+          }
+        },
+        "if": { "properties": { "source": { "const": "RULE" } } },
+        "then": { "required": ["ruleCodes"] },
+        "else": { "not": { "required": ["ruleCodes"] } }
+      }
+    },
+    "productGroupExclusions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["groupId"],
+        "properties": {
+          "groupId": { "type": "integer", "minimum": 1 },
+          "name": { "type": "string" }
+        }
+      }
+    }
+  }
+}

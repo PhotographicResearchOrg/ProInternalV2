@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using ProInternal.Services;
 using ProInternal.Models.Accounting;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -18,7 +18,7 @@ namespace ProInternal.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
- 
+
     public class ProductController : ControllerBase
     {
         private IProDataAccess _prodataAccess;
@@ -29,6 +29,28 @@ namespace ProInternal.Controllers
             _prodataAccess = proDataAccess;
             _dradataAccess = DRADataAccess;
             _nukedataAccess = nukedataAccess;
+        }
+
+
+        /* ==================================================================
+           Product finder: the Product Desk list and its quick-jump box.
+           GET API/products/contract/search?term=&brandId=&status=&shipsFrom=
+               &forSale=&gap=&sort=&desc=&page=&pageSize=
+           The absolute route keeps the URL beside the product contract
+           endpoints, so the Angular service calls it the same way.
+           ================================================================== */
+
+        [HttpGet("~/API/products/contract/search")]
+        public IActionResult SearchProducts([FromQuery] ProductSearchQuery query)
+        {
+            try
+            {
+                return Ok(_prodataAccess.SearchProducts(query));
+            }
+            catch (SqlException)
+            {
+                return StatusCode(500, "A database error occurred while searching products.");
+            }
         }
 
 
@@ -43,7 +65,8 @@ namespace ProInternal.Controllers
 
         [HttpGet]
         [Route("exclusion/groups")]
-        public List<ProductExclusionGroup> getExclusionGroups() {
+        public List<ProductExclusionGroup> getExclusionGroups()
+        {
             return this._prodataAccess.Exclusions_GetExclusionGroups();
         }
 
@@ -53,7 +76,7 @@ namespace ProInternal.Controllers
         public List<MapViolation> GetAllMapViolations()
         {
             return this._prodataAccess.GetAllMapViolations();
-       
+
         }
 
 
@@ -94,11 +117,11 @@ namespace ProInternal.Controllers
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(request.Country) )
+                if (string.IsNullOrWhiteSpace(request.Country))
                 {
                     return BadRequest(new ApiResponse { Success = false });
                 }
-                 _prodataAccess.ApplyCountryBrandExclusion(request);
+                _prodataAccess.ApplyCountryBrandExclusion(request);
                 return Ok(new ApiResponse { Success = true });
             }
             catch (Exception ex)
@@ -109,42 +132,49 @@ namespace ProInternal.Controllers
 
         [HttpGet]
         [Route("exclusion/group/{groupID}")]
-        public List<ProductExclusionGroupProduct> getExclusionGroupProducts(int groupID) {
+        public List<ProductExclusionGroupProduct> getExclusionGroupProducts(int groupID)
+        {
             return this._prodataAccess.Exclusions_GetExclusionGroupProducts(groupID);
         }
         [HttpGet]
         [Route("exclusion/groups/{companyID}")]
-        public List<CompanyGroupExclusion> getCompanyExclusionGroups(int companyID) {
+        public List<CompanyGroupExclusion> getCompanyExclusionGroups(int companyID)
+        {
             return this._prodataAccess.Exclusions_GetCompanyGroupExclusions(companyID);
         }
 
         [HttpGet]
         [Route("exclusion/brands/{companyID}")]
-        public List<CompanyBrandExclusion> GetCompanyBrandExclusions(int companyID) {
+        public List<CompanyBrandExclusion> GetCompanyBrandExclusions(int companyID)
+        {
             return this._prodataAccess.Exclusions_GetCompanyBrandExclusions(companyID);
         }
 
         [HttpPost]
         [Route("exclusion/group")]
-        public int CreateExclusionGroup([FromBody] string groupName) {
+        public int CreateExclusionGroup([FromBody] string groupName)
+        {
             return this._prodataAccess.Exclusion_CreateGroup(groupName);
         }
 
         [HttpPost]
         [Route("exclusion/group/{productExclusionGroupID}")]
-        public void AddProductsToExclusionGroup(int productExclusionGroupID, List<string> productCodes) {
+        public void AddProductsToExclusionGroup(int productExclusionGroupID, List<string> productCodes)
+        {
             this._prodataAccess.Exclusion_AddProductsToGroup(productExclusionGroupID, productCodes);
         }
 
         [HttpPost]
         [Route("exclusion/group/add/{companyID}")]
-        public void AddCompanyExclusionGroups(int companyID, [FromBody] List<int> productExclusionGroupIds) {
+        public void AddCompanyExclusionGroups(int companyID, [FromBody] List<int> productExclusionGroupIds)
+        {
             this._prodataAccess.Exclusion_ExcludeCompanyGroups(companyID, productExclusionGroupIds);
         }
 
         [HttpPost]
         [Route("exclusion/brand/add/{companyID}")]
-        public void AddCompanyBrandExclusion(int companyID, [FromBody] List<int> brandIds) {
+        public void AddCompanyBrandExclusion(int companyID, [FromBody] List<int> brandIds)
+        {
             this._prodataAccess.Exclusions_ExcludeCompanyBrands(companyID, brandIds);
         }
 
@@ -152,7 +182,7 @@ namespace ProInternal.Controllers
         [HttpGet("unassigned")]
         public async Task<ActionResult<List<Products>>> GetUnassignedProducts()
         {
-            var products =  this._prodataAccess.GetUnassignedProductsAsync();
+            var products = this._prodataAccess.GetUnassignedProductsAsync();
 
             return Ok(products);
 
@@ -227,79 +257,132 @@ namespace ProInternal.Controllers
             }
         }
 
-        
-        
-//        // GET API/Product/{code}
-//        [HttpGet("{code}")]
-//        public ActionResult<Result<ProdDto>> GetByCode(string code)
-//        {
-//            var prod = _prodataAccess.GetProductEnvelopeByCode(code);
-//            if (prod == null)
-//                return Ok(Result.Fail<ProdDto>($"The Product Code {code} is invalid."));
 
-//            if (prod.IsDiscontinued)
-//                return Ok(Result.Warn(prod, "This product has been discontinued."));
 
-//            return Ok(Result.Ok(prod));
-//        }
+        //        // GET API/Product/{code}
+        //        [HttpGet("{code}")]
+        //        public ActionResult<Result<ProdDto>> GetByCode(string code)
+        //        {
+        //            var prod = _prodataAccess.GetProductEnvelopeByCode(code);
+        //            if (prod == null)
+        //                return Ok(Result.Fail<ProdDto>($"The Product Code {code} is invalid."));
 
-//        // PUT API/Product/{id}
-//        [HttpPut("{id:int}")]
-//        public ActionResult<Result> Update(int id, [FromBody] ProdDto dto)
-//        {
-//            if (id != dto.ProductId) return BadRequest("Mismatched ProductId.");
-//            var res = _prodataAccess.UpdateProductEnvelope(dto);
-//            return Ok(res);
-//        }
+        //            if (prod.IsDiscontinued)
+        //                return Ok(Result.Warn(prod, "This product has been discontinued."));
 
-//        // GET API/Product/lookup/{code}?type=accessory|related&parentId=#
-//        [HttpGet("lookup/{code}")]
-//        public ActionResult<Result<ProductInfoLookupDto>> Lookup(string code, [FromQuery] string type, [FromQuery] int parentId)
-//        {
-//            var info = _prodataAccess.LookupProductInfo(code, type, parentId);
-//            return info == null
-//                ? Ok(Result.Fail<ProductInfoLookupDto>("Invalid product code."))
-//                : Ok(Result.Ok(info));
-//        }
+        //            return Ok(Result.Ok(prod));
+        //        }
 
-//        // GET API/Product/iqprompts
-//        [HttpGet("iqprompts")]
-//        public ActionResult<List<IQPromptDto>> GetIQPrompts()
-//            => Ok(_prodataAccess.GetIQPrompts());
+        //        // PUT API/Product/{id}
+        //        [HttpPut("{id:int}")]
+        //        public ActionResult<Result> Update(int id, [FromBody] ProdDto dto)
+        //        {
+        //            if (id != dto.ProductId) return BadRequest("Mismatched ProductId.");
+        //            var res = _prodataAccess.UpdateProductEnvelope(dto);
+        //            return Ok(res);
+        //        }
 
-//        // POST API/Product/tags/add
-//        public record TagCmd(int ProductId, string Tag);
-//        [HttpPost("tags/add")]
-//        public ActionResult<Result> AddTag([FromBody] TagCmd cmd)
-//            => Ok(_prodataAccess.AddTag(cmd.ProductId, cmd.Tag));
+        //        // GET API/Product/lookup/{code}?type=accessory|related&parentId=#
+        //        [HttpGet("lookup/{code}")]
+        //        public ActionResult<Result<ProductInfoLookupDto>> Lookup(string code, [FromQuery] string type, [FromQuery] int parentId)
+        //        {
+        //            var info = _prodataAccess.LookupProductInfo(code, type, parentId);
+        //            return info == null
+        //                ? Ok(Result.Fail<ProductInfoLookupDto>("Invalid product code."))
+        //                : Ok(Result.Ok(info));
+        //        }
 
-//        // POST API/Product/tags/remove
-//        [HttpPost("tags/remove")]
-//        public ActionResult<Result> RemoveTag([FromBody] TagCmd cmd)
-//            => Ok(_prodataAccess.RemoveTag(cmd.ProductId, cmd.Tag));
+        //        // GET API/Product/iqprompts
+        //        [HttpGet("iqprompts")]
+        //        public ActionResult<List<IQPromptDto>> GetIQPrompts()
+        //            => Ok(_prodataAccess.GetIQPrompts());
 
-//        // POST API/Product/group/add
-//        public record GroupAddCmd(string ProductCode, string GroupCode, string? ColorName, string? ColorHex, string? Size);
-//        [HttpPost("group/add")]
-//        public ActionResult<Result> AddToGroup([FromBody] GroupAddCmd cmd)
-//            => Ok(_prodataAccess.AddToGroup(cmd.ProductCode, cmd.GroupCode, cmd.ColorName, cmd.ColorHex, cmd.Size));
+        //        // POST API/Product/tags/add
+        //        public record TagCmd(int ProductId, string Tag);
+        //        [HttpPost("tags/add")]
+        //        public ActionResult<Result> AddTag([FromBody] TagCmd cmd)
+        //            => Ok(_prodataAccess.AddTag(cmd.ProductId, cmd.Tag));
 
-//        // POST API/Product/group/remove
-//        public record GroupRemoveCmd(string ProductCode);
-//        [HttpPost("group/remove")]
-//        public ActionResult<Result> RemoveFromGroup([FromBody] GroupRemoveCmd cmd)
-//            => Ok(_prodataAccess.RemoveFromGroup(cmd.ProductCode));
+        //        // POST API/Product/tags/remove
+        //        [HttpPost("tags/remove")]
+        //        public ActionResult<Result> RemoveTag([FromBody] TagCmd cmd)
+        //            => Ok(_prodataAccess.RemoveTag(cmd.ProductId, cmd.Tag));
 
-//        // GET API/Product/techspecs/{code}
-//        [HttpGet("techspecs/{code}")]
-//        public ActionResult<Result<object>> GetTechSpecs(string code)
-//            => Ok(Result.Ok<object>(new { attributes = _prodataAccess.GetTechSpecs(code) }));
+        //        // POST API/Product/group/add
+        //        public record GroupAddCmd(string ProductCode, string GroupCode, string? ColorName, string? ColorHex, string? Size);
+        //        [HttpPost("group/add")]
+        //        public ActionResult<Result> AddToGroup([FromBody] GroupAddCmd cmd)
+        //            => Ok(_prodataAccess.AddToGroup(cmd.ProductCode, cmd.GroupCode, cmd.ColorName, cmd.ColorHex, cmd.Size));
 
-//        // POST API/Product/techspecs/{code}
-//        public record TechSpecsSaveCmd(List<ProductAttributeDto> Attributes);
-//        [HttpPost("techspecs/{code}")]
-//        public ActionResult<Result> SaveTechSpecs(string code, [FromBody] TechSpecsSaveCmd cmd)
-//            => Ok(_prodataAccess.SaveTechSpecs(code, cmd.Attributes ?? new()));
-    
+        //        // POST API/Product/group/remove
+        //        public record GroupRemoveCmd(string ProductCode);
+        //        [HttpPost("group/remove")]
+        //        public ActionResult<Result> RemoveFromGroup([FromBody] GroupRemoveCmd cmd)
+        //            => Ok(_prodataAccess.RemoveFromGroup(cmd.ProductCode));
+
+        //        // GET API/Product/techspecs/{code}
+        //        [HttpGet("techspecs/{code}")]
+        //        public ActionResult<Result<object>> GetTechSpecs(string code)
+        //            => Ok(Result.Ok<object>(new { attributes = _prodataAccess.GetTechSpecs(code) }));
+
+        //        // POST API/Product/techspecs/{code}
+        //        public record TechSpecsSaveCmd(List<ProductAttributeDto> Attributes);
+        //        [HttpPost("techspecs/{code}")]
+        //        public ActionResult<Result> SaveTechSpecs(string code, [FromBody] TechSpecsSaveCmd cmd)
+        //            => Ok(_prodataAccess.SaveTechSpecs(code, cmd.Attributes ?? new()));
+
+    }
+
 }
+
+namespace ProInternal.Models.Products
+{
+    /* ---- product finder shapes, used by ProductController and ProDataAccess ---- */
+
+    public sealed class ProductSearchQuery
+    {
+        public string? Term { get; set; }
+        public int? BrandId { get; set; }
+        public string? Status { get; set; }
+        public string? ShipsFrom { get; set; }
+        public bool? ForSale { get; set; }
+        public string? Gap { get; set; }
+        public string? Sort { get; set; }
+        public bool Desc { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 50;
+    }
+
+    public sealed class ProductSearchRow
+    {
+        public int ProductId { get; set; }
+        public string ProductCode { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string? BrandId { get; set; }
+        public string? BrandName { get; set; }
+        public string? VendorId { get; set; }
+        public string? Upc { get; set; }
+        public string? Ean { get; set; }
+        public string? VendorCatalogNumber { get; set; }
+        public string Status { get; set; } = "ACTIVE";
+        public bool ForSale { get; set; }
+        public bool ShipsDirect { get; set; }
+        public decimal? MemberPrice { get; set; }
+        public decimal? MapPrice { get; set; }
+        public int? Available { get; set; }
+        public bool HasBarcode { get; set; }
+        public bool HasWeight { get; set; }
+        public bool HasCustoms { get; set; }
+
+        [System.Text.Json.Serialization.JsonIgnore]
+        public int TotalCount { get; set; }
+    }
+
+    public sealed class ProductSearchPage
+    {
+        public List<ProductSearchRow> Rows { get; set; } = new();
+        public int Total { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
 }

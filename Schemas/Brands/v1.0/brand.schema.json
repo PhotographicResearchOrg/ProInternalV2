@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/brands/brand.schema.json",
+  "title": "Canonical Brand",
+  "description": "PRO's canonical brand contract: a brand PRO sells, the vendor that supplies it, and how its products reach the dealer. PRO owns this contract; SQL is the system of record. A brand belongs to at most one vendor and references it by vendorId; the vendor record does not list its brands. Products, member brand entitlements, and rebates reference brandId. REQUIRED: identity, name, and status only. Unknown fields are rejected. Pricing, rebates, and web content are not brand data and do not appear here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "metadata", "brand"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Contract version. Additive changes bump the minor version; breaking changes create a new major version.",
+      "const": "1.0"
+    },
+
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["brandId"],
+      "properties": {
+        "brandId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical, immutable brand identifier owned by PRO SQL. Never another system's id (those live in references)."
+        },
+        "createdAt": { "type": ["string", "null"], "format": "date-time" },
+        "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+
+    "vendorId": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Canonical vendorId of the vendor that supplies this brand. Null while a brand has not been assigned. Several brands may share one vendor."
+    },
+
+    "brand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "status": { "$ref": "brand.enums.json#/$defs/BrandStatus" },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+
+    "supply": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How this brand's products reach the dealer. The decision for one order line is made per product; these are the brand-level settings that feed it.",
+      "properties": {
+        "directShipAll": {
+          "type": "boolean",
+          "default": false,
+          "description": "Every product of this brand ships direct from the vendor. When false, only products flagged direct vendor ship do, and the rest ship from PRO's warehouse."
+        },
+        "stockedInWarehouse": {
+          "type": ["boolean", "null"],
+          "description": "PRO stocks this brand in its own warehouse. Informational: it does not route orders."
+        }
+      }
+    },
+
+    "references": {
+      "type": "object",
+      "description": "This brand's id in every other system, keyed by system.",
+      "additionalProperties": { "type": "string" },
+      "default": {},
+      "examples": [{ "proBrandId": "21" }]
+    },
+
+    "extensions": {
+      "type": "object",
+      "description": "Namespaced fields that only one system cares about. A field is promoted to canonical only when two or more systems need it.",
+      "additionalProperties": { "type": "object" },
+      "default": {}
+    },
+
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "createdBy": { "type": ["string", "null"] },
+        "updatedBy": { "type": ["string", "null"] }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "A brand that ships everything direct must say which vendor ships it.",
+      "if": {
+        "properties": { "supply": { "properties": { "directShipAll": { "const": true } }, "required": ["directShipAll"] } },
+        "required": ["supply"]
+      },
+      "then": {
+        "required": ["vendorId"],
+        "properties": { "vendorId": { "type": "string" } }
+      }
+    },
+    {
+      "description": "A brand cannot both ship everything direct and be stocked in the warehouse.",
+      "not": {
+        "properties": {
+          "supply": {
+            "properties": { "directShipAll": { "const": true }, "stockedInWarehouse": { "const": true } },
+            "required": ["directShipAll", "stockedInWarehouse"]
+          }
+        },
+        "required": ["supply"]
+      }
+    }
+  ]
+}

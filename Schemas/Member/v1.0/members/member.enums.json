@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/members/member.enums.json",
+  "title": "PRO member vocabularies",
+  "$defs": {
+    "MemberNumber": { "type": "string", "pattern": "^[0-9]{1,6}$", "description": "PRO account number (Roster.AccountNumber)." },
+    "MemberType": { "enum": ["MEMBER", "AFFILIATE", "CLIENT"], "description": "Tier. Drives price, content, specials, dues and rebates. Roster.MemberType 1/2/3." },
+    "AccountRole": { "enum": ["DISTRIBUTOR", "HQ"], "description": "Structure, independent of tier. Absent for an ordinary account." },
+    "MemberStatus": { "enum": ["ACTIVE", "INACTIVE"] },
+    "BillTo": { "enum": ["SELF", "PARENT"] },
+    "LocationStatus": { "enum": ["ACTIVE", "INACTIVE"] },
+    "ContactRole": { "enum": ["PRIMARY", "BUYER", "AP", "LEGAL", "RECEIVING"] },
+    "CheckoutMethod": { "enum": ["TERMS", "CREDIT_CARD"] },
+    "InvoiceSettlement": { "enum": ["EZPAY", "ACH", "CHECK"] },
+    "PayoutMethod": { "enum": ["ACH", "CHECK"] },
+    "DuesFrequency": { "enum": ["MONTHLY", "ANNUAL", "PREPAID"] },
+    "FulfillmentCenter": { "enum": ["PA", "NL"], "description": "PA = Pennsylvania warehouse (US, CA). NL = Netherlands 3PL (EMEA incl. UK)." },
+    "EligibilityOverride": { "enum": ["ELIGIBLE", "NOT_ELIGIBLE"] },
+    "RuleStatus": { "enum": ["ACTIVE", "LEGACY", "RETIRED"] },
+    "RuleReviewStatus": { "enum": ["NEEDS_REVIEW", "REVIEWED"] },
+    "SegmentType": {
+      "enum": ["MEMBER_TYPE", "INTERNATIONAL_COUNTRY", "NON_NUMERIC_POSTAL", "NONE"],
+      "description": "Who a rule applies to. INTERNATIONAL_COUNTRY = bill-to country is not US. NON_NUMERIC_POSTAL = bill-to postal code is not numeric. NONE = grant-only (e.g. a price authorization)."
+    },
+    "ExclusionSource": { "enum": ["RULE", "MANUAL"] },
+    "DocumentType": { "enum": ["BUSINESS_CERT", "RESALE_CERT", "MEMBERSHIP_AGREEMENT", "CREDIT_APPLICATION", "W9", "EIN_LETTER", "VENDOR_AUTHORIZATION", "MAP_EVIDENCE", "OTHER"] },
+    "DocumentReviewStatus": { "enum": ["PENDING", "APPROVED", "REJECTED"] },
+    "IsoCountry": { "type": "string", "pattern": "^[A-Z]{2}$" },
+    "IsoCurrency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "Language": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$", "description": "BCP 47, e.g. en, fr-CA, de." },
+    "Email": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+    "Phone": { "type": "string", "pattern": "^[0-9+()\\-. x]{7,25}$" },
+    "Url": { "type": "string", "pattern": "^https?://\\S+$" },
+    "Reason": { "type": "string", "minLength": 3, "maxLength": 400 },
+    "UserRef": { "type": "string", "minLength": 1, "maxLength": 100 }
+  }
+}

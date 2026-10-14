@@ -1,3 +1,4 @@
+using Amazon.S3;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -18,8 +19,13 @@ using ProInternal.Models.Accounting;
 using ProInternal.Models.Accounts;
 using ProInternal.Services;
 using ProInternal.Services.OrderIntegration;
+using ProInternal.Services.OrderIntegration.Adapters.Core;
+using ProInternal.Services.OrderIntegration.Adapters.Inbound.Edi;
+using ProInternal.Services.OrderIntegration.Adapters.Inbound.Pos;
 using ProInternal.Services.OrderIntegration.Adapters.Inbound.Shopify;
+using ProInternal.Services.OrderIntegration.Adapters.Inbox;
 using ProInternal.Services.OrderIntegration.Adapters.Outbound.Computyme;
+using ProInternal.Services.OrderIntegration.Adapters.Outbox;
 using System;
 using System.IO;
 using System.Net.Http;
@@ -72,10 +78,18 @@ var configuration = builder.Configuration;
 
 builder.Services.AddSingleton<AwsSecretHelper>();
 
+
+builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
+builder.Services.AddAWSService<IAmazonS3>();
 //New
 
 
-//builder.Services.AddSingleton<PowerBIService>();
+
+builder.Services.AddScoped<IEdiPurchaseOrderAdapter, EdiPurchaseOrderAdapter>();   // new for EDI
+builder.Services.AddScoped<IOrderOutboxDataAccess, OrderOutboxDataAccess>();
+builder.Services.AddScoped<ConsumerOrderExportService>();
+builder.Services.AddScoped<HeldOrderReleaseService>();
+builder.Services.AddScoped<IPosOrderAdapter, PosOrderAdapter>();
 builder.Services.AddScoped<IProDataAccess, ProDataAccess>();
 builder.Services.AddScoped<IDRADataAccess, DRADataAccess>();
 builder.Services.AddScoped<INukeDataAccess, NukeDataAccess>();
@@ -93,7 +107,7 @@ builder.Services.AddHttpClient<IUvicornDataAccess, UvicornDataAccess>(c =>
     c.Timeout = TimeSpan.FromMinutes(15);
     c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
 });
-
+builder.Services.AddScoped<IOrderInboxDataAccess, OrderInboxDataAccess>();
 builder.Services.AddCors();
 
 // In production, the Angular files will be served from this directory

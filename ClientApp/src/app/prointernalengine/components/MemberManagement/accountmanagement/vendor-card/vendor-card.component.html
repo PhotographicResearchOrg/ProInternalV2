@@ -358,6 +358,159 @@
         <ng-container *ngTemplateOutlet="customCard; context: { section: 'rebates' }"></ng-container>
       </div>
 
+      <!-- ---------- Direct Vendor Ship (live) ---------- -->
+      <div *ngIf="activeSection === 'directship'" class="stack">
+        <div class="rb-head">
+          <div>
+            <h2 class="rb-title">Direct vendor ship<span *ngIf="dvs as v"> · {{ v.name }} ({{ v.vendorId }})</span></h2>
+            <p class="rb-desc">Orders for products this vendor ships straight to the dealer. These settings decide how each order reaches the vendor and what cost it carries. Orders are sent from the Order Toolbench.</p>
+          </div>
+          <div class="dvs-actions" *ngIf="dvs">
+            <span class="dvs-unsaved" *ngIf="dvsDirty"><span class="dot" [style.background]="P.amber"></span> Unsaved changes</span>
+            <button type="button" class="iconbtn" title="Sends a marked test file using the saved settings"
+                    [disabled]="dvsTesting || dvsSaving || dvsDirty" (click)="sendDvsTest()">
+              <i class="pi pi-send"></i> {{ dvsTesting ? 'Sending...' : 'Send test' }}
+            </button>
+            <button type="button" class="btn-primary" [disabled]="!dvsDirty || dvsSaving" (click)="saveDvs()">
+              <i class="pi pi-check"></i> {{ dvsSaving ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- while the card has no real vendor, pick one here -->
+        <section class="card" *ngIf="dvsVendors.length">
+          <div class="card-body dvs-form">
+            <label class="dvs-fld">
+              <span class="dvs-lab">Vendor</span>
+              <select [(ngModel)]="dvsVendorId" (ngModelChange)="loadDvsVendor()">
+                <option [ngValue]="null">Choose a vendor</option>
+                <option *ngFor="let v of dvsVendors" [ngValue]="v.vendorId">
+                  {{ v.name }} ({{ v.vendorId }}){{ v.method ? ' · ' + v.method : '' }}{{ v.enabled ? ' · on' : '' }}
+                </option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <div class="warn dvs-bad" *ngIf="dvsError"><i class="pi pi-exclamation-circle"></i> {{ dvsError }}</div>
+        <div class="warn dvs-good" *ngIf="dvsNote"><i class="pi pi-check-circle"></i> {{ dvsNote }}</div>
+
+        <ng-container *ngIf="dvs as d">
+          <div class="grid fit">
+            <section class="card">
+              <header class="card-head">
+                <span class="ci"><i class="pi pi-send"></i></span><h3>How orders are sent</h3>
+              </header>
+              <div class="card-body dvs-form">
+                <div class="togline">
+                  <button type="button" class="toggle" (click)="toggleDvsEnabled()">
+                    <span class="track teal" [class.on]="d.enabled"><span class="knob"></span></span>
+                    <span class="tlabel" [ngStyle]="{color: d.enabled ? P.ink : P.faint}">
+                      {{ d.enabled ? 'On: orders are sent from the Order Toolbench' : 'Off: orders are not sent from the Order Toolbench' }}
+                    </span>
+                  </button>
+                </div>
+
+                <label class="dvs-fld">
+                  <span class="dvs-lab">Delivery</span>
+                  <select [(ngModel)]="d.method" (ngModelChange)="dvsTouch()">
+                    <option [ngValue]="null">Not set</option>
+                    <option *ngFor="let m of dvsMethods" [ngValue]="m">{{ m }}</option>
+                  </select>
+                  <span class="dvs-hint" *ngIf="d.method === 'EDI'">One file per order, written to the folder.</span>
+                  <span class="dvs-hint" *ngIf="d.method && d.method !== 'EDI'">One file holding every order in the send.</span>
+                </label>
+
+                <label class="dvs-fld" *ngIf="d.method && d.method !== 'EMAIL'">
+                  <span class="dvs-lab">{{ dvsDestinationLabel }}</span>
+                  <input type="text" maxlength="500" [(ngModel)]="d.destination" (ngModelChange)="dvsTouch()">
+                </label>
+
+                <label class="dvs-fld" *ngIf="d.method === 'FTP' || d.method === 'SFTP'">
+                  <span class="dvs-lab">Password</span>
+                  <input type="password" maxlength="200" autocomplete="new-password"
+                         [placeholder]="d.hasPassword ? 'Saved. Leave empty to keep it.' : ''"
+                         [(ngModel)]="d.password" (ngModelChange)="dvsTouch()">
+                </label>
+
+                <label class="dvs-fld">
+                  <span class="dvs-lab">{{ d.method === 'EMAIL' ? 'Order goes to' : 'Copy of the file goes to' }} <span class="dvs-hint">separate addresses with ;</span></span>
+                  <input type="text" maxlength="1000" [(ngModel)]="d.emailTo" (ngModelChange)="dvsTouch()">
+                </label>
+
+                <label class="dvs-fld">
+                  <span class="dvs-lab">Copied (cc)</span>
+                  <input type="text" maxlength="1000" [(ngModel)]="d.emailCc" (ngModelChange)="dvsTouch()">
+                </label>
+              </div>
+            </section>
+
+            <section class="card">
+              <header class="card-head">
+                <span class="ci" [ngStyle]="{background: P.amberSoft, color: P.amber}"><i class="pi pi-dollar"></i></span><h3>Cost sent to the vendor</h3>
+              </header>
+              <div class="card-body dvs-form">
+                <div class="freehero">
+                  <div class="k">Each unit goes to the vendor at</div>
+                  <div class="v" style="font-size:15px">{{ dvsCostSummary }}</div>
+                </div>
+
+                <label class="dvs-fld">
+                  <span class="dvs-lab">Starts from</span>
+                  <select [(ngModel)]="d.costBase" (ngModelChange)="dvsTouch()">
+                    <option [ngValue]="null">Member price</option>
+                    <option *ngFor="let b of dvsCostBases" [ngValue]="b.value">{{ b.label }}</option>
+                  </select>
+                </label>
+
+                <label class="dvs-fld">
+                  <span class="dvs-lab">Less percent</span>
+                  <input type="number" min="0" max="100" step="0.01" [(ngModel)]="d.costPercent" (ngModelChange)="dvsTouch()">
+                </label>
+
+                <div class="note">A line bought on a special is always sent at the special price, with nothing taken off.</div>
+              </div>
+            </section>
+          </div>
+
+          <section class="card">
+            <header class="card-head">
+              <span class="ci" [ngStyle]="{background: P.violetSoft, color: P.violet}"><i class="pi pi-building"></i></span>
+              <h3>Brands this vendor ships</h3>
+              <div class="act dvs-add">
+                <select [(ngModel)]="dvsAddBrandId">
+                  <option [ngValue]="null">Add a brand…</option>
+                  <option *ngFor="let b of dvsOtherBrands" [ngValue]="b.brandId">
+                    {{ b.brandName }}{{ b.vendorName ? ' (now ' + b.vendorName + ')' : '' }}
+                  </option>
+                </select>
+                <button type="button" class="iconbtn" [disabled]="!dvsAddBrandId" (click)="addDvsBrand()"><i class="pi pi-plus"></i> Add</button>
+              </div>
+            </header>
+            <div class="card-body flush">
+              <div class="tbl-head dvs-brand-cols"><span>Brand</span><span>Ships direct</span><span>Stocked flag</span></div>
+              <div class="tbl-row dvs-brand-cols" *ngFor="let b of dvsBrands">
+                <span style="font-weight:600" [style.color]="P.ink">{{ b.brandName }} <span class="cf-type">{{ b.brandId }}</span></span>
+                <span>
+                  <button type="button" class="toggle" (click)="toggleDvsBrand(b)">
+                    <span class="track teal" [class.on]="b.allItems"><span class="knob"></span></span>
+                    <span class="tlabel" [ngStyle]="{color: b.allItems ? P.ink : P.sub}">
+                      {{ b.allItems ? 'Everything' : 'Only products marked direct' }}
+                    </span>
+                  </button>
+                </span>
+                <span class="mono" [style.color]="b.allItems && b.wh === '1' ? P.amber : P.sub">
+                  {{ b.wh || 'not set' }}{{ b.allItems && b.wh === '1' ? ' · says stocked' : '' }}
+                </span>
+              </div>
+              <div class="card-body" *ngIf="dvsBrands.length === 0">
+                <div class="cf-empty">No brand points at this vendor, so no order can route to it yet.</div>
+              </div>
+            </div>
+          </section>
+        </ng-container>
+      </div>
+
       <!-- ---------- Audit ---------- -->
       <div *ngIf="activeSection === 'audit'">
         <section class="card">

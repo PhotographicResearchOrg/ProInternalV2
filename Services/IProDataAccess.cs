@@ -1,4 +1,4 @@
-﻿using Azure.Core;
+using Azure.Core;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -20,12 +20,12 @@ using ProInternal.Models.Vendor;
 using ProInternal.Models.WH;
 using ProInternal.Services;
 using System;
-using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using static ProInternal.Controllers.AuthController;
+using MemberDesk = ProInternal.Models.Member;
 
 namespace ProInternal.Services
 {
@@ -73,7 +73,7 @@ GetSellThroughExportData(
         void ResolveGovernanceIssue(int id);
 
         IEnumerable<ShopifyGovernanceIssueDto> GetShopifyGovernanceIssues();
-        void ShopifyTaxonomyReview( int id, string disposition);
+        void ShopifyTaxonomyReview(int id, string disposition);
         decimal GetDropShipThreshold();
         void SetDropShipThreshold(
             decimal value,
@@ -178,7 +178,7 @@ GetSellThroughExportData(
         IEnumerable<VendorLookupDto> SearchVendor(string term, string type);
 
 
-       
+
 
 
 
@@ -217,7 +217,7 @@ GetSellThroughExportData(
 
         void UpdateVendorImage(int vendorId, string imageUrl);
 
-        List<PermissionDto> GetAllPermissions();  
+        List<PermissionDto> GetAllPermissions();
         List<UserWithRoles> GetUsersWithRoles();
         List<RoleDto> GetAllRoles();
 
@@ -244,7 +244,7 @@ GetSellThroughExportData(
 
 
         void CreatePermission(string permissionName, string description, string? routePath);
-        void RenamePermission(string oldName, string newName , string Description);
+        void RenamePermission(string oldName, string newName, string Description);
 
         void DeletePermission(string permissionName);
 
@@ -264,13 +264,13 @@ GetSellThroughExportData(
         CommecntsMetrics getCommentsrMetrics();
         List<SpecialOrdersSummary> getOrdersSnapshot();
         LoginResponse login(string username, string password);
-        
+
         List<ProInternal.Models.Accounts.ShippingErrorRecord> getAccounts();
 
         List<Products> getProducts(string searchCriteria);
 
         List<MemberGateSummary> GetMemberGateSummary(string searchCriteria);
-        
+
         List<Brands> getBrands();
 
         QuarterlyRebates saveData(QuarterlyRebates data, DateTime issueDate);
@@ -292,7 +292,7 @@ GetSellThroughExportData(
         List<GatedProducts> getGatedRetailers();
         List<Products> QuickSearchProducts();
         int Exclusion_CreateGroup(string groupName);
-		void Exclusion_AddProductsToGroup(int productExclusionGroupID, List<string> productCodes);
+        void Exclusion_AddProductsToGroup(int productExclusionGroupID, List<string> productCodes);
         void Exclusion_ExcludeCompanyGroups(int companyID, List<int> productExclusionGroupID);
         void Exclusions_ExcludeCompanyBrands(int companyID, List<int> brandID);
         List<CompanyBrandExclusion> Exclusions_GetCompanyBrandExclusions(int companyID);
@@ -304,18 +304,50 @@ GetSellThroughExportData(
         List<string> GetUniqueCountries();
         List<Brands> GetExcludedBrandsByCountry(string country);
         void ApplyCountryBrandExclusion(CountryBrandRequest data);
-        VendorUserResponse saveVendorUser(VendorUser user);        
+        VendorUserResponse saveVendorUser(VendorUser user);
         List<VendorStock> GetVendorStock();
         List<VendorSearch> getAllVendors();
         List<InvoiceRecord> GetInvoices();
         public void savePatronageData(List<PatronageUpload> data, DateTime issueDate);
-        List<PatronageUpload>GetRecentPatronageLoad();
+        List<PatronageUpload> GetRecentPatronageLoad();
         List<PatronageHistorical> GetPatronageHistorical();
 
 
         string? GetPrimaryProductDescriptionByProCode(int proCode);
 
         IEnumerable<ShopifyTaxonomyAuditDto> GetShopifyTaxonomyAudit();
+
+        ProductSearchPage SearchProducts(ProductSearchQuery query);
+
+        #region Member Desk
+        // Member Desk models live in ProInternal.Models.Member. The alias keeps them from
+        // colliding with existing models that share a name.
+
+        List<MemberDesk.MemberListItem> Member_Search(string term);
+        MemberDesk.MemberDetail Member_Get(string accountNumber, bool sqlIsMaster);
+        void Member_Save(string accountNumber, MemberDesk.MemberSaveRequest member, bool sqlIsMaster, string user);
+        List<MemberDesk.AccessRule> AccessRule_List();
+        int AccessRule_Save(MemberDesk.AccessRule rule, string user);
+        List<MemberDesk.AccessRuleMember> AccessRule_Members(string code);
+        void MemberAuthorization_Grant(string accountNumber, MemberDesk.GrantRequest grant, string user);
+        void MemberAuthorization_Revoke(int memberAuthorizationId, string user);
+        int MemberDocument_Add(string accountNumber, string documentType, string title, string fileName,
+                               string storageKey, string contentType, long sizeBytes, DateTime? expiresOn, string user);
+        MemberDesk.MemberDocumentFile MemberDocument_Get(int documentId);
+        void MemberDocument_Review(int documentId, MemberDesk.DocumentReviewRequest review, string user);
+        void MemberDocument_Delete(int documentId, string user);
+        void MapViolation_Add(string accountNumber, MemberDesk.MapViolationRequest violation, string user);
+        void MapViolation_End(int violationId, MemberDesk.MapViolationEndRequest end, string user);
+        List<MemberDesk.BrandOption> Brand_List();
+        void MemberBrand_Allow(string accountNumber, int brandId, string reason, string user);
+        void MemberBrand_Block(string accountNumber, int brandId, string reason, string user);
+        List<Dictionary<string, object>> Member_Export(bool sqlIsMaster);
+        List<Dictionary<string, object>> AccessRule_ExportMembers();
+        List<MemberDesk.ProductLookupItem> Product_Lookup(string term);
+        #endregion
+
+
+
 
     }
 

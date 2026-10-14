@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/members/member.schema.json",
+  "title": "PRO Member",
+  "description": "Who a PRO account is, where it ships, how it pays and which programs it is in. Balances, sales and other derived numbers never appear.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "metadata", "member"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memberNumber"],
+      "properties": {
+        "memberNumber": { "$ref": "member.enums.json#/$defs/MemberNumber" },
+        "rosterId": { "type": "integer", "minimum": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "memberType", "status"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 100, "description": "Trading name (Roster.DBA). Prints on invoices and slips after cutover." },
+        "legalName": { "type": "string", "minLength": 1, "maxLength": 150 },
+        "memberType": { "$ref": "member.enums.json#/$defs/MemberType" },
+        "accountRole": { "$ref": "member.enums.json#/$defs/AccountRole" },
+        "status": { "$ref": "member.enums.json#/$defs/MemberStatus" },
+        "joinDate": { "type": "string", "format": "date" },
+        "portalEnabled": { "type": "boolean", "description": "B2B site access (Roster.OnWeb). Nobody at the account can log in when false." },
+        "phone": { "$ref": "member.enums.json#/$defs/Phone" },
+        "fax": { "$ref": "member.enums.json#/$defs/Phone" },
+        "email": { "$ref": "member.enums.json#/$defs/Email" },
+        "websiteUrl": { "$ref": "member.enums.json#/$defs/Url" },
+        "parentMemberNumber": { "$ref": "member.enums.json#/$defs/MemberNumber" },
+        "billing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["billTo"],
+          "properties": { "billTo": { "$ref": "member.enums.json#/$defs/BillTo" } }
+        },
+        "blocks": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "credit": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["since", "reason"],
+              "description": "Credit hold. Orders are accepted but not released to fulfillment until overridden.",
+              "properties": {
+                "since": { "type": "string", "format": "date" },
+                "reason": { "$ref": "member.enums.json#/$defs/Reason" }
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["billing"], "properties": { "billing": { "properties": { "billTo": { "const": "PARENT" } } } } },
+          "then": { "required": ["parentMemberNumber"] }
+        }
+      ]
+    },
+
+    "billTo": { "$ref": "../common/address.schema.json" },
+
+    "locations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["shipToNumber", "address", "isDefault", "status"],
+        "properties": {
+          "shipToNumber": { "type": "integer", "minimum": 0, "maximum": 99, "description": "0 = default ship-to; 2377-1 is shipToNumber 1." },
+          "name": { "type": "string", "maxLength": 100 },
+          "address": { "$ref": "../common/address.schema.json" },
+          "isDefault": { "type": "boolean" },
+          "status": { "$ref": "member.enums.json#/$defs/LocationStatus" }
+        }
+      },
+      "contains": { "properties": { "isDefault": { "const": true } }, "required": ["isDefault"] },
+      "minContains": 1,
+      "maxContains": 1
+    },
+
+    "contacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "name"],
+        "properties": {
+          "role": { "$ref": "member.enums.json#/$defs/ContactRole" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "email": { "$ref": "member.enums.json#/$defs/Email" },
+          "phone": { "$ref": "member.enums.json#/$defs/Phone" },
+          "portalUserId": { "type": "integer", "minimum": 1 }
+        },
+        "anyOf": [{ "required": ["email"] }, { "required": ["phone"] }]
+      }
+    },
+
+    "market": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["country", "currency", "language"],
+      "description": "Drives site pricing, currency, language and fulfillment center.",
+      "properties": {
+        "country": { "$ref": "member.enums.json#/$defs/IsoCountry" },
+        "currency": { "$ref": "member.enums.json#/$defs/IsoCurrency" },
+        "language": { "$ref": "member.enums.json#/$defs/Language" },
+        "fulfillmentCenter": { "$ref": "member.enums.json#/$defs/FulfillmentCenter" }
+      }
+    },
+
+    "fulfillment": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "shippingZone": { "type": "integer", "minimum": 1, "maximum": 9, "description": "UPS zone from the fulfillment center. Speeds busy-season routing; not used for free shipping." },
+        "airDuringPeak": { "type": "boolean", "description": "Ship by air at holiday time (far from the fulfillment center)." }
+      }
+    },
+
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "markupExempt": { "type": "boolean", "description": "Exempt from the member-type markup (e.g. the client 5%)." },
+        "markupExemptReason": { "$ref": "member.enums.json#/$defs/Reason" }
+      },
+      "if": { "properties": { "markupExempt": { "const": true } }, "required": ["markupExempt"] },
+      "then": { "required": ["markupExemptReason"] }
+    },
+
+    "payment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkoutMethods"],
+      "properties": {
+        "checkoutMethods": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "member.enums.json#/$defs/CheckoutMethod" }
+        },
+        "defaultCheckoutMethod": { "$ref": "member.enums.json#/$defs/CheckoutMethod" },
+        "ccRequiredReason": { "$ref": "member.enums.json#/$defs/Reason" },
+        "invoiceSettlement": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "member.enums.json#/$defs/InvoiceSettlement" }
+        }
+      },
+      "allOf": [
+        {
+          "description": "Both methods allowed: a default is required.",
+          "if": { "properties": { "checkoutMethods": { "minItems": 2 } } },
+          "then": { "required": ["defaultCheckoutMethod"] },
+          "else": { "not": { "required": ["defaultCheckoutMethod"] } }
+        },
+        {
+          "description": "A reason for card-only is allowed only when the member is card-only.",
+          "if": { "properties": { "checkoutMethods": { "contains": { "const": "TERMS" } } } },
+          "then": { "not": { "required": ["ccRequiredReason"] } }
+        }
+      ]
+    },
+
+    "terms": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "creditLimit": { "$ref": "../common/money.schema.json" },
+        "termsCode": { "type": "string", "maxLength": 20 }
+      }
+    },
+
+    "accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "taxIdRef": { "type": "string", "minLength": 1, "description": "Vault reference. Never the full EIN." },
+        "taxIdLast4": { "type": "string", "pattern": "^[0-9]{4}$" }
+      },
+      "dependentRequired": { "taxIdLast4": ["taxIdRef"] }
+    },
+
+    "programs": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "dues": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enrolled"],
+          "properties": {
+            "enrolled": { "type": "boolean" },
+            "frequency": { "$ref": "member.enums.json#/$defs/DuesFrequency" }
+          },
+          "if": { "properties": { "enrolled": { "const": true } } },
+          "then": { "required": ["frequency"] },
+          "else": { "not": { "required": ["frequency"] } }
+        },
+        "patronage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["payoutMethod"],
+          "properties": { "payoutMethod": { "$ref": "member.enums.json#/$defs/PayoutMethod" } }
+        },
+        "instantRebateOverride": {
+          "$ref": "member.enums.json#/$defs/EligibilityOverride",
+          "description": "Instant rebates default to MEMBER only. Set only when this member differs from the default."
+        }
+      }
+    },
+
+    "references": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "computyme": { "type": "string", "pattern": "^[0-9]{1,6}$" },
+        "authorizeNetCustomerProfileId": { "type": "string", "pattern": "^[0-9]{1,20}$", "description": "Cards on file live in Authorize.Net; only the profile id is held." },
+        "previousMemberNumbers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "member.enums.json#/$defs/MemberNumber" },
+          "description": "Former account numbers after a type change (renumber)."
+        }
+      }
+    },
+
+    "extensions": {
+      "type": "object",
+      "description": "Fields only one system uses, grouped by system.",
+      "propertyNames": { "pattern": "^[a-z][a-zA-Z0-9]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "not": { "anyOf": [
+          { "required": ["balance"] }, { "required": ["BAL"] }, { "required": ["available"] },
+          { "required": ["ytdSales"] }, { "required": ["Y_SALES"] }, { "required": ["netProfit"] }
+        ] }
+      }
+    },
+
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "createdBy": { "$ref": "member.enums.json#/$defs/UserRef" },
+        "updatedBy": { "$ref": "member.enums.json#/$defs/UserRef" }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "A member billed to its parent has no credit, terms or payment of its own and is in no rebate program.",
+      "if": { "properties": { "member": { "properties": { "billing": { "properties": { "billTo": { "const": "PARENT" } }, "required": ["billTo"] } }, "required": ["billing"] } } },
+      "then": {
+        "not": { "anyOf": [ { "required": ["terms"] }, { "required": ["payment"] } ] },
+        "properties": {
+          "programs": {
+            "not": { "anyOf": [ { "required": ["patronage"] }, { "properties": { "instantRebateOverride": { "const": "ELIGIBLE" } }, "required": ["instantRebateOverride"] } ] }
+          }
+        }
+      }
+    },
+    {
+      "description": "Clients do not pay dues.",
+      "if": { "properties": { "member": { "properties": { "memberType": { "const": "CLIENT" } } } } },
+      "then": { "properties": { "programs": { "properties": { "dues": { "properties": { "enrolled": { "const": false } } } } } } }
+    },
+    {
+      "description": "Patronage belongs to US members only.",
+      "if": { "required": ["programs"], "properties": { "programs": { "required": ["patronage"] } } },
+      "then": {
+        "required": ["market"],
+        "properties": {
+          "member": { "properties": { "memberType": { "const": "MEMBER" } } },
+          "market": { "properties": { "country": { "const": "US" } } }
+        }
+      }
+    },
+    {
+      "description": "A DISTRIBUTOR never bills to a parent.",
+      "if": { "properties": { "member": { "properties": { "accountRole": { "const": "DISTRIBUTOR" } }, "required": ["accountRole"] } } },
+      "then": { "properties": { "member": { "properties": { "billing": { "properties": { "billTo": { "const": "SELF" } } } } } } }
+    }
+  ]
+}

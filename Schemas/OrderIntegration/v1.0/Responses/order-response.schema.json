@@ -19,19 +19,19 @@
     "orderRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["orderId"],
-      "description": "Which order this response is about. orderId is YOUR canonical id; consumerOrderId is the consumer's own id for round-tripping.",
+      "required": [ "orderId" ],
+      "description": "Which order this response is about. orderId is ProMaster's reference for the order; fulfillmentOrderId is the responding system's own order number, stored so the two can be matched.",
       "properties": {
         "orderId": {
           "type": "string",
           "description": "The canonical order id from the original order contract (metadata.orderId). Authoritative key."
         },
         "orderNumber": {
-          "type": ["string", "null"],
+          "type": [ "string", "null" ],
           "description": "Human-facing order number, echoed for convenience."
         },
-        "consumerOrderId": {
-          "type": ["string", "null"],
+        "fulfillmentOrderId": {
+          "type": [ "string", "null" ],
           "description": "The consumer's internal id for this order (e.g. Computyme's CT-99821). Lets you store the mapping."
         }
       }
