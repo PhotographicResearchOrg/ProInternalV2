@@ -2325,7 +2325,7 @@ GetShopifyGovernanceIssues()
             var header = multi.Read<MemberDesk.MemberHeader>().FirstOrDefault();
             if (header == null) return null;
 
-            return new MemberDesk.MemberDetail
+            var detail = new MemberDesk.MemberDetail
             {
                 Header          = header,
                 Locations       = multi.Read<MemberDesk.MemberLocation>().ToList(),
@@ -2338,6 +2338,20 @@ GetShopifyGovernanceIssues()
                 Related         = multi.Read<MemberDesk.MemberRelated>().ToList(),
                 AccessLog       = multi.Read<MemberDesk.MemberAccessLogEntry>().ToList()
             };
+
+            if (detail.Header != null && int.TryParse(accountNumber, out var acct))
+            {
+                /* BRM comes from HubSpot over a linked server: never let it stop the member page loading. */
+                try
+                {
+                    using var brmConn = GetConnection();   // own connection: the member reader above is still open
+                    var brm = brmConn.QueryFirstOrDefault<MemberDesk.MemberBrm>("dbo.GetBRM", new { AccountNumber = acct },
+                                                                   commandType: CommandType.StoredProcedure, commandTimeout: 10);
+                    if (brm != null && brm.FirstName != "N/A") detail.Brm = brm;
+                }
+                catch { /* linked server unavailable: page shows no BRM */ }
+            }
+            return detail;
         }
 
         public void Member_Save(string accountNumber, MemberDesk.MemberSaveRequest m, bool sqlIsMaster, string user)
@@ -2482,6 +2496,30 @@ GetShopifyGovernanceIssues()
             conn.Execute("dbo.PIV2_MemberBrand_Block",
                 new { AccountNumber = accountNumber, BrandId = brandId, Reason = reason, User = user },
                 commandType: CommandType.StoredProcedure);
+        }
+
+        /* Excel downloads: rows come back as column -> value, column names as the sheet headers. */
+        public List<Dictionary<string, object>> Member_Export(bool sqlIsMaster)
+        {
+            using var conn = GetConnection();
+            return conn.Query("dbo.PIV2_Member_Export", new { SqlIsMaster = sqlIsMaster },
+                              commandType: CommandType.StoredProcedure, commandTimeout: 120)
+                       .Select(r => new Dictionary<string, object>((IDictionary<string, object>)r)).ToList();
+        }
+
+        public List<Dictionary<string, object>> AccessRule_ExportMembers()
+        {
+            using var conn = GetConnection();
+            return conn.Query("dbo.PIV2_AccessRule_ExportMembers",
+                              commandType: CommandType.StoredProcedure, commandTimeout: 120)
+                       .Select(r => new Dictionary<string, object>((IDictionary<string, object>)r)).ToList();
+        }
+
+        public List<MemberDesk.ProductLookupItem> Product_Lookup(string term)
+        {
+            using var conn = GetConnection();
+            return conn.Query<MemberDesk.ProductLookupItem>("dbo.PIV2_Member_ProductLookup",
+                new { Term = term }, commandType: CommandType.StoredProcedure).ToList();
         }
         #endregion
 

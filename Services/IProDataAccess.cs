@@ -297,6 +297,9 @@ GetSellThroughExportData(
         List<MemberDesk.BrandOption> Brand_List();
         void MemberBrand_Allow(string accountNumber, int brandId, string reason, string user);
         void MemberBrand_Block(string accountNumber, int brandId, string reason, string user);
+        List<Dictionary<string, object>> Member_Export(bool sqlIsMaster);
+        List<Dictionary<string, object>> AccessRule_ExportMembers();
+        List<MemberDesk.ProductLookupItem> Product_Lookup(string term);
         #endregion
 
 

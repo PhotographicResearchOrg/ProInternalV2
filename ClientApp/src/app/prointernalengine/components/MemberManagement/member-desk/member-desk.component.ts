@@ -5,8 +5,9 @@ import { Subject, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DataService } from 'src/app/services/data.service';
+import * as XLSX from 'xlsx';
 import {
-  AccessRule, DOCUMENT_TYPES, MEMBER_TYPES, MemberBrandExclusion, MemberDetail, MemberDocument, MemberGrant,
+  AccessRule, DOCUMENT_TYPES, MEMBER_TYPES, MemberBrandExclusion, MemberDetail, MemberDocument, MemberGrant, MemberLocation,
   MemberListItem, MemberMapViolation
 } from 'src/app/models/member/member-desk.models';
 
@@ -21,7 +22,7 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
   readonly memberTypes = MEMBER_TYPES;
   readonly documentTypes = DOCUMENT_TYPES;
   readonly statusOptions = [{ label: 'Active', value: 'ACTIVE' }, { label: 'Inactive', value: 'INACTIVE' }];
-  readonly roleOptions = [{ label: 'None', value: null }, { label: 'Distributor', value: 'DISTRIBUTOR' }, { label: 'HQ', value: 'HQ' }];
+  readonly roleOptions = [{ label: 'None', value: null }, { label: 'Distributor (bills child accounts)', value: 'DISTRIBUTOR' }, { label: 'HQ', value: 'HQ' }];
   readonly paymentOptions = [
     { label: 'Terms (extended credit)', value: 0 },
     { label: 'Card only', value: 1 },
@@ -29,9 +30,9 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
   ];
   readonly defaultOptions = [{ label: 'Terms', value: 0 }, { label: 'Card', value: 1 }];
   readonly duesOptions = [{ label: 'Not set', value: null }, { label: 'Monthly', value: 'MONTHLY' }, { label: 'Annual', value: 'ANNUAL' }, { label: 'Prepaid', value: 'PREPAID' }, { label: 'Negotiated terms', value: 'TERMS' }];
-  readonly rebateOptions = [{ label: 'Default for type', value: null }, { label: 'Eligible', value: 'ELIGIBLE' }, { label: 'Not eligible', value: 'NOT_ELIGIBLE' }];
+  readonly rebateOptions = [{ label: 'Standard rule', value: null }, { label: 'Always eligible', value: 'ELIGIBLE' }, { label: 'Never eligible', value: 'NOT_ELIGIBLE' }];
   readonly payoutOptions = [{ label: 'Not set', value: null }, { label: 'ACH', value: 'ACH' }, { label: 'Check', value: 'CHECK' }];
-  readonly centerOptions = [{ label: 'Default for country', value: null }, { label: 'PA warehouse', value: 'PA' }, { label: 'Netherlands 3PL', value: 'NL' }];
+  readonly centerOptions = [{ label: 'By country (standard)', value: null }, { label: 'PA warehouse', value: 'PA' }, { label: 'Netherlands 3PL', value: 'NL' }];
   readonly currencyOptions = ['USD', 'CAD', 'EUR', 'GBP', 'AUD'].map(c => ({ label: c, value: c }));
   readonly languageOptions = [
     { label: 'English', value: 'en' }, { label: 'French (Canada)', value: 'fr-CA' }, { label: 'French', value: 'fr' },
@@ -82,7 +83,20 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
   uploadExpires = '';
   uploading = false;
 
-  violation = { productCode: '', startDate: this.today(), penaltyDays: 30, note: '' };
+  violation = { productCode: '', startDate: this.usDate(this.today()), penaltyDays: 30, note: '' };
+
+  // MAP product look-up
+  productTerm = '';
+  productResults: { productCode: string; modelName: string; brandName: string }[] = [];
+  productPicked: { productCode: string; modelName: string; brandName: string } | null = null;
+  private product$ = new Subject<string>();
+
+  // Locations filters
+  locationType = 'ALL';
+  locationSearch = '';
+  showInactiveLocations = false;
+
+  exporting = false;
 
   /** One reason modal for revoke / reject / end penalty / remove document. */
   reasonModal: {
@@ -123,6 +137,12 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
 
     this.data.accessRules().subscribe({ next: r => this.activeRules = r.filter(x => x.status === 'ACTIVE'), error: () => {} });
     this.data.memberBrands().subscribe({ next: b => this.brands = b, error: () => {} });
+
+    this.subs.add(this.product$.pipe(
+      debounceTime(200),
+      distinctUntilChanged(),
+      switchMap(t => this.data.memberProductLookup(t))
+    ).subscribe({ next: r => this.productResults = r, error: () => this.productResults = [] }));
   }
 
   ngOnDestroy(): void { this.subs.unsubscribe(); }
@@ -158,7 +178,7 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
     const h = d.header;
     this.form = {
       name: h.name, legalName: h.legalName, status: h.status, portalEnabled: h.portalEnabled,
-      joinDate: this.dateOnly(h.joinDate), phone: h.phone, fax: h.fax, email: h.email, website: h.website,
+      joinDate: this.usDate(h.joinDate), phone: h.phone, fax: h.fax, email: h.email, website: h.website,
       accountRole: h.accountRole ?? null, parentAccountNumber: h.parentAccountNumber ?? '', billToParent: h.billToParent,
       previousAccountNumber: h.previousAccountNumber ?? '',
       paymentMethod: h.paymentMethod ?? 1, defaultPaymentMethod: h.defaultPaymentMethod ?? null,
@@ -168,7 +188,7 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
       markupExempt: h.markupExempt, markupExemptReason: h.markupExemptReason ?? '',
       duesFrequency: h.duesFrequency ?? null, instantRebateOverride: h.instantRebateOverride ?? null,
       patronagePayoutMethod: h.patronagePayoutMethod ?? null,
-      creditLimit: h.creditLimit, creditHoldSince: this.dateOnly(h.creditHoldSince), creditHoldReason: h.creditHoldReason ?? '',
+      creditLimit: h.creditLimit, creditHoldSince: this.usDate(h.creditHoldSince), creditHoldReason: h.creditHoldReason ?? '',
       ezPayAllowed: h.ezPayAllowed, duesEnrolled: h.duesEnrolled, shippingZone: h.shippingZone, airDuringPeak: h.airDuringPeak
     };
     this.loading = false;
@@ -209,8 +229,9 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
       parentAccountNumber: f.parentAccountNumber || null,
       previousAccountNumber: f.previousAccountNumber || null,
       priceCountry: f.priceCountry ? String(f.priceCountry).toUpperCase() : null,
-      joinDate: f.joinDate || null,
-      creditHoldSince: f.creditHoldSince || null,
+      joinDate: this.isoDate(f.joinDate),
+      creditHoldSince: this.isoDate(f.creditHoldSince),
+      accountRole: this.showBilling ? f.accountRole : null,
       defaultPaymentMethod: f.paymentMethod === 2 ? f.defaultPaymentMethod : null,
       paymentMethodReason: f.paymentMethod === 1 ? (f.paymentMethodReason || null) : null,
       markupExemptReason: f.markupExempt ? f.markupExemptReason : null
@@ -316,7 +337,7 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
   upload(): void {
     if (!this.detail || !this.uploadFile) { this.warn('Choose a file.'); return; }
     this.uploading = true;
-    this.data.uploadMemberDocument(this.detail.header.accountNumber, this.uploadFile, this.uploadType, this.uploadTitle, this.uploadExpires || null).subscribe({
+    this.data.uploadMemberDocument(this.detail.header.accountNumber, this.uploadFile, this.uploadType, this.uploadTitle, this.isoDate(this.uploadExpires)).subscribe({
       next: () => { this.uploading = false; this.uploadFile = null; this.uploadTitle = ''; this.uploadExpires = ''; this.load(); this.ok('Uploaded'); },
       error: e => { this.uploading = false; this.fail(e); }
     });
@@ -353,14 +374,14 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
 
   // ------------------------------------------------------------ MAP
   addViolation(): void {
-    if (!this.detail || !this.violation.productCode.trim()) { this.warn('Enter a product code.'); return; }
+    if (!this.detail || !this.violation.productCode.trim()) { this.warn('Find the product first.'); return; }
     this.data.addMemberMapViolation(this.detail.header.accountNumber, {
       productCode: this.violation.productCode.trim(),
-      startDate: this.violation.startDate,
+      startDate: this.isoDate(this.violation.startDate) ?? this.today(),
       penaltyDays: this.violation.penaltyDays,
       note: this.violation.note || undefined
     }).subscribe({
-      next: d => { this.setDetail(d); this.violation = { productCode: '', startDate: this.today(), penaltyDays: 30, note: '' }; this.ok('Violation recorded'); },
+      next: d => { this.setDetail(d); this.violation = { productCode: '', startDate: this.usDate(this.today()), penaltyDays: 30, note: '' }; this.clearProduct(); this.ok('Violation recorded'); },
       error: e => this.fail(e)
     });
   }
@@ -372,6 +393,117 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
       confirmLabel: 'End penalty', danger: false, required: true,
       action: note => this.data.endMemberMapViolation(v.violationId, this.today(), note).subscribe({ next: () => this.load(), error: e => this.fail(e) })
     });
+  }
+
+  onProductTerm(t: string): void {
+    this.productTerm = t;
+    this.productPicked = null;
+    this.violation.productCode = '';
+    if ((t || '').trim().length >= 2) this.product$.next(t.trim()); else this.productResults = [];
+  }
+  pickProduct(p: { productCode: string; modelName: string; brandName: string }): void {
+    this.productPicked = p;
+    this.violation.productCode = p.productCode;
+    this.productTerm = p.productCode;
+    this.productResults = [];
+  }
+  clearProduct(): void { this.productPicked = null; this.productTerm = ''; this.productResults = []; this.violation.productCode = ''; }
+
+  // ------------------------------------------------------------ profile helpers
+  /** Billing roll-up only matters for distributors and the accounts billed through them. */
+  get showBilling(): boolean {
+    const h = this.detail?.header;
+    return !!h && (h.memberType === 2 || !!this.form?.accountRole || !!this.form?.parentAccountNumber || !!this.detail?.related.some(r => r.relation === 'CHILD'));
+  }
+  get isClient(): boolean { return this.detail?.header.memberType === 3; }
+
+  // ------------------------------------------------------------ locations
+  /** Computyme ship-to code: 00 = the default address in ARMST, 01+ = extra ship-tos from the mapping table. */
+  shipToCode(l: MemberLocation): string | null {
+    if (l.computymeShipTo !== null && l.computymeShipTo !== undefined) return String(l.computymeShipTo).padStart(2, '0');
+    return l.isDefaultShipTo ? '00' : null;
+  }
+  get locationTypes(): { name: string; count: number }[] {
+    const all = (this.detail?.locations ?? []).filter(l => this.showInactiveLocations || l.isActive);
+    const m = new Map<string, number>();
+    all.forEach(l => m.set(l.addressTypeName || 'Other', (m.get(l.addressTypeName || 'Other') ?? 0) + 1));
+    return [{ name: 'ALL', count: all.length }, ...Array.from(m.entries()).sort().map(([name, count]) => ({ name, count }))];
+  }
+  get filteredLocations(): MemberLocation[] {
+    const q = this.locationSearch.trim().toLowerCase();
+    return (this.detail?.locations ?? [])
+      .filter(l => this.showInactiveLocations || l.isActive)
+      .filter(l => this.locationType === 'ALL' || (l.addressTypeName || 'Other') === this.locationType)
+      .filter(l => !q || [l.companyName, l.address1, l.address2, l.city, l.state, l.zip, this.shipToCode(l)]
+                          .some(v => (v || '').toString().toLowerCase().includes(q)));
+  }
+  get inactiveLocationCount(): number { return (this.detail?.locations ?? []).filter(l => !l.isActive).length; }
+  /** Only shipping addresses go to Computyme as ship-tos; stores and private/user addresses never do. */
+  isShipping(l: MemberLocation): boolean { return /ship/i.test(l.addressTypeName || ''); }
+  /** An active shipping address with no row in AddressShipToMap (so no Computyme ship-to number). */
+  needsMapping(l: MemberLocation): boolean { return l.isActive && !l.isBillTo && this.isShipping(l) && this.shipToCode(l) === null; }
+  get unmappedCount(): number { return (this.detail?.locations ?? []).filter(l => this.needsMapping(l)).length; }
+
+  // ------------------------------------------------------------ Excel downloads
+  exportList(): void {
+    this.exporting = true;
+    const keep = new Set(this.filtered.map(m => m.accountNumber));
+    this.data.memberExport().subscribe({
+      next: rows => {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, this.sheet(rows.filter(r => keep.has(String(r['Account'])))), 'Members');
+        XLSX.writeFile(wb, `Members_${this.today()}.xlsx`);
+        this.exporting = false;
+      },
+      error: e => { this.exporting = false; this.fail(e); }
+    });
+  }
+
+  exportMember(): void {
+    const d = this.detail;
+    if (!d) return;
+    const h = d.header;
+    const profile: [string, any][] = [
+      ['Account', h.accountNumber], ['Name', h.name], ['Legal name', h.legalName], ['Type', this.typeLabel(h.memberType)],
+      ['Role', h.accountRole], ['Status', h.status === 'ACTIVE' ? 'Active' : 'Inactive'], ['Join date', this.dateOnly(h.joinDate)],
+      ['Phone', h.phone], ['Fax', h.fax], ['Email', h.email], ['Website', h.website],
+      ['Bill-to', [h.address1, h.address2, h.city, h.state, h.zip, h.country].filter(x => !!x).join(', ')],
+      ['Parent account', h.parentAccountNumber], ['Invoices to parent', h.billToParent ? 'Yes' : ''], ['Previous account', h.previousAccountNumber],
+      ['Payment method', this.paymentLabel(h.paymentMethod)], ['Why card only', h.paymentMethodReason], ['Terms', h.terms],
+      ['Credit limit', h.creditLimit], ['Credit hold since', this.dateOnly(h.creditHoldSince)], ['Credit hold reason', h.creditHoldReason],
+      ['EZPay', h.ezPayAllowed ? 'Yes' : ''], ['Price country', h.priceCountry], ['Currency', h.currencyCode], ['Language', h.languageCode],
+      ['Fulfillment center', h.fulfillmentCenter ?? 'By country'], ['Shipping zone', h.shippingZone], ['Air during peak', h.airDuringPeak ? 'Yes' : ''],
+      ['Client markup exempt', h.markupExempt ? 'Yes' : ''], ['Markup exempt reason', h.markupExemptReason],
+      ['Dues', h.duesFrequency], ['Instant rebates', h.instantRebateOverride ?? 'Standard rule'], ['Patronage payout', h.patronagePayoutMethod],
+      ['Custom catalog', h.hasCustomCatalog ? 'Yes' : ''], ['Created', this.dateOnly(h.enterDate)], ['Updated', h.updateDate], ['Updated by', h.updatedBy]
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Field', 'Value'], ...profile]), 'Profile');
+    XLSX.utils.book_append_sheet(wb, this.sheet(d.locations.map(l => ({
+      'Ship-to': this.shipToCode(l) ?? '', 'Type': l.addressTypeName, 'Name': l.companyName, 'Address': l.address1, 'Address 2': l.address2,
+      'City': l.city, 'State': l.state, 'Zip': l.zip, 'Country': l.country, 'Bill-to': l.isBillTo ? 'Yes' : '', 'Active': l.isActive ? 'Yes' : 'No' }))), 'Locations');
+    XLSX.utils.book_append_sheet(wb, this.sheet(d.contacts.map(c => ({ 'Role': c.role, 'First': c.firstName, 'Last': c.lastName, 'Email': c.email, 'Phone': c.phone }))), 'Contacts');
+    XLSX.utils.book_append_sheet(wb, this.sheet(d.brandExclusions.map(x => ({ 'Brand': x.brandName, 'Source': x.source === 'RULE' ? 'Rule' : 'By hand', 'Rule': x.ruleCodes }))), 'Blocked brands');
+    XLSX.utils.book_append_sheet(wb, this.sheet(d.grants.map(g => ({ 'Rule': g.code, 'Name': g.name, 'Status': g.status, 'Reason': g.reason, 'Granted by': g.grantedBy, 'Granted on': this.dateOnly(g.grantedOn) }))), 'Exemptions');
+    XLSX.utils.book_append_sheet(wb, this.sheet(d.documents.map(x => ({ 'Type': this.docLabel(x.documentType), 'Title': x.title, 'File': x.fileName, 'Uploaded': this.dateOnly(x.uploadedAt), 'By': x.uploadedBy, 'Expires': this.dateOnly(x.expiresOn), 'Review': x.reviewStatus, 'Note': x.reviewNote }))), 'Documents');
+    XLSX.utils.book_append_sheet(wb, this.sheet(d.mapViolations.map(v => ({ 'Product': v.productCode, 'Model': v.modelName, 'Start': this.dateOnly(v.startDate), 'End': this.dateOnly(v.endDate), 'Days': v.penaltyDays, 'Active': v.isActive ? 'Yes' : '', 'Note': v.note, 'By': v.createdBy }))), 'MAP');
+    XLSX.utils.book_append_sheet(wb, this.sheet((d.accessLog ?? []).map(x => ({ 'When (UTC)': x.loggedAt, 'What': this.logLabel(x.action).text, 'Brand': x.brandName, 'Rule': x.ruleCode, 'Detail': x.detail, 'Who': x.changedBy }))), 'History');
+    XLSX.writeFile(wb, `Member_${h.accountNumber}_${this.today()}.xlsx`);
+  }
+
+  exportLocations(): void {
+    const d = this.detail;
+    if (!d) return;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, this.sheet(this.filteredLocations.map(l => ({
+      'Ship-to': this.shipToCode(l) ?? '', 'Type': l.addressTypeName, 'Name': l.companyName, 'Address': l.address1, 'Address 2': l.address2,
+      'City': l.city, 'State': l.state, 'Zip': l.zip, 'Country': l.country, 'Bill-to': l.isBillTo ? 'Yes' : '', 'Active': l.isActive ? 'Yes' : 'No' }))), 'Locations');
+    XLSX.writeFile(wb, `Locations_${d.header.accountNumber}_${this.today()}.xlsx`);
+  }
+
+  /** Sheet with headers even when there are no rows. */
+  private sheet(rows: { [k: string]: any }[]): XLSX.WorkSheet {
+    return rows.length ? XLSX.utils.json_to_sheet(rows) : XLSX.utils.aoa_to_sheet([['(none)']]);
   }
 
   // ------------------------------------------------------------ reason modal
@@ -389,7 +521,14 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
 
   // ------------------------------------------------------------ helpers
   today(): string { return new Date().toISOString().substring(0, 10); }
-  private dateOnly(v?: string | null): string { return v ? v.substring(0, 10) : ''; }
+  dateOnly(v?: string | null): string { return v ? v.substring(0, 10) : ''; }
+  /** ISO (yyyy-mm-dd...) -> mm/dd/yyyy for the date pickers. */
+  usDate(v?: string | null): string { return v ? `${v.substring(5, 7)}/${v.substring(8, 10)}/${v.substring(0, 4)}` : ''; }
+  /** mm/dd/yyyy from a date picker -> yyyy-mm-dd for the API; null when empty or unreadable. */
+  isoDate(v?: string | null): string | null {
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec((v || '').trim());
+    return m ? `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}` : null;
+  }
   private isoGuess(country?: string): string {
     const c = (country || '').trim().toUpperCase();
     if (['US', 'USA', 'U.S.A', 'UNITED STATES', 'UNITED STATES OF AMERICA', 'ESTADOS UNIDOS'].includes(c)) return 'US';

@@ -11,6 +11,9 @@
         <div class="subtitle">Find a member to see and maintain their account, access, documents and MAP history.</div>
       </div>
       <div class="header-actions">
+        <button type="button" class="btn btn-secondary" [disabled]="exporting || !filtered.length" (click)="exportList()">
+          <i class="pi" [ngClass]="exporting ? 'pi-spin pi-spinner' : 'pi-file-excel'"></i>Download ({{ filtered.length }})
+        </button>
         <a class="btn btn-secondary" routerLink="/members/access-rules"><i class="pi pi-shield"></i>Access Rules</a>
       </div>
     </header>
@@ -130,6 +133,7 @@
         </div>
         <div>
           <div class="header-actions">
+            <button type="button" class="btn btn-secondary" (click)="exportMember()"><i class="pi pi-file-excel"></i>Download</button>
             <button type="button" class="btn btn-secondary" (click)="load()"><i class="pi pi-refresh"></i>Refresh</button>
             <button type="button" class="btn btn-primary" [disabled]="saving" (click)="save()">
               <i class="pi" [ngClass]="saving ? 'pi-spin pi-spinner' : 'pi-check'"></i>Save
@@ -201,12 +205,6 @@
                     <span class="hint">Set by the account number. A type change is a renumber.</span>
                   </div>
                   <div class="field span-3">
-                    <label>Account role</label>
-                    <select [(ngModel)]="f.accountRole">
-                      <option *ngFor="let o of roleOptions" [ngValue]="o.value">{{ o.label }}</option>
-                    </select>
-                  </div>
-                  <div class="field span-3">
                     <label>Status</label>
                     <select [(ngModel)]="f.status">
                       <option *ngFor="let o of statusOptions" [ngValue]="o.value">{{ o.label }}</option>
@@ -214,35 +212,60 @@
                   </div>
                   <div class="field span-3">
                     <label>Join date</label>
-                    <input type="date" [(ngModel)]="f.joinDate" />
+                    <p-calendar [(ngModel)]="f.joinDate" dataType="string" dateFormat="mm/dd/yy" [showIcon]="true" [showButtonBar]="true"
+                                appendTo="body" placeholder="mm/dd/yyyy" styleClass="desk-calendar"></p-calendar>
                   </div>
-                  <div class="field span-4"><label>Phone</label><input type="text" [(ngModel)]="f.phone" maxlength="30" /></div>
-                  <div class="field span-4"><label>Fax</label><input type="text" [(ngModel)]="f.fax" maxlength="30" /></div>
-                  <div class="field span-4"><label>Email</label><input type="email" [(ngModel)]="f.email" maxlength="100" /></div>
-                  <div class="field span-12"><label>Website</label><input type="text" [(ngModel)]="f.website" placeholder="https://" maxlength="200" /></div>
+                  <div class="field span-3">
+                    <label>Previous account</label>
+                    <input type="text" [(ngModel)]="f.previousAccountNumber" placeholder="after a renumber" maxlength="6" />
+                  </div>
                 </div>
               </div>
 
               <div class="info-panel">
-                <div class="section-label">Billing structure</div>
+                <div class="section-label">Main store contact</div>
+                <div class="section-subtitle" style="margin: -4px 0 10px">The store's own phone, fax and email on the account. People are under Contacts.</div>
+                <div class="form-grid">
+                  <div class="field span-4"><label>Store phone</label><input type="text" [(ngModel)]="f.phone" maxlength="30" /></div>
+                  <div class="field span-4"><label>Store fax</label><input type="text" [(ngModel)]="f.fax" maxlength="30" /></div>
+                  <div class="field span-4"><label>Store email</label><input type="email" [(ngModel)]="f.email" maxlength="100" /></div>
+                  <div class="field span-12"><label>Website</label><input type="text" [(ngModel)]="f.website" placeholder="https://" maxlength="200" /></div>
+                </div>
+              </div>
+
+              <div class="info-panel" *ngIf="showBilling">
+                <div class="section-label">Distributor billing</div>
+                <div class="section-subtitle" style="margin: -4px 0 10px">For distributors (such as FotoSource, 7000) and the stores they bill. Invoices for a child account go to its distributor.</div>
                 <div class="form-grid">
                   <div class="field span-4">
-                    <label>Parent account</label>
+                    <label>This account is</label>
+                    <select [(ngModel)]="f.accountRole">
+                      <option *ngFor="let o of roleOptions" [ngValue]="o.value">{{ o.label }}</option>
+                    </select>
+                  </div>
+                  <div class="field span-4">
+                    <label>Billed through distributor</label>
                     <input type="text" [(ngModel)]="f.parentAccountNumber" placeholder="e.g. 7000" maxlength="6" />
                     <span class="hint" *ngIf="detail.header.parentName">{{ detail.header.parentName }}</span>
                   </div>
                   <div class="field span-4 align-end">
-                    <label class="check-row"><input type="checkbox" [(ngModel)]="f.billToParent" />Invoices go to the parent</label>
-                  </div>
-                  <div class="field span-4">
-                    <label>Previous account number</label>
-                    <input type="text" [(ngModel)]="f.previousAccountNumber" placeholder="after a renumber" maxlength="6" />
+                    <label class="check-row"><input type="checkbox" [(ngModel)]="f.billToParent" [disabled]="!f.parentAccountNumber" />Invoices go to the distributor</label>
                   </div>
                 </div>
               </div>
             </div>
 
             <div class="panel-stack">
+              <div class="info-panel">
+                <div class="section-label">Business Relationship Manager</div>
+                <div class="full-address" *ngIf="detail.brm; else noBrm">
+                  <strong>{{ detail.brm.firstName }} {{ detail.brm.lastName }}</strong>
+                  <span *ngIf="detail.brm.email"><a class="link" [href]="'mailto:' + detail.brm.email">{{ detail.brm.email }}</a></span>
+                  <span *ngIf="detail.brm.phone">{{ detail.brm.phone }}</span>
+                </div>
+                <ng-template #noBrm><span class="faint">No BRM assigned in HubSpot.</span></ng-template>
+              </div>
+
               <div class="info-panel">
                 <div class="section-label">Bill-to</div>
                 <div class="full-address">
@@ -282,29 +305,58 @@
           <div class="section-header">
             <div>
               <div class="section-label">Locations</div>
-              <div class="section-subtitle">Addresses and store hours are edited on the B2B account page; this is the member's full list.</div>
+              <div class="section-subtitle">Ship-to numbers come from our mapping table (AddressShipToMap), not from Computyme: <span class="mono">00</span> is the account's default, <span class="mono">01</span> and up are extra ship-tos. Only shipping addresses are mapped. Read-only until cutover; addresses are edited on the B2B account page.</div>
+            </div>
+            <button type="button" class="btn btn-secondary" [disabled]="!filteredLocations.length" (click)="exportLocations()"><i class="pi pi-file-excel"></i>Download</button>
+          </div>
+
+          <div class="desk-toolbar">
+            <div class="chip-row">
+              <button type="button" class="chip" *ngFor="let t of locationTypes" [class.active]="locationType === t.name" (click)="locationType = t.name">
+                {{ t.name === 'ALL' ? 'All' : t.name }} <span class="chip-count">{{ t.count }}</span>
+              </button>
+            </div>
+            <div class="toolbar-actions">
+              <div class="field" style="width: 260px">
+                <span class="input-with-icon"><i class="pi pi-search"></i>
+                  <input type="text" placeholder="Name, street, city, zip or code" [(ngModel)]="locationSearch" />
+                </span>
+              </div>
+              <label class="check-row" *ngIf="inactiveLocationCount"><input type="checkbox" [(ngModel)]="showInactiveLocations" />Inactive ({{ inactiveLocationCount }})</label>
             </div>
           </div>
+
+          <div class="warn-note" *ngIf="unmappedCount">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>{{ unmappedCount }} shipping address{{ unmappedCount === 1 ? ' is' : 'es are' }} not mapped to a ship-to number (01–xx) in our mapping table yet.</span>
+          </div>
+
           <div class="panel-table">
             <div class="table-responsive">
               <table class="desk-table compact">
-                <thead><tr><th>Address</th><th style="width: 150px">Type</th><th style="width: 150px">Computyme ship-to</th><th style="width: 240px"></th></tr></thead>
+                <thead><tr><th style="width: 90px">Ship-to</th><th>Location</th><th style="width: 140px">Type</th><th style="width: 200px"></th></tr></thead>
                 <tbody>
-                  <tr *ngFor="let l of detail.locations" [class.muted-row]="!l.isActive">
+                  <tr *ngFor="let l of filteredLocations" [class.muted-row]="!l.isActive">
                     <td>
-                      <div class="member-name" *ngIf="l.companyName">{{ l.companyName }}</div>
-                      {{ l.address1 }}<span *ngIf="l.address2">, {{ l.address2 }}</span>
-                      <div class="member-sub">{{ l.city }}, {{ l.state }} {{ l.zip }} {{ l.country }}</div>
+                      <span class="account-number" *ngIf="shipToCode(l) as code">{{ code }}</span>
+                      <span class="status-badge status-exception" *ngIf="needsMapping(l)">Not mapped</span>
+                      <span class="faint" *ngIf="!shipToCode(l) && !needsMapping(l)">—</span>
                     </td>
-                    <td>{{ l.addressTypeName }}</td>
-                    <td class="mono">{{ l.computymeShipTo === null || l.computymeShipTo === undefined ? (l.isDefaultShipTo ? 'default' : '—') : '-' + l.computymeShipTo }}</td>
                     <td>
+                      <div class="member-name">{{ l.companyName || l.address1 }}</div>
+                      <div class="member-sub">
+                        <ng-container *ngIf="l.companyName">{{ l.address1 }}<ng-container *ngIf="l.address2">, {{ l.address2 }}</ng-container> · </ng-container>
+                        {{ l.city }}, {{ l.state }} {{ l.zip }}<ng-container *ngIf="l.country && l.country !== 'US'"> · {{ l.country }}</ng-container>
+                      </div>
+                    </td>
+                    <td>{{ l.addressTypeName || 'Other' }}</td>
+                    <td class="actions-column">
                       <span class="status-badge status-progress" *ngIf="l.isBillTo">Bill-to</span>
-                      <span class="status-badge status-ready" *ngIf="l.isDefaultShipTo">Default ship-to</span>
+                      <span class="status-badge status-ready" *ngIf="shipToCode(l) === '00'">Default ship-to</span>
                       <span class="status-badge" *ngIf="!l.isActive">Inactive</span>
                     </td>
                   </tr>
-                  <tr *ngIf="!detail.locations.length"><td colspan="4" class="empty-inline">No addresses on file.</td></tr>
+                  <tr *ngIf="!filteredLocations.length"><td colspan="4" class="empty-inline">No addresses match.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -351,7 +403,8 @@
                 </div>
                 <div class="field span-6">
                   <label>Credit hold since</label>
-                  <input type="date" [(ngModel)]="f.creditHoldSince" [disabled]="locked" />
+                  <p-calendar [(ngModel)]="f.creditHoldSince" dataType="string" dateFormat="mm/dd/yy" [showIcon]="true" [showButtonBar]="true"
+                              appendTo="body" placeholder="mm/dd/yyyy" styleClass="desk-calendar" [disabled]="locked"></p-calendar>
                 </div>
                 <div class="field span-12">
                   <label>Hold reason</label>
@@ -399,16 +452,29 @@
                     <select [(ngModel)]="f.fulfillmentCenter">
                       <option *ngFor="let o of centerOptions" [ngValue]="o.value">{{ o.label }}</option>
                     </select>
-                    <span class="hint" *ngIf="!f.fulfillmentCenter">Default: {{ defaultCenter === 'PA' ? 'PA warehouse' : 'Netherlands 3PL' }}</span>
                   </div>
+                </div>
+                <div class="section-subtitle" style="margin-top: 10px" *ngIf="!f.fulfillmentCenter">
+                  Standard by country: US and Canada ship from the PA warehouse; everyone else from the Netherlands 3PL. This member: {{ defaultCenter === 'PA' ? 'PA warehouse' : 'Netherlands 3PL' }}.
+                </div>
+              </div>
+
+              <div class="info-panel credit-panel" *ngIf="isClient">
+                <div class="section-label">Client markup</div>
+                <div class="field-list">
+                  <div class="field-row"><span>Rule</span><strong>Clients pay member price + 5% (not on Panasonic)</strong></div>
+                  <div class="field-row"><span>This client</span><strong>{{ f.markupExempt ? 'Exempt: pays member price' : 'Pays the markup' }}</strong></div>
+                </div>
+                <div class="form-grid" style="margin-top: 10px">
                   <div class="field span-4 align-end">
-                    <label class="check-row"><input type="checkbox" [(ngModel)]="f.markupExempt" />Exempt from the member-type markup</label>
+                    <label class="check-row"><input type="checkbox" [(ngModel)]="f.markupExempt" />Exempt this client</label>
                   </div>
                   <div class="field span-8" *ngIf="f.markupExempt">
                     <label>Why exempt</label>
-                    <input type="text" [(ngModel)]="f.markupExemptReason" maxlength="400" />
+                    <input type="text" [(ngModel)]="f.markupExemptReason" maxlength="400" placeholder="e.g. Largest US store, approved by Mark" />
                   </div>
                 </div>
+                <div class="section-subtitle" style="margin-top: 8px">Recorded here with a reason. Checkout still applies its own markup logic until pricing reads this setting.</div>
               </div>
             </div>
 
@@ -453,7 +519,7 @@
                 <select [(ngModel)]="f.instantRebateOverride" [disabled]="f.billToParent">
                   <option *ngFor="let o of rebateOptions" [ngValue]="o.value">{{ o.label }}</option>
                 </select>
-                <span class="hint">Default: members only. Accounts billed to a parent are never eligible.</span>
+                <span class="hint">Standard rule: members get instant rebates; affiliates and clients don't, and accounts billed through a distributor never do.</span>
               </div>
             </div>
             <div class="info-panel span-4">
@@ -578,7 +644,9 @@
                 </select>
               </div>
               <div class="field span-3"><label>Title</label><input type="text" [(ngModel)]="uploadTitle" maxlength="200" /></div>
-              <div class="field span-2"><label>Expires</label><input type="date" [(ngModel)]="uploadExpires" /></div>
+              <div class="field span-2"><label>Expires</label>
+                <p-calendar [(ngModel)]="uploadExpires" dataType="string" dateFormat="mm/dd/yy" [showIcon]="true" [showButtonBar]="true"
+                            appendTo="body" placeholder="mm/dd/yyyy" styleClass="desk-calendar"></p-calendar></div>
               <div class="field span-2"><label>File</label><input type="file" (change)="onFile($event)" /></div>
               <div class="field span-2 align-end">
                 <button type="button" class="btn btn-primary" style="width: 100%" [disabled]="uploading || !uploadFile" (click)="upload()">
@@ -625,10 +693,23 @@
           <div class="info-panel" style="margin-bottom: 16px">
             <div class="section-label">Record a violation</div>
             <div class="form-grid">
-              <div class="field span-2"><label>Product code</label><input type="text" [(ngModel)]="violation.productCode" maxlength="50" /></div>
-              <div class="field span-2"><label>Starts</label><input type="date" [(ngModel)]="violation.startDate" /></div>
+              <div class="field span-4 lookup-field">
+                <label>Product</label>
+                <span class="input-with-icon"><i class="pi pi-search"></i>
+                  <input type="text" placeholder="Product code or model" [ngModel]="productTerm" (ngModelChange)="onProductTerm($event)" autocomplete="off" />
+                </span>
+                <span class="hint" *ngIf="productPicked">{{ productPicked.brandName }} · {{ productPicked.modelName }}</span>
+                <div class="lookup-results" *ngIf="productResults.length">
+                  <button type="button" class="lookup-result" *ngFor="let p of productResults" (click)="pickProduct(p)">
+                    <strong>{{ p.productCode }}</strong><span>{{ p.brandName }} · {{ p.modelName }}</span>
+                  </button>
+                </div>
+              </div>
+              <div class="field span-2"><label>Starts</label>
+                <p-calendar [(ngModel)]="violation.startDate" dataType="string" dateFormat="mm/dd/yy" [showIcon]="true"
+                            appendTo="body" placeholder="mm/dd/yyyy" styleClass="desk-calendar"></p-calendar></div>
               <div class="field span-2"><label>Days blocked</label><input type="number" min="1" max="3650" [(ngModel)]="violation.penaltyDays" /></div>
-              <div class="field span-4"><label>What happened</label><input type="text" [(ngModel)]="violation.note" maxlength="1000" /></div>
+              <div class="field span-2"><label>What happened</label><input type="text" [(ngModel)]="violation.note" maxlength="1000" /></div>
               <div class="field span-2 align-end">
                 <button type="button" class="btn btn-warning" style="width: 100%" (click)="addViolation()"><i class="pi pi-flag"></i>Record</button>
               </div>

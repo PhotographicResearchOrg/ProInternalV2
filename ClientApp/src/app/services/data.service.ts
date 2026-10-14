@@ -1010,6 +1010,15 @@ export class DataService {
   blockMemberBrand(accountNumber: string, brandId: number, reason: string | null): Observable<MemberDetail> {
     return this.api.post<MemberDetail>(`${this.memberBase}/${accountNumber}/brands/${brandId}/block`, { reason });
   }
+  memberExport(): Observable<{ [column: string]: any }[]> {
+    return this.api.get<{ [column: string]: any }[]>(`${this.memberBase}/export`);
+  }
+  accessRuleExport(): Observable<{ [column: string]: any }[]> {
+    return this.api.get<{ [column: string]: any }[]>(`${this.memberBase}/access-rules/export`);
+  }
+  memberProductLookup(term: string): Observable<{ productCode: string; modelName: string; brandName: string }[]> {
+    return this.api.get<{ productCode: string; modelName: string; brandName: string }[]>(`${this.memberBase}/products?term=${encodeURIComponent(term)}`);
+  }
   //endregion Member Desk
 
 

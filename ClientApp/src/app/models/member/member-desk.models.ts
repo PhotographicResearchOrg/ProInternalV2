@@ -55,6 +55,7 @@ export interface MemberDetail {
   brandExclusions: MemberBrandExclusion[]; groupExclusions: MemberGroupExclusion[];
   mapViolations: MemberMapViolation[]; documents: MemberDocument[]; related: MemberRelated[];
   accessLog: MemberAccessLogEntry[];
+  brm?: { firstName: string; lastName: string; email?: string; phone?: string } | null;
 }
 
 export interface AccessRule {

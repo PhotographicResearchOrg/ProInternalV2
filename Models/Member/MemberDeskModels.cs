@@ -204,6 +204,15 @@ namespace ProInternal.Models.Member
         public List<MemberDocument> Documents { get; set; } = new();
         public List<MemberRelated> Related { get; set; } = new();
         public List<MemberAccessLogEntry> AccessLog { get; set; } = new();
+        public MemberBrm Brm { get; set; }          // from dbo.GetBRM (HubSpot owner); null when none
+    }
+
+    public class MemberBrm
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Email { get; set; }
+        public string Phone { get; set; }
     }
 
     // ---------- writes ----------
@@ -321,6 +330,14 @@ namespace ProInternal.Models.Member
         public string RuleCode { get; set; }
         public string Detail { get; set; }
         public string ChangedBy { get; set; }
+    }
+
+    // ---------- MAP product lookup ----------
+    public class ProductLookupItem
+    {
+        public string ProductCode { get; set; }
+        public string ModelName { get; set; }
+        public string BrandName { get; set; }
     }
 
     // ---------- brand actions ----------

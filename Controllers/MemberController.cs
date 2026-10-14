@@ -138,6 +138,17 @@ namespace ProInternal.Controllers
         public IActionResult Revoke(int memberAuthorizationId) =>
             Run(() => _db.MemberAuthorization_Revoke(memberAuthorizationId, CurrentUser), () => NoContent());
 
+        // ------------------------------------------------------------ Excel downloads + MAP lookup
+
+        [HttpGet("export")]
+        public ActionResult<List<Dictionary<string, object>>> Export() => _db.Member_Export(_sqlIsMaster);
+
+        [HttpGet("access-rules/export")]
+        public ActionResult<List<Dictionary<string, object>>> ExportRuleMembers() => _db.AccessRule_ExportMembers();
+
+        [HttpGet("products")]
+        public ActionResult<List<ProductLookupItem>> Products([FromQuery] string term = null) => _db.Product_Lookup(term);
+
         // ------------------------------------------------------------ brand actions (Access tab)
 
         [HttpGet("brands")]
