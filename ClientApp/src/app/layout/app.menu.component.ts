@@ -198,7 +198,7 @@ export class AppMenuComponent implements OnInit {
           label: 'Account Management', icon: 'pi pi-briefcase',
           items: [
             can('/members') && { label: 'Member Desk', icon: 'pi pi-id-card', routerLink: ['/members'] },
-            can('/members/access-rules') && { label: 'Access Rules', icon: 'pi pi-shield', routerLink: ['/members/access-rules'] }
+            can('/members/access-rules') && { label: 'Access Rules', icon: 'pi pi-shield', routerLink: ['/members/access-rules'] },,
             can('/vendor-custom-fields') && { label: 'Vendor Custom Fields', icon: 'pi pi-list', routerLink: ['/vendor-custom-fields'] },
           ]
         },

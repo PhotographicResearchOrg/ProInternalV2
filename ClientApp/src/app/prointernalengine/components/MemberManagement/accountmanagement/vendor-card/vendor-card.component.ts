@@ -5,7 +5,12 @@
 // are wired to the CRUD endpoints; anything without a dialog here (e.g.
 // contract/price-list edit, audit filter) still shows a stub() toast.
 
-import { Component, Input, OnInit } from '@angular/core';
+//
+// LIVE so far: the Direct Vendor Ship section. It loads and saves real
+// settings through VendorDirectShipService. Everything else is still stub.
+
+
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ConfirmationService } from 'primeng/api';
@@ -15,6 +20,8 @@ import {
   VendorContactApi, VendorContractApi, VendorPriceListApi, VendorRebateProgramApi,
   VendorFileApi, VendorFileCategory
 } from 'src/app/models/vendor/vendor-card.model';
+
+import { VendorDirectBrand, VendorDirectShipService, VendorDirectVendor } from 'src/app/services/vendor-direct-ship.service';
 
 interface NavItem { id: string; label: string; icon: string; }
 interface Tile { id: string; icon: string; title: string; lines: string[]; color: number; }
@@ -35,7 +42,7 @@ interface CustomField { defId: number; label: string; type: string; value: strin
   templateUrl: './vendor-card.component.html',
   styleUrls: ['./vendor-card.component.scss']
 })
-export class VendorCardComponent implements OnInit {
+export class VendorCardComponent implements OnInit, OnChanges {
 
   @Input() vendorId: number | string = 0;
 
@@ -66,6 +73,7 @@ export class VendorCardComponent implements OnInit {
     { id: 'pricelists', label: 'Price Lists', icon: 'pi pi-tags' },
     { id: 'policies', label: 'Policies', icon: 'pi pi-truck' },
     { id: 'rebates', label: 'Instant Rebates', icon: 'pi pi-ticket' },
+    { id: 'directship', label: 'Direct Vendor Ship', icon: 'pi pi-send' },
     { id: 'audit', label: 'Audit Log', icon: 'pi pi-history' }
   ];
   activeSection = 'overview';
@@ -113,6 +121,33 @@ export class VendorCardComponent implements OnInit {
     Contracts: { fg: '#1d4ed8', bg: '#dce8fd' }, Rebates: { fg: '#a15c07', bg: '#fbeecb' },
     Brands: { fg: '#0e7c73', bg: '#dff1ef' }, 'Custom Fields': { fg: '#5b4bb5', bg: '#e9e6f7' }
   };
+
+  
+  // ---- Direct Vendor Ship (live) -------------------------------------
+
+  /* The vendor being set up: the card's own vendor, or one picked here while the card is a stub. */
+  dvsVendorId: number | null = null;
+  dvsVendors: VendorDirectVendor[] = [];
+  dvs: VendorDirectVendor | null = null;
+  dvsBrands: VendorDirectBrand[] = [];
+  dvsAllBrands: VendorDirectBrand[] = [];
+  dvsAddBrandId: number | null = null;
+  dvsLoading = false;
+  dvsSaving = false;
+  dvsTesting = false;
+  dvsDirty = false;
+  dvsError = '';
+  dvsNote = '';
+
+  readonly dvsMethods = ['EMAIL', 'EDI', 'FTP', 'SFTP'];
+
+  readonly dvsCostBases = [
+    { value: 'MEMBER_PRICE', label: 'Member price (what the dealer pays)' },
+    { value: 'CARTON_PRICE', label: 'Carton price' },
+    { value: 'MAP', label: 'MAP' },
+    { value: 'CONSUMER_RETAIL', label: 'Consumer retail' },
+    { value: 'DISTRIBUTOR_COST', label: 'Distributor cost (what PRO pays)' }
+  ];
 
   statusOptions = ['draft', 'scheduled', 'active', 'expiring', 'expired'];
   eligibilityOptions = ['all', 'pro', 'member'];
@@ -186,7 +221,8 @@ export class VendorCardComponent implements OnInit {
   constructor(
     private dataService: DataService,
     private route: ActivatedRoute,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+	private directShip: VendorDirectShipService
   ) { }
 
   ngOnInit(): void {
@@ -199,6 +235,7 @@ export class VendorCardComponent implements OnInit {
     }
 
     this.loadVendorCard();
+	this.loadDirectShip();
   }
 
   private get id(): number {
@@ -327,6 +364,206 @@ export class VendorCardComponent implements OnInit {
     });
   }
 
+  
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['vendorId'] && !changes['vendorId'].firstChange) {
+      this.loadDirectShip();
+    }
+  }
+
+  /* The card's own vendor when it has one; otherwise the list to pick from. */
+  private loadDirectShip(): void {
+    const id = Number(this.vendorId);
+
+    this.directShip.getBrands().subscribe({
+      next: brands => (this.dvsAllBrands = brands ?? []),
+      error: () => (this.dvsAllBrands = [])
+    });
+
+    if (id > 0) {
+      this.dvsVendorId = id;
+      this.loadDvsVendor();
+      return;
+    }
+
+    this.directShip.getVendors().subscribe({
+      next: vendors => {
+        /* Vendors already set up come first. */
+        this.dvsVendors = (vendors ?? []).sort((a, b) =>
+          Number(!!b.method) - Number(!!a.method) ||
+          String(a.name ?? '').localeCompare(String(b.name ?? ''))
+        );
+      },
+      error: error => (this.dvsError = this.dvsFailure(error, 'Unable to load vendors.'))
+    });
+
+    if (this.dvsVendorId) {
+      this.loadDvsVendor();
+    }
+  }
+
+  loadDvsVendor(): void {
+    if (!this.dvsVendorId) {
+      this.dvs = null;
+      this.dvsBrands = [];
+      return;
+    }
+
+    this.dvsLoading = true;
+    this.dvsError = '';
+    this.dvsNote = '';
+
+    this.directShip.getVendor(this.dvsVendorId).subscribe({
+      next: page => {
+        /* Works on a copy, so nothing changes until Save. */
+        this.dvs = { ...page.vendor, password: '' };
+        this.dvsBrands = (page.brands ?? []).map(brand => ({ ...brand }));
+        this.dvsDirty = false;
+        this.dvsLoading = false;
+      },
+      error: error => {
+        this.dvsLoading = false;
+        this.dvs = null;
+        this.dvsError = this.dvsFailure(error, 'Unable to load the settings for this vendor.');
+      }
+    });
+  }
+
+  dvsTouch(): void { this.dvsDirty = true; this.dvsNote = ''; }
+
+  toggleDvsEnabled(): void {
+    if (this.dvs) {
+      this.dvs.enabled = !this.dvs.enabled;
+      this.dvsTouch();
+    }
+  }
+
+  get dvsDestinationLabel(): string {
+    switch (this.dvs?.method) {
+      case 'EDI': return 'EDI folder';
+      case 'FTP': return 'FTP address (ftp://user@host/path)';
+      case 'SFTP': return 'SFTP address (sftp://user@host/path)';
+      default: return 'Destination';
+    }
+  }
+
+  /* In words: what the vendor is sent for one unit. */
+  get dvsCostSummary(): string {
+    const base = this.dvsCostBases.find(b => b.value === (this.dvs?.costBase || 'MEMBER_PRICE'));
+    const percent = Number(this.dvs?.costPercent) || 0;
+
+    return `${base?.label ?? 'Member price'}${percent > 0 ? `, less ${percent}%` : ''}`;
+  }
+
+  saveDvs(): void {
+    const vendor = this.dvs;
+
+    if (!vendor || this.dvsSaving) { return; }
+
+    this.dvsSaving = true;
+    this.dvsError = '';
+    this.dvsNote = '';
+
+    this.directShip.saveVendor(vendor).subscribe({
+      next: result => {
+        this.dvsSaving = false;
+
+        if (!result.success) {
+          this.dvsError = result.message;
+          return;
+        }
+
+        this.loadDvsVendor();
+        this.showToast(result.message);
+      },
+      error: error => {
+        this.dvsSaving = false;
+        this.dvsError = this.dvsFailure(error, 'The server could not save the settings.');
+      }
+    });
+  }
+
+  /* Uses the saved settings, so save first. */
+  sendDvsTest(): void {
+    const vendor = this.dvs;
+
+    if (!vendor || this.dvsTesting) { return; }
+
+    this.dvsTesting = true;
+    this.dvsError = '';
+    this.dvsNote = '';
+
+    this.directShip.sendTest(vendor.vendorId).subscribe({
+      next: result => {
+        this.dvsTesting = false;
+
+        if (result.success) {
+          this.dvsNote = result.message;
+        } else {
+          this.dvsError = result.message;
+        }
+      },
+      error: error => {
+        this.dvsTesting = false;
+        this.dvsError = this.dvsFailure(error, 'The server could not send the test.');
+      }
+    });
+  }
+
+  /* A brand saves on its own, as soon as its switch is changed. */
+  toggleDvsBrand(brand: VendorDirectBrand): void {
+    brand.allItems = !brand.allItems;
+    this.dvsError = '';
+
+    this.directShip.saveBrand(brand).subscribe({
+      next: result => {
+        if (!result.success) {
+          this.dvsError = result.message;
+          this.loadDvsVendor();
+          return;
+        }
+
+        this.showToast(`${brand.brandName}: ${brand.allItems ? 'everything ships direct' : 'only marked products ship direct'}`);
+      },
+      error: error => {
+        this.dvsError = this.dvsFailure(error, 'The server could not save the brand.');
+        this.loadDvsVendor();
+      }
+    });
+  }
+
+  /* Brands that belong to another vendor, or to none. */
+  get dvsOtherBrands(): VendorDirectBrand[] {
+    return this.dvsAllBrands.filter(brand => brand.vendorId !== this.dvsVendorId);
+  }
+
+  addDvsBrand(): void {
+    const brand = this.dvsAllBrands.find(row => row.brandId === this.dvsAddBrandId);
+
+    if (!brand || !this.dvsVendorId) { return; }
+
+    this.directShip.saveBrand({ ...brand, vendorId: this.dvsVendorId }).subscribe({
+      next: result => {
+        if (!result.success) {
+          this.dvsError = result.message;
+          return;
+        }
+
+        this.dvsAddBrandId = null;
+        this.loadDirectShip();
+        this.showToast(`${brand.brandName} now belongs to this vendor.`);
+      },
+      error: error => (this.dvsError = this.dvsFailure(error, 'The server could not move the brand.'))
+    });
+  }
+
+  private dvsFailure(error: unknown, fallback: string): string {
+    return (error as { status?: number } | null)?.status === 403
+      ? 'You do not have permission to change direct vendor ship settings.'
+      : fallback;
+  }
+
+  
   // --- nav + toggles ---
   setSection(id: string): void { this.activeSection = id; }
 
