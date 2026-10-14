@@ -60,6 +60,7 @@
           "$ref": "response.enums.json#/$defs/RejectReason",
           "description": "Required when ackResult is REJECTED; omit otherwise. Machine code for why the order kicked out."
         },
+
         "message": {
           "type": ["string", "null"],
           "description": "Human-readable detail. REQUIRED when ackResult is REJECTED (so the kickout can be acted on) and recommended for ACCEPTED_WITH_CHANGES."
@@ -155,7 +156,6 @@
         "note": { "type": ["string", "null"] }
       }
     },
-
     "exceptions": {
       "type": "array",
       "description": "Present when responseType is EXCEPTION (or attached to any response). Problems the consumer hit while processing.",
@@ -166,13 +166,15 @@
         "required": ["severity", "message"],
         "properties": {
           "severity": { "$ref": "response.enums.json#/$defs/ExceptionSeverity" },
-          "code": { "type": ["string", "null"], "description": "Stable machine code for the problem, if the consumer has one." },
+          "code": {"anyOf": [{ "$ref": "response.enums.json#/$defs/ExceptionCode" }, { "type": "null" }]},
           "message": { "type": "string" },
-          "lineId": { "type": ["string", "null"], "description": "The offending line, if line-specific." }
+          "lineId": {
+            "type": [ "string", "null" ],
+            "description": "The offending line, if line-specific."
+          }
         }
       }
     },
-
     "references": {
       "type": "object",
       "description": "Cross-system identifiers keyed by system name, same convention as the order contract.",

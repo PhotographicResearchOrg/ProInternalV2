@@ -2216,7 +2216,23 @@ namespace ProInternal.Services
             );
         }
 
+        public CreditRegenRow? GetCreditForRegeneration(int creditId)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<CreditRegenRow>(
+                "dbo.PIV2_Accounting_GetCreditForRegen",
+                new { CreditId = creditId },
+                commandType: CommandType.StoredProcedure);
+        }
 
+        public void MarkInvoiceRegen(int creditId, bool success, string? error)
+        {
+            using var conn = GetConnection();
+            conn.Execute(
+                "dbo.PIV2_Accounting_MarkInvoiceRegen",
+                new { CreditId = creditId, Success = success, Error = error },
+                commandType: CommandType.StoredProcedure);
+        }
 
         public void ResolveGovernanceIssue(int id)
         {

@@ -5,6 +5,20 @@ namespace ProInternal.Models.Accounting
 
 
 
+    public class CreditRegenRow
+    {
+        public int CreditId { get; set; }
+        public Guid BatchGuid { get; set; }
+        public string ProID { get; set; } = "";
+        public string Account { get; set; } = "";
+        public string? PostingAccount { get; set; }
+        public string? PO { get; set; }
+        public string? Description { get; set; }
+        public decimal Amount { get; set; }
+        public string? InvoiceNumber { get; set; }
+        public string? Status { get; set; }
+    }
+
     public class CreditEmailToggleRequest
     {
         public string InvoiceNumber { get; set; }
@@ -157,6 +171,9 @@ namespace ProInternal.Models.Accounting
         public decimal? Discount { get; set; }
 
         public string UserEntered { get; set; }
+
+        public string? InvoiceError { get; set; }
+        public int RetryCount { get; set; }
     }
 
     public class MemberLookupDto

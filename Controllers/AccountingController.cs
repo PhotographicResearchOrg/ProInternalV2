@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Playwright;
@@ -16,8 +16,10 @@ using ProInternal.Models.Outstanding;
 using ProInternal.Models.Patronage;
 using ProInternal.Models.SendInvoicesRequest;
 using ProInternal.Services;
-using Spire.Pdf;
 using Spire.Xls;
+using SharpPdfDocument = PdfSharp.Pdf.PdfDocument;
+using SharpPdfReader = PdfSharp.Pdf.IO.PdfReader;
+using SharpPdfOpenMode = PdfSharp.Pdf.IO.PdfDocumentOpenMode;
 using System.Data;
 using System.Drawing;
 using System.Globalization;
@@ -106,9 +108,17 @@ namespace ProInternal.Controllers
         [HttpGet("invoice/preview/{invoiceNumber}")]
         public IActionResult PreviewInvoice(string invoiceNumber)
         {
+            // Files are saved as {invoice}.pdf — accept the number with or without the extension
+            var fileName = Path.GetFileName(invoiceNumber ?? "").Trim();
+            if (string.IsNullOrEmpty(fileName))
+                return NotFound();
+
+            if (!fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                fileName += ".pdf";
+
             var path = Path.Combine(
                 @"\\10.0.1.161\webserver_e",
-                $"{invoiceNumber}"
+                fileName
             );
 
             if (!System.IO.File.Exists(path))
@@ -261,11 +271,6 @@ namespace ProInternal.Controllers
                     // Full success
                     _proDataAccess.MarkCreditSuccess(creditId, apiResult.InvoiceNumber);
 
-
-              
-                
-
-
                 }
                 catch (Exception ex)
                 {
@@ -286,6 +291,51 @@ namespace ProInternal.Controllers
                 success = true,
                 duplicatesSkipped = duplicateCount
             });
+        }
+
+
+
+        // =====================================================
+        // REBUILD INVOICE PDF (single credit)
+        // Rebuilds cover + attachments for a credit that already
+        // has an invoice number. NEVER re-posts to Universe.
+        // POSTED_NO_INVOICE -> SUCCESS on success; SUCCESS rows
+        // just get the file rebuilt, status untouched.
+        // =====================================================
+        [HttpPost("credits/{creditId:int}/rebuild-invoice")]
+        public async Task<IActionResult> RebuildInvoice(int creditId)
+        {
+            var row = _proDataAccess.GetCreditForRegeneration(creditId);
+            if (row == null)
+                return NotFound(new { error = "Credit not found." });
+
+            if (string.IsNullOrWhiteSpace(row.InvoiceNumber))
+                return Conflict(new { error = "No invoice number — credit never posted to Universe. Can't build a file." });
+
+            var invoiceNumber = row.InvoiceNumber.Trim();
+
+            var credit = new CreditRequestDto
+            {
+                ProID = row.ProID,
+                Account = row.Account,
+                PostingAccount = row.PostingAccount,
+                PO = row.PO,
+                Description = row.Description,
+                Amount = row.Amount,
+                BatchGuid = row.BatchGuid
+            };
+
+            try
+            {
+                await ProcessInvoiceFiles(invoiceNumber, row.BatchGuid, creditId, credit);
+                _proDataAccess.MarkInvoiceRegen(creditId, true, null);
+                return Ok(new { invoiceNumber });
+            }
+            catch (Exception ex)
+            {
+                _proDataAccess.MarkInvoiceRegen(creditId, false, ex.Message);
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
 
@@ -536,6 +586,16 @@ ParseApiResponse(HttpResponseMessage response)
 
                 Directory.CreateDirectory(batchRoot);
 
+                // -----------------------------
+                // CLEAR LEFTOVERS FROM A PREVIOUS FAILED RUN (rebuild-safe)
+                // -----------------------------
+                foreach (var stale in new[] { "ERROR.txt", $"{invoiceNumber}_cover.tmp.pdf" })
+                {
+                    var stalePath = Path.Combine(batchRoot, stale);
+                    if (System.IO.File.Exists(stalePath))
+                        System.IO.File.Delete(stalePath);
+                }
+
                 // PROOF FILE (do not remove yet)
                 System.IO.File.WriteAllText(
                     Path.Combine(batchRoot, "step1_reached.txt"),
@@ -573,28 +633,24 @@ ParseApiResponse(HttpResponseMessage response)
                 );
 
                 // -----------------------------
-                // MERGE
+                // MERGE (PdfSharp: no license, no evaluation watermark)
                 // -----------------------------
-                var finalDoc = new PdfDocument();
-
-                var coverDoc = new PdfDocument();
-                coverDoc.LoadFromFile(coverPath);
-                finalDoc.AppendPage(coverDoc);
-
                 var files = _proDataAccess.GetFilesForCredit(creditId);
 
-                foreach (var file in files)
+                using (var finalDoc = new SharpPdfDocument())
                 {
-                    var sourcePath = Path.Combine(_uploadRoot, file.StoredName);
-                    if (!System.IO.File.Exists(sourcePath)) continue;
+                    AppendPdf(finalDoc, coverPath);
 
-                    var attachDoc = new PdfDocument();
-                    attachDoc.LoadFromFile(sourcePath);
-                    finalDoc.AppendPage(attachDoc);
+                    foreach (var file in files)
+                    {
+                        var sourcePath = Path.Combine(_uploadRoot, file.StoredName);
+                        if (!System.IO.File.Exists(sourcePath)) continue;
+
+                        AppendPdf(finalDoc, sourcePath);
+                    }
+
+                    finalDoc.Save(finalPath);
                 }
-
-                finalDoc.SaveToFile(finalPath);
-                finalDoc.Close();
 
                 // -----------------------------
                 // COPY TO WEB SERVER
@@ -626,6 +682,16 @@ ParseApiResponse(HttpResponseMessage response)
 
 
 
+
+
+        /// <summary>Append every page of a PDF on disk to the target document.</summary>
+        private static void AppendPdf(SharpPdfDocument target, string sourcePath)
+        {
+            using var input = SharpPdfReader.Open(sourcePath, SharpPdfOpenMode.Import);
+
+            foreach (var page in input.Pages)
+                target.AddPage(page);
+        }
 
 
         private string InlineCss(string html)

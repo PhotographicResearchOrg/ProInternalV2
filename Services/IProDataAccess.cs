@@ -81,6 +81,10 @@ GetSellThroughExportData(
             string actionSource
         );
 
+
+        CreditRegenRow? GetCreditForRegeneration(int creditId);
+        void MarkInvoiceRegen(int creditId, bool success, string? error);
+
         VendorDto? GetVendorById(int vendorId);
         VendorMatchDto? FindVendorByName(string name);
         VendorMatchDto? FindVendorByAddress(string rawText);

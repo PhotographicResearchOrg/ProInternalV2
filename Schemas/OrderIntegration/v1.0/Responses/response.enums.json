@@ -7,26 +7,32 @@
     "ResponseType": {
       "type": "string",
       "description": "What kind of response this message is. Determines which payload fields are meaningful.",
-      "enum": ["ACKNOWLEDGEMENT", "FULFILLMENT_UPDATE", "STATUS_UPDATE", "EXCEPTION"]
+      "enum": [ "ACKNOWLEDGEMENT", "FULFILLMENT_UPDATE", "STATUS_UPDATE", "EXCEPTION" ]
     },
     "AckResult": {
       "type": "string",
       "description": "Outcome of receiving the order, returned immediately. ACCEPTED = valid, will process; REJECTED = will not; ACCEPTED_WITH_CHANGES = processing but flagged deviations.",
-      "enum": ["ACCEPTED", "ACCEPTED_WITH_CHANGES", "REJECTED"]
+      "enum": [ "ACCEPTED", "ACCEPTED_WITH_CHANGES", "REJECTED" ]
     },
     "RejectReason": {
       "type": "string",
       "description": "Why an order was rejected. Present only when ackResult is REJECTED.",
-      "enum": ["INVALID_PAYLOAD", "UNKNOWN_CUSTOMER", "UNKNOWN_ITEM", "DUPLICATE_ORDER", "PRICING_MISMATCH", "CREDIT_DECLINED", "OTHER"]
+      "enum": [ "INVALID_PAYLOAD", "UNKNOWN_CUSTOMER", "UNKNOWN_ITEM", "DUPLICATE_ORDER", "PRICING_MISMATCH", "CREDIT_DECLINED", "INVALID_ADDRESS", "OTHER" ]
+    },
+
+    "ExceptionCode": {
+      "type": "string",
+      "description": "What went wrong on a line. ERROR = line not entered; WARNING = line entered but changed.",
+      "enum": [ "ITEM_NOT_FOUND", "ITEM_SUSPENDED", "ITEM_NOT_AUTHORIZED", "ZERO_QUANTITY", "INVALID_MULTIPLE", "INVALID_NUMBER", "NO_COST", "PRICE_CHANGED", "OTHER" ]
     },
     "LineResponseStatus": {
       "type": "string",
       "description": "Per-line outcome reported back by the consumer.",
-      "enum": ["ACCEPTED", "SHIPPED", "PARTIALLY_SHIPPED", "BACKORDERED", "SHORT_SHIPPED", "CANCELLED", "REJECTED"]
+      "enum": [ "ACCEPTED", "SHIPPED", "PARTIALLY_SHIPPED", "BACKORDERED", "SHORT_SHIPPED", "CANCELLED", "REJECTED" ]
     },
     "ExceptionSeverity": {
       "type": "string",
-      "enum": ["INFO", "WARNING", "ERROR"]
+      "enum": [ "INFO", "WARNING", "ERROR" ]
     }
   }
 }
