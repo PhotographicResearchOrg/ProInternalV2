@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/agreements/vendor-agreement.enums.json",
+  "title": "Vendor Agreement Enumerations",
+  "description": "Canonical vendor agreement vocabularies, owned by PRO. Add members over minor versions; never repurpose one.",
+  "$defs": {
+    "AgreementType": {
+      "type": "string",
+      "description": "SUPPLY = master supply or distribution agreement. REBATE = volume or growth rebate terms. MARKETING = co-op or market development funds. PRICING = pricing addendum or special pricing. OTHER = anything else (NDA, warranty, service).",
+      "enum": ["SUPPLY", "REBATE", "MARKETING", "PRICING", "OTHER"]
+    },
+    "AgreementStatus": {
+      "type": "string",
+      "description": "DRAFT = not yet signed. ACTIVE = signed and in force. EXPIRED = term ended. TERMINATED = ended early. 'Expiring soon' is not a status: it is derived from term.effectiveTo.",
+      "enum": ["DRAFT", "ACTIVE", "EXPIRED", "TERMINATED"]
+    },
+    "ValueBasis": {
+      "type": "string",
+      "description": "What the amount measures. PER_YEAR = annual value. TOTAL = value over the whole term. ONE_TIME = a single payment or fund.",
+      "enum": ["PER_YEAR", "TOTAL", "ONE_TIME"]
+    }
+  }
+}

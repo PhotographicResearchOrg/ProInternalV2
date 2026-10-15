@@ -1,0 +1,97 @@
+<!-- src/app/accountmanagement/vendor-custom-fields/vendor-custom-fields.component.html -->
+<p-toast></p-toast>
+<p-confirmDialog key="cf-delete" [style]="{width: '440px'}"></p-confirmDialog>
+
+<div class="card">
+  <div class="cf-head">
+    <div>
+      <h5 class="m-0">Vendor Custom Fields</h5>
+      <p class="cf-sub">Fields defined here appear on every vendor, in the section you choose. Values are entered on each vendor's page.</p>
+    </div>
+    <div class="cf-actions">
+      <p-dropdown [options]="sectionFilterOptions" [(ngModel)]="sectionFilter" optionLabel="label" optionValue="value"
+                  styleClass="cf-filter"></p-dropdown>
+      <button pButton icon="pi pi-plus" label="Add field" class="p-button-sm" (click)="openAdd()"></button>
+    </div>
+  </div>
+
+  <p-table [value]="filtered()" [loading]="loading" dataKey="vendorCustomFieldDefinitionId" styleClass="p-datatable-sm"
+           [rowGroupMode]="sectionFilter ? undefined : 'subheader'" groupRowsBy="section">
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Label</th>
+        <th *ngIf="sectionFilter">Section</th>
+        <th style="width: 110px">Type</th>
+        <th style="width: 110px" class="text-center">Publishable</th>
+        <th style="width: 90px" class="text-center">Sort</th>
+        <th style="width: 130px" class="text-center">Vendors with value</th>
+        <th style="width: 110px"></th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="groupheader" let-d>
+      <tr class="cf-group">
+        <td colspan="6"><i class="pi pi-folder-open"></i> {{ sectionLabel(d.section) }}</td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-d>
+      <tr>
+        <td class="font-semibold">{{ d.label }}</td>
+        <td *ngIf="sectionFilter">{{ sectionLabel(d.section) }}</td>
+        <td><p-tag [value]="d.dataType" severity="info"></p-tag></td>
+        <td class="text-center"><i *ngIf="d.isPublishable" class="pi pi-globe" style="color: var(--primary-color)"></i></td>
+        <td class="text-center">{{ d.sortOrder }}</td>
+        <td class="text-center">{{ d.usageCount }}</td>
+        <td class="text-right">
+          <button pButton icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-sm" pTooltip="Edit" (click)="openEdit(d)"></button>
+          <button pButton icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger p-button-sm" pTooltip="Delete" (click)="confirmDelete(d)"></button>
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td [attr.colspan]="sectionFilter ? 7 : 6" class="cf-empty">
+          No custom fields{{ sectionFilter ? ' in ' + sectionLabel(sectionFilter) : '' }} yet. Click <b>Add field</b> to create one.
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<p-dialog [header]="editingId ? 'Edit custom field' : 'Add custom field'" [(visible)]="dialogVisible" [modal]="true"
+          [style]="{width: '460px'}" [draggable]="false">
+  <div class="cf-form">
+    <div class="cf-field">
+      <label for="cfLabel">Label</label>
+      <input id="cfLabel" pInputText maxlength="150" [(ngModel)]="draft.label" [class.p-invalid]="fieldError('label')" />
+      <small class="p-error" *ngIf="fieldError('label')">{{ fieldError('label') }}</small>
+    </div>
+    <div class="cf-field">
+      <label>Show under section</label>
+      <p-dropdown [options]="sectionOptions" [(ngModel)]="draft.section" optionLabel="label" optionValue="value"
+                  appendTo="body" styleClass="w-full"></p-dropdown>
+      <small class="p-error" *ngIf="fieldError('section')">{{ fieldError('section') }}</small>
+    </div>
+    <div class="cf-field">
+      <label>Type</label>
+      <p-dropdown [options]="typeOptions" [(ngModel)]="draft.dataType" appendTo="body" styleClass="w-full"
+                  [disabled]="editingUsageCount > 0"></p-dropdown>
+      <small class="cf-hint" *ngIf="editingUsageCount > 0">Type can't be changed while {{ editingUsageCount }} vendor{{ editingUsageCount === 1 ? ' has a value' : 's have values' }} for this field.</small>
+      <small class="p-error" *ngIf="fieldError('datatype')">{{ fieldError('datatype') }}</small>
+    </div>
+    <div class="cf-field">
+      <label for="cfSort">Sort order</label>
+      <input id="cfSort" pInputText type="number" [(ngModel)]="draft.sortOrder" />
+    </div>
+    <div class="cf-check">
+      <p-checkbox [binary]="true" [(ngModel)]="draft.isPublishable" inputId="cfPublishable"></p-checkbox>
+      <label for="cfPublishable">Publishable to web</label>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="dialogVisible = false"></button>
+    <button pButton [label]="editingId ? 'Save' : 'Add'" [loading]="saving" [disabled]="!draft.label?.trim()" (click)="save()"></button>
+  </ng-template>
+</p-dialog>

@@ -254,3 +254,5 @@ appsettings.KLASSDESKTOP.json
 ClientApp/proxy.conf.json
 # Build output and machine-specific publish settings: never commit
 publish-output/
+/.claude/settings.json
+*.bak

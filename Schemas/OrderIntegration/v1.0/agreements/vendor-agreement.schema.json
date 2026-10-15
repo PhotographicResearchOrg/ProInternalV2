@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/agreements/vendor-agreement.schema.json",
+  "title": "Canonical Vendor Agreement",
+  "description": "A signed (or draft) agreement between PRO and a vendor: master supply agreements, rebate riders, co-op funds, pricing addenda. One record per agreement. Each agreement belongs to exactly one vendor through vendorId; the vendor record does not list its agreements. v1.0 is a RECORD of the agreement: what it is, when it runs, what it is worth, and where the signed document lives. The working terms PRO operates on stay on the vendor record. PRO owns this contract; SQL is the system of record; unknown fields are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "metadata", "vendorId", "agreement"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0" },
+
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agreementId"],
+      "properties": {
+        "agreementId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical, immutable agreement identifier owned by PRO SQL."
+        },
+        "agreementNumber": { "type": ["string", "null"], "description": "Human-facing or vendor-assigned contract number." },
+        "createdAt": { "type": ["string", "null"], "format": "date-time" },
+        "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+
+    "vendorId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Canonical vendorId (vendor.schema.json metadata.vendorId) this agreement belongs to."
+    },
+
+    "agreement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "status"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "examples": ["Master Supply Agreement", "Volume Rebate Rider"] },
+        "type": { "$ref": "vendor-agreement.enums.json#/$defs/AgreementType" },
+        "status": { "$ref": "vendor-agreement.enums.json#/$defs/AgreementStatus" },
+        "parentAgreementId": {
+          "type": ["string", "null"],
+          "description": "agreementId of the master agreement this one amends or rides on (a rebate rider or pricing addendum points to its master supply agreement)."
+        },
+        "description": { "type": ["string", "null"] }
+      }
+    },
+
+    "term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effectiveFrom"],
+      "description": "When the agreement runs. Required once the agreement is no longer a draft.",
+      "properties": {
+        "effectiveFrom": { "type": "string", "format": "date" },
+        "effectiveTo": { "type": ["string", "null"], "format": "date", "description": "Last day in force. Null = open-ended (evergreen)." },
+        "autoRenew": { "type": "boolean", "default": false },
+        "renewalNoticeDays": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Days before effectiveTo by which notice must be given to renew or cancel. Drives renewal alerts."
+        },
+        "terminatedOn": { "type": ["string", "null"], "format": "date", "description": "Date the agreement was ended early." }
+      }
+    },
+
+    "value": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What the agreement is worth, for reporting. Descriptive in v1.0: nothing is calculated from it.",
+      "properties": {
+        "summary": { "type": ["string", "null"], "description": "Plain-language value.", "examples": ["3% over $1M", "$4.2M per year"] },
+        "amount": { "$ref": "../common/money.schema.json" },
+        "basis": { "anyOf": [{ "$ref": "vendor-agreement.enums.json#/$defs/ValueBasis" }, { "type": "null" }] }
+      },
+      "allOf": [
+        {
+          "description": "A value needs a summary or an amount.",
+          "anyOf": [
+            { "required": ["summary"], "properties": { "summary": { "type": "string", "minLength": 1 } } },
+            { "required": ["amount"] }
+          ]
+        },
+        {
+          "description": "An amount must say what it measures.",
+          "if": { "required": ["amount"] },
+          "then": { "required": ["basis"], "properties": { "basis": { "$ref": "vendor-agreement.enums.json#/$defs/ValueBasis" } } }
+        }
+      ]
+    },
+
+    "documents": {
+      "type": "array",
+      "default": [],
+      "description": "The signed paperwork. The file itself lives in the document store; the contract carries a reference.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["documentRef", "fileName"],
+        "properties": {
+          "documentRef": { "type": "string", "minLength": 1, "description": "Key of the file in PRO's document store." },
+          "fileName": { "type": "string", "minLength": 1 },
+          "signedOn": { "type": ["string", "null"], "format": "date" }
+        }
+      }
+    },
+
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approvalStatus"],
+      "properties": {
+        "approvalStatus": { "$ref": "../workflow/workflow.enums.json#/$defs/ApprovalStatus" }
+      }
+    },
+
+    "references": {
+      "type": "object",
+      "description": "This agreement's id in other systems, keyed by system.",
+      "additionalProperties": { "type": "string" },
+      "default": {}
+    },
+
+    "extensions": {
+      "type": "object",
+      "description": "Namespaced fields that only one system cares about.",
+      "additionalProperties": { "type": "object" },
+      "default": {}
+    },
+
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "createdBy": { "type": ["string", "null"] },
+        "updatedBy": { "type": ["string", "null"] },
+        "ownedBy": { "type": ["string", "null"], "description": "PRO employee responsible for this agreement." }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "Anything past draft has a term.",
+      "if": { "properties": { "agreement": { "properties": { "status": { "enum": ["ACTIVE", "EXPIRED", "TERMINATED"] } }, "required": ["status"] } } },
+      "then": { "required": ["term"] }
+    },
+    {
+      "description": "An expired agreement has an end date.",
+      "if": { "properties": { "agreement": { "properties": { "status": { "const": "EXPIRED" } }, "required": ["status"] } } },
+      "then": { "properties": { "term": { "required": ["effectiveTo"], "properties": { "effectiveTo": { "type": "string" } } } } }
+    },
+    {
+      "description": "A terminated agreement records when it ended.",
+      "if": { "properties": { "agreement": { "properties": { "status": { "const": "TERMINATED" } }, "required": ["status"] } } },
+      "then": { "properties": { "term": { "required": ["terminatedOn"], "properties": { "terminatedOn": { "type": "string" } } } } }
+    }
+  ]
+}

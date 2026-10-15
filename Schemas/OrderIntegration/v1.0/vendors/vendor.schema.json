@@ -1,0 +1,446 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/vendors/vendor.schema.json",
+  "title": "Canonical Vendor",
+  "description": "PRO's canonical vendor contract: who PRO buys from, on what terms, and how goods, orders, and invoices flow. PRO owns this contract; SQL is the system of record; every other system (Computyme, an ERP, EDI, portals) connects through an adapter that maps to or from it. REQUIRED: identity, status, and currency only. Everything else is optional, but when present it must be complete and consistent. Each adapter declares what it needs beyond the required minimum. Unknown fields are rejected. Derived balances and sequence state never appear. Agreements, price lists, brands, rebates, and web content are separate contracts that reference vendorId.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "metadata", "vendor", "terms"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Contract version. Additive changes bump the minor version; breaking changes create a new major version.",
+      "const": "1.0"
+    },
+
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vendorId"],
+      "properties": {
+        "vendorId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical, immutable vendor identifier owned by PRO SQL. Never another system's id (those live in references)."
+        },
+        "vendorNumber": {
+          "type": ["string", "null"],
+          "description": "Human-facing vendor number, if different from vendorId."
+        },
+        "createdAt": { "type": ["string", "null"], "format": "date-time" },
+        "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+
+    "vendor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "legalName": { "type": ["string", "null"], "description": "Legal entity name when it differs from name. Used for 1099s and remittance." },
+        "shortName": { "type": ["string", "null"], "description": "Short name / search key." },
+        "status": { "$ref": "vendor.enums.json#/$defs/VendorStatus" },
+        "blocks": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Activity blocks on an ACTIVE vendor. A key is present only while that activity is blocked, and always carries a reason. Purchasing and payment are blocked independently.",
+          "properties": {
+            "purchasing": { "$ref": "#/$defs/Block" },
+            "payment": { "$ref": "#/$defs/Block" }
+          }
+        },
+        "category": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "description": "PRO-defined vendor category code. A registry value, not free text."
+        },
+        "parentVendorId": {
+          "type": ["string", "null"],
+          "description": "Canonical vendorId of the parent company, when this vendor is a division or subsidiary."
+        },
+        "ourAccountNumber": { "type": ["string", "null"], "description": "PRO's customer/dealer account number at this vendor." },
+        "websiteUrl": { "type": ["string", "null"], "format": "uri" },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+
+    "addresses": {
+      "type": "array",
+      "default": [],
+      "description": "Role-tagged addresses. At most one MAIN. REMIT_TO only when payment goes elsewhere; consumers fall back to MAIN.",
+      "items": { "$ref": "#/$defs/VendorAddress" },
+      "contains": { "properties": { "addressType": { "const": "MAIN" } } },
+      "minContains": 0,
+      "maxContains": 1
+    },
+
+    "contacts": {
+      "type": "array",
+      "default": [],
+      "description": "Vendor-side people. One entry per role; a person with two roles appears twice.",
+      "items": { "$ref": "#/$defs/Contact" }
+    },
+
+    "terms": { "$ref": "#/$defs/Terms" },
+
+    "supply": { "$ref": "#/$defs/Supply" },
+
+    "edi": { "$ref": "#/$defs/Edi" },
+
+    "accounting": { "$ref": "#/$defs/Accounting" },
+
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approvalStatus"],
+      "description": "Approval of the vendor record itself. Export state is NOT here: it is tracked per destination outside the payload, because one vendor can be acknowledged by one system and failed in another.",
+      "properties": {
+        "approvalStatus": { "$ref": "../workflow/workflow.enums.json#/$defs/ApprovalStatus" }
+      }
+    },
+
+    "references": {
+      "type": "object",
+      "description": "This vendor's id in every other system, keyed by system. A new adapter adds its own key; the contract does not change.",
+      "additionalProperties": { "type": "string" },
+      "default": {},
+      "examples": [{ "proVendorId": "1840", "computymeVendorNumber": "1840", "intacctVendorId": "V-1840" }]
+    },
+
+    "extensions": {
+      "type": "object",
+      "description": "Namespaced fields that only one system cares about. Each consumer reads only its own namespace. A field is promoted to canonical only when two or more systems need it. Never carries derived balances or sequence state.",
+      "additionalProperties": { "type": "object" },
+      "default": {},
+      "properties": {
+        "computyme": {
+          "type": "object",
+          "additionalProperties": true,
+          "propertyNames": {
+            "not": { "enum": ["PREV_YR", "YTD_GROSS", "OPEN_GROSS", "YTD_DISC", "LAST_PAID", "NEXT_INV"] }
+          }
+        }
+      }
+    },
+
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "createdBy": { "type": ["string", "null"] },
+        "updatedBy": { "type": ["string", "null"] },
+        "managedBy": { "type": ["string", "null"], "description": "PRO employee who owns this vendor relationship. Not a vendor contact." }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "Orders sent by EDI require the vendor to be an EDI trading partner.",
+      "if": {
+        "properties": { "supply": { "properties": { "orderTransmission": { "properties": { "method": { "const": "EDI" } }, "required": ["method"] } }, "required": ["orderTransmission"] } },
+        "required": ["supply"]
+      },
+      "then": {
+        "required": ["edi"],
+        "properties": { "edi": { "properties": { "isTradingPartner": { "const": true } } } }
+      }
+    },
+    {
+      "description": "Invoices received by EDI require the vendor to be an EDI trading partner.",
+      "if": {
+        "properties": { "supply": { "properties": { "invoiceIntake": { "contains": { "const": "EDI" } } }, "required": ["invoiceIntake"] } },
+        "required": ["supply"]
+      },
+      "then": {
+        "required": ["edi"],
+        "properties": { "edi": { "properties": { "isTradingPartner": { "const": true } } } }
+      }
+    },
+    {
+      "description": "Retailer pass-through terms apply only to DIRECT_SHIP vendors.",
+      "if": {
+        "properties": { "terms": { "required": ["retailerPassThrough"] } },
+        "required": ["terms"]
+      },
+      "then": {
+        "required": ["supply"],
+        "properties": { "supply": { "properties": { "models": { "contains": { "const": "DIRECT_SHIP" } } } } }
+      }
+    }
+  ],
+
+  "$defs": {
+    "Percent": { "type": "number", "minimum": 0, "maximum": 100 },
+
+    "Block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason"],
+      "properties": {
+        "reason": { "type": "string", "minLength": 1 },
+        "placedAt": { "type": ["string", "null"], "format": "date-time" },
+        "placedBy": { "type": ["string", "null"] }
+      }
+    },
+
+    "VendorAddress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["addressType", "address"],
+      "properties": {
+        "addressType": { "$ref": "vendor.enums.json#/$defs/VendorAddressType" },
+        "address": {
+          "allOf": [
+            { "$ref": "../common/address.schema.json" },
+            {
+              "description": "Reject concatenated legacy 'CITY, ST' values in city.",
+              "properties": { "city": { "not": { "pattern": ",\\s*[A-Za-z]{2}\\s*$" } } }
+            }
+          ]
+        }
+      }
+    },
+
+    "Contact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "name"],
+      "properties": {
+        "role": { "$ref": "vendor.enums.json#/$defs/ContactRole" },
+        "name": { "type": "string", "minLength": 1 },
+        "title": { "type": ["string", "null"] },
+        "email": { "type": ["string", "null"], "format": "email" },
+        "phone": { "type": ["string", "null"] },
+        "isPrimary": { "type": "boolean", "default": false }
+      },
+      "anyOf": [
+        { "properties": { "email": { "type": "string" } }, "required": ["email"] },
+        { "properties": { "phone": { "type": "string" } }, "required": ["phone"] }
+      ]
+    },
+
+    "PaymentTerms": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Structured terms; the numbers are authoritative and termsCode is the key adapters use to match an ERP's terms record. DUE DATE: exactly one form, either netDays (days from invoice date, e.g. NET30) or dueDayOfMonth (day of the following month, e.g. 'the 10th'). DISCOUNT: earned by paying by the due date, unless a separate discount deadline is given in discountDays or discountDayOfMonth (never both). discountPercent 0 or absent = net.",
+      "properties": {
+        "termsCode": { "type": ["string", "null"], "examples": ["6% 30DAYS", "2%10 NET30", "2% 10TH", "NET60"] },
+        "netDays": { "type": ["integer", "null"], "minimum": 0 },
+        "dueDayOfMonth": { "type": ["integer", "null"], "minimum": 1, "maximum": 31 },
+        "discountPercent": { "anyOf": [{ "$ref": "#/$defs/Percent" }, { "type": "null" }] },
+        "discountDays": { "type": ["integer", "null"], "minimum": 0 },
+        "discountDayOfMonth": { "type": ["integer", "null"], "minimum": 1, "maximum": 31 }
+      },
+      "allOf": [
+        {
+          "description": "Exactly one due-date form.",
+          "oneOf": [
+            {
+              "required": ["netDays"],
+              "properties": { "netDays": { "type": "integer" } },
+              "not": { "required": ["dueDayOfMonth"], "properties": { "dueDayOfMonth": { "type": "integer" } } }
+            },
+            {
+              "required": ["dueDayOfMonth"],
+              "properties": { "dueDayOfMonth": { "type": "integer" } },
+              "not": { "required": ["netDays"], "properties": { "netDays": { "type": "integer" } } }
+            }
+          ]
+        },
+        {
+          "description": "At most one separate discount deadline form.",
+          "not": {
+            "required": ["discountDays", "discountDayOfMonth"],
+            "properties": { "discountDays": { "type": "integer" }, "discountDayOfMonth": { "type": "integer" } }
+          }
+        }
+      ]
+    },
+
+    "Terms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["currency"],
+      "description": "The vendor's current terms to PRO. The signed agreement behind them lives in the vendor-agreement contract.",
+      "properties": {
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "description": "ISO 4217. The vendor's default invoicing and payment currency: USD or the vendor's own. Each PO and invoice still carries its own currency. Exchange rates stay in the ERP."
+        },
+        "payment": {
+          "$ref": "#/$defs/PaymentTerms",
+          "description": "What the vendor gives PRO."
+        },
+        "retailerPassThrough": {
+          "$ref": "#/$defs/PaymentTerms",
+          "description": "What PRO passes to the retailer when it rebills a DIRECT_SHIP invoice. Set per vendor. PRO's retained discount = payment.discountPercent - retailerPassThrough.discountPercent; it is derived, never stored. discountPercent 0 = retailer pays net."
+        },
+        "creditLimit": { "$ref": "../common/money.schema.json", "description": "Credit the vendor extends to PRO." },
+        "incoterm": {
+          "anyOf": [{ "$ref": "vendor.enums.json#/$defs/Incoterm" }, { "type": "null" }],
+          "description": "Who bears freight, risk, and duty."
+        },
+        "freight": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": { "anyOf": [{ "$ref": "vendor.enums.json#/$defs/FreightPolicy" }, { "type": "null" }] },
+            "prepaidOrderMinimum": { "$ref": "../common/money.schema.json", "description": "Order value at which freight becomes prepaid." },
+            "surchargePercent": { "anyOf": [{ "$ref": "#/$defs/Percent" }, { "type": "null" }] },
+            "chargeSeparateShipping": { "type": ["boolean", "null"], "description": "Shipping billed as a separate charge." }
+          }
+        },
+        "freeGoodsPercent": { "anyOf": [{ "$ref": "#/$defs/Percent" }, { "type": "null" }] },
+        "minimumOrder": { "$ref": "../common/money.schema.json" },
+        "leadTimeDays": { "type": ["integer", "null"], "minimum": 0 },
+        "returns": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["accepted"],
+          "properties": {
+            "accepted": { "type": "boolean" },
+            "windowDays": { "type": ["integer", "null"], "minimum": 0 },
+            "restockingFeePercent": { "anyOf": [{ "$ref": "#/$defs/Percent" }, { "type": "null" }] },
+            "rmaRequired": { "type": "boolean", "default": true }
+          }
+        }
+      }
+    },
+
+    "Supply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["models"],
+      "description": "How goods, orders, and invoices flow with this vendor. PRO-specific; ERP adapters ignore it.",
+      "properties": {
+        "models": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "vendor.enums.json#/$defs/SupplyModel" }
+        },
+        "directShipOrderChannels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "vendor.enums.json#/$defs/DirectShipOrderChannel" }
+        },
+        "orderTransmission": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method"],
+          "description": "How PRO sends orders to the vendor: warehouse POs and B2B portal direct-ship orders.",
+          "properties": {
+            "method": { "$ref": "vendor.enums.json#/$defs/OrderTransmissionMethod" },
+            "delivery": { "anyOf": [{ "$ref": "vendor.enums.json#/$defs/FileDelivery" }, { "type": "null" }] },
+            "destination": {
+              "type": ["string", "null"],
+              "description": "Email address, SFTP path, or portal URL. Not used for EDI (the edi block carries the partner identity)."
+            }
+          },
+          "allOf": [
+            {
+              "description": "A file or email order must say how and where it is delivered.",
+              "if": { "properties": { "method": { "enum": ["EXCEL", "EMAIL"] } }, "required": ["method"] },
+              "then": {
+                "required": ["delivery", "destination"],
+                "properties": {
+                  "delivery": { "$ref": "vendor.enums.json#/$defs/FileDelivery" },
+                  "destination": { "type": "string", "minLength": 1 }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "method": { "const": "PORTAL" } }, "required": ["method"] },
+              "then": { "required": ["destination"], "properties": { "destination": { "type": "string", "minLength": 1 } } }
+            }
+          ]
+        },
+        "invoiceIntake": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "How this vendor's invoices arrive. A vendor may use more than one.",
+          "items": { "$ref": "vendor.enums.json#/$defs/InvoiceIntakeMethod" }
+        },
+        "invoiceFromEmail": {
+          "type": ["string", "null"],
+          "format": "email",
+          "description": "Sender address for emailed invoices, used to match inbound mail to this vendor."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Order channels exist only for DIRECT_SHIP vendors, and DIRECT_SHIP vendors must state them.",
+          "if": { "properties": { "models": { "contains": { "const": "DIRECT_SHIP" } } }, "required": ["models"] },
+          "then": { "required": ["directShipOrderChannels"] },
+          "else": { "not": { "required": ["directShipOrderChannels"] } }
+        }
+      ]
+    },
+
+    "Edi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["isTradingPartner"],
+      "properties": {
+        "isTradingPartner": { "type": "boolean" },
+        "interchangeQualifier": { "type": ["string", "null"], "pattern": "^[0-9A-Z]{2}$" },
+        "interchangeId": { "type": ["string", "null"], "minLength": 1, "maxLength": 15 },
+        "transactionSets": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["set", "direction", "status"],
+            "properties": {
+              "set": { "type": "string", "pattern": "^[0-9]{3}$", "examples": ["850", "855", "856", "810"] },
+              "direction": { "$ref": "vendor.enums.json#/$defs/EdiDirection" },
+              "status": { "$ref": "vendor.enums.json#/$defs/EdiSetStatus" }
+            }
+          }
+        }
+      },
+      "if": { "properties": { "isTradingPartner": { "const": true } }, "required": ["isTradingPartner"] },
+      "then": {
+        "required": ["interchangeQualifier", "interchangeId", "transactionSets"],
+        "properties": {
+          "interchangeQualifier": { "type": "string" },
+          "interchangeId": { "type": "string" },
+          "transactionSets": { "minItems": 1 }
+        }
+      }
+    },
+
+    "Accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "apAccount": { "type": ["string", "null"], "description": "Default accounts-payable GL account." },
+        "expenseAccount": { "type": ["string", "null"], "description": "Default expense / inventory GL account." },
+        "paymentMethod": { "anyOf": [{ "$ref": "vendor.enums.json#/$defs/PaymentMethod" }, { "type": "null" }] },
+        "is1099Reportable": { "type": "boolean", "default": false },
+        "form1099Type": { "type": ["string", "null"], "pattern": "^[A-Z0-9-]+$", "examples": ["NEC", "MISC"] },
+        "taxIdRef": { "type": ["string", "null"], "description": "Vault key for the EIN/TIN or foreign tax id. The full id never travels." },
+        "taxIdLast4": { "type": ["string", "null"], "pattern": "^[0-9A-Z]{4}$" },
+        "bankAccount": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["accountRef", "last4"],
+          "description": "Vault reference only. No account, routing, IBAN, or SWIFT numbers: unknown fields are rejected. An adapter that needs the real number resolves it from the vault at send time.",
+          "properties": {
+            "accountRef": { "type": "string", "minLength": 1 },
+            "last4": { "type": "string", "pattern": "^[0-9A-Z]{4}$" },
+            "bankName": { "type": ["string", "null"] },
+            "bankCountry": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" }
+          }
+        }
+      }
+    }
+  }
+}
