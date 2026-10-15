@@ -27,6 +27,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Vendors
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SELECT VendorID AS VendorId, VendorName, ParentCompany, APMSTID AS ApVendorId, CAST(Active AS bit) AS IsActive
       FROM dbo.RebateVendors
      WHERE IsPriceProtection = CASE WHEN @Rail = 'PP' THEN 1 ELSE 0 END
@@ -38,6 +39,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Types
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SELECT ID AS RebateTypeId, Name FROM dbo.RebateType ORDER BY ID;
 END
 GO
@@ -52,6 +54,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_FindTemplate
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SELECT TemplateId, VendorId, Fingerprint, SheetName, HeaderRow, Headers, Mapping, Source,
            TimesUsed, LastUsedAt, CreatedBy, CreatedAt
       FROM piv2.RebateTemplate
@@ -72,6 +75,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_SaveTemplate
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF ISJSON(@Mapping) <> 1 OR ISJSON(@Headers) <> 1
         THROW 50701, 'The mapping or headers are not valid JSON.', 1;
@@ -112,6 +116,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Templates
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SELECT t.TemplateId, t.VendorId, v.VendorName, t.SheetName, t.HeaderRow, t.Headers, t.Mapping, t.Source,
            t.TimesUsed, t.LastUsedAt, t.CreatedBy, t.CreatedAt
       FROM piv2.RebateTemplate t
@@ -128,6 +133,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_RetireTemplate
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
@@ -156,6 +162,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_CreateUpload
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.RebateVendors WHERE VendorID = @VendorId)
         THROW 50704, 'That rebate vendor does not exist.', 1;
@@ -188,6 +195,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_RefreshUploadStatus
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     UPDATE u
        SET Status = CASE
@@ -206,6 +214,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_GetUpload
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SELECT u.UploadId, u.VendorId, v.VendorName, u.FileId, u.FileName, u.SheetName, u.HeaderRow,
            u.Fingerprint, u.TemplateId, u.MappingSource, u.DefaultRebateType, u.ExpireOn, u.StartActive,
@@ -246,6 +255,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_ValidateUpload
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     DECLARE @vendor int = (SELECT VendorId FROM piv2.RebateUpload WHERE UploadId = @UploadId);
     DECLARE @defaultType int = (SELECT DefaultRebateType FROM piv2.RebateUpload WHERE UploadId = @UploadId);
@@ -411,6 +421,21 @@ BEGIN
     SELECT RowId, 'DUPLICATE_IN_FILE', N'The same model, type and dates appear earlier in this file.'
       FROM d WHERE n > 1;
 
+    /* Two rows of this file for the same product and type whose dates overlap (but are not identical): the later one waits. */
+    INSERT #problem (RowId, Code, Message)
+    SELECT DISTINCT b.RowId, 'OVERLAP_IN_FILE',
+           CONCAT(N'Overlaps row ', a.SourceRow, N' of this file for the same product and rebate type.')
+      FROM piv2.RebateUploadRow a
+      JOIN piv2.RebateUploadRow b
+        ON b.UploadId = a.UploadId AND b.SourceRow > a.SourceRow
+       AND b.ModelId = a.ModelId
+       AND COALESCE(b.RebateType, @defaultType) = COALESCE(a.RebateType, @defaultType)
+       AND b.StartDate <= a.EndDate AND b.EndDate >= a.StartDate
+       AND NOT (b.StartDate = a.StartDate AND b.EndDate = a.EndDate)
+     WHERE a.UploadId = @UploadId
+       AND a.Status IN ('READY', 'PURGATORY', 'LOADED') AND b.Status IN ('READY', 'PURGATORY')
+       AND a.ModelId IS NOT NULL AND a.StartDate IS NOT NULL AND b.StartDate IS NOT NULL;
+
     /* Against live programs: an exact copy, or dates that overlap one already open for members. */
     INSERT #problem (RowId, Code, Message)
     SELECT r.RowId,
@@ -464,6 +489,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_SetMapping
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF ISJSON(@Rows) <> 1
         THROW 50706, 'The mapped rows are not valid JSON.', 1;
@@ -536,6 +562,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Uploads
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SELECT TOP (CASE WHEN @Take BETWEEN 1 AND 500 THEN @Take ELSE 50 END)
            u.UploadId, u.VendorId, v.VendorName, u.FileName, u.Status, u.BatchId, u.MappingSource,
@@ -557,6 +584,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_CancelUpload
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
@@ -594,6 +622,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_UpdateRow
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     DECLARE @upload int, @status varchar(20), @before nvarchar(max);
 
@@ -646,6 +675,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_SkipRow
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
@@ -670,6 +700,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_RestoreRow
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     DECLARE @upload int = (SELECT UploadId FROM piv2.RebateUploadRow WHERE RowId = @RowId AND Status = 'SKIPPED');
     IF @upload IS NULL
@@ -694,6 +725,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_PickModel
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     DECLARE @upload int = (SELECT UploadId FROM piv2.RebateUploadRow WHERE RowId = @RowId AND Status IN ('READY', 'PURGATORY'));
     IF @upload IS NULL
@@ -729,6 +761,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Purgatory
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SELECT r.RowId, r.UploadId, u.VendorId, v.VendorName, u.FileName, r.SourceRow,
            r.ProCode, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice,
@@ -755,6 +788,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Load
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     BEGIN TRAN;
 
@@ -769,7 +803,8 @@ BEGIN
     IF @status NOT IN ('REVIEW', 'PARTIAL', 'LOADED')
         THROW 50713, 'Map this upload before loading it.', 1;
 
-    /* Checks again inside the transaction: live programs may have changed since the review. */
+    /* Checks again inside the transaction, one load at a time: live programs may have changed since the review. */
+    EXEC sp_getapplock @Resource = N'piv2.RebateProgramsLive', @LockMode = N'Exclusive', @LockOwner = N'Transaction', @LockTimeout = 30000;
     EXEC piv2.Rebate_ValidateUpload @UploadId;
 
     DECLARE @chosen TABLE (RowId bigint PRIMARY KEY);
@@ -856,6 +891,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Overview
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SELECT
         (SELECT COUNT(*) FROM dbo.RebateProgramDetail WHERE Expired = 0)                                 AS ProgramsLive,
@@ -881,6 +917,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Batches
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SET @Page = CASE WHEN @Page < 1 THEN 1 ELSE @Page END;
     SET @PageSize = CASE WHEN @PageSize NOT BETWEEN 1 AND 200 THEN 50 ELSE @PageSize END;
@@ -895,8 +932,8 @@ BEGIN
                MIN(p.ProgramStartWeek) AS ProgramStart,
                MAX(p.ProgramEndWeek) AS ProgramEnd,
                MAX(p.ExpireOn) AS ExpireOn,
-               MIN(p.IRType) AS IRType,
-               MIN(t.Name) AS IRTypeName,
+               MIN(p.IRType) AS IrType,
+               MIN(t.Name) AS IrTypeName,
                CASE WHEN COUNT(DISTINCT p.IRType) > 1 THEN 1 ELSE 0 END AS MixedTypes,
                MIN(p.DateEntered) AS EnteredAt
           FROM dbo.RebateProgramDetail p
@@ -928,12 +965,13 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_BatchPrograms
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SELECT p.ProgramID AS ProgramId, p.BatchID AS BatchId, p.ModelID AS ModelId,
            m.ModelName AS ProCode, m.ModelNumber AS Description, v.VendorName,
            p.InstantRebate, p.Reimbursement, p.MAPDrop AS MapPrice,
            p.ProgramStartWeek AS StartDate, p.ProgramEndWeek AS EndDate, p.ExpireOn,
-           p.IRType, t.Name AS IRTypeName, CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive,
+           p.IRType AS IrType, t.Name AS IrTypeName, CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive,
            p.DateEntered AS EnteredAt
       FROM dbo.RebateProgramDetail p
       JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
@@ -952,9 +990,29 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_ThrowIfOverlap
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     DECLARE @ids TABLE (ProgramId int PRIMARY KEY);
     INSERT @ids SELECT DISTINCT TRY_CAST(value AS int) FROM STRING_SPLIT(@ProgramIds, ',') WHERE TRY_CAST(value AS int) IS NOT NULL;
+
+    /* One overlap check at a time, held to the caller's commit, so two loads cannot both pass. */
+    IF @@TRANCOUNT > 0
+        EXEC sp_getapplock @Resource = N'piv2.RebateProgramsLive', @LockMode = N'Exclusive', @LockOwner = N'Transaction', @LockTimeout = 30000;
+
+    /* Within the set itself: two of these programs for the same product and type with overlapping dates. */
+    DECLARE @self nvarchar(400) =
+    (
+        SELECT TOP (1) CONCAT(N'Programs ', a.ProgramID, N' and ', b.ProgramID,
+                              N' are for the same product and rebate type and their dates overlap. Change one before turning them on.')
+          FROM dbo.RebateProgramDetail a
+          JOIN @ids ia ON ia.ProgramId = a.ProgramID
+          JOIN dbo.RebateProgramDetail b ON b.ModelID = a.ModelID AND b.IRType = a.IRType AND b.ProgramID > a.ProgramID
+          JOIN @ids ib ON ib.ProgramId = b.ProgramID
+         WHERE COALESCE(@NewStart, b.ProgramStartWeek) <= COALESCE(@NewEnd, a.ProgramEndWeek)
+           AND COALESCE(@NewEnd, b.ProgramEndWeek) >= COALESCE(@NewStart, a.ProgramStartWeek)
+    );
+    IF @self IS NOT NULL
+        THROW 50723, @self, 1;
 
     DECLARE @clash nvarchar(400) =
     (
@@ -986,6 +1044,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_SetBatchActive
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
@@ -1027,6 +1086,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_ChangeBatchDates
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
@@ -1080,6 +1140,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_ChangeProgram
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
@@ -1123,6 +1184,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_SetProgramActive
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
@@ -1161,6 +1223,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_History
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SELECT TOP (CASE WHEN @Take BETWEEN 1 AND 1000 THEN @Take ELSE 200 END)
            e.EventId, e.Rail, e.EventType, e.BatchId, e.ProgramId, e.UploadId, e.RowId, e.TemplateId,

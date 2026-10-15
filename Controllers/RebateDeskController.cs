@@ -25,6 +25,8 @@ namespace ProInternal.Controllers
      *                   add a product from purgatory
      *   Rebates.Manage  turn programs and batches on or off, change amounts and dates,
      *                   manual entry, products and stacks, price protection, templates
+     *   Rebates.Accounting  claims: resend a credit to Computyme, recreate or reprint
+     *                   the credit invoice, debit memos to vendors
      *
      * Every rule is in the piv2.Rebate_* / piv2.PP_* procedures; a refusal
      * (50700-50799) comes back as 400 with its message.
@@ -37,17 +39,20 @@ namespace ProInternal.Controllers
         public const string ViewPermission = "Rebates.View";
         public const string UploadPermission = "Rebates.Upload";
         public const string ManagePermission = "Rebates.Manage";
+        public const string AccountingPermission = "Rebates.Accounting";
         public const string ScreenRoute = "/rebatedesk";
 
         private readonly IRebateDeskDataAccess _data;
         private readonly RebateUploadService _uploads;
         private readonly IFileLibrary _files;
+        private readonly RebateClaimsService _claims;
 
-        public RebateDeskController(IRebateDeskDataAccess data, RebateUploadService uploads, IFileLibrary files)
+        public RebateDeskController(IRebateDeskDataAccess data, RebateUploadService uploads, IFileLibrary files, RebateClaimsService claims)
         {
             _data = data;
             _uploads = uploads;
             _files = files;
+            _claims = claims;
         }
 
         private string Actor => Permissions.UserName(User);
@@ -438,6 +443,101 @@ namespace ProInternal.Controllers
                     openClaims = sets.ElementAtOrDefault(2) ?? new List<RebateRow>()
                 };
             });
+
+        /* ================= claims (accounting) ================= */
+
+        [HttpGet("claims")]
+        public Task<IActionResult> Claims([FromQuery] string? rail, [FromQuery] string? q, [FromQuery] int? vendorId, [FromQuery] string? state,
+                                          [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 50) =>
+            Read(async () => Paged(await _data.QueryAsync("piv2.Claim_Search", new
+            {
+                Rail = Rail(rail),
+                Q = q,
+                VendorId = vendorId,
+                State = string.IsNullOrWhiteSpace(state) ? null : state,
+                From = from?.Date,
+                To = to?.Date,
+                Page = page,
+                PageSize = pageSize
+            })));
+
+        [HttpGet("claims/{rail}/{orderId:int}")]
+        public Task<IActionResult> Claim(string rail, int orderId) =>
+            Read(async () =>
+            {
+                var sets = await _data.QuerySetsAsync("piv2.Claim_Get", new { Rail = Rail(rail), OrderId = orderId });
+                var lines = sets.ElementAtOrDefault(1) ?? new List<RebateRow>();
+                if (lines.Count == 0) throw new RebateFileException("That claim does not exist.");
+                return new
+                {
+                    decisions = sets.ElementAtOrDefault(0) ?? new List<RebateRow>(),
+                    lines,
+                    arCredits = sets.ElementAtOrDefault(2) ?? new List<RebateRow>(),
+                    history = sets.ElementAtOrDefault(3) ?? new List<RebateRow>()
+                };
+            });
+
+        [HttpPost("claims/{rail}/{orderId:int}/resend")]
+        [RequirePermission(AccountingPermission)]
+        public Task<IActionResult> ResendCredit(string rail, int orderId, [FromBody] RebateReasonRequest body) =>
+            Act(() => _data.ExecuteAsync("piv2.Claim_ResendCredit", new { Rail = Rail(rail), OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
+
+        [HttpPost("claims/{rail}/{orderId:int}/invoice")]
+        [RequirePermission(AccountingPermission)]
+        public Task<IActionResult> RecreateInvoice(string rail, int orderId, [FromBody] RebateReasonRequest? body) =>
+            Read(() => _claims.RecreateInvoiceAsync(rail, orderId, Actor, body?.Reason));
+
+        /* The invoice PDF the member site has (reprint). */
+        [HttpGet("claims/{rail}/{orderId:int}/invoice")]
+        public async Task<IActionResult> Reprint(string rail, int orderId)
+        {
+            try
+            {
+                var pdf = await _claims.ReprintAsync(rail, orderId);
+                return pdf == null
+                    ? NotFound(new { success = false, message = "There is no invoice PDF for this claim yet. Use Recreate invoice." })
+                    : File(pdf.Value.Pdf, "application/pdf", pdf.Value.FileName);
+            }
+            catch (RebateFileException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("debitmemos/candidates")]
+        public Task<IActionResult> DebitMemoCandidates([FromQuery] string? rail, [FromQuery] string vendorIds, [FromQuery] DateTime from, [FromQuery] DateTime to) =>
+            Read(async () =>
+            {
+                var lines = await _data.QueryAsync("piv2.Claim_DebitMemoCandidates", new { Rail = Rail(rail), VendorIds = vendorIds ?? "", From = from.Date, To = to.Date });
+                var firstVendor = (vendorIds ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(v => int.TryParse(v, out var n) ? n : 0).FirstOrDefault(n => n > 0);
+                var billing = firstVendor > 0 ? (await _data.QueryAsync("piv2.Claim_VendorBilling", new { VendorId = firstVendor })).FirstOrDefault() : null;
+                var vendorName = lines.FirstOrDefault()?.Get<string>("vendorName") ?? "";
+                return new { lines, emailTo = billing?.Get<string>("emailTo"), letter = RebateClaimsService.LetterFor(vendorName) };
+            });
+
+        [HttpPost("debitmemos")]
+        [RequirePermission(AccountingPermission)]
+        [RequestSizeLimit(40 * 1024 * 1024)]
+        public Task<IActionResult> CreateDebitMemo([FromForm] RebateClaimsService.DebitMemoRequest body, CancellationToken cancellationToken) =>
+            Read(() => _claims.CreateDebitMemoAsync(body, Request.HasFormContentType ? Request.Form.Files : null, Actor, cancellationToken));
+
+        [HttpGet("debitmemos")]
+        public Task<IActionResult> DebitMemos([FromQuery] string? rail, [FromQuery] string? q) =>
+            Read(() => _data.QueryAsync("piv2.Claim_DebitMemos", new { Rail = Rail(rail), Q = q, Take = 200 }));
+
+        [HttpGet("debitmemos/{debitMemoId:int}/csv")]
+        public async Task<IActionResult> DebitMemoCsv(int debitMemoId)
+        {
+            try
+            {
+                var (csv, name) = await _claims.DebitMemoCsvAsync(debitMemoId);
+                return File(csv, "text/csv", name);
+            }
+            catch (RebateFileException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
 
         /* ================= history ================= */
 

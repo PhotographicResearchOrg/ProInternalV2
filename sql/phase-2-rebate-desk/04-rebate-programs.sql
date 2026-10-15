@@ -36,6 +36,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Programs
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SET @Page = CASE WHEN @Page < 1 THEN 1 ELSE @Page END;
     SET @PageSize = CASE WHEN @PageSize NOT BETWEEN 1 AND 500 THEN 50 ELSE @PageSize END;
@@ -46,7 +47,7 @@ BEGIN
            m.ModelName AS ProCodeText, m.ModelNumber AS Description, m.VendorID AS VendorId, v.VendorName,
            p.InstantRebate, p.Reimbursement, p.MAPDrop AS MapPrice,
            p.ProgramStartWeek AS StartDate, p.ProgramEndWeek AS EndDate, p.ExpireOn,
-           p.IRType, t.Name AS IRTypeName,
+           p.IRType AS IrType, t.Name AS IrTypeName,
            CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive,
            p.DateEntered AS EnteredAt,
            COUNT(*) OVER () AS TotalRows
@@ -84,6 +85,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_ChangeProgramDates
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
@@ -146,6 +148,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_AddPrograms
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.RebateCameraModels WHERE ModelID = @ModelId AND IsPriceProtection = 0)
         THROW 50722, 'That is not an instant-rebate model.', 1;
@@ -163,6 +166,8 @@ BEGIN
         THROW 50718, 'The claim expiry is required and cannot be before the program ends.', 1;
     IF @RepeatWeeks NOT BETWEEN 0 AND 52
         THROW 50742, 'Repeat for 0 to 52 more weeks.', 1;
+    IF @RepeatWeeks > 0 AND DATEDIFF(day, @StartDate, @EndDate) >= 7
+        THROW 50744, 'Weekly repeats need a program of 7 days or less; longer ones would overlap the next week.', 1;
 
     DECLARE @weeks TABLE (N int PRIMARY KEY);
     ;WITH n AS (SELECT 0 AS N UNION ALL SELECT N + 1 FROM n WHERE N < @RepeatWeeks)
@@ -229,6 +234,7 @@ CREATE OR ALTER PROCEDURE piv2.PP_Programs
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SET @Page = CASE WHEN @Page < 1 THEN 1 ELSE @Page END;
     SET @PageSize = CASE WHEN @PageSize NOT BETWEEN 1 AND 500 THEN 50 ELSE @PageSize END;
@@ -236,7 +242,7 @@ BEGIN
 
     SELECT p.ProgramID AS ProgramId, p.ModelID AS ModelId, m.ModelName AS ProCodeText, m.ModelNumber AS Description,
            m.VendorID AS VendorId, v.VendorName,
-           p.ProgramDate, p.NewInvoiceCost, p.Amount, p.NewMap AS MapPrice, p.EZPay,
+           p.ProgramDate, p.NewInvoiceCost, p.Amount, p.NewMap AS MapPrice, p.EZPay AS EzPay,
            CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive,
            COUNT(*) OVER () AS TotalRows
       FROM dbo.PriceProtectionDetails p
@@ -270,6 +276,7 @@ CREATE OR ALTER PROCEDURE piv2.PP_AddProgram
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.RebateCameraModels WHERE ModelID = @ModelId AND IsPriceProtection = 1)
         THROW 50750, 'That is not a price-protection product.', 1;
@@ -316,6 +323,7 @@ CREATE OR ALTER PROCEDURE piv2.PP_ChangeProgram
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
@@ -364,6 +372,7 @@ CREATE OR ALTER PROCEDURE piv2.PP_SetProgramActive
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;

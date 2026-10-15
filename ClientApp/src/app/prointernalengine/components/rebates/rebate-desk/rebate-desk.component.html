@@ -282,6 +282,12 @@
       <app-rebate-vendors *ngIf="view === 'vendors'" rail="IR" (showPrograms)="showPrograms($event, 'IR')"></app-rebate-vendors>
       <app-rebate-vendors *ngIf="view === 'pp-vendors'" rail="PP" (showPrograms)="showPrograms($event, 'PP')"></app-rebate-vendors>
 
+      <!-- ============ Claims and debit memos (accounting) ============ -->
+      <app-rebate-claims *ngIf="view === 'claims'" rail="IR" tab="claims"></app-rebate-claims>
+      <app-rebate-claims *ngIf="view === 'debitmemos'" rail="IR" tab="memos"></app-rebate-claims>
+      <app-rebate-claims *ngIf="view === 'pp-claims'" rail="PP" tab="claims"></app-rebate-claims>
+      <app-rebate-claims *ngIf="view === 'pp-debitmemos'" rail="PP" tab="memos"></app-rebate-claims>
+
       <!-- ============ Batches ============ -->
       <ng-container *ngIf="view === 'batches'">
         <div class="split" [style.grid-template-columns]="batch ? 'minmax(0, 1.2fr) minmax(0, 1fr)' : '1fr'">

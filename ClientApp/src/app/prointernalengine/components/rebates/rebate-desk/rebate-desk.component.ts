@@ -6,8 +6,8 @@ import { Rail, RebateDeskService, apiMessage, isoDate } from 'src/app/services/r
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
-  | 'templates' | 'declines' | 'history'
-  | 'pp-programs' | 'pp-products' | 'pp-vendors' | 'pp-history';
+  | 'templates' | 'claims' | 'debitmemos' | 'declines' | 'history'
+  | 'pp-programs' | 'pp-products' | 'pp-vendors' | 'pp-claims' | 'pp-debitmemos' | 'pp-history';
 
 interface RailView { key: ViewKey; label: string; icon: string; group: 'IR' | 'PP'; count?: () => number; hot?: boolean; }
 
@@ -24,7 +24,9 @@ type Pending =
  *   Instant rebates   overview, new upload (interview), uploads and review,
  *                     purgatory, programs, batches, products, vendors and
  *                     liability, templates, declined claims, history
- *   Price protection  programs, products, vendors and liability, history
+ *                     claims (resend credit, recreate/reprint invoice), debit memos
+ *   Price protection  programs, products, vendors and liability, claims,
+ *                     debit memos, history
  * Rows that fail a check go to purgatory and stay there until fixed,
  * skipped with a reason, or loaded.
  */
@@ -46,11 +48,15 @@ export class RebateDeskComponent implements OnInit {
     { key: 'products', label: 'Products', icon: 'pi pi-tags', group: 'IR' },
     { key: 'vendors', label: 'Vendors & liability', icon: 'pi pi-building', group: 'IR' },
     { key: 'templates', label: 'Templates', icon: 'pi pi-table', group: 'IR', count: () => this.overview.templates || 0 },
+    { key: 'claims', label: 'Claims', icon: 'pi pi-wallet', group: 'IR' },
+    { key: 'debitmemos', label: 'Debit memos', icon: 'pi pi-send', group: 'IR' },
     { key: 'declines', label: 'Declined claims', icon: 'pi pi-ban', group: 'IR' },
     { key: 'history', label: 'History', icon: 'pi pi-history', group: 'IR' },
     { key: 'pp-programs', label: 'Programs', icon: 'pi pi-list', group: 'PP', count: () => this.overview.priceProtectionLive || 0 },
     { key: 'pp-products', label: 'Products', icon: 'pi pi-tags', group: 'PP' },
     { key: 'pp-vendors', label: 'Vendors & liability', icon: 'pi pi-building', group: 'PP' },
+    { key: 'pp-claims', label: 'Claims', icon: 'pi pi-wallet', group: 'PP' },
+    { key: 'pp-debitmemos', label: 'Debit memos', icon: 'pi pi-send', group: 'PP' },
     { key: 'pp-history', label: 'History', icon: 'pi pi-history', group: 'PP' }
   ];
 

@@ -81,6 +81,7 @@ import { RebateUploadComponent } from './prointernalengine/components/rebates/re
 import { RebateProgramsComponent } from './prointernalengine/components/rebates/rebate-programs/rebate-programs.component';
 import { RebateProductsComponent } from './prointernalengine/components/rebates/rebate-products/rebate-products.component';
 import { RebateVendorsComponent } from './prointernalengine/components/rebates/rebate-vendors/rebate-vendors.component';
+import { RebateClaimsComponent } from './prointernalengine/components/rebates/rebate-claims/rebate-claims.component';
 import { RebateReasonDialogComponent } from './prointernalengine/components/rebates/shared/reason-dialog.component';
 import { RebateProductPickerComponent } from './prointernalengine/components/rebates/shared/product-picker.component';
 import { PanelModule } from 'primeng/panel';
@@ -125,6 +126,7 @@ import { AccessRulesComponent } from './prointernalengine/components/MemberManag
     RebateProgramsComponent,
     RebateProductsComponent,
     RebateVendorsComponent,
+    RebateClaimsComponent,
     RebateReasonDialogComponent,
     RebateProductPickerComponent,
     ReceivablesComponent,

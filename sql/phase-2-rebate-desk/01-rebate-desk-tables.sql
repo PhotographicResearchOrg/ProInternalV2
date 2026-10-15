@@ -135,6 +135,7 @@ BEGIN
         Rail        char(2)         NOT NULL CONSTRAINT DF_piv2_RebEvt_Rail DEFAULT ('IR'),  -- IR instant rebates, PP price protection
         EventType   varchar(30)     NOT NULL,
         ModelId     int             NULL,
+        ClaimId     int             NULL,     -- member claim (RebateRedeem / PriceProtectionRedeem ORDERID)
         BatchId     int             NULL,
         ProgramId   int             NULL,
         UploadId    int             NULL,
@@ -149,10 +150,52 @@ BEGIN
     );
 
     CREATE INDEX IX_piv2_RebEvt_Model   ON piv2.RebateEvent (ModelId, EventId DESC) WHERE ModelId IS NOT NULL;
+    CREATE INDEX IX_piv2_RebEvt_Claim   ON piv2.RebateEvent (Rail, ClaimId, EventId DESC) WHERE ClaimId IS NOT NULL;
 
     CREATE INDEX IX_piv2_RebEvt_Batch   ON piv2.RebateEvent (BatchId, EventId DESC) WHERE BatchId IS NOT NULL;
     CREATE INDEX IX_piv2_RebEvt_Program ON piv2.RebateEvent (ProgramId, EventId DESC) WHERE ProgramId IS NOT NULL;
     CREATE INDEX IX_piv2_RebEvt_Upload  ON piv2.RebateEvent (UploadId, EventId DESC) WHERE UploadId IS NOT NULL;
+END
+GO
+
+/* Debit memos: approved claims billed back to the vendor, one row per memo. */
+IF OBJECT_ID('piv2.RebateDebitMemo', 'U') IS NULL
+BEGIN
+    CREATE TABLE piv2.RebateDebitMemo
+    (
+        DebitMemoId  int IDENTITY(1,1) NOT NULL,
+        Rail         char(2)         NOT NULL,
+        DM           varchar(50)     NOT NULL,     -- written to RebateProcess.DM / PriceProtectionProcess.DM
+        VendorIds    varchar(500)    NOT NULL,
+        VendorName   nvarchar(200)   NOT NULL,
+        Claims       int             NOT NULL,
+        Total        decimal(19,2)   NOT NULL,
+        EmailTo      nvarchar(500)   NULL,
+        Ref1         nvarchar(200)   NULL,
+        Ref2         nvarchar(200)   NULL,
+        FileId       bigint          NULL,         -- the CSV in PRO.piv2.FileLibrary
+        EmailedAt    datetime2(0)    NULL,
+        EmailError   nvarchar(500)   NULL,
+        CreatedBy    nvarchar(100)   NOT NULL,
+        CreatedAt    datetime2(0)    NOT NULL CONSTRAINT DF_piv2_RebDM_CreatedAt DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT PK_piv2_RebateDebitMemo PRIMARY KEY (DebitMemoId),
+        CONSTRAINT CK_piv2_RebDM_Rail CHECK (Rail IN ('IR', 'PP'))
+    );
+    CREATE UNIQUE INDEX UX_piv2_RebDM_DM ON piv2.RebateDebitMemo (Rail, DM);
+END
+GO
+
+/* Who receives a vendor's debit memos, remembered from the last one sent. */
+IF OBJECT_ID('piv2.RebateVendorBilling', 'U') IS NULL
+BEGIN
+    CREATE TABLE piv2.RebateVendorBilling
+    (
+        VendorId   int            NOT NULL,
+        EmailTo    nvarchar(500)  NULL,
+        UpdatedBy  nvarchar(100)  NOT NULL,
+        UpdatedAt  datetime2(0)   NOT NULL CONSTRAINT DF_piv2_RebVB_UpdatedAt DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT PK_piv2_RebateVendorBilling PRIMARY KEY (VendorId)
+    );
 END
 GO
 

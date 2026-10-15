@@ -36,6 +36,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_VendorLiability
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     DECLARE @pp int = CASE WHEN @Rail = 'PP' THEN 1 ELSE 0 END;
     DECLARE @today date = CAST(GETDATE() AS date);
@@ -100,7 +101,7 @@ BEGIN
           FROM dbo.PriceProtectionRedeem r
           JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
           LEFT JOIN lastProc p ON p.OrderID = r.ORDERID AND p.rn = 1
-         WHERE COALESCE(r.Saved, 0) = 0
+         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL
            AND (@VendorId IS NULL OR m.VendorID = @VendorId)
          GROUP BY r.ORDERID, r.ModelID, m.VendorID, p.Status, p.ComputymeProcessed;
     END

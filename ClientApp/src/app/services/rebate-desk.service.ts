@@ -124,6 +124,27 @@ export class RebateDeskService {
     return this.api.get(`${this.base}/liability${this.q({ rail, vendorId, from, to })}`);
   }
 
+  /* ---- claims (accounting) ---- */
+  claims(rail: Rail, f: any): Observable<Paged> { return this.api.get(`${this.base}/claims${this.q({ rail, ...f })}`); }
+  claim(rail: Rail, orderId: number): Observable<{ decisions: any[]; lines: any[]; arCredits: any[]; history: any[] }> {
+    return this.api.get(`${this.base}/claims/${rail}/${orderId}`);
+  }
+  resendCredit(rail: Rail, orderId: number, reason: string): Observable<any> {
+    return this.api.post(`${this.base}/claims/${rail}/${orderId}/resend`, { reason });
+  }
+  recreateInvoice(rail: Rail, orderId: number, reason: string): Observable<{ invoiceNumber: string; fileId: number; sharePath?: string; total: number }> {
+    return this.api.post(`${this.base}/claims/${rail}/${orderId}/invoice`, { reason });
+  }
+  reprint(rail: Rail, orderId: number): Observable<Blob> { return this.api.getBlob(`${this.base}/claims/${rail}/${orderId}/invoice`); }
+  debitMemoCandidates(rail: Rail, vendorIds: number[], from: string, to: string): Observable<{ lines: any[]; emailTo?: string; letter: string }> {
+    return this.api.get(`${this.base}/debitmemos/candidates${this.q({ rail, vendorIds: vendorIds.join(','), from, to })}`);
+  }
+  createDebitMemo(form: FormData): Observable<{ debitMemoId: number; claims: number; total: number; emailed: boolean; emailError?: string }> {
+    return this.api.postMultipartJson(`${this.base}/debitmemos`, form);
+  }
+  debitMemos(rail: Rail, q?: string): Observable<any[]> { return this.api.get(`${this.base}/debitmemos${this.q({ rail, q })}`); }
+  debitMemoCsv(id: number): Observable<Blob> { return this.api.getBlob(`${this.base}/debitmemos/${id}/csv`); }
+
   /* ---- history ---- */
   history(f: any): Observable<any[]> { return this.api.get(`${this.base}/history${this.q(f)}`); }
 }
@@ -131,6 +152,16 @@ export class RebateDeskService {
 /* The message from a 400 the desk API returned, or a generic one. */
 export function apiMessage(err: any, fallback = 'Something went wrong. Try again.'): string {
   return err?.error?.message || (typeof err?.error === 'string' ? err.error : '') || fallback;
+}
+
+/* Saves a downloaded file in the browser. */
+export function saveBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function isoDate(d: any): string {

@@ -4,7 +4,7 @@ Route `/rebatedesk`. Two rails, in the Product Desk format.
 
 | Instant rebates | Price protection |
 | --- | --- |
-| Overview, New upload, Uploads, Purgatory, Programs, Batches, Products, Vendors & liability, Templates, Declined claims, History | Programs, Products, Vendors & liability, History |
+| Overview, New upload, Uploads, Purgatory, Programs, Batches, Products, Vendors & liability, Templates, Claims, Debit memos, Declined claims, History | Programs, Products, Vendors & liability, Claims, Debit memos, History |
 
 All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.RebateProgramDetail` / `dbo.PriceProtectionDetails` and products into `dbo.RebateCameraModels` / `RebateCameraModelsDetails` / `RebateQualifiers`, exactly as the member site (Connection) reads them. The desk's own tables, views and procedures are in the `piv2` schema in PRO_NUKE.
 
@@ -71,6 +71,28 @@ Product → vendor → parent company. Per vendor:
 
 Drilling in shows per-product amounts and the open claims. Lines a member saved but never submitted are left out.
 
+## Claims (accounting, `Rebates.Accounting`)
+
+The nightly `RebateCredits` program is unchanged: it still sends approved claims to Computyme and builds invoices. The desk adds three repairs and replaces the legacy debit memo screen (`/Accounting/IRRebates`).
+
+- **Resend credit.** Clears `ComputymeProcessed` on the claim's latest decision row, so the next nightly run sends the credit again. It is refused when:
+  - AR (`Rebate_EDA_ARHist`) already shows the credit
+  - the credit was sent in the last 48 hours (AR has not caught up yet)
+  - it was already resent in the last 72 hours
+
+  A claim with `ComputymeProcessed = 0` is shown as **held**: the nightly run skips it, and Resend queues it.
+- **Recreate invoice.** Builds the credit invoice PDF from the AR credit with the same templates (`Templates/Rebates/CreditTemplate.pdf`, `CreditPriceTemplate.pdf`). The PRO INVOICE # field now shows the invoice number; the old program printed the member number there.
+  - It writes `<invoice number>.pdf` to `RebateDesk:InvoiceFolder` (default `\\10.0.1.161\webserver_e`, where the member site reads it).
+  - It keeps a copy on S3 (`REBATE_INVOICE`) and marks the claim invoiced.
+- **Reprint.** Downloads the PDF already in that folder.
+- **Debit memos.** Pick vendors (parent companies select all their vendors) and decision dates. Approved, unlocked claims with no DM are listed; tick them and enter the DM number.
+  - The DM is stamped on the claims.
+  - The CSV has the legacy columns and is kept on S3 (`REBATE_DEBIT_MEMO`).
+  - It is emailed with the vendor's letter (`Templates/Rebates/DebitMemo/*.html`, chosen by vendor name as before) and any support files. The recipients are remembered per vendor.
+  - A DM number can be used once.
+
+**Fix needed in the nightly program, not changed here:** after building the first invoice it finds in AR, it marks *every* pending invoice as built (`Invoiced = 1` / `InvoiceGenerated = 1`). Claims whose credit had not posted yet never get a PDF. Recreate invoice repairs them one at a time. The program itself should mark only the claim it just built. Its UniVerse password is also in the source and should be rotated.
+
 ## Deploy
 
 1. In **PRO_NUKE**, run in order (all are safe to run twice):
@@ -80,8 +102,9 @@ Drilling in shows per-product amounts and the open claims. Lines a member saved 
    - `03-rebate-products.sql`
    - `04-rebate-programs.sql`
    - `05-rebate-vendors.sql`
+   - `07-rebate-claims.sql`
    
-   `03` reads `[PRO].dbo.ProductData` for PRO code lookups, the same cross-database pattern `SubmitRebate` uses.
+   `03` reads `[PRO].dbo.ProductData` for PRO code lookups, the same cross-database pattern `SubmitRebate` uses. `07` reads `eda.IVMST.IVMST` (catalog numbers) and `dbo.Rebate_EDA_ARHist` (the EDA database). The API's database user needs SELECT on those in PRO and EDA.
 2. In **PRO**, run `06-integration-retention.sql` (the outbox clean-up deferred from Phase 1; runs daily, keeps 180 days, `Integration:RetentionDays`).
 3. Bedrock: the server's AWS identity needs `bedrock:InvokeModel` on the mapping model. Settings:
    - `RebateDesk:MappingModel` (empty uses `Bedrock:TranslationModel`)
@@ -91,6 +114,14 @@ Drilling in shows per-product amounts and the open claims. Lines a member saved 
    - `Rebates.View` (route `/rebatedesk`)
    - `Rebates.Upload`
    - `Rebates.Manage`
+   - `Rebates.Accounting`
+
+   Optional settings:
+   - `RebateDesk:InvoiceFolder` (`off` keeps invoices on S3 only)
+   - `RebateDesk:DebitMemoFrom`
+   - `RebateDesk:DebitMemoBcc`
+
+   Email uses the existing `Email:*` SMTP settings.
 6. Open Rebate Desk. Every existing program, batch and product shows. Nothing was changed by deploying.
 
 The old screens (`/rebatesupport`, `/uploadrebates`, `/rebatesetup`) still work. Retire them once the desk is in use.
@@ -101,3 +132,13 @@ The old screens (`/rebatesupport`, `/uploadrebates`, `/rebatesetup`) still work.
 - The C# compiles against .NET 10 with stand-ins for Dapper, EPPlus, Bedrock, S3 and the SQL client. The full project was not compiled: NuGet is blocked here.
 - The Angular development build succeeds, with no warnings in the new files.
 - All SQL parses as T-SQL (sqlfluff). It was not run against a database.
+- The credit invoice layout was checked by rendering the template with sample data, using the same field positions and row logic in a Python copy. The C# version uses PDFsharp, which is not available here, so it is compiled against stand-ins only.
+- A separate review of the SQL and C# found nine problems. All are fixed:
+  - resend now affects the latest decision only, with the 48 h / 72 h guards
+  - `XACT_ABORT` is set inside every procedure
+  - overlaps within a file or a batch are caught, and live-program checks run one at a time
+  - debit memos check the latest decision
+  - held (`0`) claims are handled
+  - JSON key casing for rebate type and EZPay is fixed
+  - null price-protection claim numbers are filtered out
+  - rail casing is handled

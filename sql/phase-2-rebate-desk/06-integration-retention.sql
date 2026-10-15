@@ -23,6 +23,7 @@ CREATE OR ALTER PROCEDURE piv2.Integration_Purge
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF @KeepDays < 30
         THROW 50607, 'Keep at least 30 days of integration history.', 1;

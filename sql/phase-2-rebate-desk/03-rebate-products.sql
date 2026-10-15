@@ -37,6 +37,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Products
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SET @Page = CASE WHEN @Page < 1 THEN 1 ELSE @Page END;
     SET @PageSize = CASE WHEN @PageSize NOT BETWEEN 1 AND 200 THEN 50 ELSE @PageSize END;
@@ -78,6 +79,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_GetProduct
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     SELECT m.ModelID AS ModelId, m.VendorID AS VendorId, v.VendorName, m.ModelNumber AS Description,
            m.ModelName AS ProCodeText, CAST(COALESCE(m.Active, 0) AS bit) AS IsActive,
@@ -108,16 +110,16 @@ BEGIN
     IF (SELECT IsPriceProtection FROM dbo.RebateCameraModels WHERE ModelID = @ModelId) = 1
         SELECT p.ProgramID AS ProgramId, NULL AS BatchId, p.Amount AS Reimbursement, p.NewInvoiceCost AS InstantRebate,
                p.NewMap AS MapPrice, p.ProgramDate AS StartDate, CAST(NULL AS datetime) AS EndDate,
-               CAST(NULL AS datetime) AS ExpireOn, NULL AS IRType, CAST(NULL AS nvarchar(50)) AS IRTypeName,
-               CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive, p.EZPay
+               CAST(NULL AS datetime) AS ExpireOn, NULL AS IrType, CAST(NULL AS nvarchar(50)) AS IrTypeName,
+               CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive, p.EZPay AS EzPay
           FROM dbo.PriceProtectionDetails p
          WHERE p.ModelID = @ModelId
          ORDER BY p.ProgramDate DESC;
     ELSE
         SELECT p.ProgramID AS ProgramId, p.BatchID AS BatchId, p.Reimbursement, p.InstantRebate,
                p.MAPDrop AS MapPrice, p.ProgramStartWeek AS StartDate, p.ProgramEndWeek AS EndDate,
-               p.ExpireOn, p.IRType, t.Name AS IRTypeName,
-               CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive, CAST(NULL AS money) AS EZPay
+               p.ExpireOn, p.IRType AS IrType, t.Name AS IrTypeName,
+               CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive, CAST(NULL AS money) AS EzPay
           FROM dbo.RebateProgramDetail p
           LEFT JOIN dbo.RebateType t ON t.ID = p.IRType
          WHERE p.ModelID = @ModelId
@@ -131,6 +133,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_FindProCodes
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SET @Q = NULLIF(LTRIM(RTRIM(@Q)), N'');
     IF @Q IS NULL RETURN;
 
@@ -165,6 +168,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_SaveProduct
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     DECLARE @pp int = CASE WHEN @Rail = 'PP' THEN 1 ELSE 0 END;
     SET @Description = NULLIF(LTRIM(RTRIM(@Description)), N'');
@@ -278,6 +282,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_SetProductActive
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
@@ -307,6 +312,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_SetStacks
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     DECLARE @pp int = (SELECT IsPriceProtection FROM dbo.RebateCameraModels WHERE ModelID = @ModelId);
     IF @pp IS NULL

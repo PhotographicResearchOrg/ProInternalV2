@@ -271,7 +271,7 @@
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
   </None>
-  <None Update="Templates\Rebates\*.pdf">
+  <None Update="Templates\Rebates\**\*.*">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
   </None>
