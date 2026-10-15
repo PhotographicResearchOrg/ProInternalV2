@@ -219,6 +219,8 @@ BEGIN
     SELECT u.UploadId, u.VendorId, v.VendorName, u.FileId, u.FileName, u.SheetName, u.HeaderRow,
            u.Fingerprint, u.TemplateId, u.MappingSource, u.DefaultRebateType, u.ExpireOn, u.StartActive,
            u.Status, u.BatchId, u.CreatedBy, u.CreatedAt, u.LoadedBy, u.LoadedAt, u.CancelledBy, u.CancelReason,
+           u.PadPct, u.VendorSharePct,
+           SUM(CASE WHEN r.Status = 'PURGATORY' AND r.Problems LIKE '%"NO_MODEL"%' AND r.ProposedName IS NOT NULL AND r.ProductCode IS NOT NULL THEN 1 ELSE 0 END) AS RowsCreatable,
            SUM(CASE WHEN r.Status = 'READY' THEN 1 ELSE 0 END)     AS RowsReady,
            SUM(CASE WHEN r.Status = 'PURGATORY' THEN 1 ELSE 0 END) AS RowsPurgatory,
            SUM(CASE WHEN r.Status = 'LOADED' THEN 1 ELSE 0 END)    AS RowsLoaded,
@@ -230,9 +232,12 @@ BEGIN
      WHERE u.UploadId = @UploadId
      GROUP BY u.UploadId, u.VendorId, v.VendorName, u.FileId, u.FileName, u.SheetName, u.HeaderRow,
               u.Fingerprint, u.TemplateId, u.MappingSource, u.DefaultRebateType, u.ExpireOn, u.StartActive,
-              u.Status, u.BatchId, u.CreatedBy, u.CreatedAt, u.LoadedBy, u.LoadedAt, u.CancelledBy, u.CancelReason;
+              u.Status, u.BatchId, u.CreatedBy, u.CreatedAt, u.LoadedBy, u.LoadedAt, u.CancelledBy, u.CancelReason,
+              u.PadPct, u.VendorSharePct;
 
-    SELECT r.RowId, r.SourceRow, r.Raw, r.ProCode, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice,
+    SELECT r.RowId, r.SourceRow, r.Raw, r.ProCode, r.VendorSku, r.Upc, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice,
+           r.ProPad, r.Reimbursement + COALESCE(r.ProPad, 0) AS MemberAmount,
+           r.ProductCode, r.ProductName, r.StackCodes, r.ProposedName,
            r.StartDate, r.EndDate, r.StackProduct, r.RebateType, r.Notes, r.ModelId,
            m.ModelNumber AS ModelDescription, m.ModelName AS ModelProCode, r.ModelChosenBy,
            r.StackModelId, sm.ModelNumber AS StackDescription,
@@ -260,106 +265,296 @@ BEGIN
     DECLARE @vendor int = (SELECT VendorId FROM piv2.RebateUpload WHERE UploadId = @UploadId);
     DECLARE @defaultType int = (SELECT DefaultRebateType FROM piv2.RebateUpload WHERE UploadId = @UploadId);
 
-    /* ---- Disposition: which rebate model each row is for ----
-       A model a person picked is kept. Otherwise the candidates are instant-rebate models
-       (IsPriceProtection = 0), found the way the legacy upload and PIV2GetDispositionModelId do:
-         1 PRO code in RebateCameraModelsDetails
-         2 PRO code as RebateCameraModels.ModelName (also inside a comma list of codes)
-         3 description = ModelNumber
-         4 the same, ignoring spaces
-       This vendor's models win over other vendors'; then the lowest level wins.
-       Exactly one model at the winning level is the disposition. Several are AMBIGUOUS:
-       the row waits in purgatory with the candidates until a person picks one. */
-    IF OBJECT_ID('tempdb..#cand') IS NOT NULL DROP TABLE #cand;
-    CREATE TABLE #cand (RowId bigint NOT NULL, Target char(1) NOT NULL, ModelId int NOT NULL, RankKey int NOT NULL);
-
-    INSERT #cand (RowId, Target, ModelId, RankKey)
-    SELECT r.RowId, 'M', x.ModelID, CASE WHEN x.VendorID = @vendor THEN 0 ELSE 10 END + x.Pri
-      FROM piv2.RebateUploadRow r
-     CROSS APPLY
-     (
-        SELECT m.ModelID, 1 AS Pri, m.VendorID
-          FROM dbo.RebateCameraModelsDetails d
-          JOIN dbo.RebateCameraModels m ON m.ModelID = d.ParentModelID AND m.IsPriceProtection = 0
-         WHERE TRY_CONVERT(int, r.ProCode) IS NOT NULL AND d.ProCode = TRY_CONVERT(int, r.ProCode)
-        UNION
-        SELECT m.ModelID, 2, m.VendorID
-          FROM dbo.RebateCameraModels m
-         WHERE m.IsPriceProtection = 0 AND r.ProCode IS NOT NULL
-           AND (LTRIM(RTRIM(m.ModelName)) = r.ProCode
-                OR N',' + REPLACE(m.ModelName, N' ', N'') + N',' LIKE N'%,' + r.ProCode + N',%')
-        UNION
-        SELECT m.ModelID, 3, m.VendorID
-          FROM dbo.RebateCameraModels m
-         WHERE m.IsPriceProtection = 0 AND r.Description IS NOT NULL
-           AND UPPER(LTRIM(RTRIM(m.ModelNumber))) = UPPER(r.Description)
-        UNION
-        SELECT m.ModelID, 4, m.VendorID
-          FROM dbo.RebateCameraModels m
-         WHERE m.IsPriceProtection = 0 AND r.Description IS NOT NULL
-           AND REPLACE(UPPER(m.ModelNumber), N' ', N'') = REPLACE(UPPER(r.Description), N' ', N'')
-     ) x
-     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND r.ModelChosenBy IS NULL;
-
-    /* The stack product column: a PRO code, matched the same way (levels 1 and 2). */
-    INSERT #cand (RowId, Target, ModelId, RankKey)
-    SELECT r.RowId, 'S', x.ModelID, CASE WHEN x.VendorID = @vendor THEN 0 ELSE 10 END + x.Pri
-      FROM piv2.RebateUploadRow r
-     CROSS APPLY
-     (
-        SELECT m.ModelID, 1 AS Pri, m.VendorID
-          FROM dbo.RebateCameraModelsDetails d
-          JOIN dbo.RebateCameraModels m ON m.ModelID = d.ParentModelID AND m.IsPriceProtection = 0
-         WHERE TRY_CONVERT(int, r.StackProduct) IS NOT NULL AND d.ProCode = TRY_CONVERT(int, r.StackProduct)
-        UNION
-        SELECT m.ModelID, 2, m.VendorID
-          FROM dbo.RebateCameraModels m
-         WHERE m.IsPriceProtection = 0 AND r.StackProduct IS NOT NULL
-           AND (LTRIM(RTRIM(m.ModelName)) = r.StackProduct
-                OR N',' + REPLACE(m.ModelName, N' ', N'') + N',' LIKE N'%,' + r.StackProduct + N',%')
-     ) x
-     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
-
-    ;WITH best AS
-    (
-        SELECT c.RowId, c.Target, c.ModelId
-          FROM #cand c
-         WHERE c.RankKey = (SELECT MIN(c2.RankKey) FROM #cand c2 WHERE c2.RowId = c.RowId AND c2.Target = c.Target)
-    ),
-    pick AS
-    (
-        SELECT RowId, Target, MIN(ModelId) AS ModelId, COUNT(DISTINCT ModelId) AS Models
-          FROM best GROUP BY RowId, Target
-    )
-    UPDATE r
-       SET ModelId      = CASE WHEN r.ModelChosenBy IS NOT NULL THEN r.ModelId
-                               WHEN pm.Models = 1 THEN pm.ModelId END,
-           StackModelId = CASE WHEN ps.Models = 1 THEN ps.ModelId END
-      FROM piv2.RebateUploadRow r
-      LEFT JOIN pick pm ON pm.RowId = r.RowId AND pm.Target = 'M'
-      LEFT JOIN pick ps ON ps.RowId = r.RowId AND ps.Target = 'S'
-     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
+    DECLARE @padPct decimal(5,2) = (SELECT PadPct FROM piv2.RebateUpload WHERE UploadId = @UploadId);
+    DECLARE @prefix nvarchar(20) = (SELECT NULLIF(LTRIM(RTRIM(CatalogPrefix)), N'') FROM piv2.RebateVendorTerms WHERE VendorId = @vendor);
+    DECLARE @brands varchar(200) = (SELECT NULLIF(LTRIM(RTRIM(BrandIds)), '') FROM piv2.RebateVendorTerms WHERE VendorId = @vendor);
 
     IF OBJECT_ID('tempdb..#problem') IS NOT NULL DROP TABLE #problem;
     CREATE TABLE #problem (RowId bigint NOT NULL, Code varchar(40) NOT NULL, Message nvarchar(800) NOT NULL);
 
-    /* Several equally good models: list them so the person can pick. */
-    ;WITH best AS
+    /* ---- 1. PRO products, from [PRO].dbo.Product (no Computyme) ----
+       Only the products this upload's rows can refer to are read: their PRO codes, SKUs
+       (as sent, with the vendor's catalog prefix, and loosely without dashes, spaces,
+       dots and underscores) and UPCs (compared as numbers, so leading zeros do not matter),
+       limited to the vendor's brands when its terms name them. */
+    IF OBJECT_ID('tempdb..#want') IS NOT NULL DROP TABLE #want;
+    CREATE TABLE #want (Kind char(1) NOT NULL, Value nvarchar(200) NOT NULL);
+
+    INSERT #want (Kind, Value)
+    SELECT DISTINCT k.Kind, k.Value
+      FROM piv2.RebateUploadRow r
+     CROSS APPLY
+     (
+        SELECT 'C' AS Kind, LTRIM(RTRIM(x.value)) AS Value FROM STRING_SPLIT(REPLACE(COALESCE(r.ProCode, N''), N'+', N','), ',') x
+        UNION ALL SELECT 'C', LTRIM(RTRIM(x.value)) FROM STRING_SPLIT(REPLACE(COALESCE(r.StackProduct, N''), N'+', N','), ',') x
+        UNION ALL SELECT 'S', UPPER(LTRIM(RTRIM(r.VendorSku)))
+        UNION ALL SELECT 'S', UPPER(COALESCE(@prefix, N'') + LTRIM(RTRIM(r.VendorSku)))
+        UNION ALL SELECT 'S', UPPER(LTRIM(RTRIM(x.value))) FROM STRING_SPLIT(REPLACE(COALESCE(r.StackProduct, N''), N'+', N','), ',') x
+        UNION ALL SELECT 'S', UPPER(COALESCE(@prefix, N'') + LTRIM(RTRIM(x.value))) FROM STRING_SPLIT(REPLACE(COALESCE(r.StackProduct, N''), N'+', N','), ',') x
+        UNION ALL SELECT 'K', REPLACE(REPLACE(REPLACE(REPLACE(UPPER(LTRIM(RTRIM(r.VendorSku))), N'-', N''), N' ', N''), N'_', N''), N'.', N'')
+        UNION ALL SELECT 'K', REPLACE(REPLACE(REPLACE(REPLACE(UPPER(COALESCE(@prefix, N'') + LTRIM(RTRIM(r.VendorSku))), N'-', N''), N' ', N''), N'_', N''), N'.', N'')
+        UNION ALL SELECT 'U', CONVERT(nvarchar(30), TRY_CONVERT(decimal(20, 0), r.Upc))
+     ) k
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND NULLIF(k.Value, N'') IS NOT NULL;
+
+    IF OBJECT_ID('tempdb..#pk') IS NOT NULL DROP TABLE #pk;
+    CREATE TABLE #pk
     (
-        SELECT c.RowId, c.Target, c.ModelId
-          FROM #cand c
-         WHERE c.RankKey = (SELECT MIN(c2.RankKey) FROM #cand c2 WHERE c2.RowId = c.RowId AND c2.Target = c.Target)
-    )
+        ProductCode nvarchar(20)  NOT NULL,
+        ModelName   nvarchar(400) NULL,
+        CatNo       nvarchar(200) NULL,
+        CatKey      nvarchar(200) NULL,
+        UpcKey      nvarchar(30)  NULL,
+        Rank_       int           NOT NULL      -- active and not discontinued first
+    );
+
+    INSERT #pk (ProductCode, ModelName, CatNo, CatKey, UpcKey, Rank_)
+    SELECT x.ProductCode, x.ModelName, x.CatNo, x.CatKey, x.UpcKey, x.Rank_
+      FROM
+      (
+        SELECT CAST(p.ProductCode AS nvarchar(20)) AS ProductCode, LEFT(LTRIM(RTRIM(p.ModelName)), 400) AS ModelName,
+               LEFT(UPPER(LTRIM(RTRIM(p.CAT_NO))), 200) AS CatNo,
+               LEFT(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(LTRIM(RTRIM(p.CAT_NO))), N'-', N''), N' ', N''), N'_', N''), N'.', N''), 200) AS CatKey,
+               CONVERT(nvarchar(30), TRY_CONVERT(decimal(20, 0), p.UPC)) AS UpcKey,
+               CASE WHEN COALESCE(p.IsActive, 0) = 1 AND COALESCE(p.IsDiscontinued, 0) = 0 THEN 0 ELSE 1 END AS Rank_
+          FROM [PRO].dbo.Product p
+         WHERE p.ProductCode IS NOT NULL
+           AND (@brands IS NULL OR p.BrandId IN (SELECT TRY_CAST(value AS int) FROM STRING_SPLIT(@brands, ',')))
+      ) x
+     WHERE x.ProductCode IN (SELECT Value FROM #want WHERE Kind = 'C')
+        OR x.CatNo IN (SELECT Value FROM #want WHERE Kind = 'S')
+        OR x.CatKey IN (SELECT Value FROM #want WHERE Kind = 'K')
+        OR x.UpcKey IN (SELECT Value FROM #want WHERE Kind = 'U');
+
+    CREATE INDEX IX_pk_code ON #pk (ProductCode);
+
+    /* Rows that name their PRO code(s): a comma list rolls several products (colours) into one rebate product. */
+    IF OBJECT_ID('tempdb..#match') IS NOT NULL DROP TABLE #match;
+    CREATE TABLE #match (RowId bigint NOT NULL, ProductCode nvarchar(20) NOT NULL, Pri int NOT NULL, Seq int NOT NULL, Rank_ int NOT NULL);
+
+    INSERT #match (RowId, ProductCode, Pri, Seq, Rank_)
+    SELECT r.RowId, k.ProductCode, 1, x.Seq, MIN(k.Rank_)
+      FROM piv2.RebateUploadRow r
+     CROSS APPLY (SELECT LTRIM(RTRIM(value)) AS Code, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS Seq
+                    FROM STRING_SPLIT(REPLACE(r.ProCode, N'+', N','), ',') WHERE LTRIM(RTRIM(value)) <> N'') x
+      JOIN #pk k ON k.ProductCode = x.Code
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND r.ProCode IS NOT NULL
+     GROUP BY r.RowId, k.ProductCode, x.Seq;
+
+    /* PRO codes the row names that PRO does not have. */
     INSERT #problem (RowId, Code, Message)
-    SELECT b.RowId,
-           CASE b.Target WHEN 'M' THEN 'AMBIGUOUS_MODEL' ELSE 'AMBIGUOUS_STACK' END,
-           CONCAT(CASE b.Target WHEN 'M' THEN N'Several rebate models match; pick one: '
-                                         ELSE N'Several rebate models match the stack product; fix the code: ' END,
-                  STRING_AGG(CONCAT(m.ModelID, N' ', m.ModelNumber, CASE WHEN m.Active = 0 THEN N' (retired)' ELSE N'' END), N'; '))
-      FROM best b
-      JOIN dbo.RebateCameraModels m ON m.ModelID = b.ModelId
-     GROUP BY b.RowId, b.Target
-    HAVING COUNT(DISTINCT b.ModelId) > 1;
+    SELECT r.RowId, 'NO_PRODUCT', CONCAT(N'PRO code ', x.Code, N' is not a PRO product', CASE WHEN @brands IS NOT NULL THEN N' of this vendor''s brands' ELSE N'' END, N'.')
+      FROM piv2.RebateUploadRow r
+     CROSS APPLY (SELECT LTRIM(RTRIM(value)) AS Code FROM STRING_SPLIT(REPLACE(r.ProCode, N'+', N','), ',') WHERE LTRIM(RTRIM(value)) <> N'') x
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND r.ProCode IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM #pk k WHERE k.ProductCode = x.Code);
+
+    /* Otherwise the vendor's SKU and UPC: catalog number with PRO's prefix, as sent, loosely, then UPC. */
+    INSERT #match (RowId, ProductCode, Pri, Seq, Rank_)
+    SELECT r.RowId, x.ProductCode, x.Pri, 1, x.Rank_
+      FROM piv2.RebateUploadRow r
+     CROSS APPLY
+     (
+        SELECT k.ProductCode, 2 AS Pri, k.Rank_ FROM #pk k
+         WHERE @prefix IS NOT NULL AND r.VendorSku IS NOT NULL AND k.CatNo = UPPER(@prefix + LTRIM(RTRIM(r.VendorSku)))
+        UNION
+        SELECT k.ProductCode, 3, k.Rank_ FROM #pk k
+         WHERE r.VendorSku IS NOT NULL AND k.CatNo = UPPER(LTRIM(RTRIM(r.VendorSku)))
+        UNION
+        SELECT k.ProductCode, 4, k.Rank_ FROM #pk k
+         WHERE r.VendorSku IS NOT NULL
+           AND k.CatKey IN (REPLACE(REPLACE(REPLACE(REPLACE(UPPER(COALESCE(@prefix, N'') + LTRIM(RTRIM(r.VendorSku))), N'-', N''), N' ', N''), N'_', N''), N'.', N''),
+                            REPLACE(REPLACE(REPLACE(REPLACE(UPPER(LTRIM(RTRIM(r.VendorSku))), N'-', N''), N' ', N''), N'_', N''), N'.', N''))
+        UNION
+        SELECT k.ProductCode, 5, k.Rank_ FROM #pk k
+         WHERE r.Upc IS NOT NULL AND k.UpcKey = CONVERT(nvarchar(30), TRY_CONVERT(decimal(20, 0), r.Upc))
+     ) x
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND r.ProCode IS NULL;
+
+    /* The products each row resolved to: a named list as given; a SKU/UPC match at its best level,
+       active products first. Two different products at that level are ambiguous. */
+    IF OBJECT_ID('tempdb..#res') IS NOT NULL DROP TABLE #res;
+    SELECT m.RowId, m.ProductCode, m.Seq
+      INTO #res
+      FROM #match m
+     WHERE m.Pri = 1
+        OR (m.Pri = (SELECT MIN(m2.Pri) FROM #match m2 WHERE m2.RowId = m.RowId)
+            AND m.Rank_ = (SELECT MIN(m3.Rank_) FROM #match m3 WHERE m3.RowId = m.RowId
+                            AND m3.Pri = (SELECT MIN(m4.Pri) FROM #match m4 WHERE m4.RowId = m.RowId)));
+
+    INSERT #problem (RowId, Code, Message)
+    SELECT x.RowId, 'AMBIGUOUS_PRODUCT',
+           LEFT(CONCAT(N'Several PRO products match; enter the PRO code (or several, comma separated, to roll them up): ',
+                       STRING_AGG(CAST(CONCAT(x.ProductCode, N' ', LEFT(k.ModelName, 50)) AS nvarchar(max)), N'; ')), 790)
+      FROM (SELECT DISTINCT RowId, ProductCode FROM #res) x
+      JOIN piv2.RebateUploadRow r ON r.RowId = x.RowId AND r.ProCode IS NULL
+      JOIN (SELECT ProductCode, MAX(ModelName) AS ModelName FROM #pk GROUP BY ProductCode) k ON k.ProductCode = x.ProductCode
+     GROUP BY x.RowId
+    HAVING COUNT(*) > 1;
+
+    UPDATE r
+       SET ProductCode = CASE WHEN r.ProCode IS NOT NULL
+                              THEN (SELECT LEFT(STRING_AGG(x.ProductCode, N',') WITHIN GROUP (ORDER BY x.Seq), 200)
+                                      FROM (SELECT DISTINCT ProductCode, Seq FROM #res WHERE RowId = r.RowId) x)
+                              WHEN (SELECT COUNT(DISTINCT ProductCode) FROM #res WHERE RowId = r.RowId) = 1
+                              THEN (SELECT MIN(ProductCode) FROM #res WHERE RowId = r.RowId) END
+      FROM piv2.RebateUploadRow r
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
+
+    UPDATE r
+       SET ProductName = (SELECT TOP (1) k.ModelName FROM #pk k
+                           WHERE k.ProductCode = LEFT(r.ProductCode, CHARINDEX(N',', r.ProductCode + N',') - 1) ORDER BY k.Rank_)
+      FROM piv2.RebateUploadRow r
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
+
+    INSERT #problem (RowId, Code, Message)
+    SELECT r.RowId, 'NO_PRODUCT',
+           CONCAT(N'No PRO product matches',
+                  CASE WHEN r.VendorSku IS NOT NULL THEN CONCAT(N' SKU ', r.VendorSku, CASE WHEN @prefix IS NOT NULL THEN CONCAT(N' (as ', @prefix, r.VendorSku, N')') ELSE N'' END) ELSE N'' END,
+                  CASE WHEN r.Upc IS NOT NULL THEN CONCAT(N' or UPC ', r.Upc) ELSE N'' END,
+                  CASE WHEN r.VendorSku IS NULL AND r.Upc IS NULL THEN N': the row has no PRO code, SKU or UPC' ELSE N'' END,
+                  N'. Enter the PRO code, or set the vendor''s catalog prefix in vendor terms.')
+      FROM piv2.RebateUploadRow r
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY')
+       AND r.ProCode IS NULL AND r.ProductCode IS NULL
+       AND NOT EXISTS (SELECT 1 FROM #problem p WHERE p.RowId = r.RowId AND p.Code = 'AMBIGUOUS_PRODUCT');
+
+    /* Instant-rebate products, once, with the keys the disposition compares on. A "combo" name
+       (trade-in, WITH ...) is never the plain IR product of a PRO code. */
+    IF OBJECT_ID('tempdb..#models') IS NOT NULL DROP TABLE #models;
+    SELECT m.ModelID,
+           UPPER(LTRIM(RTRIM(m.ModelNumber))) AS NumKey,
+           REPLACE(UPPER(LTRIM(RTRIM(m.ModelNumber))), N' ', N'') AS NumNoSpace,
+           UPPER(LTRIM(RTRIM(m.ModelName))) AS NameKey,
+           COALESCE(m.Active, 0) AS Active,
+           CASE WHEN m.ModelNumber LIKE N'% TRADE-IN TRADE-UP%' OR m.ModelNumber LIKE N'% WITH %' THEN 1 ELSE 0 END AS IsCombo
+      INTO #models
+      FROM dbo.RebateCameraModels m
+     WHERE m.IsPriceProtection = 0;
+    CREATE INDEX IX_models_num ON #models (NumKey);
+    CREATE INDEX IX_models_nospace ON #models (NumNoSpace);
+    CREATE INDEX IX_models_name ON #models (NameKey);
+
+    /* ---- 2. Stack products: PRO codes or vendor SKUs, separated by , or + ---- */
+    IF OBJECT_ID('tempdb..#stack') IS NOT NULL DROP TABLE #stack;
+    SELECT r.RowId, x.Seq, x.Token,
+           (SELECT TOP (1) k.ProductCode FROM #pk k
+             WHERE k.ProductCode = x.Token
+                OR (@prefix IS NOT NULL AND k.CatNo = UPPER(@prefix + x.Token))
+                OR k.CatNo = UPPER(x.Token)
+             ORDER BY CASE WHEN k.ProductCode = x.Token THEN 0 ELSE 1 END, k.Rank_) AS ProductCode
+      INTO #stack
+      FROM piv2.RebateUploadRow r
+     CROSS APPLY (SELECT LTRIM(RTRIM(value)) AS Token, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS Seq
+                    FROM STRING_SPLIT(REPLACE(r.StackProduct, N'+', N','), ',') WHERE LTRIM(RTRIM(value)) <> N'') x
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND r.StackProduct IS NOT NULL;
+
+    INSERT #problem (RowId, Code, Message)
+    SELECT RowId, 'STACK_UNKNOWN', CONCAT(N'No PRO product matches stack product ', Token, N'.')
+      FROM #stack WHERE ProductCode IS NULL;
+
+    /* A bundle or free-with-purchase row names what it comes with; without it the name is incomplete. */
+    INSERT #problem (RowId, Code, Message)
+    SELECT r.RowId, 'NO_STACK', N'A bundle or free-with-purchase row needs its stack product (the PRO code or SKU it comes with).'
+      FROM piv2.RebateUploadRow r
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY')
+       AND COALESCE(r.RebateType, @defaultType) IN (4, 7) AND r.StackProduct IS NULL;
+
+    UPDATE r
+       SET StackCodes = (SELECT LEFT(STRING_AGG(s.ProductCode, N',') WITHIN GROUP (ORDER BY s.Seq), 200) FROM #stack s
+                          WHERE s.RowId = r.RowId AND s.ProductCode IS NOT NULL),
+           /* The stack product's own plain IR product, for the RebateQualifiers link at load. */
+           StackModelId = (SELECT TOP (1) d.ParentModelID
+                             FROM #stack s
+                             JOIN dbo.RebateCameraModelsDetails d ON CAST(d.ProCode AS nvarchar(20)) = s.ProductCode
+                             JOIN #models m ON m.ModelID = d.ParentModelID AND m.IsCombo = 0
+                            WHERE s.RowId = r.RowId AND s.ProductCode IS NOT NULL
+                            ORDER BY s.Seq, m.Active DESC, m.ModelID DESC)
+      FROM piv2.RebateUploadRow r
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
+
+    /* ---- 3. The rebate product name, by the naming rule set (RebateIrController) ----
+         IR (2)                 ModelName
+         Trade-in trade-up (3)  ModelName TRADE-IN TRADE-UP
+         Bundle (4), FWP (7)    ModelName WITH stack WITH stack ...   (no name until every stack resolves)
+         Coupon (5)             ModelName WITH COUPON CODE
+         Social media (6)       ModelName WITH SOCIAL MEDIA */
+    UPDATE r
+       SET ProposedName =
+           CASE WHEN r.ProductName IS NULL THEN NULL
+                WHEN COALESCE(r.RebateType, @defaultType) IN (4, 7)
+                     AND (r.StackProduct IS NULL OR EXISTS (SELECT 1 FROM #stack s WHERE s.RowId = r.RowId AND s.ProductCode IS NULL)) THEN NULL
+                ELSE
+             LEFT(REPLACE(REPLACE(LTRIM(RTRIM(
+                r.ProductName +
+                CASE COALESCE(r.RebateType, @defaultType)
+                     WHEN 3 THEN N' TRADE-IN TRADE-UP'
+                     WHEN 4 THEN COALESCE(sn.Chain, N'')
+                     WHEN 7 THEN COALESCE(sn.Chain, N'')
+                     WHEN 5 THEN N' WITH COUPON CODE'
+                     WHEN 6 THEN N' WITH SOCIAL MEDIA'
+                     ELSE N'' END)), N'   ', N' '), N'  ', N' '), 400)
+           END
+      FROM piv2.RebateUploadRow r
+     OUTER APPLY
+     (
+        SELECT STRING_AGG(CAST(N' WITH ' + LTRIM(RTRIM(k.ModelName)) AS nvarchar(max)), N'') WITHIN GROUP (ORDER BY s.Seq) AS Chain
+          FROM #stack s
+          CROSS APPLY (SELECT TOP (1) ModelName FROM #pk WHERE ProductCode = s.ProductCode ORDER BY Rank_) k
+         WHERE s.RowId = r.RowId AND s.ProductCode IS NOT NULL
+     ) sn
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
+
+    /* ---- 4. Disposition, in PIV2GetDispositionModelId's order ----
+       A product a person picked is kept. Otherwise:
+         1 the rule-set name: ModelNumber exactly, then ignoring spaces
+         2 plain IR rows only: the file's description the same two ways, then the PRO code
+           through RebateCameraModelsDetails (never a combo-named product)
+         3 the rule-set name as ModelName
+       A trade-in, bundle, coupon or social row must find its own named product, never the IR one.
+       Ties go to active products, then the newest, as the procedure does. */
+    UPDATE r
+       SET ModelId = CASE WHEN r.ModelChosenBy IS NOT NULL THEN r.ModelId ELSE d.ModelID END
+      FROM piv2.RebateUploadRow r
+     OUTER APPLY
+     (
+        SELECT TOP (1) x.ModelID
+          FROM
+          (
+            SELECT m.ModelID, 11 AS Pri, m.Active FROM #models m
+             WHERE r.ProposedName IS NOT NULL AND m.NumKey = UPPER(LTRIM(RTRIM(r.ProposedName)))
+            UNION ALL
+            SELECT m.ModelID, 12, m.Active FROM #models m
+             WHERE r.ProposedName IS NOT NULL AND m.NumNoSpace = REPLACE(UPPER(LTRIM(RTRIM(r.ProposedName))), N' ', N'')
+            UNION ALL
+            SELECT m.ModelID, 21, m.Active FROM #models m
+             WHERE COALESCE(r.RebateType, @defaultType) = 2 AND r.Description IS NOT NULL AND m.IsCombo = 0
+               AND m.NumKey = UPPER(LTRIM(RTRIM(r.Description)))
+            UNION ALL
+            SELECT m.ModelID, 22, m.Active FROM #models m
+             WHERE COALESCE(r.RebateType, @defaultType) = 2 AND r.Description IS NOT NULL AND m.IsCombo = 0
+               AND m.NumNoSpace = REPLACE(UPPER(LTRIM(RTRIM(r.Description))), N' ', N'')
+            UNION ALL
+            SELECT dd.ParentModelID, 30, m.Active
+              FROM dbo.RebateCameraModelsDetails dd
+              JOIN #models m ON m.ModelID = dd.ParentModelID AND m.IsCombo = 0
+             WHERE COALESCE(r.RebateType, @defaultType) = 2
+               AND r.ProductCode IS NOT NULL
+               AND dd.ProCode = TRY_CAST(LEFT(r.ProductCode, CHARINDEX(N',', r.ProductCode + N',') - 1) AS int)
+            UNION ALL
+            SELECT m.ModelID, 40, m.Active FROM #models m
+             WHERE r.ProposedName IS NOT NULL AND m.NameKey = UPPER(LTRIM(RTRIM(r.ProposedName)))
+          ) x
+         ORDER BY x.Pri, x.Active DESC, x.ModelID DESC
+     ) d
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
+
+    /* ---- 5. Amounts: PRO's pad on combo rows (Bundle, Free with purchase), % of the vendor share ---- */
+    UPDATE r
+       SET ProPad = CASE WHEN COALESCE(r.RebateType, @defaultType) IN (4, 7) AND COALESCE(@padPct, 0) > 0 AND r.Reimbursement > 0
+                         THEN ROUND(r.Reimbursement * @padPct / 100.0, 2) ELSE 0 END
+      FROM piv2.RebateUploadRow r
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
 
     INSERT #problem (RowId, Code, Message)
     SELECT r.RowId, 'MODEL_RETIRED', CONCAT(N'Rebate model ', m.ModelID, N' (', m.ModelNumber, N') is retired. Reactivate it in Products or pick another.')
@@ -367,26 +562,20 @@ BEGIN
       JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelId
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND COALESCE(m.Active, 0) = 0;
 
-    INSERT #problem (RowId, Code, Message)
-    SELECT r.RowId, 'STACK_UNKNOWN', CONCAT(N'No rebate model matches stack product ', r.StackProduct, N'.')
-      FROM piv2.RebateUploadRow r
-     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY')
-       AND r.StackProduct IS NOT NULL AND r.StackModelId IS NULL
-       AND NOT EXISTS (SELECT 1 FROM #problem p WHERE p.RowId = r.RowId AND p.Code = 'AMBIGUOUS_STACK');
-
     ;WITH r AS
     (
-        SELECT RowId, ProCode, Description, ModelId, StartDate, EndDate, InstantRebate, Reimbursement, MapPrice,
+        SELECT RowId, ProCode, Description, ModelId, StartDate, EndDate, InstantRebate, Reimbursement, MapPrice, ProposedName,
                COALESCE(RebateType, @defaultType) AS IRType
           FROM piv2.RebateUploadRow
          WHERE UploadId = @UploadId AND Status IN ('READY', 'PURGATORY')
     )
     INSERT #problem (RowId, Code, Message)
     SELECT RowId, 'NO_MODEL',
-           CONCAT(N'No rebate model matches PRO code ', COALESCE(ProCode, N'(blank)'),
-                  CASE WHEN Description IS NOT NULL THEN CONCAT(N' or "', LEFT(Description, 80), N'"') ELSE N'' END, N'.')
+           CASE WHEN ProposedName IS NOT NULL
+                THEN CONCAT(N'No rebate product named "', LEFT(ProposedName, 200), N'" yet. Create it (one click), or pick an existing one.')
+                ELSE N'No rebate product matches. Resolve the PRO product first.' END
       FROM r WHERE ModelId IS NULL
-       AND NOT EXISTS (SELECT 1 FROM #problem p WHERE p.RowId = r.RowId AND p.Code = 'AMBIGUOUS_MODEL')
+       AND NOT EXISTS (SELECT 1 FROM #problem p WHERE p.RowId = r.RowId AND p.Code IN ('NO_PRODUCT', 'AMBIGUOUS_PRODUCT', 'NO_STACK', 'STACK_UNKNOWN'))
     UNION ALL
     SELECT RowId, 'NO_DATES', N'Start date and end date are both required.'
       FROM r WHERE StartDate IS NULL OR EndDate IS NULL
@@ -394,7 +583,7 @@ BEGIN
     SELECT RowId, 'DATES_REVERSED', N'The start date is after the end date.'
       FROM r WHERE StartDate > EndDate
     UNION ALL
-    SELECT RowId, 'BAD_REIMBURSEMENT', N'Member reimbursement must be more than zero.'
+    SELECT RowId, 'BAD_REIMBURSEMENT', N'The vendor reimbursement (what PRO claims back) must be more than zero.'
       FROM r WHERE Reimbursement IS NULL OR Reimbursement <= 0
     UNION ALL
     SELECT RowId, 'NEGATIVE_AMOUNT', N'Instant rebate and MAP cannot be negative.'
@@ -440,9 +629,9 @@ BEGIN
     INSERT #problem (RowId, Code, Message)
     SELECT r.RowId,
            CASE WHEN p.ProgramStartWeek = r.StartDate AND p.ProgramEndWeek = r.EndDate
-                     AND ROUND(p.Reimbursement, 2) = r.Reimbursement THEN 'ALREADY_LOADED' ELSE 'OVERLAP' END,
+                     AND ROUND(p.Reimbursement, 2) = r.Reimbursement + COALESCE(r.ProPad, 0) THEN 'ALREADY_LOADED' ELSE 'OVERLAP' END,
            CONCAT(CASE WHEN p.ProgramStartWeek = r.StartDate AND p.ProgramEndWeek = r.EndDate
-                            AND ROUND(p.Reimbursement, 2) = r.Reimbursement
+                            AND ROUND(p.Reimbursement, 2) = r.Reimbursement + COALESCE(r.ProPad, 0)
                        THEN N'Already loaded and live: program ' ELSE N'Overlaps live program ' END,
                   p.ProgramID, COALESCE(CONCAT(N' in batch ', p.BatchID), N''),
                   N' (', CONVERT(nvarchar(10), p.ProgramStartWeek, 23), N' to ', CONVERT(nvarchar(10), p.ProgramEndWeek, 23), N').')
@@ -484,6 +673,8 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_SetMapping
     @DefaultRebateType int = NULL,
     @ExpireOn          date = NULL,
     @StartActive       bit = 1,
+    @PadPct            decimal(5,2) = NULL,
+    @VendorSharePct    decimal(5,2) = NULL,
     @Rows              nvarchar(max),
     @Actor             nvarchar(100)
 AS
@@ -506,10 +697,11 @@ BEGIN
     DELETE FROM piv2.RebateUploadRow WHERE UploadId = @UploadId;
 
     INSERT piv2.RebateUploadRow
-        (UploadId, SourceRow, Raw, ProCode, Description, InstantRebate, Reimbursement, MapPrice,
+        (UploadId, SourceRow, Raw, ProCode, VendorSku, Upc, Description, InstantRebate, Reimbursement, MapPrice,
          StartDate, EndDate, StackProduct, RebateType, Notes, Status)
     SELECT @UploadId, j.SourceRow, COALESCE(j.Raw, N'{}'),
-           NULLIF(LTRIM(RTRIM(j.ProCode)), N''), NULLIF(LTRIM(RTRIM(j.Description)), N''),
+           NULLIF(LTRIM(RTRIM(j.ProCode)), N''), NULLIF(LTRIM(RTRIM(j.VendorSku)), N''), NULLIF(LTRIM(RTRIM(j.Upc)), N''),
+           NULLIF(LTRIM(RTRIM(j.Description)), N''),
            j.InstantRebate, j.Reimbursement, j.MapPrice, j.StartDate, j.EndDate,
            NULLIF(LTRIM(RTRIM(j.StackProduct)), N''), j.RebateType, NULLIF(LTRIM(RTRIM(j.Notes)), N''),
            'PURGATORY'
@@ -519,6 +711,8 @@ BEGIN
           SourceRow      int            '$.sourceRow',
           Raw            nvarchar(max)  '$.raw' AS JSON,
           ProCode        nvarchar(50)   '$.proCode',
+          VendorSku      nvarchar(100)  '$.vendorSku',
+          Upc            nvarchar(20)   '$.upc',
           Description    nvarchar(400)  '$.description',
           InstantRebate  decimal(19,2)  '$.instantRebate',
           Reimbursement  decimal(19,2)  '$.reimbursement',
@@ -534,6 +728,7 @@ BEGIN
        SET SheetName = @SheetName, HeaderRow = @HeaderRow, Fingerprint = @Fingerprint,
            TemplateId = @TemplateId, MappingSource = @MappingSource,
            DefaultRebateType = @DefaultRebateType, ExpireOn = @ExpireOn, StartActive = @StartActive,
+           PadPct = @PadPct, VendorSharePct = @VendorSharePct,
            Status = 'REVIEW'
      WHERE UploadId = @UploadId;
 
@@ -610,6 +805,9 @@ GO
 CREATE OR ALTER PROCEDURE piv2.Rebate_UpdateRow
     @RowId         bigint,
     @ProCode       nvarchar(50),
+    @VendorSku     nvarchar(100) = NULL,
+    @Upc           nvarchar(20) = NULL,
+    @StackProduct  nvarchar(400) = NULL,
     @Description   nvarchar(400),
     @InstantRebate decimal(19,2),
     @Reimbursement decimal(19,2),
@@ -642,6 +840,8 @@ BEGIN
 
     UPDATE piv2.RebateUploadRow
        SET ProCode = NULLIF(LTRIM(RTRIM(@ProCode)), N''), Description = NULLIF(LTRIM(RTRIM(@Description)), N''),
+           VendorSku = NULLIF(LTRIM(RTRIM(@VendorSku)), N''), Upc = NULLIF(LTRIM(RTRIM(@Upc)), N''),
+           StackProduct = NULLIF(LTRIM(RTRIM(@StackProduct)), N''),
            InstantRebate = @InstantRebate, Reimbursement = @Reimbursement, MapPrice = @MapPrice,
            StartDate = @StartDate, EndDate = @EndDate, RebateType = @RebateType,
            Notes = NULLIF(LTRIM(RTRIM(@Notes)), N''),
@@ -755,6 +955,70 @@ BEGIN
      WHERE r.RowId = @RowId;
 END
 GO
+/* ---------------------------------------------------------------
+   Creates the rebate products the rule set named but that do not
+   exist yet, for an upload's purgatory rows (or the chosen ones),
+   one product per name with the row's PRO code(s). Then checks again.
+   --------------------------------------------------------------- */
+CREATE OR ALTER PROCEDURE piv2.Rebate_CreateMissingProducts
+    @UploadId int,
+    @Actor    nvarchar(100),
+    @RowIds   nvarchar(max) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @vendor int = (SELECT VendorId FROM piv2.RebateUpload WHERE UploadId = @UploadId);
+    IF @vendor IS NULL
+        THROW 50707, 'That upload does not exist.', 1;
+
+    DECLARE @chosen TABLE (RowId bigint PRIMARY KEY);
+    IF @RowIds IS NOT NULL
+        INSERT @chosen SELECT DISTINCT TRY_CAST(value AS bigint) FROM STRING_SPLIT(@RowIds, ',') WHERE TRY_CAST(value AS bigint) IS NOT NULL;
+
+    BEGIN TRAN;
+
+    DECLARE @want TABLE (Name nvarchar(400) PRIMARY KEY, Codes nvarchar(200) NOT NULL);
+
+    INSERT @want (Name, Codes)
+    SELECT r.ProposedName, MIN(r.ProductCode)
+      FROM piv2.RebateUploadRow r
+     WHERE r.UploadId = @UploadId AND r.Status = 'PURGATORY' AND r.ModelId IS NULL
+       AND r.ProposedName IS NOT NULL AND r.ProductCode IS NOT NULL
+       AND (@RowIds IS NULL OR r.RowId IN (SELECT RowId FROM @chosen))
+       AND NOT EXISTS (SELECT 1 FROM dbo.RebateCameraModels m
+                        WHERE m.IsPriceProtection = 0
+                          AND REPLACE(UPPER(LTRIM(RTRIM(m.ModelNumber))), N' ', N'') = REPLACE(UPPER(LTRIM(RTRIM(r.ProposedName))), N' ', N''))
+     GROUP BY r.ProposedName;
+
+    DECLARE @made TABLE (ModelId int, Name nvarchar(400), Codes nvarchar(200));
+
+    MERGE dbo.RebateCameraModels AS t
+    USING @want AS w ON 1 = 0
+    WHEN NOT MATCHED THEN
+        INSERT (ModelNumber, ModelName, ModelColor, VendorID, Active, ProductGroupID, IsPriceProtection, OrderID, SerialNumbersRequired)
+        VALUES (LEFT(w.Name, 255), LEFT(w.Codes, CHARINDEX(N',', w.Codes + N',') - 1), N'None', @vendor, 1, NULL, 0, NULL, 0)
+    OUTPUT inserted.ModelID, w.Name, w.Codes INTO @made (ModelId, Name, Codes);
+
+    INSERT dbo.RebateCameraModelsDetails (ParentModelID, ProCode, ProDescription, ProColor)
+    SELECT m.ModelId, TRY_CAST(LTRIM(RTRIM(c.value)) AS int), LEFT(m.Name, 255), LEFT(m.Name, 255)
+      FROM @made m
+     CROSS APPLY STRING_SPLIT(m.Codes, ',') c
+     WHERE TRY_CAST(LTRIM(RTRIM(c.value)) AS int) IS NOT NULL;
+
+    INSERT piv2.RebateEvent (EventType, UploadId, ModelId, Actor, Detail)
+    SELECT 'PRODUCT_ADDED', @UploadId, m.ModelId, @Actor,
+           (SELECT m.Name AS description, m.Codes AS proCodes, 'naming rule set' AS source FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)
+      FROM @made m;
+
+    EXEC piv2.Rebate_ValidateUpload @UploadId;
+
+    COMMIT;
+
+    SELECT (SELECT COUNT(*) FROM @made) AS Created;
+END
+GO
 
 CREATE OR ALTER PROCEDURE piv2.Rebate_Purgatory
     @VendorId int = NULL
@@ -767,6 +1031,7 @@ BEGIN
            r.ProCode, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice,
            r.StartDate, r.EndDate, r.StackProduct, r.RebateType, u.DefaultRebateType, r.Notes, r.Problems,
            r.ModelId, m.ModelNumber AS ModelDescription, r.ModelChosenBy,
+           r.VendorSku, r.Upc, r.ProductCode, r.ProductName, r.StackCodes, r.ProposedName, r.ProPad, r.Raw,
            r.UpdatedBy, r.UpdatedAt, u.CreatedAt AS UploadedAt
       FROM piv2.RebateUploadRow r
       JOIN piv2.RebateUpload u ON u.UploadId = r.UploadId
@@ -830,8 +1095,8 @@ BEGIN
     MERGE dbo.RebateProgramDetail AS t
     USING
     (
-        SELECT r.RowId, r.ModelId, r.InstantRebate, r.Reimbursement, r.MapPrice, r.StartDate, r.EndDate,
-               COALESCE(r.RebateType, @defaultType) AS IRType
+        SELECT r.RowId, r.ModelId, r.InstantRebate, r.Reimbursement + COALESCE(r.ProPad, 0) AS MemberAmount, r.MapPrice,
+               r.StartDate, r.EndDate, COALESCE(r.RebateType, @defaultType) AS IRType
           FROM piv2.RebateUploadRow r
          WHERE r.UploadId = @UploadId AND r.Status = 'READY'
            AND (@RowIds IS NULL OR r.RowId IN (SELECT RowId FROM @chosen))
@@ -840,7 +1105,7 @@ BEGIN
     WHEN NOT MATCHED BY TARGET THEN
         INSERT (ModelID, InstantRebate, Reimbursement, MAPDrop, ProgramStartWeek, ProgramEndWeek,
                 Expired, ExpireOn, IRType, BatchID)
-        VALUES (s.ModelId, s.InstantRebate, s.Reimbursement, s.MapPrice, s.StartDate, s.EndDate,
+        VALUES (s.ModelId, s.InstantRebate, s.MemberAmount, s.MapPrice, s.StartDate, s.EndDate,
                 CASE WHEN @startActive = 1 THEN 0 ELSE 1 END, @expireOn, s.IRType, @batch)
     OUTPUT s.RowId, inserted.ProgramID INTO @map (RowId, ProgramId);
 
@@ -848,6 +1113,11 @@ BEGIN
        SET Status = 'LOADED', ProgramId = m.ProgramId, UpdatedBy = @Actor, UpdatedAt = SYSUTCDATETIME()
       FROM piv2.RebateUploadRow r
       JOIN @map m ON m.RowId = r.RowId;
+
+    /* What the member amount is made of: the vendor's share (claimed back) and PRO's pad (not). */
+    INSERT piv2.RebateProgramTerms (ProgramId, MemberAmount, ModelId, VendorShare, ProPad, UpdatedBy)
+    SELECT m.ProgramId, r.Reimbursement + COALESCE(r.ProPad, 0), r.ModelId, r.Reimbursement, COALESCE(r.ProPad, 0), @Actor
+      FROM @map m JOIN piv2.RebateUploadRow r ON r.RowId = m.RowId;
 
     /* A stack product in the file becomes a qualifier link (row's model qualifies with the stack model), once. */
     INSERT dbo.RebateQualifiers (PROQualifierID, PROAssociatedID, PROAssociatedName)
@@ -970,6 +1240,7 @@ BEGIN
     SELECT p.ProgramID AS ProgramId, p.BatchID AS BatchId, p.ModelID AS ModelId,
            m.ModelName AS ProCode, m.ModelNumber AS Description, v.VendorName,
            p.InstantRebate, p.Reimbursement, p.MAPDrop AS MapPrice,
+           COALESCE(pt.VendorShare, p.Reimbursement) AS VendorShare, COALESCE(pt.ProPad, 0) AS ProPad,
            p.ProgramStartWeek AS StartDate, p.ProgramEndWeek AS EndDate, p.ExpireOn,
            p.IRType AS IrType, t.Name AS IrTypeName, CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive,
            p.DateEntered AS EnteredAt
@@ -977,6 +1248,7 @@ BEGIN
       JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
       LEFT JOIN dbo.RebateType t ON t.ID = p.IRType
+      LEFT JOIN piv2.RebateProgramTerms pt ON pt.ProgramId = p.ProgramID AND pt.MemberAmount = ROUND(p.Reimbursement, 2)
      WHERE p.BatchID = @BatchId
      ORDER BY m.ModelNumber;
 END
@@ -1133,7 +1405,8 @@ GO
 CREATE OR ALTER PROCEDURE piv2.Rebate_ChangeProgram
     @ProgramId     int,
     @InstantRebate decimal(19,2),
-    @Reimbursement decimal(19,2),
+    @VendorShare   decimal(19,2),          -- claimed back from the vendor per unit
+    @ProPad        decimal(19,2) = 0,      -- PRO's own money per unit; member amount = share + pad
     @MapPrice      decimal(19,2),
     @Actor         nvarchar(100),
     @Reason        nvarchar(500)
@@ -1142,33 +1415,47 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
+    SET @ProPad = COALESCE(@ProPad, 0);
+
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
-    IF @Reimbursement IS NULL OR @Reimbursement <= 0
-        THROW 50719, 'Member reimbursement must be more than zero.', 1;
-    IF @InstantRebate < 0 OR @MapPrice < 0
-        THROW 50720, 'Instant rebate and MAP cannot be negative.', 1;
+    IF @VendorShare IS NULL OR @VendorShare < 0 OR @VendorShare + @ProPad <= 0
+        THROW 50719, 'The member amount (vendor share + PRO pad) must be more than zero.', 1;
+    IF @InstantRebate < 0 OR @MapPrice < 0 OR @ProPad < 0
+        THROW 50720, 'Instant rebate, PRO pad and MAP cannot be negative.', 1;
 
     BEGIN TRAN;
 
-    DECLARE @batch int, @before nvarchar(max);
-    SELECT @batch = BatchID,
-           @before = (SELECT InstantRebate AS instantRebate, Reimbursement AS reimbursement, MAPDrop AS mapPrice
-                        FROM dbo.RebateProgramDetail WHERE ProgramID = @ProgramId FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)
-      FROM dbo.RebateProgramDetail WITH (UPDLOCK)
-     WHERE ProgramID = @ProgramId;
+    DECLARE @batch int, @model int, @before nvarchar(max);
+    SELECT @batch = p.BatchID, @model = p.ModelID,
+           @before = (SELECT p2.InstantRebate AS instantRebate, p2.Reimbursement AS memberAmount,
+                             COALESCE(t.VendorShare, p2.Reimbursement) AS vendorShare, COALESCE(t.ProPad, 0) AS proPad, p2.MAPDrop AS mapPrice
+                        FROM dbo.RebateProgramDetail p2
+                        LEFT JOIN piv2.RebateProgramTerms t ON t.ProgramId = p2.ProgramID AND t.MemberAmount = ROUND(p2.Reimbursement, 2)
+                       WHERE p2.ProgramID = @ProgramId FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)
+      FROM dbo.RebateProgramDetail p WITH (UPDLOCK)
+     WHERE p.ProgramID = @ProgramId;
 
     IF @before IS NULL
         THROW 50721, 'That program does not exist.', 1;
 
     UPDATE dbo.RebateProgramDetail
-       SET InstantRebate = @InstantRebate, Reimbursement = @Reimbursement, MAPDrop = @MapPrice
+       SET InstantRebate = @InstantRebate, Reimbursement = @VendorShare + @ProPad, MAPDrop = @MapPrice
      WHERE ProgramID = @ProgramId;
 
+    /* A row per amount: claims already made at the old amount keep finding the old split. */
+    MERGE piv2.RebateProgramTerms AS t
+    USING (SELECT @ProgramId AS ProgramId, @VendorShare + @ProPad AS MemberAmount) AS s
+       ON t.ProgramId = s.ProgramId AND t.MemberAmount = s.MemberAmount
+    WHEN MATCHED THEN UPDATE SET VendorShare = @VendorShare, ProPad = @ProPad, UpdatedBy = @Actor, UpdatedAt = SYSUTCDATETIME()
+    WHEN NOT MATCHED THEN INSERT (ProgramId, MemberAmount, ModelId, VendorShare, ProPad, UpdatedBy)
+         VALUES (@ProgramId, @VendorShare + @ProPad, @model, @VendorShare, @ProPad, @Actor);
+
     INSERT piv2.RebateEvent (EventType, BatchId, ProgramId, ModelId, Actor, Reason, Detail)
-    VALUES ('PROGRAM_CHANGED', @batch, @ProgramId, (SELECT ModelID FROM dbo.RebateProgramDetail WHERE ProgramID = @ProgramId), @Actor, @Reason,
+    VALUES ('PROGRAM_CHANGED', @batch, @ProgramId, @model, @Actor, @Reason,
             (SELECT JSON_QUERY(@before) AS [before],
-                    JSON_QUERY((SELECT @InstantRebate AS instantRebate, @Reimbursement AS reimbursement, @MapPrice AS mapPrice
+                    JSON_QUERY((SELECT @InstantRebate AS instantRebate, @VendorShare + @ProPad AS memberAmount,
+                                       @VendorShare AS vendorShare, @ProPad AS proPad, @MapPrice AS mapPrice
                                 FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)) AS [after]
               FOR JSON PATH, WITHOUT_ARRAY_WRAPPER));
 

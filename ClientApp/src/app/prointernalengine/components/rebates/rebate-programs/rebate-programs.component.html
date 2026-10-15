@@ -40,7 +40,7 @@
       <thead>
         <tr *ngIf="rail === 'IR'">
           <th>Product</th><th>Vendor</th><th>Type</th><th>Dates</th>
-          <th class="num">Reimb.</th><th class="num">IR</th><th class="num">MAP</th><th>Batch</th><th>State</th>
+          <th class="num">Member</th><th class="num">IR</th><th class="num">MAP</th><th>Batch</th><th>State</th>
         </tr>
         <tr *ngIf="rail === 'PP'">
           <th>Product</th><th>Vendor</th><th>Date</th>
@@ -54,7 +54,7 @@
           <ng-container *ngIf="rail === 'IR'">
             <td>{{ p.irTypeName }}</td>
             <td class="mono">{{ p.startDate | date:'MM/dd/yy' }} – {{ p.endDate | date:'MM/dd/yy' }}</td>
-            <td class="money">{{ p.reimbursement | currency }}</td>
+            <td class="money">{{ p.reimbursement | currency }}<div class="sub" *ngIf="p.proPad">incl. {{ p.proPad | currency }} PRO</div></td>
             <td class="money">{{ p.instantRebate | currency }}</td>
             <td class="money">{{ p.mapPrice | currency }}</td>
             <td class="mono">{{ p.batchId || '—' }}</td>
@@ -99,7 +99,9 @@
     <h3 class="sub" style="margin: 6px 0">{{ rail === 'IR' ? 'Amounts' : 'Price protection' }}</h3>
     <div class="field-grid">
       <ng-container *ngIf="rail === 'IR'">
-        <label>Reimbursement <input class="in num" type="number" step="0.01" [(ngModel)]="edit.reimbursement" [class.dirty]="+edit.reimbursement !== +selected.reimbursement" /></label>
+        <label>Vendor share <input class="in num" type="number" step="0.01" [(ngModel)]="edit.vendorShare" [class.dirty]="+edit.vendorShare !== +(selected.vendorShare ?? selected.reimbursement)" /></label>
+        <label>PRO pad <input class="in num" type="number" step="0.01" min="0" [(ngModel)]="edit.proPad" [class.dirty]="+edit.proPad !== +(selected.proPad ?? 0)" /></label>
+        <label>Member gets <input class="in num" [value]="memberAmount | currency" disabled /></label>
         <label>Instant rebate <input class="in num" type="number" step="0.01" [(ngModel)]="edit.instantRebate" [class.dirty]="+edit.instantRebate !== +selected.instantRebate" /></label>
         <label>MAP <input class="in num" type="number" step="0.01" [(ngModel)]="edit.mapPrice" [class.dirty]="+edit.mapPrice !== +selected.mapPrice" /></label>
       </ng-container>
@@ -155,7 +157,8 @@
         <label>Rebate type
           <select class="in" [(ngModel)]="add.irType"><option *ngFor="let t of types" [ngValue]="t.rebateTypeId">{{ t.name }}</option></select>
         </label>
-        <label>Reimbursement <input class="in num" type="number" step="0.01" [(ngModel)]="add.reimbursement" /></label>
+        <label>Vendor share <input class="in num" type="number" step="0.01" [(ngModel)]="add.reimbursement" /></label>
+        <label>PRO pad <input class="in num" type="number" step="0.01" min="0" [(ngModel)]="add.proPad" /></label>
         <label>Instant rebate <input class="in num" type="number" step="0.01" [(ngModel)]="add.instantRebate" /></label>
         <label>MAP <input class="in num" type="number" step="0.01" [(ngModel)]="add.mapPrice" /></label>
         <label>Start <input class="in" type="date" [(ngModel)]="add.startDate" /></label>

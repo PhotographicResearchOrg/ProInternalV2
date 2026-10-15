@@ -29,11 +29,18 @@ export class RebateVendorsComponent implements OnChanges {
   error = '';
 
   selected: any = null;
+  terms: any = null;
+  termsSaved = '';
+  types: any[] = [];
+  termsBusy = false;
+  termsNotice = '';
   products: any[] = [];
   openClaims: any[] = [];
   detailLoading = false;
 
-  constructor(private desk: RebateDeskService) {}
+  constructor(private desk: RebateDeskService) {
+    this.desk.types().subscribe(t => (this.types = t));
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['rail']) { this.selected = null; this.refresh(); }
@@ -64,10 +71,10 @@ export class RebateVendorsComponent implements OnChanges {
         vendorName: key, parentCompany: null, members: [] as string[], isGroup: !!v.parentCompany,
         productsActive: 0, programsLive: 0, programsCurrent: 0, programsUpcoming: 0,
         submittedAmount: 0, submittedClaims: 0, approvedAmount: 0, approvedClaims: 0, openLiability: 0,
-        unbilledAmount: 0, unbilledClaims: 0, sentAmount: 0, declinedAmount: 0, oldestOpenClaim: null
+        unbilledAmount: 0, unbilledClaims: 0, sentAmount: 0, declinedAmount: 0, proPadAmount: 0, oldestOpenClaim: null
       };
       for (const k of ['productsActive', 'programsLive', 'programsCurrent', 'programsUpcoming', 'submittedAmount', 'submittedClaims',
-        'approvedAmount', 'approvedClaims', 'openLiability', 'unbilledAmount', 'unbilledClaims', 'sentAmount', 'declinedAmount'])
+        'approvedAmount', 'approvedClaims', 'openLiability', 'unbilledAmount', 'unbilledClaims', 'sentAmount', 'declinedAmount', 'proPadAmount'])
         g[k] += +v[k] || 0;
       g.members.push(v.vendorName);
       if (v.oldestOpenClaim && (!g.oldestOpenClaim || v.oldestOpenClaim < g.oldestOpenClaim)) g.oldestOpenClaim = v.oldestOpenClaim;
@@ -78,7 +85,7 @@ export class RebateVendorsComponent implements OnChanges {
   }
 
   get totals(): any {
-    const t = { openLiability: 0, submittedAmount: 0, approvedAmount: 0, unbilledAmount: 0, sentAmount: 0, programsLive: 0 };
+    const t = { openLiability: 0, submittedAmount: 0, approvedAmount: 0, unbilledAmount: 0, sentAmount: 0, programsLive: 0, proPadAmount: 0 };
     for (const v of this.vendors) for (const k of Object.keys(t)) (t as any)[k] += +v[k] || 0;
     return t;
   }
@@ -87,12 +94,39 @@ export class RebateVendorsComponent implements OnChanges {
     if (!v.vendorId || v.isGroup) { this.byParent = false; this.q = v.vendorName; return; }
     this.selected = v;
     this.detailLoading = true;
+    this.terms = null;
+    this.termsNotice = '';
+    if (this.rail === 'IR')
+      this.desk.vendorTerms(v.vendorId).subscribe({
+        next: t => { this.terms = { ...t }; this.termsSaved = JSON.stringify(this.terms); },
+        error: () => (this.terms = null)
+      });
     this.desk.liability(this.rail, v.vendorId, this.from, this.to)
       .pipe(finalize(() => (this.detailLoading = false)))
       .subscribe({
         next: r => { this.products = r.products; this.openClaims = r.openClaims; },
         error: e => (this.error = apiMessage(e))
       });
+  }
+
+  get termsDirty(): boolean { return !!this.terms && JSON.stringify(this.terms) !== this.termsSaved; }
+
+  discardTerms(): void { this.terms = JSON.parse(this.termsSaved); }
+
+  saveTerms(): void {
+    if (!this.selected || !this.terms) return;
+    this.termsBusy = true;
+    this.termsNotice = '';
+    this.desk.saveVendorTerms(this.selected.vendorId, {
+      catalogPrefix: this.terms.catalogPrefix, brandIds: this.terms.brandIds,
+      vendorSharePct: this.terms.vendorSharePct === '' ? null : this.terms.vendorSharePct,
+      comboPadPct: this.terms.comboPadPct === '' ? null : this.terms.comboPadPct,
+      expireDays: this.terms.expireDays === '' ? null : this.terms.expireDays,
+      defaultRebateType: this.terms.defaultRebateType, notes: this.terms.notes
+    }).pipe(finalize(() => (this.termsBusy = false))).subscribe({
+      next: () => { this.termsSaved = JSON.stringify(this.terms); this.termsNotice = 'Saved. The next upload for this vendor uses these terms.'; },
+      error: e => (this.termsNotice = apiMessage(e))
+    });
   }
 
   daysOld(d: string | null): number | null {

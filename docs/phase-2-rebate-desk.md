@@ -33,14 +33,60 @@ All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.Rebate
 
 4. **Load.** Ready rows load as one batch. The batch number continues above the highest legacy `BatchID`. `Expired` is set explicitly: 0 = on, 1 = off. Stack products become `RebateQualifiers` links. Rows fixed in purgatory later load into the same batch.
 
-**Disposition** follows the legacy rule: a product is matched automatically only when exactly one fits. This vendor's products win over other vendors'. The match order is:
+**Matching a row to a PRO product.** Matching reads only `[PRO].dbo.Product` (`ProductCode`, `ModelName`, `CAT_NO`, `UPC`), never Computyme. It tries these in order:
 
-1. PRO code in `RebateCameraModelsDetails`
-2. PRO code as `ModelName`
-3. Description
-4. Description ignoring spaces
+1. PRO code(s), if the row has them. A comma list (e.g. `10080,10108`) rolls several colours into one rebate product.
+2. The vendor SKU with the vendor's **catalog prefix** added (e.g. SmallRig `4183B` → `SR_4183B`).
+3. The vendor SKU as sent.
+4. The vendor SKU ignoring dashes, spaces, dots and underscores.
+5. The UPC, compared as a number, so leading zeros don't matter.
 
-A product a person picks is kept.
+Active, non-discontinued products win. If two different products tie, the row waits as `AMBIGUOUS_PRODUCT` until someone enters the PRO code(s). Only the products the upload refers to are read, limited to the vendor's brands when its terms list them.
+
+**Naming rule set**, the same one as the existing PIV2 IR upload (`RebateIrController`):
+
+| Type | Rebate product name |
+| --- | --- |
+| IR | `ModelName` |
+| Trade-in trade-up | `ModelName TRADE-IN TRADE-UP` |
+| Bundle, Free with purchase | `ModelName WITH stack WITH stack …` (needs every stack product to resolve) |
+| Coupon | `ModelName WITH COUPON CODE` |
+| Social media | `ModelName WITH SOCIAL MEDIA` |
+
+**Disposition** uses the order of `PIV2GetDispositionModelId`:
+
+1. The rule-set name, exact, then ignoring spaces.
+2. For plain IR rows only: the file's description the same two ways, then the PRO code through `RebateCameraModelsDetails`. A trade-in, bundle, coupon or social row never lands on the IR product, and the PRO-code step never picks a combo-named product.
+3. The name as `ModelName`.
+
+A row with no product yet shows the name to create. **Create N rebate products** makes them all in one go, with their PRO codes, then checks again.
+
+**Vendor share and PRO pad.** The file's reimbursement is the **vendor share**: what PRO claims back. If the file has none, it's the vendor's standing % of the instant rebate. On combo rows (Bundle, Free with purchase), PRO adds a **pad** (% of the vendor share, from the vendor terms or the upload). The member amount written to `RebateProgramDetail.Reimbursement` is vendor share + pad, and that's what Connection shows and credits.
+
+The split is kept in `piv2.RebateProgramTerms`, one row per program and member amount, so a price change keeps the old split for claims made at the old amount. Debit memos and "not billed to vendor" use the vendor share only. The pad is shown separately as PRO's cost. Legacy programs, which have no terms row, are all vendor share.
+
+**Vendor terms** (Vendors → open a vendor):
+- catalog prefix
+- PRO brand ids to search
+- vendor share % (used when the file has no reimbursement column)
+- combo pad %
+- claim window in days (default 60)
+- default rebate type
+
+The next upload for that vendor pre-fills from them.
+
+**Dates for the whole file.** Many vendor files print the program dates above the table instead of in a column. The interview picks them up and they're editable:
+
+| Vendor | Printed as |
+| --- | --- |
+| Nanuk | "June 23 through June 30, 2026" |
+| ONA | "Prices Effective 5/24/26 – 6/21/26" |
+| OMDS | the Promotional Period cells |
+| DZO | "1st May – 15th May" |
+
+"Updated" dates and claim deadlines are ignored. Claim expiry = last end date + the vendor's claim window.
+
+**Vendor files:** a vendor sheet usually needs no edits beyond what the AI and the saved layout handle. A file with no usable column for something (Nanuk has no reimbursement, Panasonic is laid out by week) is fixed by adding or reshaping the column and uploading it again. The confirmed layout is saved for next time.
 
 ## After loading (Manage)
 
@@ -128,7 +174,8 @@ The old screens (`/rebatesupport`, `/uploadrebates`, `/rebatesetup`) still work.
 
 ## Verified here
 
-- Mapping: 17 cases pass. They cover the PIV2 template; a vendor sheet with title rows, `$` amounts, Excel serial dates and type names; "Vendor" not mistaken for an end date; footer totals dropped; CSV with quoted commas; `.xls` refused; AI answers with duplicates or out-of-range columns.
+- Mapping: 25 cases pass, including the dates printed in the Nanuk, ONA, OMDS and DZO files and SKU/UPC parsing. All six vendor files you sent were also run through the reader and header-name matching (without AI). SKU, UPC, description, dealer credit/reimbursement, MAP and dates map on OMDS, Nanuk, ONA and SmallRig. DZO needs its MSRP/promo columns named, and Panasonic needs reshaping from weekly columns.
+- Earlier (before the vendor-file work): mapping, 17 cases passed. They cover the PIV2 template; a vendor sheet with title rows, `$` amounts, Excel serial dates and type names; "Vendor" not mistaken for an end date; footer totals dropped; CSV with quoted commas; `.xls` refused; AI answers with duplicates or out-of-range columns.
 - The C# compiles against .NET 10 with stand-ins for Dapper, EPPlus, Bedrock, S3 and the SQL client. The full project was not compiled: NuGet is blocked here.
 - The Angular development build succeeds, with no warnings in the new files.
 - All SQL parses as T-SQL (sqlfluff). It was not run against a database.

@@ -17,8 +17,13 @@
     Stacks: dbo.RebateQualifiers, PROQualifierID = the model that qualifies,
     PROAssociatedID = the model it stacks with.
 
-    PRO codes are looked up in [PRO].dbo.ProductData (same server, as the
-    member site's SubmitRebate already does with [PRO].dbo.roster).
+    PRO codes are looked up in [PRO].dbo.Product, PRO's product view
+    (ProductCode, ModelName, CAT_NO, UPC), never in Computyme.
+
+    Names follow the naming rule set: the IR product is the PRO product's
+    ModelName; the trade-in, bundle, coupon, social and free-with-purchase
+    products are separate rebate products with their own names, and share
+    the PRO codes of the IR product.
 */
 
 USE PRO_NUKE;
@@ -92,8 +97,8 @@ BEGIN
     SELECT d.ID AS DetailId, d.ProCode, pd.ModelName AS ProModelName,
            CAST(CASE WHEN pd.ProductCode IS NULL THEN 0 ELSE 1 END AS bit) AS KnownToPro
       FROM dbo.RebateCameraModelsDetails d
-      OUTER APPLY (SELECT TOP (1) p.ProductCode, p.ModelName FROM [PRO].dbo.ProductData p
-                    WHERE p.ProductCode = CAST(d.ProCode AS varchar(20))) pd
+      OUTER APPLY (SELECT TOP (1) p.ProductCode, p.ModelName FROM [PRO].dbo.Product p
+                    WHERE CAST(p.ProductCode AS varchar(20)) = CAST(d.ProCode AS varchar(20))) pd
      WHERE d.ParentModelID = @ModelId
      ORDER BY d.ProCode;
 
@@ -137,15 +142,19 @@ BEGIN
     SET @Q = NULLIF(LTRIM(RTRIM(@Q)), N'');
     IF @Q IS NULL RETURN;
 
-    SELECT TOP (25) p.ProductCode, p.ModelName,
+    SELECT TOP (25) CAST(p.ProductCode AS varchar(20)) AS ProductCode, p.ModelName, p.CAT_NO AS CatalogNumber,
+           CAST(p.UPC AS varchar(20)) AS Upc, p.BrandId,
            CAST(COALESCE(p.IsDiscontinued, 0) AS bit) AS IsDiscontinued,
            (SELECT STRING_AGG(CONCAT(m.ModelID, N' ', m.ModelNumber,
                                      CASE WHEN m.IsPriceProtection = 1 THEN N' (price)' ELSE N' (rebate)' END), N'; ')
               FROM dbo.RebateCameraModelsDetails d JOIN dbo.RebateCameraModels m ON m.ModelID = d.ParentModelID
-             WHERE CAST(d.ProCode AS varchar(20)) = p.ProductCode) AS UsedBy
-      FROM [PRO].dbo.ProductData p
-     WHERE p.ProductCode LIKE @Q + N'%' OR p.ModelName LIKE N'%' + @Q + N'%'
-     ORDER BY CASE WHEN p.ProductCode = @Q THEN 0 ELSE 1 END, p.ProductCode;
+             WHERE CAST(d.ProCode AS varchar(20)) = CAST(p.ProductCode AS varchar(20))) AS UsedBy
+      FROM [PRO].dbo.Product p
+     WHERE CAST(p.ProductCode AS varchar(20)) LIKE @Q + N'%'
+        OR p.CAT_NO LIKE N'%' + @Q + N'%'
+        OR CAST(p.UPC AS varchar(20)) = @Q
+        OR p.ModelName LIKE N'%' + @Q + N'%'
+     ORDER BY CASE WHEN CAST(p.ProductCode AS varchar(20)) = @Q OR p.CAT_NO = @Q THEN 0 ELSE 1 END, p.ModelName;
 END
 GO
 
@@ -204,22 +213,11 @@ BEGIN
         THROW 50734, @dmsg, 1;
     END
 
-    /* The same PRO code on two live products of one rail makes uploads ambiguous: refuse adding one.
-       (Codes a product already has are left alone, so legacy duplicates do not block an edit.) */
-    DECLARE @clash nvarchar(400) =
-        (SELECT TOP (1) CONCAT(N'PRO code ', d.ProCode, N' already belongs to product ', m.ModelID, N' (', m.ModelNumber,
-                               N'). Remove it there first, or retire that product.')
-           FROM dbo.RebateCameraModelsDetails d
-           JOIN dbo.RebateCameraModels m ON m.ModelID = d.ParentModelID
-           JOIN @codes c ON c.ProCode = d.ProCode
-          WHERE m.IsPriceProtection = @pp AND COALESCE(m.Active, 0) = 1
-            AND (@ModelId IS NULL OR m.ModelID <> @ModelId)
-            AND NOT EXISTS (SELECT 1 FROM dbo.RebateCameraModelsDetails mine
-                             WHERE mine.ParentModelID = @ModelId AND mine.ProCode = c.ProCode));
-    IF @clash IS NOT NULL
-        THROW 50735, @clash, 1;
-
-    DECLARE @codeText nvarchar(255) = (SELECT STRING_AGG(CAST(ProCode AS nvarchar(20)), N',') WITHIN GROUP (ORDER BY ProCode) FROM @codes);
+    /* RebateCameraModels.ModelName holds the primary PRO code (the member site joins it to the catalog); the
+       details rows hold every code. The first code typed is the primary one. */
+    DECLARE @codeText nvarchar(255) =
+        (SELECT TOP (1) CAST(TRY_CAST(LTRIM(RTRIM(value)) AS int) AS nvarchar(20)) FROM STRING_SPLIT(COALESCE(@ProCodes, N''), ',')
+          WHERE TRY_CAST(LTRIM(RTRIM(value)) AS int) IS NOT NULL);
 
     BEGIN TRAN;
 
@@ -269,7 +267,7 @@ BEGIN
     SELECT @ModelId AS ModelId,
            (SELECT STRING_AGG(CAST(c.ProCode AS nvarchar(20)), N', ')
               FROM @codes c
-             WHERE NOT EXISTS (SELECT 1 FROM [PRO].dbo.ProductData p WHERE p.ProductCode = CAST(c.ProCode AS varchar(20)))) AS UnknownProCodes;
+             WHERE NOT EXISTS (SELECT 1 FROM [PRO].dbo.Product p WHERE CAST(p.ProductCode AS varchar(20)) = CAST(c.ProCode AS varchar(20)))) AS UnknownProCodes;
 END
 GO
 

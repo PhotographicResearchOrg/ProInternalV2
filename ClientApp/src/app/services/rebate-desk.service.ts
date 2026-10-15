@@ -6,9 +6,11 @@ import { ApiService } from './api.service';
 export type Rail = 'IR' | 'PP';
 
 export const REBATE_FIELDS: { key: string; label: string; required?: boolean }[] = [
-  { key: 'proCode', label: 'PRO code', required: true },
+  { key: 'vendorSku', label: 'Vendor SKU / item #', required: true },
+  { key: 'upc', label: 'UPC' },
+  { key: 'proCode', label: 'PRO code' },
   { key: 'description', label: 'Description' },
-  { key: 'reimbursement', label: 'Reimbursement', required: true },
+  { key: 'reimbursement', label: 'Reimbursement (vendor share)', required: true },
   { key: 'instantRebate', label: 'Instant rebate' },
   { key: 'mapPrice', label: 'MAP' },
   { key: 'startDate', label: 'Start date', required: true },
@@ -31,6 +33,12 @@ export interface MappingProposal {
   fingerprint: string;
   note?: string | null;
   suggestedExpireOn?: string | null;
+  vendorSharePct?: number | null;
+  padPct?: number | null;
+  defaultRebateType?: number | null;
+  catalogPrefix?: string | null;
+  fileStartDate?: string | null;
+  fileEndDate?: string | null;
 }
 
 export interface Problem { code: string; message: string; }
@@ -78,6 +86,11 @@ export class RebateDeskService {
   load(id: number, rowIds?: number[]): Observable<any> { return this.api.post(`${this.base}/uploads/${id}/load`, { rowIds: rowIds ?? [] }); }
   cancelUpload(id: number, reason: string): Observable<any> { return this.api.post(`${this.base}/uploads/${id}/cancel`, { reason }); }
   uploadFile(id: number): Observable<{ url: string }> { return this.api.get(`${this.base}/uploads/${id}/file`); }
+  createMissingProducts(id: number, rowIds?: number[]): Observable<{ created: number }> {
+    return this.api.post(`${this.base}/uploads/${id}/create-products`, { rowIds: rowIds ?? [] });
+  }
+  vendorTerms(vendorId: number): Observable<any> { return this.api.get(`${this.base}/vendors/${vendorId}/terms`); }
+  saveVendorTerms(vendorId: number, body: any): Observable<any> { return this.api.put(`${this.base}/vendors/${vendorId}/terms`, body); }
 
   /* ---- purgatory ---- */
   purgatory(vendorId?: number | null): Observable<any[]> { return this.api.get(`${this.base}/purgatory${this.q({ vendorId })}`); }

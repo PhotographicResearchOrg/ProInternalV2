@@ -88,6 +88,18 @@
       <label>Members can claim until
         <input class="in" type="date" [(ngModel)]="expireOn" />
       </label>
+      <label>Program start (rows with no date)
+        <input class="in" type="date" [(ngModel)]="fileStart" />
+      </label>
+      <label>Program end (rows with no date)
+        <input class="in" type="date" [(ngModel)]="fileEnd" />
+      </label>
+      <label>Vendor share, % of instant rebate
+        <input class="in num" type="number" min="0" max="100" step="0.01" [(ngModel)]="vendorSharePct" placeholder="only if no reimbursement column" />
+      </label>
+      <label>PRO pad on combo rows, % of vendor share
+        <input class="in num" type="number" min="0" max="100" step="0.01" [(ngModel)]="padPct" placeholder="e.g. 1" />
+      </label>
       <label>When loaded
         <select class="in" [(ngModel)]="startActive">
           <option [ngValue]="true">On: members see it</option>
@@ -95,7 +107,9 @@
         </select>
       </label>
     </div>
-    <div class="hint">Claim expiry defaults to the last end date in the file plus 60 days, as before.</div>
+    <div class="hint">Dates printed above the table are picked up for the whole file. Claim expiry is the last end date plus the vendor's claim window (60 days unless set).
+      The vendor share is what PRO claims back; the member gets the vendor share plus PRO's pad on combo rows (Bundle, Free with purchase). The pad is never on a debit memo.
+      <ng-container *ngIf="proposal.catalogPrefix"> SKUs match PRO catalog numbers with the prefix <b class="mono">{{ proposal.catalogPrefix }}</b>.</ng-container></div>
   </section>
 
   <div class="savebar">

@@ -120,6 +120,17 @@ namespace ProInternal.Controllers
         public Task<IActionResult> CancelUpload(int uploadId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_CancelUpload", new { UploadId = uploadId, Actor, Reason = body?.Reason ?? "" }));
 
+        /* Creates the rebate products the naming rule set calls for, for this upload's purgatory rows. */
+        [HttpPost("uploads/{uploadId:int}/create-products")]
+        [RequirePermission(UploadPermission, ManagePermission)]
+        public Task<IActionResult> CreateMissingProducts(int uploadId, [FromBody] RebateCreateProductsRequest? body) =>
+            Read(async () => (await _data.QueryAsync("piv2.Rebate_CreateMissingProducts", new
+            {
+                UploadId = uploadId,
+                Actor,
+                RowIds = body?.RowIds is { Count: > 0 } ids ? string.Join(",", ids) : null
+            })).FirstOrDefault());
+
         /* A short-lived link to the original vendor file on S3. */
         [HttpGet("uploads/{uploadId:int}/file")]
         public Task<IActionResult> UploadFile(int uploadId) =>
@@ -150,6 +161,9 @@ namespace ProInternal.Controllers
             {
                 RowId = rowId,
                 body.ProCode,
+                body.VendorSku,
+                body.Upc,
+                body.StackProduct,
                 body.Description,
                 body.InstantRebate,
                 body.Reimbursement,
@@ -175,6 +189,28 @@ namespace ProInternal.Controllers
         [RequirePermission(UploadPermission)]
         public Task<IActionResult> RestoreRow(long rowId) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_RestoreRow", new { RowId = rowId, Actor }));
+
+        /* ================= vendor terms ================= */
+
+        [HttpGet("vendors/{vendorId:int}/terms")]
+        public Task<IActionResult> VendorTerms(int vendorId) =>
+            Read(async () => (await _data.QueryAsync("piv2.Rebate_GetVendorTerms", new { VendorId = vendorId })).FirstOrDefault());
+
+        [HttpPut("vendors/{vendorId:int}/terms")]
+        [RequirePermission(ManagePermission)]
+        public Task<IActionResult> SaveVendorTerms(int vendorId, [FromBody] RebateVendorTermsRequest body) =>
+            Act(() => _data.ExecuteAsync("piv2.Rebate_SaveVendorTerms", new
+            {
+                VendorId = vendorId,
+                body.CatalogPrefix,
+                body.BrandIds,
+                body.VendorSharePct,
+                body.ComboPadPct,
+                body.ExpireDays,
+                body.DefaultRebateType,
+                body.Notes,
+                Actor
+            }));
 
         /* ================= templates ================= */
 
@@ -251,6 +287,7 @@ namespace ProInternal.Controllers
                 body.IRType,
                 body.InstantRebate,
                 body.Reimbursement,
+                body.ProPad,
                 body.MapPrice,
                 StartDate = body.StartDate.Date,
                 EndDate = body.EndDate.Date,
@@ -268,7 +305,8 @@ namespace ProInternal.Controllers
             {
                 ProgramId = programId,
                 body.InstantRebate,
-                body.Reimbursement,
+                body.VendorShare,
+                body.ProPad,
                 body.MapPrice,
                 Actor,
                 Reason = body.Reason ?? ""

@@ -7,12 +7,13 @@
     <button type="button" class="btn ghost" (click)="refresh()" [disabled]="loading"><i class="pi pi-refresh"></i> Refresh</button>
   </div>
 
-  <div class="stats" style="grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0 0 12px">
+  <div class="stats" style="grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0 0 12px">
     <div class="stat"><b class="warn">{{ totals.openLiability | currency:'USD':'symbol':'1.0-0' }}</b><span>open liability (members)</span></div>
     <div class="stat"><b>{{ totals.submittedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>submitted, not decided</span></div>
     <div class="stat"><b>{{ totals.approvedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>approved, not sent to Computyme</span></div>
     <div class="stat"><b class="bad">{{ totals.unbilledAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>approved, not billed to vendor</span></div>
     <div class="stat"><b class="ok">{{ totals.sentAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>credited in period</span></div>
+    <div class="stat"><b>{{ totals.proPadAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>PRO pad (PRO's cost)</span></div>
   </div>
 
   <div class="filters">
@@ -30,7 +31,7 @@
       <tr>
         <th>Vendor</th><th class="num">Products</th><th class="num">Live programs</th>
         <th class="num">Submitted</th><th class="num">Approved, unsent</th><th class="num">Open liability</th>
-        <th class="num">Not billed to vendor</th><th class="num">Credited</th><th>Oldest open</th>
+        <th class="num">Not billed to vendor</th><th class="num">PRO pad</th><th class="num">Credited</th><th>Oldest open</th>
       </tr>
     </thead>
     <tbody>
@@ -44,16 +45,38 @@
         <td class="money">{{ v.approvedAmount | currency }}<div class="sub">{{ v.approvedClaims }} claims</div></td>
         <td class="money"><b [class.warn]="v.openLiability > 0">{{ v.openLiability | currency }}</b></td>
         <td class="money"><span [class.bad]="v.unbilledAmount > 0">{{ v.unbilledAmount | currency }}</span><div class="sub">{{ v.unbilledClaims }} claims</div></td>
+        <td class="money">{{ v.proPadAmount | currency }}</td>
         <td class="money">{{ v.sentAmount | currency }}</td>
         <td class="mono">{{ v.oldestOpenClaim | date:'MM/dd/yy' }}<span class="sub" *ngIf="daysOld(v.oldestOpenClaim) as d"> · {{ d }} d</span></td>
       </tr>
-      <tr *ngIf="!shown.length && !loading"><td colspan="9" class="empty">No vendors match.</td></tr>
-      <tr *ngIf="loading"><td colspan="9" class="empty">Adding up claims…</td></tr>
+      <tr *ngIf="!shown.length && !loading"><td colspan="10" class="empty">No vendors match.</td></tr>
+      <tr *ngIf="loading"><td colspan="10" class="empty">Adding up claims…</td></tr>
     </tbody>
   </table>
 </section>
 
 <ng-container *ngIf="selected">
+  <section class="card" *ngIf="rail === 'IR' && terms">
+    <div class="card-head"><h2>{{ selected.vendorName }}: terms</h2><span class="sub">used by every upload for this vendor</span></div>
+    <div class="field-grid">
+      <label>Catalog prefix (PRO adds) <input class="in mono" [(ngModel)]="terms.catalogPrefix" placeholder="e.g. SR_" maxlength="20" /></label>
+      <label>PRO brand ids to search <input class="in mono" [(ngModel)]="terms.brandIds" placeholder="e.g. 73 (empty = all)" /></label>
+      <label>Vendor share, % of IR <input class="in num" type="number" min="0" max="100" step="0.01" [(ngModel)]="terms.vendorSharePct" placeholder="when the file has none" /></label>
+      <label>PRO pad on combo rows, % <input class="in num" type="number" min="0" max="100" step="0.01" [(ngModel)]="terms.comboPadPct" placeholder="e.g. 1" /></label>
+      <label>Claim window, days <input class="in num" type="number" min="0" max="365" [(ngModel)]="terms.expireDays" /></label>
+      <label>Default rebate type
+        <select class="in" [(ngModel)]="terms.defaultRebateType"><option [ngValue]="null">None</option><option *ngFor="let t of types" [ngValue]="t.rebateTypeId">{{ t.name }}</option></select>
+      </label>
+      <label class="wide">Notes <input class="in" [(ngModel)]="terms.notes" maxlength="1000" /></label>
+    </div>
+    <div class="hint">Vendor SKUs match PRO catalog numbers (CAT_NO) with the prefix added, then as sent, then ignoring dashes and spaces, then by UPC, in [PRO].dbo.Product.</div>
+    <div class="actions" style="margin-top: 10px" *ngIf="termsDirty || termsNotice">
+      <span class="sub grow">{{ termsNotice }}</span>
+      <button type="button" class="btn ghost" (click)="discardTerms()" *ngIf="termsDirty">Discard</button>
+      <button type="button" class="btn primary" (click)="saveTerms()" *ngIf="termsDirty" [disabled]="termsBusy">Save terms</button>
+    </div>
+  </section>
+
   <section class="card">
     <div class="card-head">
       <h2>{{ selected.vendorName }}: products</h2>

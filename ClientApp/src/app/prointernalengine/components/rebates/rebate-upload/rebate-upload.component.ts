@@ -44,6 +44,10 @@ export class RebateUploadComponent implements OnInit, OnChanges {
   defaultRebateType: number | null = null;
   expireOn = '';
   startActive = true;
+  fileStart = '';
+  fileEnd = '';
+  vendorSharePct: number | null = null;
+  padPct: number | null = null;
 
   busy = false;
   error = '';
@@ -109,6 +113,11 @@ export class RebateUploadComponent implements OnInit, OnChanges {
     this.original = { ...p.mapping };
     this.mapping = { ...p.mapping };
     if (!this.expireOn && p.suggestedExpireOn) this.expireOn = isoDate(p.suggestedExpireOn);
+    if (!this.fileStart && p.fileStartDate) this.fileStart = isoDate(p.fileStartDate);
+    if (!this.fileEnd && p.fileEndDate) this.fileEnd = isoDate(p.fileEndDate);
+    if (this.vendorSharePct == null && p.vendorSharePct != null) this.vendorSharePct = p.vendorSharePct;
+    if (this.padPct == null && p.padPct != null) this.padPct = p.padPct;
+    if (this.defaultRebateType == null && p.defaultRebateType != null) this.defaultRebateType = p.defaultRebateType;
     this.step = 2;
     this.dirtyChange.emit(true);
   }
@@ -131,10 +140,11 @@ export class RebateUploadComponent implements OnInit, OnChanges {
 
   missing(): string[] {
     const out: string[] = [];
-    if (this.mapping['proCode'] == null && this.mapping['description'] == null) out.push('PRO code (or description)');
-    if (this.mapping['reimbursement'] == null) out.push('Reimbursement');
-    if (this.mapping['startDate'] == null) out.push('Start date');
-    if (this.mapping['endDate'] == null) out.push('End date');
+    if (this.mapping['vendorSku'] == null && this.mapping['upc'] == null && this.mapping['proCode'] == null) out.push('Vendor SKU, UPC or PRO code');
+    if (this.mapping['reimbursement'] == null && !(this.vendorSharePct && this.mapping['instantRebate'] != null))
+      out.push('Reimbursement column (or a vendor share % with an instant rebate column)');
+    if (this.mapping['startDate'] == null && !this.fileStart) out.push('Start date (column or for the whole file)');
+    if (this.mapping['endDate'] == null && !this.fileEnd) out.push('End date (column or for the whole file)');
     if (this.mapping['rebateType'] == null && !this.defaultRebateType) out.push('Rebate type (column or default)');
     if (!this.expireOn) out.push('Claim expiry');
     return out;
@@ -153,7 +163,11 @@ export class RebateUploadComponent implements OnInit, OnChanges {
       edited: this.edited,
       defaultRebateType: this.defaultRebateType,
       expireOn: this.expireOn || null,
-      startActive: this.startActive
+      startActive: this.startActive,
+      defaultStartDate: this.fileStart || null,
+      defaultEndDate: this.fileEnd || null,
+      vendorSharePct: this.vendorSharePct,
+      padPct: this.padPct
     })
       .pipe(finalize(() => (this.busy = false)))
       .subscribe({
@@ -176,6 +190,10 @@ export class RebateUploadComponent implements OnInit, OnChanges {
     this.defaultRebateType = null;
     this.expireOn = '';
     this.startActive = true;
+    this.fileStart = '';
+    this.fileEnd = '';
+    this.vendorSharePct = null;
+    this.padPct = null;
     this.error = '';
     this.dirtyChange.emit(false);
   }

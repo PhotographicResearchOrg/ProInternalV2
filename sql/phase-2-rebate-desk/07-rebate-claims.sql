@@ -358,11 +358,21 @@ BEGIN
     INSERT @v SELECT DISTINCT TRY_CAST(value AS int) FROM STRING_SPLIT(@VendorIds, ',') WHERE TRY_CAST(value AS int) IS NOT NULL;
     DECLARE @toEx datetime = DATEADD(day, 1, CAST(@To AS datetime));
 
+    /* Catalog numbers for the products involved, read from the product view once. */
+    CREATE TABLE #cat (Code nvarchar(20) NOT NULL PRIMARY KEY, CatNo nvarchar(200) NULL);
+    INSERT #cat (Code, CatNo)
+    SELECT CAST(p.ProductCode AS nvarchar(20)), MAX(LEFT(p.CAT_NO, 200))
+      FROM [PRO].dbo.Product p
+     WHERE CAST(p.ProductCode AS nvarchar(20)) IN
+           (SELECT LTRIM(RTRIM(LEFT(m.ModelName, CHARINDEX(',', m.ModelName + ',') - 1)))
+              FROM dbo.RebateCameraModels m WHERE m.VendorID IN (SELECT VendorId FROM @v) AND m.ModelName IS NOT NULL)
+     GROUP BY CAST(p.ProductCode AS nvarchar(20));
+
     IF @Rail = 'PP'
     BEGIN
         WITH p AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY ID DESC) AS rn FROM dbo.PriceProtectionProcess)
         SELECT r.ORDERID AS OrderId, r.MemberID AS MemberId, m.VendorID AS VendorId, v.VendorName, r.ModelID AS ModelId,
-               m.ModelNumber AS Description, m.ModelName AS ProCode, iv.CAT_NO AS CatalogNumber, r.StringProgramWeek AS ProgramWeek,
+               m.ModelNumber AS Description, m.ModelName AS ProCode, iv.CatNo AS CatalogNumber, r.StringProgramWeek AS ProgramWeek,
                p.timeEnd AS ProcessedAt, SUM(r.Quantity) AS Quantity, r.ReimbursementAmount,
                SUM(CAST(COALESCE(r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2))) AS Extended
           FROM dbo.PriceProtectionRedeem r
@@ -370,10 +380,10 @@ BEGIN
           JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
           JOIN @v sel ON sel.VendorId = m.VendorID
           JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
-          LEFT JOIN eda.IVMST.IVMST iv ON iv.id = m.ModelName
+          LEFT JOIN #cat iv ON iv.Code = LTRIM(RTRIM(LEFT(m.ModelName, CHARINDEX(',', m.ModelName + ',') - 1)))
          WHERE p.Status = 1 AND COALESCE(p.Locked, 0) = 0 AND NULLIF(LTRIM(RTRIM(p.DM)), '') IS NULL AND COALESCE(r.Saved, 0) = 0
            AND p.timeEnd >= @From AND p.timeEnd < @toEx
-         GROUP BY r.ORDERID, r.MemberID, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CAT_NO,
+         GROUP BY r.ORDERID, r.MemberID, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CatNo,
                   r.StringProgramWeek, p.timeEnd, r.ReimbursementAmount
          ORDER BY r.MemberID, r.ORDERID, r.StringProgramWeek, r.ModelID;
     END
@@ -381,19 +391,29 @@ BEGIN
     BEGIN
         WITH p AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY ID DESC) AS rn FROM dbo.RebateProcess)
         SELECT r.ORDERID AS OrderId, r.MemberID AS MemberId, m.VendorID AS VendorId, v.VendorName, r.ModelID AS ModelId,
-               m.ModelNumber AS Description, m.ModelName AS ProCode, iv.CAT_NO AS CatalogNumber, r.StringProgramWeek AS ProgramWeek,
-               p.timeEnd AS ProcessedAt, SUM(r.Quantity) AS Quantity, r.ReimbursementAmount,
-               SUM(CAST(COALESCE(r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2))) AS Extended
+               m.ModelNumber AS Description, m.ModelName AS ProCode, iv.CatNo AS CatalogNumber, r.StringProgramWeek AS ProgramWeek,
+               p.timeEnd AS ProcessedAt, SUM(r.Quantity) AS Quantity,
+               COALESCE(vs.VendorShare, r.ReimbursementAmount) AS ReimbursementAmount,
+               r.ReimbursementAmount AS MemberAmount,
+               SUM(CAST(COALESCE(vs.VendorShare, r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2))) AS Extended
           FROM dbo.RebateRedeem r
           JOIN p ON p.OrderID = r.ORDERID AND p.rn = 1
+          OUTER APPLY (SELECT TOP (1) t.VendorShare
+                         FROM piv2.RebateProgramTerms t
+                         JOIN dbo.RebateProgramDetail pd ON pd.ProgramID = t.ProgramId
+                        WHERE t.ModelId = r.ModelID AND ABS(t.MemberAmount - r.ReimbursementAmount) < 0.005
+                          AND pd.ModelID = r.ModelID
+                          AND r.Date >= pd.ProgramStartWeek
+                          AND r.Date < DATEADD(day, 1, COALESCE(pd.ExpireOn, DATEADD(day, 120, pd.ProgramEndWeek)))
+                        ORDER BY pd.ProgramStartWeek DESC, t.UpdatedAt DESC) vs
           JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
           JOIN @v sel ON sel.VendorId = m.VendorID
           JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
-          LEFT JOIN eda.IVMST.IVMST iv ON iv.id = m.ModelName
+          LEFT JOIN #cat iv ON iv.Code = LTRIM(RTRIM(LEFT(m.ModelName, CHARINDEX(',', m.ModelName + ',') - 1)))
          WHERE p.Status = 1 AND COALESCE(p.Locked, 0) = 0 AND NULLIF(LTRIM(RTRIM(p.DM)), '') IS NULL AND COALESCE(r.Saved, 0) = 0
            AND p.timeEnd >= @From AND p.timeEnd < @toEx
-         GROUP BY r.ORDERID, r.MemberID, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CAT_NO,
-                  r.StringProgramWeek, p.timeEnd, r.ReimbursementAmount
+         GROUP BY r.ORDERID, r.MemberID, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CatNo,
+                  r.StringProgramWeek, p.timeEnd, r.ReimbursementAmount, vs.VendorShare
          ORDER BY r.MemberID, r.ORDERID, r.StringProgramWeek, r.ModelID;
     END
 END
@@ -462,8 +482,18 @@ BEGIN
     ELSE
     BEGIN
         UPDATE p SET DM = @DM FROM dbo.RebateProcess p JOIN @ids i ON i.OrderId = p.OrderID;
-        SELECT @total = SUM(CAST(COALESCE(r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2)))
-          FROM dbo.RebateRedeem r JOIN @ids i ON i.OrderId = r.ORDERID WHERE COALESCE(r.Saved, 0) = 0;
+        /* The vendor is billed its share only; PRO's pad is never on a debit memo. */
+        SELECT @total = SUM(CAST(COALESCE(vs.VendorShare, r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2)))
+          FROM dbo.RebateRedeem r JOIN @ids i ON i.OrderId = r.ORDERID
+          OUTER APPLY (SELECT TOP (1) t.VendorShare
+                         FROM piv2.RebateProgramTerms t
+                         JOIN dbo.RebateProgramDetail pd ON pd.ProgramID = t.ProgramId
+                        WHERE t.ModelId = r.ModelID AND ABS(t.MemberAmount - r.ReimbursementAmount) < 0.005
+                          AND pd.ModelID = r.ModelID
+                          AND r.Date >= pd.ProgramStartWeek
+                          AND r.Date < DATEADD(day, 1, COALESCE(pd.ExpireOn, DATEADD(day, 120, pd.ProgramEndWeek)))
+                        ORDER BY pd.ProgramStartWeek DESC, t.UpdatedAt DESC) vs
+         WHERE COALESCE(r.Saved, 0) = 0;
     END
 
     DECLARE @claims int = (SELECT COUNT(*) FROM @ids);
@@ -535,6 +565,20 @@ BEGIN
     DECLARE @rail char(2), @dm varchar(50);
     SELECT @rail = Rail, @dm = DM FROM piv2.RebateDebitMemo WHERE DebitMemoId = @DebitMemoId;
 
+    DECLARE @v TABLE (VendorId int PRIMARY KEY);
+    INSERT @v SELECT DISTINCT TRY_CAST(value AS int) FROM STRING_SPLIT((SELECT VendorIds FROM piv2.RebateDebitMemo WHERE DebitMemoId = @DebitMemoId), ',')
+     WHERE TRY_CAST(value AS int) IS NOT NULL;
+
+    /* Catalog numbers for the products involved, read from the product view once. */
+    CREATE TABLE #cat (Code nvarchar(20) NOT NULL PRIMARY KEY, CatNo nvarchar(200) NULL);
+    INSERT #cat (Code, CatNo)
+    SELECT CAST(p.ProductCode AS nvarchar(20)), MAX(LEFT(p.CAT_NO, 200))
+      FROM [PRO].dbo.Product p
+     WHERE CAST(p.ProductCode AS nvarchar(20)) IN
+           (SELECT LTRIM(RTRIM(LEFT(m.ModelName, CHARINDEX(',', m.ModelName + ',') - 1)))
+              FROM dbo.RebateCameraModels m WHERE m.VendorID IN (SELECT VendorId FROM @v) AND m.ModelName IS NOT NULL)
+     GROUP BY CAST(p.ProductCode AS nvarchar(20));
+
     SELECT DebitMemoId, Rail, DM AS DebitMemo, VendorIds, VendorName, Claims, Total, EmailTo, Ref1, Ref2, FileId, EmailedAt, CreatedBy, CreatedAt
       FROM piv2.RebateDebitMemo WHERE DebitMemoId = @DebitMemoId;
 
@@ -542,16 +586,16 @@ BEGIN
     BEGIN
         WITH p AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY ID DESC) AS rn FROM dbo.PriceProtectionProcess)
         SELECT r.ORDERID AS OrderId, r.MemberID AS MemberId, m.VendorID AS VendorId, v.VendorName, r.ModelID AS ModelId,
-               m.ModelNumber AS Description, m.ModelName AS ProCode, iv.CAT_NO AS CatalogNumber, r.StringProgramWeek AS ProgramWeek,
+               m.ModelNumber AS Description, m.ModelName AS ProCode, iv.CatNo AS CatalogNumber, r.StringProgramWeek AS ProgramWeek,
                p.timeEnd AS ProcessedAt, SUM(r.Quantity) AS Quantity, r.ReimbursementAmount,
                SUM(CAST(COALESCE(r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2))) AS Extended
           FROM dbo.PriceProtectionRedeem r
           JOIN p ON p.OrderID = r.ORDERID AND p.rn = 1 AND p.DM = @dm
           JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
           JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
-          LEFT JOIN eda.IVMST.IVMST iv ON iv.id = m.ModelName
+          LEFT JOIN #cat iv ON iv.Code = LTRIM(RTRIM(LEFT(m.ModelName, CHARINDEX(',', m.ModelName + ',') - 1)))
          WHERE COALESCE(r.Saved, 0) = 0
-         GROUP BY r.ORDERID, r.MemberID, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CAT_NO,
+         GROUP BY r.ORDERID, r.MemberID, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CatNo,
                   r.StringProgramWeek, p.timeEnd, r.ReimbursementAmount
          ORDER BY r.MemberID, r.ORDERID;
     END
@@ -559,17 +603,27 @@ BEGIN
     BEGIN
         WITH p AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY ID DESC) AS rn FROM dbo.RebateProcess)
         SELECT r.ORDERID AS OrderId, r.MemberID AS MemberId, m.VendorID AS VendorId, v.VendorName, r.ModelID AS ModelId,
-               m.ModelNumber AS Description, m.ModelName AS ProCode, iv.CAT_NO AS CatalogNumber, r.StringProgramWeek AS ProgramWeek,
-               p.timeEnd AS ProcessedAt, SUM(r.Quantity) AS Quantity, r.ReimbursementAmount,
-               SUM(CAST(COALESCE(r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2))) AS Extended
+               m.ModelNumber AS Description, m.ModelName AS ProCode, iv.CatNo AS CatalogNumber, r.StringProgramWeek AS ProgramWeek,
+               p.timeEnd AS ProcessedAt, SUM(r.Quantity) AS Quantity,
+               COALESCE(vs.VendorShare, r.ReimbursementAmount) AS ReimbursementAmount,
+               r.ReimbursementAmount AS MemberAmount,
+               SUM(CAST(COALESCE(vs.VendorShare, r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2))) AS Extended
           FROM dbo.RebateRedeem r
           JOIN p ON p.OrderID = r.ORDERID AND p.rn = 1 AND p.DM = @dm
+          OUTER APPLY (SELECT TOP (1) t.VendorShare
+                         FROM piv2.RebateProgramTerms t
+                         JOIN dbo.RebateProgramDetail pd ON pd.ProgramID = t.ProgramId
+                        WHERE t.ModelId = r.ModelID AND ABS(t.MemberAmount - r.ReimbursementAmount) < 0.005
+                          AND pd.ModelID = r.ModelID
+                          AND r.Date >= pd.ProgramStartWeek
+                          AND r.Date < DATEADD(day, 1, COALESCE(pd.ExpireOn, DATEADD(day, 120, pd.ProgramEndWeek)))
+                        ORDER BY pd.ProgramStartWeek DESC, t.UpdatedAt DESC) vs
           JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
           JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
-          LEFT JOIN eda.IVMST.IVMST iv ON iv.id = m.ModelName
+          LEFT JOIN #cat iv ON iv.Code = LTRIM(RTRIM(LEFT(m.ModelName, CHARINDEX(',', m.ModelName + ',') - 1)))
          WHERE COALESCE(r.Saved, 0) = 0
-         GROUP BY r.ORDERID, r.MemberID, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CAT_NO,
-                  r.StringProgramWeek, p.timeEnd, r.ReimbursementAmount
+         GROUP BY r.ORDERID, r.MemberID, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CatNo,
+                  r.StringProgramWeek, p.timeEnd, r.ReimbursementAmount, vs.VendorShare
          ORDER BY r.MemberID, r.ORDERID;
     END
 END

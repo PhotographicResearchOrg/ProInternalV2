@@ -95,10 +95,10 @@ namespace ProInternal.Services.Rebates
             var used = mapping.Values.Where(v => v.HasValue).GroupBy(v => v).FirstOrDefault(g => g.Count() > 1);
             if (used != null)
                 throw new RebateFileException($"Column {RebateWorkbookReader.ColumnLetter(used.Key!.Value)} is mapped to two fields.");
-            if (mapping[RebateFields.ProCode] == null && mapping[RebateFields.Description] == null)
-                throw new RebateFileException("Map the PRO code column (or at least the description) so rows can be matched to products.");
-            if (mapping[RebateFields.Reimbursement] == null)
-                throw new RebateFileException("Map the reimbursement column.");
+            if (mapping[RebateFields.ProCode] == null && mapping[RebateFields.VendorSku] == null && mapping[RebateFields.Upc] == null)
+                throw new RebateFileException("Map the vendor SKU, the UPC or the PRO code, so rows can be matched to PRO products.");
+            if (mapping[RebateFields.Reimbursement] == null && !(request.VendorSharePct > 0 && mapping[RebateFields.InstantRebate] != null))
+                throw new RebateFileException("Map the reimbursement (vendor share) column, or set the vendor share % of the instant rebate. If the file has neither, add the column to the file and upload it again.");
 
             var types = await _data.QueryAsync("piv2.Rebate_Types");
             var typeLookup = RebateWorkbookReader.TypeLookup(types.Select(t => (t.Get<int>("rebateTypeId"), t.Get<string>("name") ?? "")));
@@ -106,6 +106,23 @@ namespace ProInternal.Services.Rebates
             var rows = RebateWorkbookReader.Apply(sheet, request.HeaderRow, mapping, typeLookup);
             if (rows.Count == 0)
                 throw new RebateFileException("No rows under the header have values in the mapped columns.");
+
+            /* No reimbursement in the file: the vendor's share is its standing % of the instant rebate. */
+            if (request.VendorSharePct is decimal pct && pct > 0)
+                foreach (var r in rows.Where(r => r.Reimbursement == null && r.InstantRebate > 0))
+                    r.Reimbursement = Math.Round(r.InstantRebate!.Value * pct / 100m, 2, MidpointRounding.AwayFromZero);
+
+            /* Program dates for the whole file, for rows the file gives none. */
+            foreach (var r in rows)
+            {
+                r.StartDate ??= request.DefaultStartDate?.Date;
+                r.EndDate ??= request.DefaultEndDate?.Date;
+            }
+
+                        /* Rows with no rebate at all (a price list with 0 for items not on promotion) are not programs. */
+            rows = rows.Where(r => (r.InstantRebate ?? 0) != 0 || (r.Reimbursement ?? 0) != 0).ToList();
+            if (rows.Count == 0)
+                throw new RebateFileException("Every row has a zero rebate. Check the instant rebate and reimbursement columns.");
 
             if (mapping[RebateFields.RebateType] == null && request.DefaultRebateType == null)
                 throw new RebateFileException("The file has no rebate type column; choose the rebate type for all rows.");
@@ -133,7 +150,7 @@ namespace ProInternal.Services.Rebates
             /* Dates as plain yyyy-MM-dd for OPENJSON's date columns. */
             var json = JsonSerializer.Serialize(rows.Select(r => new
             {
-                r.SourceRow, r.Raw, r.ProCode, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice,
+                r.SourceRow, r.Raw, r.ProCode, r.VendorSku, r.Upc, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice,
                 StartDate = r.StartDate?.ToString("yyyy-MM-dd"),
                 EndDate = r.EndDate?.ToString("yyyy-MM-dd"),
                 r.StackProduct, r.RebateType, r.Notes
@@ -154,6 +171,8 @@ namespace ProInternal.Services.Rebates
                 DefaultRebateType = request.DefaultRebateType,
                 ExpireOn = request.ExpireOn?.Date,
                 StartActive = request.StartActive,
+                PadPct = request.PadPct,
+                VendorSharePct = request.VendorSharePct,
                 Rows = json,
                 Actor = actor
             });
@@ -221,7 +240,18 @@ namespace ProInternal.Services.Rebates
                 }
             }
 
-            proposal.SuggestedExpireOn = RebateWorkbookReader.SuggestExpireOn(sheet, row, proposal.Mapping);
+            /* The vendor's standing terms pre-fill the interview. */
+            var terms = (await _data.QueryAsync("piv2.Rebate_GetVendorTerms", new { VendorId = vendorId })).FirstOrDefault();
+            var expireDays = terms?.Get<int?>("expireDays") ?? 60;
+            proposal.VendorSharePct = terms?.Get<decimal?>("vendorSharePct");
+            proposal.PadPct = terms?.Get<decimal?>("comboPadPct");
+            proposal.DefaultRebateType = terms?.Get<int?>("defaultRebateType");
+            proposal.CatalogPrefix = terms?.Get<string>("catalogPrefix");
+            var (fileStart, fileEnd) = RebateWorkbookReader.SuggestFileDates(sheet, row);
+            proposal.FileStartDate = fileStart;
+            proposal.FileEndDate = fileEnd;
+            proposal.SuggestedExpireOn = RebateWorkbookReader.SuggestExpireOn(sheet, row, proposal.Mapping)?.AddDays(expireDays - 60)
+                                         ?? fileEnd?.AddDays(expireDays);
             return proposal;
         }
 

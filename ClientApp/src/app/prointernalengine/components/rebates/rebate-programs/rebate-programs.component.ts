@@ -87,7 +87,7 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
     this.adding = false;
     this.selected = p;
     this.edit = this.rail === 'IR'
-      ? { instantRebate: p.instantRebate, reimbursement: p.reimbursement, mapPrice: p.mapPrice,
+      ? { instantRebate: p.instantRebate, vendorShare: p.vendorShare ?? p.reimbursement, proPad: p.proPad ?? 0, mapPrice: p.mapPrice,
           startDate: isoDate(p.startDate), endDate: isoDate(p.endDate), expireOn: isoDate(p.expireOn) }
       : { programDate: isoDate(p.programDate), newInvoiceCost: p.newInvoiceCost, amount: p.amount, newMap: p.mapPrice };
     this.error = '';
@@ -103,8 +103,8 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
       return +this.edit.newInvoiceCost !== +this.selected.newInvoiceCost || +this.edit.amount !== +this.selected.amount
         || +this.edit.newMap !== +this.selected.mapPrice || this.edit.programDate !== isoDate(this.selected.programDate);
     }
-    return +this.edit.instantRebate !== +this.selected.instantRebate || +this.edit.reimbursement !== +this.selected.reimbursement
-      || +this.edit.mapPrice !== +this.selected.mapPrice;
+    return +this.edit.instantRebate !== +this.selected.instantRebate || +this.edit.vendorShare !== +(this.selected.vendorShare ?? this.selected.reimbursement)
+      || +this.edit.proPad !== +(this.selected.proPad ?? 0) || +this.edit.mapPrice !== +this.selected.mapPrice;
   }
 
   get datesDirty(): boolean {
@@ -150,7 +150,8 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
     } else if (p.kind === 'amounts') {
       call = this.rail === 'PP'
         ? this.desk.changePriceProtection(this.selected.programId, { modelId: this.selected.modelId, ...this.edit, reason })
-        : this.desk.changeAmounts(this.selected.programId, { ...this.edit, reason });
+        : this.desk.changeAmounts(this.selected.programId,
+            { instantRebate: this.edit.instantRebate, vendorShare: this.edit.vendorShare, proPad: this.edit.proPad || 0, mapPrice: this.edit.mapPrice, reason });
     } else {
       call = this.desk.changeProgramDates(this.selected.programId,
         { startDate: this.edit.startDate, endDate: this.edit.endDate, expireOn: this.edit.expireOn || null, reason });
@@ -187,7 +188,7 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
     this.error = '';
     const today = new Date().toISOString().substring(0, 10);
     this.add = this.rail === 'IR'
-      ? { irType: 2, instantRebate: 0, reimbursement: null, mapPrice: 0, startDate: today, endDate: today, expireOn: '', repeatWeeks: 0, startActive: false, reason: '' }
+      ? { irType: 2, instantRebate: 0, reimbursement: null, proPad: 0, mapPrice: 0, startDate: today, endDate: today, expireOn: '', repeatWeeks: 0, startActive: false, reason: '' }
       : { programDate: today, newInvoiceCost: 0, amount: null, newMap: 0, startActive: false, reason: '' };
   }
 
@@ -208,6 +209,10 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
       },
       error: e => (this.error = apiMessage(e))
     });
+  }
+
+  get memberAmount(): number {
+    return (+this.edit.vendorShare || 0) + (+this.edit.proPad || 0);
   }
 
   addEndChanged(): void {

@@ -238,6 +238,21 @@ export class RebateDeskComponent implements OnInit {
     });
   }
 
+  /* Creates every rebate product the naming rule set calls for in this upload, then checks again. */
+  createMissing(): void {
+    if (!this.upload) return;
+    this.busy = true;
+    this.error = '';
+    this.desk.createMissingProducts(this.upload.uploadId).pipe(finalize(() => (this.busy = false))).subscribe({
+      next: r => {
+        this.notice = `Created ${r.created} rebate product(s) from the naming rule set.`;
+        this.loadOverview();
+        this.openUpload(this.upload.uploadId);
+      },
+      error: e => (this.error = apiMessage(e))
+    });
+  }
+
   openFile(): void {
     if (!this.upload) return;
     this.desk.uploadFile(this.upload.uploadId).subscribe({ next: r => window.open(r.url, '_blank'), error: e => (this.error = apiMessage(e)) });
@@ -257,7 +272,8 @@ export class RebateDeskComponent implements OnInit {
     this.rowVendorId = vendorId;
     this.newProduct = null;
     this.rowEdit = {
-      proCode: r.proCode ?? '', description: r.description ?? '', instantRebate: r.instantRebate, reimbursement: r.reimbursement,
+      proCode: r.proCode ?? '', vendorSku: r.vendorSku ?? '', upc: r.upc ?? '', stackProduct: r.stackProduct ?? '',
+      description: r.description ?? '', instantRebate: r.instantRebate, reimbursement: r.reimbursement,
       mapPrice: r.mapPrice, startDate: isoDate(r.startDate), endDate: isoDate(r.endDate), rebateType: r.rebateType, notes: r.notes ?? ''
     };
   }
@@ -267,6 +283,7 @@ export class RebateDeskComponent implements OnInit {
     if (!r) return false;
     const e = this.rowEdit;
     return (e.proCode || '') !== (r.proCode || '') || (e.description || '') !== (r.description || '')
+      || (e.vendorSku || '') !== (r.vendorSku || '') || (e.upc || '') !== (r.upc || '') || (e.stackProduct || '') !== (r.stackProduct || '')
       || +e.instantRebate !== +r.instantRebate || +e.reimbursement !== +r.reimbursement || +e.mapPrice !== +r.mapPrice
       || e.startDate !== isoDate(r.startDate) || e.endDate !== isoDate(r.endDate)
       || (e.rebateType ?? null) !== (r.rebateType ?? null) || (e.notes || '') !== (r.notes || '');
@@ -332,8 +349,8 @@ export class RebateDeskComponent implements OnInit {
 
   startNewProduct(): void {
     this.newProduct = {
-      rail: 'IR', vendorId: this.rowVendorId, description: this.row.description || '',
-      proCodes: this.row.proCode || '', serialNumbersRequired: false
+      rail: 'IR', vendorId: this.rowVendorId, description: this.row.proposedName || this.row.description || '',
+      proCodes: this.row.productCode || this.row.proCode || '', serialNumbersRequired: false
     };
   }
 

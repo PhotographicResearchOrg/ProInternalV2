@@ -10,6 +10,8 @@ namespace ProInternal.Models.Rebates
     public static class RebateFields
     {
         public const string ProCode = "proCode";
+        public const string VendorSku = "vendorSku";
+        public const string Upc = "upc";
         public const string Description = "description";
         public const string InstantRebate = "instantRebate";
         public const string Reimbursement = "reimbursement";
@@ -22,17 +24,19 @@ namespace ProInternal.Models.Rebates
 
         public static readonly string[] All =
         {
-            ProCode, Description, InstantRebate, Reimbursement, MapPrice,
+            ProCode, VendorSku, Upc, Description, InstantRebate, Reimbursement, MapPrice,
             StartDate, EndDate, StackProduct, RebateType, Notes
         };
 
         /* What each field means, for people on the desk and for the AI proposal. */
         public static readonly IReadOnlyDictionary<string, string> Meaning = new Dictionary<string, string>
         {
-            [ProCode] = "PRO product code (4 or 5 digit number PRO assigns)",
+            [ProCode] = "PRO product code (4 or 5 digit number PRO assigns); usually absent in vendor files",
+            [VendorSku] = "the vendor's own SKU / item number / part or catalog number for the product",
+            [Upc] = "UPC or EAN barcode number",
             [Description] = "product description or model name",
             [InstantRebate] = "instant rebate amount the consumer gets off the price",
-            [Reimbursement] = "amount reimbursed to the dealer per unit",
+            [Reimbursement] = "amount the vendor reimburses the dealer per unit (dealer credit, wholesale rebate, support)",
             [MapPrice] = "MAP / advertised price during the program",
             [StartDate] = "program start date",
             [EndDate] = "program end date",
@@ -66,8 +70,18 @@ namespace ProInternal.Models.Rebates
         /* Why the AI chose as it did, or why it could not be used. */
         public string? Note { get; set; }
 
-        /* The latest end date in the file + 60 days, as the legacy upload did. */
+        /* The latest end date in the file + the vendor's claim window (60 days unless the vendor terms say otherwise). */
         public DateTime? SuggestedExpireOn { get; set; }
+
+        /* From the vendor terms, pre-filled in the interview. */
+        public decimal? VendorSharePct { get; set; }
+        public decimal? PadPct { get; set; }
+        public int? DefaultRebateType { get; set; }
+        public string? CatalogPrefix { get; set; }
+
+        /* Program dates printed above the table, for files with no date columns. */
+        public DateTime? FileStartDate { get; set; }
+        public DateTime? FileEndDate { get; set; }
     }
 
     public sealed class RebateProposalRequest
@@ -90,6 +104,16 @@ namespace ProInternal.Models.Rebates
         public int? DefaultRebateType { get; set; }
         public DateTime? ExpireOn { get; set; }
         public bool StartActive { get; set; } = true;
+
+        /* PRO pad on combo rows (Bundle, Free with purchase), % of the vendor share. */
+        public decimal? PadPct { get; set; }
+
+        /* When the file has no reimbursement column: vendor share = this % of the instant rebate. */
+        public decimal? VendorSharePct { get; set; }
+
+        /* Dates for rows that have none in the file. */
+        public DateTime? DefaultStartDate { get; set; }
+        public DateTime? DefaultEndDate { get; set; }
     }
 
     /* One mapped row, as sent to piv2.Rebate_SetMapping. */
@@ -98,6 +122,8 @@ namespace ProInternal.Models.Rebates
         public int SourceRow { get; set; }
         public Dictionary<string, string?> Raw { get; set; } = new();
         public string? ProCode { get; set; }
+        public string? VendorSku { get; set; }
+        public string? Upc { get; set; }
         public string? Description { get; set; }
         public decimal? InstantRebate { get; set; }
         public decimal? Reimbursement { get; set; }
@@ -129,6 +155,9 @@ namespace ProInternal.Models.Rebates
     public sealed class RebateRowUpdate
     {
         public string? ProCode { get; set; }
+        public string? VendorSku { get; set; }
+        public string? Upc { get; set; }
+        public string? StackProduct { get; set; }
         public string? Description { get; set; }
         public decimal? InstantRebate { get; set; }
         public decimal? Reimbursement { get; set; }
@@ -155,7 +184,12 @@ namespace ProInternal.Models.Rebates
     public sealed class RebateAmountsRequest
     {
         public decimal InstantRebate { get; set; }
-        public decimal Reimbursement { get; set; }
+
+        /* Claimed back from the vendor per unit. */
+        public decimal VendorShare { get; set; }
+
+        /* PRO's own money per unit (combo products). Member amount = VendorShare + ProPad. */
+        public decimal ProPad { get; set; }
         public decimal MapPrice { get; set; }
         public string? Reason { get; set; }
     }
@@ -166,6 +200,7 @@ namespace ProInternal.Models.Rebates
         public int IRType { get; set; }
         public decimal InstantRebate { get; set; }
         public decimal Reimbursement { get; set; }
+        public decimal ProPad { get; set; }
         public decimal MapPrice { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
@@ -194,6 +229,22 @@ namespace ProInternal.Models.Rebates
     {
         public List<int> StackModelIds { get; set; } = new();
         public string? Reason { get; set; }
+    }
+
+    public sealed class RebateVendorTermsRequest
+    {
+        public string? CatalogPrefix { get; set; }
+        public string? BrandIds { get; set; }
+        public decimal? VendorSharePct { get; set; }
+        public decimal? ComboPadPct { get; set; }
+        public int? ExpireDays { get; set; }
+        public int? DefaultRebateType { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public sealed class RebateCreateProductsRequest
+    {
+        public List<long>? RowIds { get; set; }
     }
 
     public sealed class PriceProtectionProgramRequest

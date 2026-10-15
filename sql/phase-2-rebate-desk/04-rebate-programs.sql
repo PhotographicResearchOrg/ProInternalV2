@@ -46,6 +46,7 @@ BEGIN
     SELECT p.ProgramID AS ProgramId, p.BatchID AS BatchId, p.ModelID AS ModelId,
            m.ModelName AS ProCodeText, m.ModelNumber AS Description, m.VendorID AS VendorId, v.VendorName,
            p.InstantRebate, p.Reimbursement, p.MAPDrop AS MapPrice,
+           COALESCE(pt.VendorShare, p.Reimbursement) AS VendorShare, COALESCE(pt.ProPad, 0) AS ProPad,
            p.ProgramStartWeek AS StartDate, p.ProgramEndWeek AS EndDate, p.ExpireOn,
            p.IRType AS IrType, t.Name AS IrTypeName,
            CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive,
@@ -55,6 +56,7 @@ BEGIN
       JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
       LEFT JOIN dbo.RebateType t ON t.ID = p.IRType
+      LEFT JOIN piv2.RebateProgramTerms pt ON pt.ProgramId = p.ProgramID AND pt.MemberAmount = ROUND(p.Reimbursement, 2)
      WHERE (@VendorId IS NULL OR m.VendorID = @VendorId)
        AND (@ModelId IS NULL OR p.ModelID = @ModelId)
        AND (@BatchId IS NULL OR p.BatchID = @BatchId)
@@ -136,7 +138,8 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_AddPrograms
     @ModelId       int,
     @IRType        int,
     @InstantRebate decimal(19,2),
-    @Reimbursement decimal(19,2),
+    @Reimbursement decimal(19,2),          -- the vendor's share per unit
+    @ProPad        decimal(19,2) = 0,      -- PRO's pad per unit (combo products); member amount = share + pad
     @MapPrice      decimal(19,2),
     @StartDate     date,
     @EndDate       date,
@@ -158,8 +161,8 @@ BEGIN
         THROW 50741, 'Pick a rebate type.', 1;
     IF @Reimbursement IS NULL OR @Reimbursement <= 0
         THROW 50719, 'Member reimbursement must be more than zero.', 1;
-    IF @InstantRebate < 0 OR @MapPrice < 0
-        THROW 50720, 'Instant rebate and MAP cannot be negative.', 1;
+    IF @InstantRebate < 0 OR @MapPrice < 0 OR COALESCE(@ProPad, 0) < 0
+        THROW 50720, 'Instant rebate, PRO pad and MAP cannot be negative.', 1;
     IF @StartDate IS NULL OR @EndDate IS NULL OR @StartDate > @EndDate
         THROW 50717, 'Give a start date on or before the end date.', 1;
     IF @ExpireOn IS NULL OR @ExpireOn < @EndDate
@@ -181,7 +184,7 @@ BEGIN
     INSERT dbo.RebateProgramDetail
         (ModelID, InstantRebate, Reimbursement, MAPDrop, ProgramStartWeek, ProgramEndWeek, Expired, ExpireOn, IRType, BatchID)
     OUTPUT inserted.ProgramID INTO @new (ProgramId)
-    SELECT @ModelId, @InstantRebate, @Reimbursement, @MapPrice,
+    SELECT @ModelId, @InstantRebate, @Reimbursement + COALESCE(@ProPad, 0), @MapPrice,
            DATEADD(day, 7 * w.N, @StartDate), DATEADD(day, 7 * w.N, @EndDate),
            CASE WHEN @StartActive = 1 THEN 0 ELSE 1 END,
            DATEADD(day, 7 * w.N, @ExpireOn), @IRType, @batch
@@ -192,6 +195,9 @@ BEGIN
                           AND x.ProgramEndWeek = DATEADD(day, 7 * w.N, @EndDate));
 
     DECLARE @added int = (SELECT COUNT(*) FROM @new);
+
+    INSERT piv2.RebateProgramTerms (ProgramId, MemberAmount, ModelId, VendorShare, ProPad, UpdatedBy)
+    SELECT ProgramId, @Reimbursement + COALESCE(@ProPad, 0), @ModelId, @Reimbursement, COALESCE(@ProPad, 0), @Actor FROM @new;
 
     IF @added = 0
     BEGIN

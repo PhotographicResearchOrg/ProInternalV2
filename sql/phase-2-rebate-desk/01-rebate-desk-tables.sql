@@ -70,6 +70,8 @@ BEGIN
         DefaultRebateType  int             NULL,       -- dbo.RebateType.ID, for rows that do not say
         ExpireOn           date            NULL,       -- written to RebateProgramDetail.ExpireOn
         StartActive        bit             NOT NULL CONSTRAINT DF_piv2_RebUp_StartActive DEFAULT (1),
+        PadPct             decimal(5,2)    NULL,       -- PRO pad on combo rows (Bundle, Free with purchase), % of the vendor share
+        VendorSharePct     decimal(5,2)    NULL,       -- vendor share as % of the instant rebate, used only when the file has no reimbursement
         Status             varchar(20)     NOT NULL CONSTRAINT DF_piv2_RebUp_Status DEFAULT ('MAPPING'),
         BatchId            int             NULL,       -- set at first load; purgatory rows loaded later join it
         CreatedBy          nvarchar(100)   NOT NULL,
@@ -97,10 +99,12 @@ BEGIN
         UploadId        int             NOT NULL,
         SourceRow       int             NOT NULL,     -- the spreadsheet row number, as the vendor sees it
         Raw             nvarchar(max)   NOT NULL,     -- the row's cells as read, JSON
-        ProCode         nvarchar(50)    NULL,
+        ProCode         nvarchar(50)    NULL,         -- PRO product code, when the file has one
+        VendorSku       nvarchar(100)   NULL,         -- the vendor's own SKU / item / model number
+        Upc             nvarchar(20)    NULL,
         Description     nvarchar(400)   NULL,
         InstantRebate   decimal(19,2)   NULL,
-        Reimbursement   decimal(19,2)   NULL,
+        Reimbursement   decimal(19,2)   NULL,         -- the vendor's share per unit (what PRO claims back)
         MapPrice        decimal(19,2)   NULL,
         StartDate       date            NULL,
         EndDate         date            NULL,
@@ -109,6 +113,11 @@ BEGIN
         Notes           nvarchar(1000)  NULL,
         ModelId         int             NULL,         -- dbo.RebateCameraModels.ModelID: the row's disposition
         ModelChosenBy   nvarchar(100)   NULL,         -- set when a person picked the disposition; the checks then keep it
+        ProductCode     nvarchar(200)   NULL,         -- the PRO product(s) the row resolved to ([PRO].dbo.Product); a list rolls colours up
+        ProductName     nvarchar(400)   NULL,         -- the first one's ModelName
+        StackCodes      nvarchar(200)   NULL,         -- PRO product codes of the stack products, comma separated
+        ProposedName    nvarchar(400)   NULL,         -- the rebate product name by the naming rule set
+        ProPad          decimal(19,2)   NULL,         -- PRO's pad added to the member amount; never billed to the vendor
         StackModelId    int             NULL,         -- the stack product's rebate model, linked in RebateQualifiers at load
         Status         varchar(20)     NOT NULL CONSTRAINT DF_piv2_RebRow_Status DEFAULT ('PURGATORY'),
         Problems        nvarchar(max)   NULL,         -- JSON array of {code, message}
@@ -155,6 +164,46 @@ BEGIN
     CREATE INDEX IX_piv2_RebEvt_Batch   ON piv2.RebateEvent (BatchId, EventId DESC) WHERE BatchId IS NOT NULL;
     CREATE INDEX IX_piv2_RebEvt_Program ON piv2.RebateEvent (ProgramId, EventId DESC) WHERE ProgramId IS NOT NULL;
     CREATE INDEX IX_piv2_RebEvt_Upload  ON piv2.RebateEvent (UploadId, EventId DESC) WHERE UploadId IS NOT NULL;
+END
+GO
+
+/* A rebate vendor's standing terms: how its SKUs match PRO products, and its default amounts. */
+IF OBJECT_ID('piv2.RebateVendorTerms', 'U') IS NULL
+BEGIN
+    CREATE TABLE piv2.RebateVendorTerms
+    (
+        VendorId          int            NOT NULL,     -- dbo.RebateVendors.VendorID
+        CatalogPrefix     nvarchar(20)   NULL,         -- PRO's prefix on this vendor's catalog numbers, e.g. SR_ (SmallRig)
+        BrandIds          varchar(200)   NULL,         -- [PRO].dbo.Product.BrandId values to search, comma separated; empty = all
+        VendorSharePct    decimal(5,2)   NULL,         -- default vendor share, % of the instant rebate (e.g. 75)
+        ComboPadPct       decimal(5,2)   NULL,         -- default PRO pad on combo rows, % of the vendor share (e.g. 1)
+        ExpireDays        int            NULL,         -- claim window after the program ends (default 60)
+        DefaultRebateType int            NULL,
+        Notes             nvarchar(1000) NULL,
+        UpdatedBy         nvarchar(100)  NOT NULL,
+        UpdatedAt         datetime2(0)   NOT NULL CONSTRAINT DF_piv2_RebVT_UpdatedAt DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT PK_piv2_RebateVendorTerms PRIMARY KEY (VendorId)
+    );
+END
+GO
+
+/* What a program's member amount is made of: RebateProgramDetail.Reimbursement = VendorShare + ProPad.
+   One row per program and member amount; a price change adds a row, so claims made at the
+   old amount still find the old split. Programs with no row here (legacy) are all vendor share. */
+IF OBJECT_ID('piv2.RebateProgramTerms', 'U') IS NULL
+BEGIN
+    CREATE TABLE piv2.RebateProgramTerms
+    (
+        ProgramId    int            NOT NULL,      -- dbo.RebateProgramDetail.ProgramID
+        MemberAmount decimal(19,2)  NOT NULL,      -- = VendorShare + ProPad, the amount members claim at
+        ModelId      int            NOT NULL,
+        VendorShare  decimal(19,2)  NOT NULL,      -- claimed back from the vendor per unit
+        ProPad       decimal(19,2)  NOT NULL CONSTRAINT DF_piv2_RebPT_Pad DEFAULT (0),   -- PRO's own money per unit
+        UpdatedBy    nvarchar(100)  NOT NULL,
+        UpdatedAt    datetime2(0)   NOT NULL CONSTRAINT DF_piv2_RebPT_UpdatedAt DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT PK_piv2_RebateProgramTerms PRIMARY KEY (ProgramId, MemberAmount)
+    );
+    CREATE INDEX IX_piv2_RebPT_Model ON piv2.RebateProgramTerms (ModelId, MemberAmount) INCLUDE (VendorShare, ProgramId);
 END
 GO
 

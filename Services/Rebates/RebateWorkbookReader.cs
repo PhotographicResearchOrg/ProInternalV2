@@ -222,7 +222,7 @@ namespace ProInternal.Services.Rebates
         {
             "M/d/yyyy", "MM/dd/yyyy", "M/d/yy", "MM/dd/yy", "yyyy-MM-dd", "yyyy/MM/dd", "M-d-yyyy", "M-d-yy",
             "d-MMM-yy", "d-MMM-yyyy", "dd-MMM-yy", "dd-MMM-yyyy", "MMM d, yyyy", "MMMM d, yyyy", "MMM d yyyy",
-            "M/d/yyyy h:mm:ss tt", "M/d/yyyy H:mm", "yyyy-MM-ddTHH:mm:ss", "yyyyMMdd"
+            "M/d/yyyy h:mm:ss tt", "M/d/yyyy H:mm", "yyyy-MM-ddTHH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyyMMdd"
         };
 
         public static DateTime? ParseDate(object? value)
@@ -282,6 +282,8 @@ namespace ProInternal.Services.Rebates
                     SourceRow = sourceRow,
                     Raw = raw,
                     ProCode = ParseCode(Cell(cells, RebateFields.ProCode)),
+                    VendorSku = Limit(ParseCode(Cell(cells, RebateFields.VendorSku)) ?? "", 100),
+                    Upc = ParseUpc(Cell(cells, RebateFields.Upc)),
                     Description = Limit(Text(Cell(cells, RebateFields.Description)), 400),
                     InstantRebate = ParseMoney(Cell(cells, RebateFields.InstantRebate)),
                     Reimbursement = ParseMoney(Cell(cells, RebateFields.Reimbursement)),
@@ -294,7 +296,7 @@ namespace ProInternal.Services.Rebates
                 };
 
                 /* A footer such as "Total" or "Grand total" with only an amount is not a program row. */
-                if (row.ProCode == null && (row.Description == null || Regex.IsMatch(row.Description, @"^\s*(grand\s+|sub\s*)?totals?\b", RegexOptions.IgnoreCase)))
+                if (row.ProCode == null && row.VendorSku == null && row.Upc == null && (row.Description == null || Regex.IsMatch(row.Description, @"^\s*(grand\s+|sub\s*)?totals?\b", RegexOptions.IgnoreCase)))
                     continue;
 
                 rows.Add(row);
@@ -302,7 +304,15 @@ namespace ProInternal.Services.Rebates
             return rows;
         }
 
-        private static string? Limit(string s, int max) => s.Length == 0 ? null : s.Length > max ? s[..max] : s;
+        /* Digits only; Excel often turns a UPC into a number. 8 to 14 digits, else null. */
+        public static string? ParseUpc(object? value)
+        {
+            var s = value is double d ? ((long)Math.Round(d)).ToString(CultureInfo.InvariantCulture) : Text(value);
+            s = Regex.Replace(s, @"\D", "");
+            return s.Length is >= 8 and <= 14 ? s : null;
+        }
+
+                private static string? Limit(string s, int max) => s.Length == 0 ? null : s.Length > max ? s[..max] : s;
 
         /* Number, or a name/alias from RebateType. -1 means "the file says something PRO does not use". */
         public static int? ParseType(object? value, IReadOnlyDictionary<string, int> rebateTypes)
@@ -334,6 +344,90 @@ namespace ProInternal.Services.Rebates
             Alias(6, "social", "social media", "social media offer");
             Alias(7, "fwp", "free with purchase", "free gift", "gwp", "gift with purchase");
             return lookup;
+        }
+
+        private static readonly Regex NumericDate = new(@"\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})\b", RegexOptions.Compiled);
+        private static readonly Regex DayMonthDate = new(
+            @"\b(\d{1,2})(?:st|nd|rd|th)?\b\s*(?:of\s+)?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\b(?:,?\s+(\d{4}))?",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex MonthDate = new(
+            @"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b(?:,?\s+(\d{4}))?",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        /*
+         * Program dates printed above the table, for files that have no date columns:
+         *   1 a range written in one cell ("Prices Effective 5/24/26 - 6/21/26",
+         *     "June 23 through June 30, 2026"), the first such cell from the top
+         *   2 otherwise two date cells on one row (a "Promotional Period" from / to)
+         * Other dates (an "updated" date, a claim deadline) are ignored. A month-day
+         * without a year takes the year written next to it, else this year.
+         */
+        public static (DateTime? Start, DateTime? End) SuggestFileDates(RebateSheet sheet, int headerRow)
+        {
+            var rows = Math.Min(headerRow - 1, sheet.Rows.Count);
+
+            for (var r = 0; r < rows; r++)
+            {
+                foreach (var cell in sheet.Rows[r])
+                {
+                    if (cell is DateTime) continue;
+                    var dates = DatesIn(Text(cell));
+                    if (dates.Count >= 2 && dates[1] >= dates[0] && (dates[1] - dates[0]).TotalDays <= 400)
+                        return (dates[0], dates[1]);
+                }
+            }
+
+            for (var r = 0; r < rows; r++)
+            {
+                /* Date cells, or cells holding nothing but a date. */
+                var cells = sheet.Rows[r]
+                    .Select(c => c is DateTime dt ? dt.Date : Text(c).Length is > 5 and < 12 ? ParseDate(c) : null)
+                    .Where(d => d.HasValue).Select(d => d!.Value).Distinct().OrderBy(d => d).ToList();
+                if (cells.Count == 2 && (cells[1] - cells[0]).TotalDays <= 400)
+                    return (cells[0], cells[1]);
+            }
+
+            return (null, null);
+        }
+
+        /* The dates written in a piece of text, in order. */
+        private static List<DateTime> DatesIn(string text)
+        {
+            var hits = new List<(int Pos, DateTime? Date, int Month, int Day)>();
+            if (text.Length < 6) return new List<DateTime>();
+
+            foreach (Match m in NumericDate.Matches(text))
+                if (ParseDate(m.Value) is DateTime d) hits.Add((m.Index, d, 0, 0));
+
+            foreach (Match m in MonthDate.Matches(text))
+            {
+                if (!DateTime.TryParseExact(m.Groups[1].Value[..3], "MMM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var mon)) continue;
+                if (!int.TryParse(m.Groups[2].Value, out var day) || day < 1 || day > 31) continue;
+                DateTime? full = null;
+                if (int.TryParse(m.Groups[3].Value, out var year) && year > 2000)
+                    try { full = new DateTime(year, mon.Month, day); } catch (ArgumentOutOfRangeException) { }
+                hits.Add((m.Index, full, mon.Month, day));
+            }
+
+            foreach (Match m in DayMonthDate.Matches(text))
+            {
+                if (hits.Any(h => Math.Abs(h.Pos - m.Index) < 3)) continue;
+                if (!DateTime.TryParseExact(m.Groups[2].Value[..3], "MMM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var mon)) continue;
+                if (!int.TryParse(m.Groups[1].Value, out var day) || day < 1 || day > 31) continue;
+                DateTime? full = null;
+                if (int.TryParse(m.Groups[3].Value, out var year) && year > 2000)
+                    try { full = new DateTime(year, mon.Month, day); } catch (ArgumentOutOfRangeException) { }
+                hits.Add((m.Index, full, mon.Month, day));
+            }
+
+            var year0 = hits.FirstOrDefault(h => h.Date.HasValue).Date?.Year ?? DateTime.Today.Year;
+            var result = new List<DateTime>();
+            foreach (var h in hits.OrderBy(h => h.Pos))
+            {
+                if (h.Date is DateTime d) { result.Add(d); continue; }
+                try { result.Add(new DateTime(year0, h.Month, h.Day)); } catch (ArgumentOutOfRangeException) { }
+            }
+            return result.Where(d => d.Year >= 2015 && d.Year <= DateTime.Today.Year + 2).ToList();
         }
 
         /* The latest end date + 60 days: how long members have to claim, as the legacy upload set it. */
