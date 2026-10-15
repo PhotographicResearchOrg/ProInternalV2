@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using ProInternal.Models.Configuration;
 using Newtonsoft.Json;
 using Microsoft.AspNetCore.DataProtection;
+using ProInternal.Helpers.Security;
 
 
 namespace ProInternal.Controllers
@@ -20,7 +21,9 @@ namespace ProInternal.Controllers
     [Route("api/[controller]")]
 
     [ApiController]
-    [AllowAnonymous]
+    // Users, roles and permissions: only Security Admin holders, always
+    // enforced. Login below stays open.
+    [RequirePermission(Permissions.SecurityAdmin, Permissions.SecurityAdminRoute, AlwaysEnforce = true)]
     public class AuthController : ControllerBase
     {
         private IProDataAccess _proDataAccess;
@@ -249,15 +252,9 @@ namespace ProInternal.Controllers
 
 
         [HttpPost("login")]
+        [AllowAnonymous]
         public IActionResult Login([FromBody] AuthCredentials authCredentials)
         {
-            Console.WriteLine("--------------------------------------------------");
-            // STEP 1: IP-based bypass
-            var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-            // Replace with your actual IP(s)
-            var trustedIps = new[] { "192.168.1.100", "173.16.1.10"};
-            Console.WriteLine(remoteIp);
-    
             if (string.IsNullOrWhiteSpace(authCredentials.username) || string.IsNullOrWhiteSpace(authCredentials.password))
             {
                 return BadRequest(new { error = "Username and password are required." });

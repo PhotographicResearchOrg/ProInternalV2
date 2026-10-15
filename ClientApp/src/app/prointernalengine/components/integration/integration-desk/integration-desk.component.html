@@ -1,0 +1,245 @@
+<div class="app">
+  <!-- Rail: one view per status, with counts -->
+  <nav class="rail">
+    <div class="brandmark">
+      <div class="box"><i class="pi pi-sync"></i></div>
+      <span>Integration</span>
+    </div>
+
+    <button *ngFor="let v of views" type="button" class="rail-btn"
+            [class.active]="v === activeView" (click)="pickView(v)">
+      <i [class]="v.icon"></i>
+      <span class="grow">{{ v.label }}</span>
+      <span class="count" *ngIf="v.count(totals) > 0" [class.hot]="v.key !== 'ack' && v.key !== 'queued' && v.key !== 'sent'">
+        {{ v.count(totals) }}
+      </span>
+    </button>
+
+    <div class="rail-foot">
+      <div class="k">Acknowledged</div>
+      <div class="v">means the other system replied</div>
+    </div>
+  </nav>
+
+  <div class="col">
+    <!-- Header -->
+    <header class="vhead">
+      <div class="vhead-top">
+        <div class="logo"><i class="pi pi-sync"></i></div>
+        <div class="grow">
+          <div class="vtitle">
+            <h1>Integration desk</h1>
+            <span class="pill" [class.bad]="totals.needsAttention > 0" [class.ok]="totals.needsAttention === 0">
+              {{ totals.needsAttention === 0 ? 'Nothing needs attention' : totals.needsAttention + ' need attention' }}
+            </span>
+          </div>
+          <div class="vmeta">
+            <span class="sans">Every message PRO sends, and the answer to it.</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <button type="button" class="btn ghost" (click)="refresh()" [disabled]="loading"><i class="pi pi-refresh"></i> Refresh</button>
+          <button type="button" class="btn primary" (click)="dispatchNow()" [disabled]="acting"><i class="pi pi-send"></i> Send now</button>
+        </div>
+      </div>
+
+      <!-- Key numbers -->
+      <div class="stats">
+        <button type="button" class="stat" (click)="pickView(views[1])"><b [class.warn]="totals.overdue">{{ totals.overdue }}</b><span>overdue</span></button>
+        <button type="button" class="stat" (click)="pickView(views[2])"><b [class.bad]="totals.rejected">{{ totals.rejected }}</b><span>rejected</span></button>
+        <button type="button" class="stat" (click)="pickView(views[3])"><b [class.bad]="totals.failed">{{ totals.failed }}</b><span>failed to send</span></button>
+        <button type="button" class="stat" (click)="pickView(views[4])"><b>{{ totals.awaitingAnswer }}</b><span>awaiting answer</span></button>
+        <button type="button" class="stat" (click)="pickView(views[5])"><b>{{ totals.queued }}</b><span>queued</span></button>
+        <button type="button" class="stat" (click)="pickView(views[6])"><b class="ok">{{ totals.acknowledgedToday }}</b><span>acknowledged, 24 h</span></button>
+      </div>
+    </header>
+
+    <div class="notice" *ngIf="notice" (click)="notice = ''"><i class="pi pi-check"></i> {{ notice }}</div>
+    <div class="error" *ngIf="error"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+
+    <div class="body">
+      <!-- Destinations -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Destinations</h2>
+          <span class="sub">Click a row to see only its messages</span>
+        </div>
+        <table class="grid">
+          <thead>
+            <tr>
+              <th>Destination</th><th>Domain</th>
+              <th class="num">Overdue</th><th class="num">Rejected</th><th class="num">Failed</th>
+              <th class="num">Awaiting</th><th class="num">Queued</th><th class="num">Ack 24 h</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of summary" class="click" (click)="pickDestination(s)"
+                [class.sel]="s.domain === domain && s.destination === destination" [class.off]="!s.isActive">
+              <td><b>{{ s.displayName }}</b><span class="tag" *ngIf="!s.isActive">off</span></td>
+              <td class="mono">{{ s.domain }}</td>
+              <td class="num" [class.warn]="s.overdue">{{ s.overdue }}</td>
+              <td class="num" [class.bad]="s.rejected">{{ s.rejected }}</td>
+              <td class="num" [class.bad]="s.failed">{{ s.failed }}</td>
+              <td class="num">{{ s.awaitingAnswer }}</td>
+              <td class="num">{{ s.queued }}</td>
+              <td class="num">{{ s.acknowledgedToday }}</td>
+            </tr>
+            <tr *ngIf="summary.length === 0"><td colspan="8" class="empty">No destinations are set up yet.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Finder -->
+      <section class="card">
+        <div class="card-head">
+          <h2>{{ activeView.label }}</h2>
+          <span class="sub">{{ total }} message{{ total === 1 ? '' : 's' }}</span>
+        </div>
+
+        <div class="filters">
+          <input id="integration-search" type="search" placeholder="Record id or name  ( / )"
+                 [(ngModel)]="query" (keyup.enter)="page = 1; search()" />
+          <select [(ngModel)]="domain" (ngModelChange)="page = 1; search()">
+            <option value="">All domains</option>
+            <option *ngFor="let d of domains" [value]="d">{{ d }}</option>
+          </select>
+          <select [(ngModel)]="destination" (ngModelChange)="page = 1; search()">
+            <option value="">All destinations</option>
+            <option *ngFor="let d of destinations" [value]="d">{{ d }}</option>
+          </select>
+          <button type="button" class="btn ghost" (click)="clearFilters()" *ngIf="domain || destination || query">Clear</button>
+        </div>
+
+        <table class="grid">
+          <thead>
+            <tr>
+              <th>#</th><th>Record</th><th>Domain</th><th>To</th><th>Status</th>
+              <th>Queued</th><th>Sent</th><th>Due</th><th class="num">Tries</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of rows; trackBy: trackRow" class="click" (click)="open(r)"
+                [class.sel]="selected?.messageId === r.messageId">
+              <td class="mono">{{ r.messageId }}</td>
+              <td>
+                <div class="rec">{{ label(r) }}</div>
+                <div class="err" *ngIf="r.lastError">{{ r.lastError }}</div>
+              </td>
+              <td class="mono">{{ r.domain }}</td>
+              <td class="mono">{{ r.destination }}</td>
+              <td><span class="status" [ngClass]="statusClass(r.status)">{{ r.status }}</span></td>
+              <td class="mono">{{ r.createdAt | date: 'MMM d, HH:mm' }}</td>
+              <td class="mono">{{ r.sentAt ? (r.sentAt | date: 'MMM d, HH:mm') : '' }}</td>
+              <td class="mono" [class.warn]="r.status === 'OVERDUE'">{{ r.dueBy ? (r.dueBy | date: 'MMM d, HH:mm') : '' }}</td>
+              <td class="num">{{ r.attempts }}</td>
+            </tr>
+            <tr *ngIf="!loading && rows.length === 0">
+              <td colspan="9" class="empty">
+                {{ activeView.status === '' ? 'Nothing needs attention.' : 'No messages in this view.' }}
+              </td>
+            </tr>
+            <tr *ngIf="loading"><td colspan="9" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+
+        <div class="pager" *ngIf="pages > 1">
+          <button type="button" class="btn ghost" (click)="goPage(page - 1)" [disabled]="page === 1">Previous</button>
+          <span>Page {{ page }} of {{ pages }}</span>
+          <button type="button" class="btn ghost" (click)="goPage(page + 1)" [disabled]="page === pages">Next</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- One message, open beside the list -->
+  <aside class="drawer" *ngIf="selected || detailLoading">
+    <div class="drawer-head">
+      <div class="grow">
+        <div class="mono sub">Message {{ selected?.messageId }}</div>
+        <h2>{{ selected ? label(selected) : 'Loading…' }}</h2>
+      </div>
+      <button type="button" class="icon-btn" (click)="close()" aria-label="Close"><i class="pi pi-times"></i></button>
+    </div>
+
+    <ng-container *ngIf="selected">
+      <div class="facts">
+        <div><span>Status</span><b class="status" [ngClass]="statusClass(selected.status)">{{ selected.status }}</b></div>
+        <div><span>Domain</span><b class="mono">{{ selected.domain }}</b></div>
+        <div><span>To</span><b class="mono">{{ selected.destination }}</b></div>
+        <div><span>Operation</span><b class="mono">{{ selected.operation }}</b></div>
+        <div><span>Contract</span><b class="mono">v{{ selected.contractVersion }}</b></div>
+        <div><span>Their id</span><b class="mono">{{ selected.externalId || '–' }}</b></div>
+        <div><span>Queued by</span><b>{{ selected.createdBy }}</b></div>
+        <div><span>Tries</span><b class="mono">{{ selected.attempts }}</b></div>
+        <div class="wide"><span>Correlation id</span><b class="mono small">{{ selected.correlationId }}</b></div>
+      </div>
+
+      <div class="err-box" *ngIf="selected.lastError"><i class="pi pi-exclamation-circle"></i> {{ selected.lastError }}</div>
+
+      <div class="actions" *ngIf="canResend(selected.status) || canCancel(selected.status)">
+        <button type="button" class="btn primary" *ngIf="canResend(selected.status)" (click)="startAction('resend', selected.messageId)">
+          <i class="pi pi-replay"></i> Resend
+        </button>
+        <button type="button" class="btn danger" *ngIf="canCancel(selected.status)" (click)="startAction('cancel', selected.messageId)">
+          <i class="pi pi-ban"></i> Cancel
+        </button>
+      </div>
+
+      <div class="tabs">
+        <button type="button" [class.on]="detailTab === 'answers'" (click)="detailTab = 'answers'">Answers ({{ selected.responses.length }})</button>
+        <button type="button" [class.on]="detailTab === 'history'" (click)="detailTab = 'history'">History ({{ selected.events.length }})</button>
+        <button type="button" [class.on]="detailTab === 'payload'" (click)="detailTab = 'payload'">What was sent</button>
+      </div>
+
+      <div *ngIf="detailTab === 'answers'">
+        <div class="empty" *ngIf="selected.responses.length === 0">No answer yet.</div>
+        <div class="answer" *ngFor="let a of selected.responses">
+          <div class="answer-top">
+            <span class="status" [ngClass]="a.result === 'REJECTED' ? 'bad' : a.result ? 'ok' : 'info'">{{ a.result || a.responseType }}</span>
+            <span class="mono sub">{{ a.respondedAt | date: 'MMM d, HH:mm:ss' }}</span>
+          </div>
+          <div *ngIf="a.reasonCode" class="mono">{{ a.reasonCode }}</div>
+          <div *ngIf="a.message">{{ a.message }}</div>
+          <details>
+            <summary>Full answer</summary>
+            <pre>{{ pretty(a.body) }}</pre>
+          </details>
+        </div>
+      </div>
+
+      <ol class="timeline" *ngIf="detailTab === 'history'">
+        <li *ngFor="let e of selected.events">
+          <div class="t-top"><b>{{ e.eventType }}</b><span class="sub">{{ e.actor }} · {{ e.at | date: 'MMM d, HH:mm:ss' }}</span></div>
+          <div *ngIf="e.reason" class="t-reason">{{ e.reason }}</div>
+        </li>
+      </ol>
+
+      <div *ngIf="detailTab === 'payload'">
+        <div class="mono sub small">SHA-256 {{ selected.payloadSha256 }}</div>
+        <pre class="payload">{{ pretty(selected.payload) }}</pre>
+      </div>
+    </ng-container>
+  </aside>
+
+  <!-- Reason prompt for resend / cancel -->
+  <div class="scrim" *ngIf="pending" (click)="closeAction()">
+    <div class="dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <h3>{{ pending.kind === 'resend' ? 'Resend message ' : 'Cancel message ' }}{{ pending.messageId }}</h3>
+      <p class="sub">
+        {{ pending.kind === 'resend'
+          ? 'It goes back in the queue and is sent on the next cycle.'
+          : 'It will not be sent again. The record in PRO is not changed.' }}
+      </p>
+      <label for="action-reason">Reason</label>
+      <textarea id="action-reason" rows="3" [(ngModel)]="reason" placeholder="Why, for the message history"></textarea>
+      <div class="err" *ngIf="actionError">{{ actionError }}</div>
+      <div class="dialog-actions">
+        <button type="button" class="btn ghost" (click)="closeAction()">Back</button>
+        <button type="button" class="btn" [class.primary]="pending.kind === 'resend'" [class.danger]="pending.kind === 'cancel'"
+                (click)="confirmAction()" [disabled]="acting">
+          {{ pending.kind === 'resend' ? 'Resend' : 'Cancel message' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

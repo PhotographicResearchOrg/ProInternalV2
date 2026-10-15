@@ -4,7 +4,7 @@ import {
   VendorDirectOrder, OrderLineSide, PosImportSummary, SentOrder, SentShipment, ProductLookup,
   HeldOrderReleaseRequest, OrderEditResponse, OrderLine, OrderInboxReviewItem, OrderInboxReviewDetail, ProcessOrdersRequest, OrderAuditRecord,
   UpdateOrderShipToRequest, OrderChannel, OrderStatus, OrderRecord, OrderShipToOption
-} from 'src/app/models/orders/OrderModels';
+} from 'src/app/models/Orders/OrderModels';
 import { OrdersService } from 'src/app/services/orders.service';
 import { OrdersMetrics } from 'src/app/models/Dashboard/OrdersMetrics';
 import { DataService } from 'src/app/services/data.service';

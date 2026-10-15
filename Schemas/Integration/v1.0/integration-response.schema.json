@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.promaster.com/integration/integration-response.schema.json",
+  "title": "Integration Response",
+  "description": "What any receiving system (Computyme, Shopify, Sage, a vendor) sends back about one message PRO sent it, for every domain except orders, which keep their own order-response contract. The message is identified by the correlationId PRO sent with it. Every message must come back with an ACKNOWLEDGEMENT; silence is not acknowledgement, and PRO marks an unanswered message OVERDUE. Posted to POST api/integration/responses/{destination} with the destination's x-integration-key header.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "correlationId",
+    "responseType",
+    "respondedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "correlationId": {
+      "description": "The correlationId PRO sent with the message being answered.",
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "responseType": {
+      "type": "string",
+      "enum": [
+        "ACKNOWLEDGEMENT",
+        "STATUS_UPDATE",
+        "EXCEPTION"
+      ]
+    },
+    "result": {
+      "description": "Required on an ACKNOWLEDGEMENT. REJECTED means the receiver will not process the message.",
+      "type": "string",
+      "enum": [
+        "ACCEPTED",
+        "ACCEPTED_WITH_CHANGES",
+        "REJECTED"
+      ]
+    },
+    "reasonCode": {
+      "description": "Short machine code for a rejection, change or exception, e.g. UNKNOWN_ITEM, VALIDATION_FAILED.",
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{1,59}$"
+    },
+    "message": {
+      "description": "Plain-language explanation a person on the Integration desk can act on.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "externalId": {
+      "description": "The receiver's own id for the record, kept on PRO's side for cross-reference.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "respondedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "changes": {
+      "description": "On ACCEPTED_WITH_CHANGES: what the receiver changed, field by field.",
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "note"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "sentValue": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          "appliedValue": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "responseType": {
+            "const": "ACKNOWLEDGEMENT"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "result"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "const": "REJECTED"
+          }
+        },
+        "required": [
+          "result"
+        ]
+      },
+      "then": {
+        "required": [
+          "reasonCode",
+          "message"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "const": "ACCEPTED_WITH_CHANGES"
+          }
+        },
+        "required": [
+          "result"
+        ]
+      },
+      "then": {
+        "required": [
+          "changes"
+        ],
+        "properties": {
+          "changes": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "responseType": {
+            "const": "EXCEPTION"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "reasonCode",
+          "message"
+        ]
+      }
+    }
+  ]
+}
