@@ -276,6 +276,58 @@ BEGIN
 END
 GO
 
+/* ---------------------------------------------------------------
+   For the vendor card (PRO dbo.Vendor = Computyme AP vendor id):
+   the rebate vendors linked to it through RebateVendors.APMSTID, and
+   their live and upcoming programs on both rails. Liability comes
+   from Rebate_VendorLiability for each linked rebate vendor.
+   --------------------------------------------------------------- */
+CREATE OR ALTER PROCEDURE piv2.Rebate_ForApVendor
+    @ApVendorId nvarchar(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @ap nvarchar(50) = NULLIF(LTRIM(RTRIM(@ApVendorId)), N'');
+    DECLARE @apInt int = TRY_CAST(@ap AS int);
+    DECLARE @today date = CAST(GETDATE() AS date);
+
+    CREATE TABLE #v (VendorId int NOT NULL PRIMARY KEY, VendorName nvarchar(200) NULL, Rail char(2) NOT NULL, IsActive bit NOT NULL);
+    INSERT #v
+    SELECT v.VendorID, v.VendorName, CASE WHEN v.IsPriceProtection = 1 THEN 'PP' ELSE 'IR' END, CAST(COALESCE(v.Active, 0) AS bit)
+      FROM dbo.RebateVendors v
+     WHERE @ap IS NOT NULL
+       AND (LTRIM(RTRIM(v.APMSTID)) = @ap OR (@apInt IS NOT NULL AND TRY_CAST(LTRIM(RTRIM(v.APMSTID)) AS int) = @apInt));
+
+    SELECT VendorId, VendorName, Rail, IsActive FROM #v ORDER BY Rail, VendorName;
+
+    /* Live programs and ones starting later, newest first (capped). */
+    SELECT TOP (300) x.*
+      FROM
+      (
+        SELECT 'IR' AS Rail, p.ProgramID AS ProgramId, p.BatchID AS BatchId, m.ModelID AS ModelId, m.ModelNumber AS Description,
+               m.ModelName AS ProCode, t.Name AS TypeName, p.ProgramStartWeek AS StartDate, p.ProgramEndWeek AS EndDate,
+               p.InstantRebate, p.Reimbursement AS MemberAmount, p.MAPDrop AS MapPrice,
+               CASE WHEN p.ProgramStartWeek > @today THEN 'UPCOMING' ELSE 'RUNNING' END AS State
+          FROM dbo.RebateProgramDetail p
+          JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
+          JOIN #v v ON v.VendorId = m.VendorID
+          LEFT JOIN dbo.RebateType t ON t.ID = p.IRType
+         WHERE p.Expired = 0 AND p.ProgramEndWeek >= @today
+        UNION ALL
+        SELECT 'PP', p.ProgramID, NULL, m.ModelID, m.ModelNumber, m.ModelName, N'Price protection', p.ProgramDate, NULL,
+               NULL, p.Amount, p.NewMap,
+               CASE WHEN p.ProgramDate > @today THEN 'UPCOMING' ELSE 'RUNNING' END
+          FROM dbo.PriceProtectionDetail p
+          JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
+          JOIN #v v ON v.VendorId = m.VendorID
+         WHERE p.Expired = 0
+      ) x
+     ORDER BY x.StartDate DESC, x.Description;
+END
+GO
+
 /* A vendor's standing terms (instant rebates): catalog prefix, brands, default share and pad. */
 CREATE OR ALTER PROCEDURE piv2.Rebate_GetVendorTerms
     @VendorId int

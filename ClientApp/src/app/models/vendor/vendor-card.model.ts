@@ -163,22 +163,15 @@ export interface VendorPolicies {
   returns: VendorReturnPolicy;
 }
 
-export interface VendorRebateProgramApi {
-  vendorRebateProgramId: number;
-  vendorId: number;
-  name: string;
-  code?: string;
-  amountText?: string;
-  eligibility: string;
-  scopeText?: string;
-  windowText?: string;
-  funding?: string;
-  claimMethod?: string;
-  status: string;
-  isWebVisible: boolean;
-  budgetAmount: number;
-  rebatedAmount: number;
-  redemptionCount: number;
+/* The vendor's rebates, read from the Rebate Desk (managed there, read-only here). */
+export interface VendorRebatesApi {
+  linked: { vendorId: number; vendorName: string; rail: 'IR' | 'PP'; isActive: boolean }[];
+  programs: {
+    rail: 'IR' | 'PP'; programId: number; batchId?: number; modelId: number; description: string; proCode: string;
+    typeName: string; startDate: string; endDate?: string; instantRebate?: number; memberAmount: number; mapPrice?: number;
+    state: 'RUNNING' | 'UPCOMING';
+  }[];
+  summary: { liability: number; liabilityClaims: number; pendingAmount: number; creditedAmount: number; billedAmount: number; programsLive: number };
 }
 
 // Custom fields are defined once (VendorCustomFieldDefinitionApi) and shown

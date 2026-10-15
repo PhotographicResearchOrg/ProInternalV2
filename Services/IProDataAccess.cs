@@ -117,10 +117,6 @@ GetSellThroughExportData(
         void UpsertVendorShippingPolicy(VendorShippingPolicyDto policy, AuditActor actor);
         void UpsertVendorReturnPolicy(VendorReturnPolicyDto policy, AuditActor actor);
 
-        List<VendorRebateProgramDto> GetVendorRebatePrograms(int vendorId);
-        int AddVendorRebateProgram(VendorRebateProgramDto rebate, AuditActor actor);
-        void UpdateVendorRebateProgram(VendorRebateProgramDto rebate, AuditActor actor);
-
         List<VendorCustomFieldDefinitionDto> GetVendorCustomFieldDefinitions();
         int AddVendorCustomFieldDefinition(VendorCustomFieldDefinitionDto definition, string createdBy);
         int UpdateVendorCustomFieldDefinition(VendorCustomFieldDefinitionDto definition);

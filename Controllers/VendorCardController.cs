@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ProInternal.Models.Vendor;
 using ProInternal.Services;
+using ProInternal.Services.Rebates;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -23,11 +24,13 @@ namespace ProInternal.Controllers
     {
         private readonly IProDataAccess _prodataAccess;
         private readonly IVendorFileService _vendorFiles;
+        private readonly IRebateDeskDataAccess _rebates;
 
-        public VendorCardController(IProDataAccess proDataAccess, IVendorFileService vendorFiles)
+        public VendorCardController(IProDataAccess proDataAccess, IVendorFileService vendorFiles, IRebateDeskDataAccess rebates)
         {
             _prodataAccess = proDataAccess;
             _vendorFiles = vendorFiles;
+            _rebates = rebates;
         }
 
         // The JWT's "sub" claim (the username) arrives as ClaimTypes.NameIdentifier
@@ -326,26 +329,42 @@ namespace ProInternal.Controllers
             return Ok();
         }
 
+        // ---- Rebates: read from the Rebate Desk (PRO_NUKE), the one record of rebates ----
+        // The vendor card's vendor is the Computyme AP vendor; rebate vendors link to it
+        // through RebateVendors.APMSTID. Programs are managed on the Rebate Desk.
         [HttpGet("{vendorId}/rebates")]
-        public IActionResult GetRebatePrograms(int vendorId)
+        public async Task<IActionResult> GetRebates(int vendorId)
         {
-            return Ok(_prodataAccess.GetVendorRebatePrograms(vendorId));
-        }
+            var sets = await _rebates.QuerySetsAsync("piv2.Rebate_ForApVendor",
+                new { ApVendorId = vendorId.ToString(CultureInfo.InvariantCulture) });
+            var linked = sets.ElementAtOrDefault(0) ?? new List<RebateRow>();
+            var programs = sets.ElementAtOrDefault(1) ?? new List<RebateRow>();
 
-        [HttpPost("{vendorId}/rebates")]
-        public IActionResult AddRebateProgram(int vendorId, [FromBody] VendorRebateProgramDto rebate)
-        {
-            rebate.VendorId = vendorId;
-            var id = _prodataAccess.AddVendorRebateProgram(rebate, GetAuditActor());
-            return Ok(new { vendorRebateProgramId = id });
-        }
+            /* Liability per linked rebate vendor, this calendar year for the period figures. */
+            var summaries = new List<RebateRow>();
+            foreach (var v in linked)
+            {
+                var l = await _rebates.QuerySetsAsync("piv2.Rebate_VendorLiability",
+                    new { Rail = v.Get<string>("rail"), VendorId = v.Get<int>("vendorId"), From = (DateTime?)null, To = (DateTime?)null });
+                var row = l.ElementAtOrDefault(0)?.FirstOrDefault();
+                if (row != null) { row["rail"] = v.Get<string>("rail"); summaries.Add(row); }
+            }
 
-        [HttpPut("rebates/{rebateId}")]
-        public IActionResult UpdateRebateProgram(int rebateId, [FromBody] VendorRebateProgramDto rebate)
-        {
-            rebate.VendorRebateProgramId = rebateId;
-            _prodataAccess.UpdateVendorRebateProgram(rebate, GetAuditActor());
-            return Ok();
+            decimal Sum(string key) => summaries.Sum(r => r.Get<decimal?>(key) ?? 0m);
+            return Ok(new
+            {
+                linked,
+                programs,
+                summary = new
+                {
+                    liability = Sum("liability"),
+                    liabilityClaims = summaries.Sum(r => r.Get<int?>("liabilityClaims") ?? 0),
+                    pendingAmount = Sum("pendingAmount"),
+                    creditedAmount = Sum("creditedAmount"),
+                    billedAmount = Sum("reimbursedAmount"),
+                    programsLive = summaries.Sum(r => r.Get<int?>("programsLive") ?? 0)
+                }
+            });
         }
 
         // ---- Custom field definitions (global, shown on every vendor) ----

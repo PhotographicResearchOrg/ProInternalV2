@@ -175,28 +175,7 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('dbo.VendorRebateProgram', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.VendorRebateProgram (
-        VendorRebateProgramId INT IDENTITY(1,1) PRIMARY KEY,
-        VendorId              INT           NOT NULL,
-        Name                  NVARCHAR(200) NOT NULL,
-        Code                  NVARCHAR(50)  NULL,
-        AmountText            NVARCHAR(100) NULL,
-        Eligibility           NVARCHAR(20)  NOT NULL CONSTRAINT DF_VendorRebateProgram_Elig DEFAULT ('all'),
-        ScopeText             NVARCHAR(200) NULL,
-        WindowText            NVARCHAR(100) NULL,
-        Funding               NVARCHAR(100) NULL,
-        ClaimMethod           NVARCHAR(100) NULL,
-        Status                NVARCHAR(30)  NOT NULL CONSTRAINT DF_VendorRebateProgram_Status DEFAULT ('draft'),
-        IsWebVisible          BIT           NOT NULL CONSTRAINT DF_VendorRebateProgram_Web DEFAULT (0),
-        BudgetAmount          DECIMAL(14,2) NOT NULL CONSTRAINT DF_VendorRebateProgram_Budget DEFAULT (0),
-        RebatedAmount         DECIMAL(14,2) NOT NULL CONSTRAINT DF_VendorRebateProgram_Rebated DEFAULT (0),
-        RedemptionCount       INT           NOT NULL CONSTRAINT DF_VendorRebateProgram_Redemptions DEFAULT (0),
-        CONSTRAINT FK_VendorRebateProgram_Vendor FOREIGN KEY (VendorId) REFERENCES dbo.Vendor (VendorId)
-    );
-END
-GO
+/* Vendor rebate programs are not stored here: the Rebate Desk (PRO_NUKE) is the one record of rebates, and the vendor card reads it. */
 
 IF OBJECT_ID('dbo.VendorCustomField', 'U') IS NULL
 BEGIN
@@ -245,9 +224,6 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_VendorContract_VendorI
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_VendorPriceList_VendorId' AND object_id = OBJECT_ID('dbo.VendorPriceList'))
     CREATE INDEX IX_VendorPriceList_VendorId ON dbo.VendorPriceList (VendorId);
-
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_VendorRebateProgram_VendorId' AND object_id = OBJECT_ID('dbo.VendorRebateProgram'))
-    CREATE INDEX IX_VendorRebateProgram_VendorId ON dbo.VendorRebateProgram (VendorId);
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_VendorCustomField_VendorId' AND object_id = OBJECT_ID('dbo.VendorCustomField'))
     CREATE INDEX IX_VendorCustomField_VendorId ON dbo.VendorCustomField (VendorId);

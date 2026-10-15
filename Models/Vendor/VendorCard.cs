@@ -216,25 +216,6 @@ namespace ProInternal.Models.Vendor
         public VendorReturnPolicyDto Returns { get; set; }
     }
 
-    public class VendorRebateProgramDto
-    {
-        public int VendorRebateProgramId { get; set; }
-        public int VendorId { get; set; }
-        public string Name { get; set; }
-        public string? Code { get; set; }
-        public string? AmountText { get; set; }
-        public string Eligibility { get; set; }
-        public string? ScopeText { get; set; }
-        public string? WindowText { get; set; }
-        public string? Funding { get; set; }
-        public string? ClaimMethod { get; set; }
-        public string Status { get; set; }
-        public bool IsWebVisible { get; set; }
-        public decimal BudgetAmount { get; set; }
-        public decimal RebatedAmount { get; set; }
-        public int RedemptionCount { get; set; }
-    }
-
     // Custom fields are defined once (VendorCustomFieldDefinitionDto) and
     // shown on every vendor under the chosen Section; each vendor then has
     // its own value (VendorCustomFieldDto). Section is a vendor-card nav id.

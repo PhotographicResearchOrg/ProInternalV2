@@ -132,6 +132,8 @@ Chips narrow the list (has liability, awaiting decision, not billed over 60 or 9
 
 The old Rebate Management page (`/rebatemanagement`) now opens the Rebate Desk.
 
+**Vendor card (Ray's vendor management):** its Instant Rebates panel reads the Rebate Desk; there is no second store of rebate programs (`dbo.VendorRebateProgram` and its procedures were taken out of `Sql/VendorCard`). A vendor card vendor (Computyme AP vendor, `dbo.Vendor.VendorId`) links to rebate vendors through `RebateVendors.APMSTID` (`piv2.Rebate_ForApVendor`); the panel shows running and upcoming programs on both rails, and liability, awaiting decision, credited and billed from `Rebate_VendorLiability`. Programs are changed on the desk ("Open Rebate Desk").
+
 ## Claims (accounting, `Rebates.Accounting`)
 
 The nightly `RebateCredits` program is unchanged: it still sends approved claims to Computyme and builds invoices. The desk adds three repairs and replaces the legacy debit memo screen (`/Accounting/IRRebates`).

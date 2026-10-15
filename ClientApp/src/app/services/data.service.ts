@@ -52,7 +52,7 @@ import { SellThroughCompliance } from 'src/app/models/vendor/SellThroughComplian
 import {
   VendorCard, VendorTerms, VendorContactGroupApi, VendorContactApi, VendorContractApi,
   VendorPriceListApi, VendorPolicies, VendorFreightPolicy, VendorShippingPolicy, VendorReturnPolicy,
-  VendorRebateProgramApi, VendorCustomFieldApi, VendorCustomFieldDefinitionApi, VendorAuditLogEntryApi,
+  VendorRebatesApi, VendorCustomFieldApi, VendorCustomFieldDefinitionApi, VendorAuditLogEntryApi,
   VendorFileApi, VendorFileCategory, CreateVendorRequest
 } from 'src/app/models/vendor/vendor-card.model';
 import { AccessRule, AccessRuleMember, MemberDetail, MemberListItem } from 'src/app/models/member/member-desk.models';
@@ -431,14 +431,9 @@ export class DataService {
   saveVendorReturnPolicy(vendorId: number, policy: VendorReturnPolicy): Observable<void> {
     return this.api.put<void>(`API/VendorCard/${vendorId}/policies/returns`, policy);
   }
-  getVendorRebatePrograms(vendorId: number): Observable<VendorRebateProgramApi[]> {
-    return this.api.get<VendorRebateProgramApi[]>(`API/VendorCard/${vendorId}/rebates`);
-  }
-  addVendorRebateProgram(vendorId: number, rebate: Partial<VendorRebateProgramApi>): Observable<{ vendorRebateProgramId: number }> {
-    return this.api.post<{ vendorRebateProgramId: number }>(`API/VendorCard/${vendorId}/rebates`, rebate);
-  }
-  updateVendorRebateProgram(rebateId: number, rebate: Partial<VendorRebateProgramApi>): Observable<void> {
-    return this.api.put<void>(`API/VendorCard/rebates/${rebateId}`, rebate);
+  /* Read from the Rebate Desk; rebates are managed there. */
+  getVendorRebates(vendorId: number): Observable<VendorRebatesApi> {
+    return this.api.get<VendorRebatesApi>(`API/VendorCard/${vendorId}/rebates`);
   }
   getVendorCustomFieldDefinitions(): Observable<VendorCustomFieldDefinitionApi[]> {
     return this.api.get<VendorCustomFieldDefinitionApi[]>(`API/VendorCard/custom-field-definitions`);

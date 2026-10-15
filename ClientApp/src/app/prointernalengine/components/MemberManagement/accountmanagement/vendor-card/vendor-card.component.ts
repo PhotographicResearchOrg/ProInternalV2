@@ -11,13 +11,13 @@
 
 
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ConfirmationService } from 'primeng/api';
 import { DataService } from 'src/app/services/data.service';
 import {
   VendorTerms, VendorFreightPolicy, VendorShippingPolicy, VendorReturnPolicy, VendorStats,
-  VendorContactApi, VendorContractApi, VendorPriceListApi, VendorRebateProgramApi,
+  VendorContactApi, VendorContractApi, VendorPriceListApi, VendorRebatesApi,
   VendorFileApi, VendorFileCategory
 } from 'src/app/models/vendor/vendor-card.model';
 
@@ -29,11 +29,7 @@ interface Person { id: number; name: string; title: string; email: string; phone
 interface ContactGroup { groupId: number; group: string; color: number; people: Person[]; }
 interface Contract { id: number; name: string; type: string; start: string; end: string; value: string; status: string; }
 interface PriceList { name: string; eff: string; exp: string; skus: number; status: string; cur: string; }
-interface Rebate {
-  id: string; name: string; code: string; amount: string; eligibility: string; scope: string;
-  window: string; funding: string; claim: string; status: string; web: boolean;
-  rebated: number; budget: number; redemptions: number; burn: number;
-}
+type Rebate = VendorRebatesApi['programs'][number];
 interface AuditEntry { who: string; when: string; section: string; field: string; from: string; to: string; currentSession: boolean; }
 interface CustomField { defId: number; label: string; type: string; value: string; section: string; publishable: boolean; }
 
@@ -95,6 +91,9 @@ export class VendorCardComponent implements OnInit, OnChanges {
   contracts: Contract[] = [];
   lists: PriceList[] = [];
   rebates: Rebate[] = [];
+  rebateSummary: VendorRebatesApi['summary'] = { liability: 0, liabilityClaims: 0, pendingAmount: 0, creditedAmount: 0, billedAmount: 0, programsLive: 0 };
+  rebateLinked: VendorRebatesApi['linked'] = [];
+  rebatesLoaded = false;
   audit: AuditEntry[] = [];
   customFields: CustomField[] = [];
 
@@ -205,10 +204,6 @@ export class VendorCardComponent implements OnInit, OnChanges {
   returnDialogVisible = false;
   returnDraft: VendorReturnPolicy = { vendorId: 0, rmaRequired: false };
 
-  // ---- dialog state: Rebate ----
-  rebateDialogVisible = false;
-  rebateDraft: Partial<VendorRebateProgramApi> = {};
-  editingRebateId: number | null = null;
 
   // ---- dialog state: Custom field values (one dialog per section card) ----
   // Fields themselves are defined on the Vendor Custom Fields page; this
@@ -221,6 +216,7 @@ export class VendorCardComponent implements OnInit, OnChanges {
   constructor(
     private dataService: DataService,
     private route: ActivatedRoute,
+    private router: Router,
     private confirmationService: ConfirmationService,
 	private directShip: VendorDirectShipService
   ) { }
@@ -314,17 +310,23 @@ export class VendorCardComponent implements OnInit, OnChanges {
     });
   }
 
+  /* Rebates come from the Rebate Desk (managed there); this card only shows them. */
   private loadRebates(): void {
-    this.dataService.getVendorRebatePrograms(this.id).subscribe(list => {
-      this.rebates = (list || []).map(r => ({
-        id: String(r.vendorRebateProgramId), name: r.name, code: r.code || '', amount: r.amountText || '',
-        eligibility: r.eligibility, scope: r.scopeText || '', window: r.windowText || '', funding: r.funding || '',
-        claim: r.claimMethod || '', status: r.status, web: r.isWebVisible,
-        rebated: r.rebatedAmount, budget: r.budgetAmount, redemptions: r.redemptionCount,
-        burn: r.budgetAmount > 0 ? Math.round((r.rebatedAmount / r.budgetAmount) * 100) : 0
-      }));
-      this.buildOverviewTiles();
+    this.rebatesLoaded = false;
+    this.dataService.getVendorRebates(this.id).subscribe({
+      next: r => {
+        this.rebates = r?.programs ?? [];
+        this.rebateLinked = r?.linked ?? [];
+        if (r?.summary) this.rebateSummary = r.summary;
+        this.rebatesLoaded = true;
+        this.buildOverviewTiles();
+      },
+      error: () => { this.rebates = []; this.rebatesLoaded = true; this.buildOverviewTiles(); }
     });
+  }
+
+  openRebateDesk(): void {
+    this.router.navigate(['/rebatedesk'], { queryParams: { view: 'vendors' } });
   }
 
   private loadAudit(): void {
@@ -906,40 +908,7 @@ export class VendorCardComponent implements OnInit, OnChanges {
     });
   }
 
-  // --- Instant rebates ---
-  openAddRebate(): void {
-    this.clearFormErrors();
-    this.editingRebateId = null;
-    this.rebateDraft = { eligibility: 'all', status: 'draft', isWebVisible: false, budgetAmount: 0 };
-    this.rebateDialogVisible = true;
-  }
-  openEditRebate(r: Rebate): void {
-    this.clearFormErrors();
-    this.editingRebateId = +r.id;
-    this.rebateDraft = {
-      name: r.name, code: r.code, amountText: r.amount, eligibility: r.eligibility,
-      scopeText: r.scope, windowText: r.window, funding: r.funding, claimMethod: r.claim,
-      status: r.status, isWebVisible: r.web, budgetAmount: r.budget
-    };
-    this.rebateDialogVisible = true;
-  }
-  saveRebate(): void {
-    if (!this.rebateDraft.name?.trim()) return;
 
-    const onSuccess = () => {
-      this.rebateDialogVisible = false;
-      this.showToast(this.editingRebateId ? 'Rebate updated' : 'Rebate created');
-      this.loadRebates();
-      this.loadAudit();
-    };
-    const onError = (err: any) => this.handleSaveError(err, 'Could not save rebate');
-
-    if (this.editingRebateId) {
-      this.dataService.updateVendorRebateProgram(this.editingRebateId, this.rebateDraft).subscribe({ next: onSuccess, error: onError });
-    } else {
-      this.dataService.addVendorRebateProgram(this.id, this.rebateDraft).subscribe({ next: onSuccess, error: onError });
-    }
-  }
 
   // --- Custom fields ---
   openEditCustomFields(section: string): void {
@@ -1045,9 +1014,8 @@ export class VendorCardComponent implements OnInit, OnChanges {
   }
   customFor(section: string): CustomField[] { return this.customFields.filter(f => f.section === section); }
   recent(): AuditEntry[] { return this.audit.slice(0, 3); }
-  activeRebates(): Rebate[] { return this.rebates.filter(r => r.status === 'active'); }
-  openLiability(): number { return this.activeRebates().reduce((a, r) => a + (r.budget - r.rebated), 0); }
-  totalRedemptions(): number { return this.rebates.reduce((a, r) => a + r.redemptions, 0); }
+  activeRebates(): Rebate[] { return this.rebates.filter(r => r.state === 'RUNNING'); }
+  rebatesLinkedText(): string { return this.rebateLinked.map(v => `${v.vendorName} (${v.rail === 'PP' ? 'price protection' : 'instant rebates'})`).join(', '); }
   status(s: string) { return this.statusMap[s] || this.statusMap['draft']; }
   elig(e: string) { return this.eligMap[e] || this.eligMap['all']; }
   secColor(s: string) { return this.sectionColor[s] || { fg: this.P.sub, bg: '#eef1f5' }; }
@@ -1090,8 +1058,8 @@ export class VendorCardComponent implements OnInit, OnChanges {
     const activeContracts = this.contracts.filter(c => c.status === 'active');
     const expiringContracts = this.contracts.filter(c => c.status === 'expiring');
 
-    const activeRebates = this.rebates.filter(r => r.status === 'active');
-    const scheduledRebates = this.rebates.filter(r => r.status === 'scheduled');
+    const activeRebates = this.rebates.filter(r => r.state === 'RUNNING');
+    const scheduledRebates = this.rebates.filter(r => r.state === 'UPCOMING');
 
     this.overviewTiles = [
       {
@@ -1135,9 +1103,9 @@ export class VendorCardComponent implements OnInit, OnChanges {
       {
         id: 'rebates', icon: 'pi pi-ticket', title: 'Instant Rebates', color: 1,
         lines: [
-          `${this.rebates.length} programs · ${activeRebates.length} active now`,
-          activeRebates[0] ? `${activeRebates[0].name} ${activeRebates[0].amount} live` : 'No active programs',
-          scheduledRebates[0] ? `${scheduledRebates[0].name} scheduled` : ''
+          `${activeRebates.length} running · ${scheduledRebates.length} starting later`,
+          this.rebateSummary.liability ? `Liability ${this.rebateSummary.liability.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} not billed` : 'No liability',
+          this.rebateLinked.length ? '' : 'Not linked to a rebate vendor'
         ].filter(Boolean)
       }
     ];

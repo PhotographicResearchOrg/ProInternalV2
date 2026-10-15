@@ -305,55 +305,44 @@
         <ng-container *ngTemplateOutlet="customCard; context: { section: 'policies' }"></ng-container>
       </div>
 
-      <!-- ---------- Instant Rebates ---------- -->
+      <!-- ---------- Instant Rebates (from the Rebate Desk) ---------- -->
       <div *ngIf="activeSection === 'rebates'" class="stack">
         <div class="rb-head">
           <div>
             <h2 class="rb-title">Instant rebates</h2>
-            <p class="rb-desc">Vendor-funded discounts applied instantly at the point of sale. Each program defines who qualifies, what it applies to, how it's funded, and when it runs.</p>
+            <p class="rb-desc">Programs and liability come from the Rebate Desk, where they are loaded and managed.
+              <span *ngIf="rebateLinked.length">Rebate vendor(s): {{ rebatesLinkedText() }}.</span></p>
           </div>
-          <button class="btn-primary" (click)="openAddRebate()"><i class="pi pi-plus"></i> Create instant rebate</button>
+          <button class="btn-primary" (click)="openRebateDesk()"><i class="pi pi-external-link"></i> Open Rebate Desk</button>
         </div>
 
         <div class="rb-summary">
-          <div class="rb-chipstat"><div class="k">Active programs</div><div class="v">{{ activeRebates().length }}</div></div>
-          <div class="rb-chipstat"><div class="k">Open liability</div><div class="v">{{ openLiability() | currency:'USD':'symbol':'1.0-0' }}</div></div>
-          <div class="rb-chipstat"><div class="k">Redemptions (all time)</div><div class="v">{{ totalRedemptions() | number }}</div></div>
-          <div class="rb-chipstat"><div class="k">Programs total</div><div class="v">{{ rebates.length }}</div></div>
+          <div class="rb-chipstat"><div class="k">Running now</div><div class="v">{{ activeRebates().length }}</div></div>
+          <div class="rb-chipstat"><div class="k">Liability (not billed)</div><div class="v">{{ rebateSummary.liability | currency:'USD':'symbol':'1.0-0' }}</div></div>
+          <div class="rb-chipstat"><div class="k">Awaiting decision</div><div class="v">{{ rebateSummary.pendingAmount | currency:'USD':'symbol':'1.0-0' }}</div></div>
+          <div class="rb-chipstat"><div class="k">Credited this year</div><div class="v">{{ rebateSummary.creditedAmount | currency:'USD':'symbol':'1.0-0' }}</div></div>
+          <div class="rb-chipstat"><div class="k">Billed (DM) this year</div><div class="v">{{ rebateSummary.billedAmount | currency:'USD':'symbol':'1.0-0' }}</div></div>
         </div>
 
-        <div class="rb-list">
-          <div class="rb" *ngFor="let r of rebates">
-            <div class="rb-top">
-              <div class="rb-id"><span class="rb-name">{{ r.name }}</span><span class="rb-code">{{ r.code }}</span></div>
-              <div class="rb-badges">
-                <span *ngIf="r.web" class="badge" [ngStyle]="{color: P.teal, background: P.tealSoft}"><i class="pi pi-globe"></i> web</span>
-                <span class="badge" [ngStyle]="{color: status(r.status).fg, background: status(r.status).bg}">{{ status(r.status).label }}</span>
-              </div>
-            </div>
-            <div class="rb-headline">
-              <span class="rb-amount">{{ r.amount }}</span>
-              <span class="badge" [ngStyle]="{color: elig(r.eligibility).fg, background: elig(r.eligibility).bg}">{{ elig(r.eligibility).label }}</span>
-            </div>
-            <div class="rb-facts">
-              <div class="rb-fact"><span class="k">Applies to</span><span class="v">{{ r.scope }}</span></div>
-              <div class="rb-fact"><span class="k">Window</span><span class="v mono">{{ r.window }}</span></div>
-              <div class="rb-fact"><span class="k">Funding</span><span class="v">{{ r.funding }}</span></div>
-              <div class="rb-fact"><span class="k">Reconciliation</span><span class="v">{{ r.claim }}</span></div>
-            </div>
-            <div class="rb-perf">
-              <div class="rb-burn"><div class="rb-burn-fill" [style.width.%]="r.burn"></div></div>
-              <div class="rb-perf-row">
-                <span>{{ r.rebated | currency:'USD':'symbol':'1.0-0' }} of {{ r.budget | currency:'USD':'symbol':'1.0-0' }} rebated</span>
-                <span class="mono">{{ r.redemptions | number }} redemptions</span>
-              </div>
-            </div>
-            <div class="rb-actions">
-              <button class="iconbtn" (click)="openEditRebate(r)"><i class="pi pi-pencil"></i> Edit</button>
-              <button class="iconbtn" (click)="stub('Details view — stub')"><i class="pi pi-external-link"></i> Details</button>
-            </div>
-          </div>
-        </div>
+        <div class="rb-desc" *ngIf="rebatesLoaded && !rebateLinked.length">
+          No rebate vendor is linked to this vendor. A rebate vendor links through its AP vendor id (RebateVendors.APMSTID = this vendor's number).</div>
+        <div class="rb-desc" *ngIf="rebatesLoaded && rebateLinked.length && !rebates.length">No programs running or starting later.</div>
+
+        <table class="rb-table" *ngIf="rebates.length" style="width: 100%; border-collapse: collapse; font-size: 13px">
+          <thead><tr style="text-align: left"><th>Product</th><th>Type</th><th>Dates</th><th style="text-align: right">Instant rebate</th>
+            <th style="text-align: right">Member</th><th>State</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let r of rebates" style="border-top: 1px solid #e5e8ee">
+              <td style="padding: 6px 4px"><div>{{ r.description }}</div><div class="mono" style="font-size: 11px; color: #6b7686">#{{ r.programId }} · PRO {{ r.proCode }}</div></td>
+              <td>{{ r.typeName }}</td>
+              <td class="mono">{{ r.startDate | date:'MM/dd/yy' }}<span *ngIf="r.endDate"> – {{ r.endDate | date:'MM/dd/yy' }}</span></td>
+              <td class="mono" style="text-align: right">{{ r.instantRebate != null ? (r.instantRebate | currency) : '—' }}</td>
+              <td class="mono" style="text-align: right">{{ r.memberAmount | currency }}</td>
+              <td><span class="badge" [ngStyle]="{color: r.state === 'RUNNING' ? P.teal : '#a15c07', background: r.state === 'RUNNING' ? P.tealSoft : '#fbeecb'}">
+                {{ r.state === 'RUNNING' ? 'running' : 'starts later' }}</span></td>
+            </tr>
+          </tbody>
+        </table>
 
         <ng-container *ngTemplateOutlet="customCard; context: { section: 'rebates' }"></ng-container>
       </div>
@@ -915,65 +904,7 @@
   </ng-template>
 </p-dialog>
 
-<p-dialog [header]="editingRebateId ? 'Edit instant rebate' : 'Create instant rebate'" [(visible)]="rebateDialogVisible" [modal]="true" [style]="{width: '560px'}" [draggable]="false">
-  <div class="dlg-grid">
-    <div class="dlg-field">
-      <label>Name</label>
-      <input pInputText [(ngModel)]="rebateDraft.name" [class.p-invalid]="fieldError('name')" />
-      <small class="dlg-err" *ngIf="fieldError('name')">{{ fieldError('name') }}</small>
-    </div>
-    <div class="dlg-field">
-      <label>Code</label>
-      <input pInputText [(ngModel)]="rebateDraft.code" [class.p-invalid]="fieldError('code')" />
-      <small class="dlg-err" *ngIf="fieldError('code')">{{ fieldError('code') }}</small>
-    </div>
-    <div class="dlg-field">
-      <label>Amount</label>
-      <input pInputText [(ngModel)]="rebateDraft.amountText" placeholder="$5.00 / unit" [class.p-invalid]="fieldError('amounttext')" />
-      <small class="dlg-err" *ngIf="fieldError('amounttext')">{{ fieldError('amounttext') }}</small>
-    </div>
-    <div class="dlg-field">
-      <label>Eligibility</label>
-      <p-dropdown [options]="eligibilityOptions" [(ngModel)]="rebateDraft.eligibility"></p-dropdown>
-      <small class="dlg-err" *ngIf="fieldError('eligibility')">{{ fieldError('eligibility') }}</small>
-    </div>
-    <div class="dlg-field">
-      <label>Applies to</label>
-      <input pInputText [(ngModel)]="rebateDraft.scopeText" [class.p-invalid]="fieldError('scopetext')" />
-      <small class="dlg-err" *ngIf="fieldError('scopetext')">{{ fieldError('scopetext') }}</small>
-    </div>
-    <div class="dlg-field">
-      <label>Window</label>
-      <input pInputText [(ngModel)]="rebateDraft.windowText" placeholder="Jun 1 → Aug 31" [class.p-invalid]="fieldError('windowtext')" />
-      <small class="dlg-err" *ngIf="fieldError('windowtext')">{{ fieldError('windowtext') }}</small>
-    </div>
-    <div class="dlg-field">
-      <label>Funding</label>
-      <input pInputText [(ngModel)]="rebateDraft.funding" [class.p-invalid]="fieldError('funding')" />
-      <small class="dlg-err" *ngIf="fieldError('funding')">{{ fieldError('funding') }}</small>
-    </div>
-    <div class="dlg-field">
-      <label>Reconciliation</label>
-      <input pInputText [(ngModel)]="rebateDraft.claimMethod" placeholder="Off-invoice" [class.p-invalid]="fieldError('claimmethod')" />
-      <small class="dlg-err" *ngIf="fieldError('claimmethod')">{{ fieldError('claimmethod') }}</small>
-    </div>
-    <div class="dlg-field">
-      <label>Status</label>
-      <p-dropdown [options]="statusOptions" [(ngModel)]="rebateDraft.status"></p-dropdown>
-      <small class="dlg-err" *ngIf="fieldError('status')">{{ fieldError('status') }}</small>
-    </div>
-    <div class="dlg-field">
-      <label>Budget</label>
-      <input pInputText type="number" [(ngModel)]="rebateDraft.budgetAmount" [class.p-invalid]="fieldError('budgetamount')" />
-      <small class="dlg-err" *ngIf="fieldError('budgetamount')">{{ fieldError('budgetamount') }}</small>
-    </div>
-    <div class="dlg-field dlg-check"><p-checkbox [binary]="true" [(ngModel)]="rebateDraft.isWebVisible" inputId="rebateWeb"></p-checkbox><label for="rebateWeb">Visible on web</label></div>
-  </div>
-  <ng-template pTemplate="footer">
-    <button pButton label="Cancel" class="p-button-text" (click)="rebateDialogVisible = false"></button>
-    <button pButton label="Save" [disabled]="!rebateDraft.name?.trim()" (click)="saveRebate()"></button>
-  </ng-template>
-</p-dialog>
+
 
 <p-dialog [header]="'Custom fields — ' + customSectionLabel(customFieldSection)" [(visible)]="customFieldDialogVisible" [modal]="true" [style]="{width: '480px'}" [draggable]="false">
   <div class="dlg-grid">
