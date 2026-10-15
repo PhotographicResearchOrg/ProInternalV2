@@ -55,10 +55,10 @@ BEGIN
            CAST(COALESCE(m.SerialNumbersRequired, 0) AS bit) AS SerialNumbersRequired,
            (SELECT STRING_AGG(CAST(d.ProCode AS nvarchar(20)), N', ') FROM dbo.RebateCameraModelsDetails d WHERE d.ParentModelID = m.ModelID) AS ProCodes,
            CASE WHEN @pp = 1
-                THEN (SELECT COUNT(*) FROM dbo.PriceProtectionDetails p WHERE p.ModelID = m.ModelID AND p.Expired = 0)
+                THEN (SELECT COUNT(*) FROM dbo.PriceProtectionDetail p WHERE p.ModelID = m.ModelID AND p.Expired = 0)
                 ELSE (SELECT COUNT(*) FROM dbo.RebateProgramDetail p WHERE p.ModelID = m.ModelID AND p.Expired = 0) END AS ProgramsLive,
            CASE WHEN @pp = 1
-                THEN (SELECT MAX(p.ProgramDate) FROM dbo.PriceProtectionDetails p WHERE p.ModelID = m.ModelID)
+                THEN (SELECT MAX(p.ProgramDate) FROM dbo.PriceProtectionDetail p WHERE p.ModelID = m.ModelID)
                 ELSE (SELECT MAX(p.ProgramEndWeek) FROM dbo.RebateProgramDetail p WHERE p.ModelID = m.ModelID) END AS LastProgramDate,
            (SELECT COUNT(*) FROM dbo.RebateQualifiers q WHERE q.PROQualifierID = m.ModelID) AS Stacks,
            COUNT(*) OVER () AS TotalRows
@@ -117,7 +117,7 @@ BEGIN
                p.NewMap AS MapPrice, p.ProgramDate AS StartDate, CAST(NULL AS datetime) AS EndDate,
                CAST(NULL AS datetime) AS ExpireOn, NULL AS IrType, CAST(NULL AS nvarchar(50)) AS IrTypeName,
                CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive, p.EZPay AS EzPay
-          FROM dbo.PriceProtectionDetails p
+          FROM dbo.PriceProtectionDetail p
          WHERE p.ModelID = @ModelId
          ORDER BY p.ProgramDate DESC;
     ELSE
@@ -289,7 +289,7 @@ BEGIN
         THROW 50736, 'That product does not exist.', 1;
 
     IF @Active = 0 AND (EXISTS (SELECT 1 FROM dbo.RebateProgramDetail WHERE ModelID = @ModelId AND Expired = 0)
-                        OR EXISTS (SELECT 1 FROM dbo.PriceProtectionDetails WHERE ModelID = @ModelId AND Expired = 0))
+                        OR EXISTS (SELECT 1 FROM dbo.PriceProtectionDetail WHERE ModelID = @ModelId AND Expired = 0))
         THROW 50738, 'This product has live programs. Turn them off first.', 1;
 
     UPDATE dbo.RebateCameraModels SET Active = CASE WHEN @Active = 1 THEN 1 ELSE 0 END WHERE ModelID = @ModelId;

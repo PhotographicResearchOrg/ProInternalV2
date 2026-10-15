@@ -3,7 +3,7 @@
     Database: PRO_NUKE      Safe to run twice (CREATE OR ALTER).      Run after 03.
 
     Instant rebates   dbo.RebateProgramDetail   one row per model and date range
-    Price protection  dbo.PriceProtectionDetails one row per model and program date
+    Price protection  dbo.PriceProtectionDetail one row per model and program date
                       (NewInvoiceCost, Amount = member credit, NewMap, EZPay)
 
     On both, Expired = 0 is "on" (open to members) and 1 is "off".
@@ -251,7 +251,7 @@ BEGIN
            p.ProgramDate, p.NewInvoiceCost, p.Amount, p.NewMap AS MapPrice, p.EZPay AS EzPay,
            CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS bit) AS IsLive,
            COUNT(*) OVER () AS TotalRows
-      FROM dbo.PriceProtectionDetails p
+      FROM dbo.PriceProtectionDetail p
       JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
      WHERE (@VendorId IS NULL OR m.VendorID = @VendorId)
@@ -297,10 +297,10 @@ BEGIN
 
     BEGIN TRAN;
 
-    IF EXISTS (SELECT 1 FROM dbo.PriceProtectionDetails WITH (UPDLOCK, HOLDLOCK) WHERE ModelID = @ModelId AND ProgramDate = @ProgramDate)
+    IF EXISTS (SELECT 1 FROM dbo.PriceProtectionDetail WITH (UPDLOCK, HOLDLOCK) WHERE ModelID = @ModelId AND ProgramDate = @ProgramDate)
         THROW 50754, 'This product already has price protection on that date.', 1;
 
-    INSERT dbo.PriceProtectionDetails (ModelID, NewInvoiceCost, Amount, NewMap, EZPay, ProgramDate, Expired)
+    INSERT dbo.PriceProtectionDetail (ModelID, NewInvoiceCost, Amount, NewMap, EZPay, ProgramDate, Expired)
     VALUES (@ModelId, COALESCE(@NewInvoiceCost, 0), @Amount, COALESCE(@NewMap, 0), 0, @ProgramDate,
             CASE WHEN @StartActive = 1 THEN 0 ELSE 1 END);
 
@@ -345,17 +345,17 @@ BEGIN
     DECLARE @model int, @before nvarchar(max);
     SELECT @model = ModelID,
            @before = (SELECT ProgramDate AS programDate, NewInvoiceCost AS newInvoiceCost, Amount AS amount, NewMap AS newMap
-                        FROM dbo.PriceProtectionDetails WHERE ProgramID = @ProgramId FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)
-      FROM dbo.PriceProtectionDetails WITH (UPDLOCK)
+                        FROM dbo.PriceProtectionDetail WHERE ProgramID = @ProgramId FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)
+      FROM dbo.PriceProtectionDetail WITH (UPDLOCK)
      WHERE ProgramID = @ProgramId;
 
     IF @model IS NULL
         THROW 50755, 'That price-protection program does not exist.', 1;
 
-    IF EXISTS (SELECT 1 FROM dbo.PriceProtectionDetails WHERE ModelID = @model AND ProgramDate = @ProgramDate AND ProgramID <> @ProgramId)
+    IF EXISTS (SELECT 1 FROM dbo.PriceProtectionDetail WHERE ModelID = @model AND ProgramDate = @ProgramDate AND ProgramID <> @ProgramId)
         THROW 50754, 'This product already has price protection on that date.', 1;
 
-    UPDATE dbo.PriceProtectionDetails
+    UPDATE dbo.PriceProtectionDetail
        SET ProgramDate = @ProgramDate, NewInvoiceCost = COALESCE(@NewInvoiceCost, 0), Amount = @Amount, NewMap = COALESCE(@NewMap, 0)
      WHERE ProgramID = @ProgramId;
 
@@ -383,11 +383,11 @@ BEGIN
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
 
-    DECLARE @model int = (SELECT ModelID FROM dbo.PriceProtectionDetails WHERE ProgramID = @ProgramId);
+    DECLARE @model int = (SELECT ModelID FROM dbo.PriceProtectionDetail WHERE ProgramID = @ProgramId);
     IF @model IS NULL
         THROW 50755, 'That price-protection program does not exist.', 1;
 
-    UPDATE dbo.PriceProtectionDetails SET Expired = CASE WHEN @Active = 1 THEN 0 ELSE 1 END WHERE ProgramID = @ProgramId;
+    UPDATE dbo.PriceProtectionDetail SET Expired = CASE WHEN @Active = 1 THEN 0 ELSE 1 END WHERE ProgramID = @ProgramId;
 
     INSERT piv2.RebateEvent (Rail, EventType, ProgramId, ModelId, Actor, Reason)
     VALUES ('PP', CASE WHEN @Active = 1 THEN 'PROGRAM_ON' ELSE 'PROGRAM_OFF' END, @ProgramId, @model, @Actor, @Reason);

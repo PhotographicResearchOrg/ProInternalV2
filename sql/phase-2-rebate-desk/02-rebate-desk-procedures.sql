@@ -1185,7 +1185,7 @@ BEGIN
           WHERE r.Status = 'PURGATORY' AND u.Status <> 'CANCELLED')                                       AS PurgatoryRows,
         (SELECT COUNT(*) FROM piv2.RebateUpload WHERE Status IN ('MAPPING', 'REVIEW', 'PARTIAL'))          AS UploadsOpen,
         (SELECT COUNT(*) FROM piv2.RebateTemplate WHERE IsActive = 1)                                      AS Templates,
-        (SELECT COUNT(*) FROM dbo.PriceProtectionDetails WHERE Expired = 0)                                AS PriceProtectionLive,
+        (SELECT COUNT(*) FROM dbo.PriceProtectionDetail WHERE Expired = 0)                                AS PriceProtectionLive,
         (SELECT COUNT(*) FROM dbo.RebateCameraModels WHERE IsPriceProtection = 0 AND Active = 1)           AS RebateModelsActive,
         (SELECT COUNT(*) FROM dbo.RebateCameraModels WHERE IsPriceProtection = 1 AND Active = 1)           AS PriceModelsActive;
 END

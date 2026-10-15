@@ -150,9 +150,9 @@ BEGIN
                SUM(CASE WHEN p.Expired = 0 AND p.ProgramDate <= @today THEN 1 ELSE 0 END),
                SUM(CASE WHEN p.Expired = 0 AND p.ProgramDate > @today THEN 1 ELSE 0 END),
                MAX(p.ProgramDate),
-               (SELECT TOP (1) x.Amount FROM dbo.PriceProtectionDetails x
+               (SELECT TOP (1) x.Amount FROM dbo.PriceProtectionDetail x
                  WHERE x.ModelID = p.ModelID AND x.Expired = 0 ORDER BY x.ProgramDate DESC)
-          FROM dbo.PriceProtectionDetails p
+          FROM dbo.PriceProtectionDetail p
           JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
          WHERE (@VendorId IS NULL OR m.VendorID = @VendorId)
          GROUP BY p.ModelID;

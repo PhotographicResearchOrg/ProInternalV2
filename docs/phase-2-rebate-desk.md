@@ -6,7 +6,7 @@ Route `/rebatedesk`. Two rails, in the Product Desk format.
 | --- | --- |
 | Overview, New upload, Uploads, Purgatory, Programs, Batches, Products, Vendors & liability, Templates, Claims, Debit memos, Declined claims, History | Programs, Products, Vendors & liability, Claims, Debit memos, History |
 
-All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.RebateProgramDetail` / `dbo.PriceProtectionDetails` and products into `dbo.RebateCameraModels` / `RebateCameraModelsDetails` / `RebateQualifiers`, exactly as the member site (Connection) reads them. The desk's own tables, views and procedures are in the `piv2` schema in PRO_NUKE.
+All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.RebateProgramDetail` / `dbo.PriceProtectionDetail` and products into `dbo.RebateCameraModels` / `RebateCameraModelsDetails` / `RebateQualifiers`, exactly as the member site (Connection) reads them. The desk's own tables, views and procedures are in the `piv2` schema in PRO_NUKE.
 
 ## How an upload works
 
@@ -99,7 +99,7 @@ The next upload for that vendor pre-fills from them.
   - Manage PRO codes, using a lookup against PRO products.
   - Manage stacks.
   - Adding a PRO code already on another active product of the same rail is refused, because it would make uploads ambiguous.
-- **Price protection:** add, change, or turn on/off `PriceProtectionDetails` rows (one per product and date). `EZPay` is left as it is on change. The legacy screen reset it to 0; tell me if that is required.
+- **Price protection:** add, change, or turn on/off `dbo.PriceProtectionDetail` rows (one per product and date). `EZPay` is left as it is on change. The legacy screen reset it to 0; tell me if that is required.
 
 Every change needs a reason, except adding new things. Changes are kept in `piv2.RebateEvent` with before and after values.
 
