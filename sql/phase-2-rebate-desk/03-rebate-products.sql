@@ -48,34 +48,55 @@ BEGIN
     SET @PageSize = CASE WHEN @PageSize NOT BETWEEN 1 AND 200 THEN 50 ELSE @PageSize END;
     SET @Q = NULLIF(LTRIM(RTRIM(@Q)), N'');
 
-    DECLARE @pp int = CASE WHEN @Rail = 'PP' THEN 1 ELSE 0 END;
+    DECLARE @pp int = CASE WHEN UPPER(@Rail) = 'PP' THEN 1 ELSE 0 END;
+    DECLARE @qInt int = TRY_CAST(@Q AS int);
+
+    /* 1. The page of products (cheap columns only), with the total. */
+    CREATE TABLE #pg (ModelId int NOT NULL PRIMARY KEY, Seq int NOT NULL, TotalRows int NOT NULL);
+    INSERT #pg (ModelId, Seq, TotalRows)
+    SELECT x.ModelID, x.Seq, x.TotalRows
+      FROM (SELECT m.ModelID,
+                   ROW_NUMBER() OVER (ORDER BY COALESCE(m.Active, 0) DESC, m.ModelNumber, m.ModelID) AS Seq,
+                   COUNT(*) OVER () AS TotalRows
+              FROM dbo.RebateCameraModels m
+             WHERE m.IsPriceProtection = @pp
+               AND (@VendorId IS NULL OR m.VendorID = @VendorId)
+               AND (@Active IS NULL OR COALESCE(m.Active, 0) = @Active)
+               AND (@Q IS NULL
+                    OR m.ModelNumber LIKE N'%' + @Q + N'%'
+                    OR m.ModelName LIKE N'%' + @Q + N'%'
+                    OR m.ModelID = @qInt
+                    OR EXISTS (SELECT 1 FROM dbo.RebateCameraModelsDetails d
+                                WHERE d.ParentModelID = m.ModelID AND CAST(d.ProCode AS nvarchar(20)) = @Q))) x
+     WHERE x.Seq > (@Page - 1) * @PageSize AND x.Seq <= @Page * @PageSize
+    OPTION (RECOMPILE);
+
+    /* 2. Program counts and stacks for just that page. */
+    CREATE TABLE #pr (ModelId int NOT NULL PRIMARY KEY, Live int NOT NULL, LastDate date NULL);
+    IF @pp = 1
+        INSERT #pr
+        SELECT p.ModelID, SUM(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END), MAX(p.ProgramDate)
+          FROM dbo.PriceProtectionDetail p JOIN #pg g ON g.ModelId = p.ModelID
+         GROUP BY p.ModelID;
+    ELSE
+        INSERT #pr
+        SELECT p.ModelID, SUM(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END), MAX(p.ProgramEndWeek)
+          FROM dbo.RebateProgramDetail p JOIN #pg g ON g.ModelId = p.ModelID
+         GROUP BY p.ModelID;
 
     SELECT m.ModelID AS ModelId, m.VendorID AS VendorId, v.VendorName, m.ModelNumber AS Description,
            m.ModelName AS ProCodeText, CAST(COALESCE(m.Active, 0) AS bit) AS IsActive,
            CAST(COALESCE(m.SerialNumbersRequired, 0) AS bit) AS SerialNumbersRequired,
            (SELECT STRING_AGG(CAST(d.ProCode AS nvarchar(20)), N', ') FROM dbo.RebateCameraModelsDetails d WHERE d.ParentModelID = m.ModelID) AS ProCodes,
-           CASE WHEN @pp = 1
-                THEN (SELECT COUNT(*) FROM dbo.PriceProtectionDetail p WHERE p.ModelID = m.ModelID AND p.Expired = 0)
-                ELSE (SELECT COUNT(*) FROM dbo.RebateProgramDetail p WHERE p.ModelID = m.ModelID AND p.Expired = 0) END AS ProgramsLive,
-           CASE WHEN @pp = 1
-                THEN (SELECT MAX(p.ProgramDate) FROM dbo.PriceProtectionDetail p WHERE p.ModelID = m.ModelID)
-                ELSE (SELECT MAX(p.ProgramEndWeek) FROM dbo.RebateProgramDetail p WHERE p.ModelID = m.ModelID) END AS LastProgramDate,
+           COALESCE(pr.Live, 0) AS ProgramsLive,
+           pr.LastDate AS LastProgramDate,
            (SELECT COUNT(*) FROM dbo.RebateQualifiers q WHERE q.PROQualifierID = m.ModelID) AS Stacks,
-           COUNT(*) OVER () AS TotalRows
-      FROM dbo.RebateCameraModels m
+           g.TotalRows
+      FROM #pg g
+      JOIN dbo.RebateCameraModels m ON m.ModelID = g.ModelId
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
-     WHERE m.IsPriceProtection = @pp
-       AND (@VendorId IS NULL OR m.VendorID = @VendorId)
-       AND (@Active IS NULL OR COALESCE(m.Active, 0) = @Active)
-       AND (@Q IS NULL
-            OR m.ModelNumber LIKE N'%' + @Q + N'%'
-            OR m.ModelName LIKE N'%' + @Q + N'%'
-            OR CAST(m.ModelID AS nvarchar(20)) = @Q
-            OR EXISTS (SELECT 1 FROM dbo.RebateCameraModelsDetails d
-                        WHERE d.ParentModelID = m.ModelID AND CAST(d.ProCode AS nvarchar(20)) = @Q))
-     ORDER BY COALESCE(m.Active, 0) DESC, m.ModelNumber
-     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
-    OPTION (RECOMPILE);
+      LEFT JOIN #pr pr ON pr.ModelId = g.ModelId
+     ORDER BY g.Seq;
 END
 GO
 

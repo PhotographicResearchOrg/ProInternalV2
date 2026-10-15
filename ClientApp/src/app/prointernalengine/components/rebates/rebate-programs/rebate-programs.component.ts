@@ -25,6 +25,8 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
   @Input() rail: Rail = 'IR';
   @Input() modelId: number | null = null;
   @Input() batchId: number | null = null;
+  /* Opened in the drawer once the list arrives (e.g. a program clicked in a batch). */
+  @Input() openProgramId: number | null = null;
 
   vendors: any[] = [];
   types: any[] = [];
@@ -85,7 +87,18 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
     else { f.from = this.filter.from; f.to = this.filter.to; }
     this.desk.programs(this.rail, f)
       .pipe(finalize(() => (this.loading = false)))
-      .subscribe({ next: r => { this.rows = r.rows; this.total = r.total; }, error: e => (this.error = apiMessage(e)) });
+      .subscribe({
+        next: r => {
+          this.rows = r.rows;
+          this.total = r.total;
+          if (this.openProgramId) {
+            const p = r.rows.find(x => x.programId === this.openProgramId);
+            this.openProgramId = null;
+            if (p) this.open(p);
+          }
+        },
+        error: e => (this.error = apiMessage(e))
+      });
   }
 
   go(p: number): void { this.page = Math.min(Math.max(1, p), this.pages); this.refresh(); }

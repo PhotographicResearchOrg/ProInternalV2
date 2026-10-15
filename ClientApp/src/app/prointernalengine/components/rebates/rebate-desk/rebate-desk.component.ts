@@ -17,6 +17,9 @@ type Pending =
   | { kind: 'batch-active'; batch: any; active: boolean }
   | { kind: 'batch-dates' }
   | { kind: 'retire-template'; template: any }
+  | { kind: 'bp-amounts' }
+  | { kind: 'bp-dates' }
+  | { kind: 'bp-active'; program: any; active: boolean }
   | null;
 
 /*
@@ -66,6 +69,7 @@ export class RebateDeskComponent implements OnInit {
   /* Filters handed to the programs view from products and vendors. */
   programModelId: number | null = null;
   programBatchId: number | null = null;
+  programOpenId: number | null = null;
 
   types: any[] = [];
 
@@ -101,6 +105,22 @@ export class RebateDeskComponent implements OnInit {
   /* ---- templates, declines, history ---- */
   templates: any[] = [];
   declines: any[] = [];
+  declineQ = '';
+  declineTake = 100;
+
+  private declineCache: { src: any[]; q: string; out: any[] } | null = null;
+
+  /* Newest first, filtered by the search box; worked out again only when the list or the search changes. */
+  get declinesShown(): any[] {
+    const q = this.declineQ.trim().toLowerCase();
+    if (this.declineCache && this.declineCache.src === this.declines && this.declineCache.q === q) return this.declineCache.out;
+    let out = [...this.declines].sort((a, b) => String(b.processDate ?? '').localeCompare(String(a.processDate ?? '')));
+    if (q) out = out.filter(d => [d.orderID, d.memberID, d.model, d.rejectReason, d.email, d.eMail, d.vendorName]
+      .some(v => v != null && String(v).toLowerCase().includes(q)));
+    this.declineCache = { src: this.declines, q, out };
+    return out;
+  }
+
   readonly declineCols = [
     { header: 'Order_ID', field: 'orderID' }, { header: 'Decline_Date', field: 'processDate' },
     { header: 'IR_Total', field: 'total' }, { header: 'Reject_Reason', field: 'rejectReason' },
@@ -178,12 +198,13 @@ export class RebateDeskComponent implements OnInit {
     }
   }
 
-  showPrograms(f: { vendorId?: number; modelId?: number; batchId?: number }, rail: Rail = this.rail): void {
+  showPrograms(f: { vendorId?: number; modelId?: number; batchId?: number; programId?: number }, rail: Rail = this.rail): void {
     const target: ViewKey = rail === 'PP' ? 'pp-programs' : 'programs';
     if (!this.leaveOk()) return;
     this.childDirty = false;
     this.programModelId = f.modelId ?? null;
     this.programBatchId = f.batchId ?? null;
+    this.programOpenId = f.programId ?? null;
     this.pick(target, true);
   }
 
@@ -417,9 +438,58 @@ export class RebateDeskComponent implements OnInit {
   openBatch(b: any): void {
     if (this.batch && this.batch.batchId !== b.batchId && !this.leaveOk()) return;
     this.batch = b;
+    this.bProg = null;
     this.batchDates = { startDate: isoDate(b.programStart), endDate: isoDate(b.programEnd), expireOn: isoDate(b.expireOn) };
     this.desk.batchPrograms(b.batchId).subscribe(p => (this.batchPrograms = p));
     this.desk.history({ batchId: b.batchId, take: 50 }).subscribe(h => (this.batchHistory = h));
+  }
+
+  /* ---- one program inside the open batch ---- */
+  bProg: any = null;
+  bEdit: any = {};
+
+  editBatchProgram(p: any): void {
+    if (this.bProg?.programId === p.programId) { this.bProg = null; return; }
+    this.bProg = p;
+    this.bEdit = {
+      instantRebate: p.instantRebate, vendorShare: p.vendorShare ?? p.reimbursement, proPad: p.proPad ?? 0, mapPrice: p.mapPrice,
+      startDate: isoDate(p.startDate), endDate: isoDate(p.endDate), expireOn: isoDate(p.expireOn)
+    };
+  }
+
+  get bMember(): number { return (+this.bEdit.vendorShare || 0) + (+this.bEdit.proPad || 0); }
+
+  get bAmountsDirty(): boolean {
+    const p = this.bProg;
+    return !!p && (+this.bEdit.instantRebate !== +p.instantRebate || +this.bEdit.vendorShare !== +(p.vendorShare ?? p.reimbursement)
+      || +this.bEdit.proPad !== +(p.proPad ?? 0) || +this.bEdit.mapPrice !== +p.mapPrice);
+  }
+
+  get bDatesDirty(): boolean {
+    const p = this.bProg;
+    return !!p && (this.bEdit.startDate !== isoDate(p.startDate) || this.bEdit.endDate !== isoDate(p.endDate)
+      || this.bEdit.expireOn !== isoDate(p.expireOn));
+  }
+
+  private reloadBatch(keepProgramId?: number): void {
+    const id = this.batch?.batchId;
+    if (!id) return;
+    this.desk.batches({ q: String(id), page: 1, pageSize: 5 }).subscribe(r => {
+      const again = r.rows.find((x: any) => x.batchId === id);
+      if (again) {
+        this.batch = again;
+        this.batchDates = { startDate: isoDate(again.programStart), endDate: isoDate(again.programEnd), expireOn: isoDate(again.expireOn) };
+      }
+      this.loadBatches(this.batchPage);
+    });
+    this.desk.batchPrograms(id).subscribe(p => {
+      this.batchPrograms = p;
+      const keep = keepProgramId ? p.find((x: any) => x.programId === keepProgramId) : null;
+      this.bProg = null;
+      if (keep) this.editBatchProgram(keep);
+    });
+    this.desk.history({ batchId: id, take: 50 }).subscribe(h => (this.batchHistory = h));
+    this.loadOverview();
   }
 
   get batchDatesDirty(): boolean {
@@ -453,6 +523,9 @@ export class RebateDeskComponent implements OnInit {
       case 'batch-active': return `${p.active ? 'Turn on' : 'Turn off'} batch ${p.batch.batchId}`;
       case 'batch-dates': return `Change dates for batch ${this.batch?.batchId}`;
       case 'retire-template': return `Retire the saved layout for ${p.template.vendorName}`;
+      case 'bp-amounts': return `Change amounts on program ${this.bProg?.programId}`;
+      case 'bp-dates': return `Change dates on program ${this.bProg?.programId}`;
+      case 'bp-active': return `${p.active ? 'Turn on' : 'Turn off'} program ${p.program.programId}`;
     }
   }
 
@@ -465,12 +538,15 @@ export class RebateDeskComponent implements OnInit {
       case 'batch-active': return p.active ? `All ${p.batch.programs} programs go live for members.` : `All ${p.batch.programs} programs stop showing to members. Submitted claims are not affected.`;
       case 'batch-dates': return 'Every program in the batch moves together, so members keep seeing it as one program.';
       case 'retire-template': return 'Next time this vendor sends this layout, the AI proposes the mapping again.';
+      case 'bp-amounts': return 'Only this program changes. Claims already submitted keep the amount they were submitted with.';
+      case 'bp-dates': return `Only this program moves. Members will see it apart from the rest of batch ${this.batch?.batchId}; to move the whole batch, use the batch dates above.`;
+      case 'bp-active': return p.active ? 'Members see this program again.' : 'Members stop seeing this program. Submitted claims are not affected.';
     }
   }
 
   get pendingDanger(): boolean {
     const p = this.pending;
-    return !!p && (p.kind === 'skip' || p.kind === 'cancel-upload' || p.kind === 'retire-template' || (p.kind === 'batch-active' && !p.active));
+    return !!p && (p.kind === 'skip' || p.kind === 'cancel-upload' || p.kind === 'retire-template' || (p.kind === 'batch-active' && !p.active) || (p.kind === 'bp-active' && !p.active));
   }
 
   confirm(reason: string): void {
@@ -485,6 +561,11 @@ export class RebateDeskComponent implements OnInit {
       case 'batch-active': call = this.desk.setBatchActive(p.batch.batchId, p.active, reason); break;
       case 'batch-dates': call = this.desk.changeBatchDates(this.batch.batchId, { ...this.batchDates, expireOn: this.batchDates.expireOn || null, reason }); break;
       case 'retire-template': call = this.desk.retireTemplate(p.template.templateId, reason); break;
+      case 'bp-amounts': call = this.desk.changeAmounts(this.bProg.programId, {
+        instantRebate: this.bEdit.instantRebate, vendorShare: this.bEdit.vendorShare, proPad: this.bEdit.proPad || 0, mapPrice: this.bEdit.mapPrice, reason }); break;
+      case 'bp-dates': call = this.desk.changeProgramDates(this.bProg.programId, {
+        startDate: this.bEdit.startDate, endDate: this.bEdit.endDate, expireOn: this.bEdit.expireOn || null, reason }); break;
+      case 'bp-active': call = this.desk.setProgramActive('IR', p.program.programId, p.active, reason); break;
     }
     call.pipe(finalize(() => (this.busy = false))).subscribe({
       next: () => {
@@ -504,6 +585,8 @@ export class RebateDeskComponent implements OnInit {
             break;
           }
           case 'retire-template': this.desk.templates().subscribe(t => (this.templates = t)); this.loadOverview(); break;
+          case 'bp-amounts': case 'bp-dates': this.reloadBatch(this.bProg?.programId); break;
+          case 'bp-active': this.reloadBatch(p.program.programId); break;
         }
       },
       error: e => (this.error = apiMessage(e))

@@ -105,17 +105,14 @@ Every change needs a reason, except adding new things. Changes are kept in `piv2
 
 ## Vendors and liability
 
-Product → vendor → parent company. Per vendor:
+Product → vendor → parent company. A product's own flag (`IsPriceProtection`) decides its rail; a vendor shows on a rail when it is flagged for it or has products on it. Per vendor:
 
 - live, current and upcoming programs
-- claims, bucketed from the latest process row:
-  - **Submitted:** not decided
-  - **Approved, not sent to Computyme:** Status 1, `ComputymeProcessed` empty
-  - **Open liability:** Submitted + Approved
-  - **Not billed to vendor:** approved with no debit memo (`DM`)
-  - **Credited** and **declined** in the chosen period
+- **Liability:** approved claims (sent to Computyme or not) the vendor has not reimbursed yet, i.e. no debit memo (`DM`), at the vendor's share
+- **Awaiting decision:** submitted, not decided; shown apart, not part of liability
+- **Credited**, **reimbursed** (debit memo) and **declined** in the chosen period, and PRO pad (instant rebates only)
 
-Drilling in shows per-product amounts and the open claims. Lines a member saved but never submitted are left out.
+Drilling in shows per-product liability and the claims not yet reimbursed. Lines a member saved but never submitted are left out.
 
 ## Claims (accounting, `Rebates.Accounting`)
 

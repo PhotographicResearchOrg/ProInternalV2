@@ -28,10 +28,13 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
-    SELECT VendorID AS VendorId, VendorName, ParentCompany, APMSTID AS ApVendorId, CAST(Active AS bit) AS IsActive
-      FROM dbo.RebateVendors
-     WHERE IsPriceProtection = CASE WHEN @Rail = 'PP' THEN 1 ELSE 0 END
-     ORDER BY Active DESC, VendorName;
+    /* A vendor is on a rail when it is flagged for it or has products on it (a model's own flag decides its rail). */
+    DECLARE @pp int = CASE WHEN UPPER(@Rail) = 'PP' THEN 1 ELSE 0 END;
+    SELECT v.VendorID AS VendorId, v.VendorName, v.ParentCompany, v.APMSTID AS ApVendorId, CAST(v.Active AS bit) AS IsActive
+      FROM dbo.RebateVendors v
+     WHERE v.IsPriceProtection = @pp
+        OR EXISTS (SELECT 1 FROM dbo.RebateCameraModels m WHERE m.VendorID = v.VendorID AND m.IsPriceProtection = @pp)
+     ORDER BY v.Active DESC, v.VendorName;
 END
 GO
 
@@ -1221,7 +1224,7 @@ BEGIN
                MIN(p.DateEntered) AS EnteredAt
           FROM dbo.RebateProgramDetail p
           JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
-          JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID AND v.IsPriceProtection = 0
+          LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
           LEFT JOIN dbo.RebateType t ON t.ID = p.IRType
          WHERE p.BatchID IS NOT NULL
          GROUP BY p.BatchID

@@ -5,10 +5,14 @@ import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-des
 /*
  * Vendors on one rail: products and programs rolled up from product to
  * vendor (and parent company), with claim liability:
- *   open      submitted, not decided + approved, not yet sent to Computyme
- *   unbilled  approved with no debit memo yet (what PRO still bills the vendor)
- *   sent / declined in the chosen period
+ *   liability  approved claims the vendor has not reimbursed (no debit memo), at the vendor's share
+ *   pending    submitted, awaiting a decision
+ *   credited / reimbursed / declined in the chosen period
  */
+/* Numbers added up when vendors are grouped by parent company. */
+const SUMMED = ['productsActive', 'programsLive', 'programsCurrent', 'programsUpcoming', 'liability', 'liabilityClaims', 'unsentAmount',
+  'pendingAmount', 'pendingClaims', 'creditedAmount', 'creditedClaims', 'reimbursedAmount', 'declinedAmount', 'declinedClaims', 'proPadAmount'];
+
 @Component({
   selector: 'app-rebate-vendors',
   templateUrl: './rebate-vendors.component.html',
@@ -58,7 +62,7 @@ export class RebateVendorsComponent implements OnChanges {
   get shown(): any[] {
     let list = this.vendors;
     if (this.onlyWithActivity)
-      list = list.filter(v => v.programsLive || v.openLiability || v.unbilledAmount || v.sentAmount || v.productsActive);
+      list = list.filter(v => v.programsLive || v.liability || v.pendingAmount || v.creditedAmount || v.productsActive);
     if (this.q.trim()) {
       const q = this.q.trim().toLowerCase();
       list = list.filter(v => (v.vendorName || '').toLowerCase().includes(q) || (v.parentCompany || '').toLowerCase().includes(q));
@@ -69,23 +73,19 @@ export class RebateVendorsComponent implements OnChanges {
       const key = v.parentCompany || v.vendorName;
       const g = groups.get(key) ?? {
         vendorName: key, parentCompany: null, members: [] as string[], isGroup: !!v.parentCompany,
-        productsActive: 0, programsLive: 0, programsCurrent: 0, programsUpcoming: 0,
-        submittedAmount: 0, submittedClaims: 0, approvedAmount: 0, approvedClaims: 0, openLiability: 0,
-        unbilledAmount: 0, unbilledClaims: 0, sentAmount: 0, declinedAmount: 0, proPadAmount: 0, oldestOpenClaim: null
+        oldestUnreimbursed: null as string | null
       };
-      for (const k of ['productsActive', 'programsLive', 'programsCurrent', 'programsUpcoming', 'submittedAmount', 'submittedClaims',
-        'approvedAmount', 'approvedClaims', 'openLiability', 'unbilledAmount', 'unbilledClaims', 'sentAmount', 'declinedAmount', 'proPadAmount'])
-        g[k] += +v[k] || 0;
+      for (const k of SUMMED) g[k] = (g[k] || 0) + (+v[k] || 0);
       g.members.push(v.vendorName);
-      if (v.oldestOpenClaim && (!g.oldestOpenClaim || v.oldestOpenClaim < g.oldestOpenClaim)) g.oldestOpenClaim = v.oldestOpenClaim;
+      if (v.oldestUnreimbursed && (!g.oldestUnreimbursed || v.oldestUnreimbursed < g.oldestUnreimbursed)) g.oldestUnreimbursed = v.oldestUnreimbursed;
       if (!v.parentCompany) g.vendorId = v.vendorId;
       groups.set(key, g);
     }
-    return [...groups.values()].sort((a, b) => b.openLiability - a.openLiability);
+    return [...groups.values()].sort((a, b) => b.liability - a.liability);
   }
 
   get totals(): any {
-    const t = { openLiability: 0, submittedAmount: 0, approvedAmount: 0, unbilledAmount: 0, sentAmount: 0, programsLive: 0, proPadAmount: 0 };
+    const t = { liability: 0, pendingAmount: 0, creditedAmount: 0, reimbursedAmount: 0, proPadAmount: 0, programsLive: 0 };
     for (const v of this.vendors) for (const k of Object.keys(t)) (t as any)[k] += +v[k] || 0;
     return t;
   }

@@ -307,7 +307,7 @@
       </ng-template>
 
       <!-- ============ Programs, products, vendors (each rail) ============ -->
-      <app-rebate-programs *ngIf="view === 'programs'" rail="IR" [modelId]="programModelId" [batchId]="programBatchId"></app-rebate-programs>
+      <app-rebate-programs *ngIf="view === 'programs'" rail="IR" [modelId]="programModelId" [batchId]="programBatchId" [openProgramId]="programOpenId"></app-rebate-programs>
       <app-rebate-programs *ngIf="view === 'pp-programs'" rail="PP" [modelId]="programModelId"></app-rebate-programs>
       <app-rebate-products *ngIf="view === 'products'" rail="IR" (dirtyChange)="childDirty = $event"
         (showPrograms)="showPrograms({ modelId: $event }, 'IR')"></app-rebate-products>
@@ -380,16 +380,52 @@
               <button type="button" class="btn primary" (click)="pending = { kind: 'batch-dates' }">Save dates</button>
             </div>
             <table class="grid" style="margin-top: 12px">
-              <thead><tr><th>Product</th><th class="num">Reimb.</th><th class="num">IR</th><th>State</th></tr></thead>
+              <thead><tr><th>Product</th><th class="num">Member</th><th class="num">IR</th><th class="num">MAP</th><th>Dates</th><th>State</th><th></th></tr></thead>
               <tbody>
-                <tr *ngFor="let p of batchPrograms" [class.off]="!p.isLive">
-                  <td><div>{{ p.description }}</div><div class="sub mono">#{{ p.programId }} · PRO {{ p.proCode }}</div></td>
-                  <td class="money">{{ p.reimbursement | currency }}</td>
-                  <td class="money">{{ p.instantRebate | currency }}</td>
-                  <td><span class="status" [class.ok]="p.isLive">{{ p.isLive ? 'ON' : 'OFF' }}</span></td>
-                </tr>
+                <ng-container *ngFor="let p of batchPrograms">
+                  <tr class="click" [class.off]="!p.isLive" [class.sel]="bProg?.programId === p.programId" (click)="editBatchProgram(p)" title="Change this program">
+                    <td><div>{{ p.description }}</div><div class="sub mono">#{{ p.programId }} · PRO {{ p.proCode }}</div></td>
+                    <td class="money">{{ p.reimbursement | currency }}<div class="sub" *ngIf="p.proPad">incl. {{ p.proPad | currency }} PRO</div></td>
+                    <td class="money">{{ p.instantRebate | currency }}</td>
+                    <td class="money">{{ p.mapPrice | currency }}</td>
+                    <td class="mono">{{ p.startDate | date:'MM/dd/yy' }} – {{ p.endDate | date:'MM/dd/yy' }}</td>
+                    <td><span class="status" [class.ok]="p.isLive">{{ p.isLive ? 'ON' : 'OFF' }}</span></td>
+                    <td><i class="pi" [class.pi-pencil]="bProg?.programId !== p.programId" [class.pi-chevron-up]="bProg?.programId === p.programId"></i></td>
+                  </tr>
+                  <tr *ngIf="bProg?.programId === p.programId">
+                    <td colspan="7" style="background: #f8fafc">
+                      <div class="field-grid">
+                        <label>Instant rebate <input class="in num" type="number" min="0" step="0.01" [(ngModel)]="bEdit.instantRebate" /></label>
+                        <label>Vendor share <input class="in num" type="number" min="0" step="0.01" [(ngModel)]="bEdit.vendorShare" /></label>
+                        <label>PRO pad <input class="in num" type="number" min="0" step="0.01" [(ngModel)]="bEdit.proPad" /></label>
+                        <label>MAP <input class="in num" type="number" min="0" step="0.01" [(ngModel)]="bEdit.mapPrice" /></label>
+                      </div>
+                      <div class="sub" style="margin: 4px 0 8px">Member gets {{ bMember | currency }} (vendor share + PRO pad).</div>
+                      <div class="actions" *ngIf="bAmountsDirty" style="margin-bottom: 10px">
+                        <button type="button" class="btn ghost" (click)="bProg = null; editBatchProgram(p)">Discard</button>
+                        <button type="button" class="btn primary" (click)="pending = { kind: 'bp-amounts' }">Save amounts</button>
+                      </div>
+                      <div class="field-grid">
+                        <label>Start <input class="in" type="date" [(ngModel)]="bEdit.startDate" /></label>
+                        <label>End <input class="in" type="date" [(ngModel)]="bEdit.endDate" /></label>
+                        <label>Claims until <input class="in" type="date" [(ngModel)]="bEdit.expireOn" /></label>
+                      </div>
+                      <div class="actions" *ngIf="bDatesDirty" style="margin-top: 8px">
+                        <button type="button" class="btn ghost" (click)="bProg = null; editBatchProgram(p)">Discard</button>
+                        <button type="button" class="btn primary" (click)="pending = { kind: 'bp-dates' }">Save dates</button>
+                      </div>
+                      <div class="actions" style="margin-top: 10px">
+                        <button type="button" class="btn" *ngIf="!p.isLive" (click)="pending = { kind: 'bp-active', program: p, active: true }"><i class="pi pi-play"></i> Turn on</button>
+                        <button type="button" class="btn danger" *ngIf="p.isLive" (click)="pending = { kind: 'bp-active', program: p, active: false }"><i class="pi pi-pause"></i> Turn off</button>
+                        <span class="grow"></span>
+                        <button type="button" class="btn ghost" (click)="showPrograms({ batchId: batch.batchId, programId: p.programId }, 'IR')">Open in Programs</button>
+                      </div>
+                    </td>
+                  </tr>
+                </ng-container>
               </tbody>
             </table>
+            <div class="hint" style="margin-top: 6px">Click a program to change its amounts or dates, or turn it on or off, on its own.</div>
             <h3 class="sub" style="margin: 14px 0 8px">History</h3>
             <ul class="timeline" *ngIf="batchHistory.length">
               <li *ngFor="let h of batchHistory"><div class="t-top"><b>{{ h.eventType }}</b><span class="sub">{{ h.at | date:'MM/dd/yy h:mm a' }} · {{ h.actor }}</span></div>
@@ -422,9 +458,29 @@
 
       <!-- ============ Declined claims ============ -->
       <section class="card" *ngIf="view === 'declines'">
-        <div class="card-head"><h2>Declined claims</h2></div>
-        <app-ir-declines-table [declines]="declines" [columns]="declineCols"
-          [globalFilterFields]="['orderID', 'memberID', 'model', 'rejectReason', 'eMail']"></app-ir-declines-table>
+        <div class="card-head"><h2>Declined claims</h2><span class="sub">{{ declinesShown.length }} of {{ declines.length }}</span></div>
+        <div class="filters">
+          <input class="in" placeholder="Claim #, member #, product, reason or email" [(ngModel)]="declineQ" (ngModelChange)="declineTake = 100" />
+        </div>
+        <table class="grid">
+          <thead><tr><th>Claim</th><th>Declined</th><th>Member</th><th>Product</th><th class="num">Qty</th><th class="num">Amount</th><th>Reason</th><th>Email</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let d of declinesShown | slice:0:declineTake">
+              <td class="mono">{{ d.orderID }}</td>
+              <td class="mono">{{ d.processDate | date:'MM/dd/yy' }}</td>
+              <td class="mono">{{ d.memberID }}</td>
+              <td><div>{{ d.model }}</div><div class="sub" *ngIf="d.vendorName">{{ d.vendorName }}</div></td>
+              <td class="num">{{ d.quantity }}</td>
+              <td class="money">{{ d.total | currency }}</td>
+              <td>{{ d.rejectReason }}</td>
+              <td class="sub">{{ d.email || d.eMail }}</td>
+            </tr>
+            <tr *ngIf="!declinesShown.length"><td colspan="8" class="empty">{{ declines.length ? 'No declined claims match.' : 'Loading…' }}</td></tr>
+          </tbody>
+        </table>
+        <div class="pager" *ngIf="declinesShown.length > declineTake">
+          <button type="button" class="btn ghost" (click)="declineTake = declineTake + 100">Show more</button>
+        </div>
       </section>
 
       <!-- ============ History ============ -->
