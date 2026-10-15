@@ -15,7 +15,7 @@ GO
    An older message for the same record and destination that has
    not been sent yet is marked SUPERSEDED: only the latest state goes.
    --------------------------------------------------------------- */
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_Enqueue
+CREATE OR ALTER PROCEDURE piv2.Integration_Enqueue
     @Domain          varchar(40),
     @EntityId        nvarchar(100),
     @EntityLabel     nvarchar(200) = NULL,
@@ -29,7 +29,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    IF NOT EXISTS (SELECT 1 FROM dbo.PIV2_IntegrationDestination
+    IF NOT EXISTS (SELECT 1 FROM piv2.IntegrationDestination
                    WHERE Destination = @Destination AND Domain = @Domain AND IsActive = 1)
         THROW 50601, 'That destination is not set up for this domain, or is switched off.', 1;
 
@@ -38,17 +38,17 @@ BEGIN
 
     DECLARE @superseded TABLE (MessageId bigint);
 
-    UPDATE dbo.PIV2_IntegrationMessage
+    UPDATE piv2.IntegrationMessage
        SET Status = 'SUPERSEDED'
     OUTPUT inserted.MessageId INTO @superseded
      WHERE Domain = @Domain AND EntityId = @EntityId AND Destination = @Destination
        AND Status IN ('QUEUED', 'FAILED');
 
-    INSERT dbo.PIV2_IntegrationEvent (MessageId, EventType, Actor, Reason)
+    INSERT piv2.IntegrationEvent (MessageId, EventType, Actor, Reason)
     SELECT MessageId, 'SUPERSEDED', @CreatedBy, 'A newer change replaced this one before it was sent.'
       FROM @superseded;
 
-    INSERT dbo.PIV2_IntegrationMessage
+    INSERT piv2.IntegrationMessage
         (Domain, EntityId, EntityLabel, Destination, Operation, ContractVersion,
          Payload, PayloadSha256, CreatedBy, NextAttemptAt)
     VALUES
@@ -57,9 +57,9 @@ BEGIN
 
     DECLARE @id bigint = SCOPE_IDENTITY();
 
-    INSERT dbo.PIV2_IntegrationEvent (MessageId, EventType, Actor) VALUES (@id, 'QUEUED', @CreatedBy);
+    INSERT piv2.IntegrationEvent (MessageId, EventType, Actor) VALUES (@id, 'QUEUED', @CreatedBy);
 
-    SELECT MessageId, CorrelationId FROM dbo.PIV2_IntegrationMessage WHERE MessageId = @id;
+    SELECT MessageId, CorrelationId FROM piv2.IntegrationMessage WHERE MessageId = @id;
 END
 GO
 
@@ -67,7 +67,7 @@ GO
    Dispatcher: take up to @Take messages due for sending and lease
    them for @LeaseSeconds so a second dispatcher skips them.
    --------------------------------------------------------------- */
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_Claim
+CREATE OR ALTER PROCEDURE piv2.Integration_Claim
     @Take         int = 25,
     @LeaseSeconds int = 120
 AS
@@ -79,8 +79,8 @@ BEGIN
     WITH due AS
     (
         SELECT TOP (@Take) m.*
-          FROM dbo.PIV2_IntegrationMessage m WITH (UPDLOCK, READPAST, ROWLOCK)
-          JOIN dbo.PIV2_IntegrationDestination d
+          FROM piv2.IntegrationMessage m WITH (UPDLOCK, READPAST, ROWLOCK)
+          JOIN piv2.IntegrationDestination d
             ON d.Destination = m.Destination AND d.Domain = m.Domain AND d.IsActive = 1
          WHERE m.Status IN ('QUEUED', 'FAILED')
            AND m.Attempts < d.MaxAttempts
@@ -96,7 +96,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_MarkSent
+CREATE OR ALTER PROCEDURE piv2.Integration_MarkSent
     @MessageId bigint
 AS
 BEGIN
@@ -109,25 +109,25 @@ BEGIN
            DueBy        = DATEADD(hour, d.ResponseHours, SYSUTCDATETIME()),
            ClaimedUntil = NULL,
            LastError    = NULL
-      FROM dbo.PIV2_IntegrationMessage m
-      JOIN dbo.PIV2_IntegrationDestination d ON d.Destination = m.Destination AND d.Domain = m.Domain
+      FROM piv2.IntegrationMessage m
+      JOIN piv2.IntegrationDestination d ON d.Destination = m.Destination AND d.Domain = m.Domain
      WHERE m.MessageId = @MessageId
        AND m.Status IN ('QUEUED', 'FAILED');
 
     IF @@ROWCOUNT = 1
-        INSERT dbo.PIV2_IntegrationEvent (MessageId, EventType, Actor) VALUES (@MessageId, 'SENT', 'dispatcher');
+        INSERT piv2.IntegrationEvent (MessageId, EventType, Actor) VALUES (@MessageId, 'SENT', 'dispatcher');
 END
 GO
 
 /* A failed send waits longer each time: 1, 4, 9, 16 ... minutes. */
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_MarkFailed
+CREATE OR ALTER PROCEDURE piv2.Integration_MarkFailed
     @MessageId bigint,
     @Error     nvarchar(4000)
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    UPDATE dbo.PIV2_IntegrationMessage
+    UPDATE piv2.IntegrationMessage
        SET Status        = 'FAILED',
            Attempts      = Attempts + 1,
            NextAttemptAt = DATEADD(minute, (Attempts + 1) * (Attempts + 1), SYSUTCDATETIME()),
@@ -137,7 +137,7 @@ BEGIN
        AND Status IN ('QUEUED', 'FAILED');
 
     IF @@ROWCOUNT = 1
-        INSERT dbo.PIV2_IntegrationEvent (MessageId, EventType, Actor, Reason)
+        INSERT piv2.IntegrationEvent (MessageId, EventType, Actor, Reason)
         VALUES (@MessageId, 'SEND_FAILED', 'dispatcher', LEFT(@Error, 1000));
 END
 GO
@@ -148,7 +148,7 @@ GO
    twice is recorded once and reported as already applied.
    Returns Outcome: APPLIED, DUPLICATE, NOT_FOUND
    --------------------------------------------------------------- */
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_ApplyResponse
+CREATE OR ALTER PROCEDURE piv2.Integration_ApplyResponse
     @Destination   varchar(40),
     @CorrelationId uniqueidentifier,
     @ResponseType  varchar(30),
@@ -170,7 +170,7 @@ BEGIN
     /* The lock is held to COMMIT, so two copies of one answer arriving
        together are serialised and the second is seen as a duplicate. */
     SELECT @id = MessageId, @status = Status
-      FROM dbo.PIV2_IntegrationMessage WITH (UPDLOCK, HOLDLOCK)
+      FROM piv2.IntegrationMessage WITH (UPDLOCK, HOLDLOCK)
      WHERE CorrelationId = @CorrelationId AND Destination = @Destination;
 
     IF @id IS NULL
@@ -180,14 +180,14 @@ BEGIN
         RETURN;
     END
 
-    IF EXISTS (SELECT 1 FROM dbo.PIV2_IntegrationResponse WHERE MessageId = @id AND BodySha256 = @BodySha256)
+    IF EXISTS (SELECT 1 FROM piv2.IntegrationResponse WHERE MessageId = @id AND BodySha256 = @BodySha256)
     BEGIN
         COMMIT;
         SELECT 'DUPLICATE' AS Outcome, @id AS MessageId, @status AS Status;
         RETURN;
     END
 
-    INSERT dbo.PIV2_IntegrationResponse
+    INSERT piv2.IntegrationResponse
         (MessageId, ResponseType, Result, ReasonCode, Message, ExternalId, RespondedAt, Body, BodySha256)
     VALUES
         (@id, @ResponseType, @Result, @ReasonCode, @Message, @ExternalId, @RespondedAt, @Body, @BodySha256);
@@ -203,13 +203,13 @@ BEGIN
 
     /* A late answer still counts: OVERDUE and SENT both move on. */
     IF @status IN ('SENT', 'OVERDUE', 'ACKNOWLEDGED', 'REJECTED')
-        UPDATE dbo.PIV2_IntegrationMessage
+        UPDATE piv2.IntegrationMessage
            SET Status      = @newStatus,
                RespondedAt = CASE WHEN @ResponseType = 'ACKNOWLEDGEMENT' THEN SYSUTCDATETIME() ELSE RespondedAt END,
                ExternalId  = COALESCE(@ExternalId, ExternalId)
          WHERE MessageId = @id;
 
-    INSERT dbo.PIV2_IntegrationEvent (MessageId, EventType, Actor, Reason)
+    INSERT piv2.IntegrationEvent (MessageId, EventType, Actor, Reason)
     VALUES (@id, 'RESPONSE', @Destination,
             CONCAT(@ResponseType, COALESCE(' ' + @Result, ''), COALESCE(' · ' + @ReasonCode, ''),
                    COALESCE(' · ' + LEFT(@Message, 800), '')));
@@ -217,24 +217,24 @@ BEGIN
     COMMIT;
 
     SELECT 'APPLIED' AS Outcome, @id AS MessageId,
-           (SELECT Status FROM dbo.PIV2_IntegrationMessage WHERE MessageId = @id) AS Status;
+           (SELECT Status FROM piv2.IntegrationMessage WHERE MessageId = @id) AS Status;
 END
 GO
 
 /* Sent and unanswered past DueBy. Run by the dispatcher every cycle. */
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_MarkOverdue
+CREATE OR ALTER PROCEDURE piv2.Integration_MarkOverdue
 AS
 BEGIN
     SET NOCOUNT ON;
 
     DECLARE @overdue TABLE (MessageId bigint);
 
-    UPDATE dbo.PIV2_IntegrationMessage
+    UPDATE piv2.IntegrationMessage
        SET Status = 'OVERDUE'
     OUTPUT inserted.MessageId INTO @overdue
      WHERE Status = 'SENT' AND DueBy < SYSUTCDATETIME();
 
-    INSERT dbo.PIV2_IntegrationEvent (MessageId, EventType, Actor, Reason)
+    INSERT piv2.IntegrationEvent (MessageId, EventType, Actor, Reason)
     SELECT MessageId, 'OVERDUE', 'system', 'No answer within the destination''s response time.'
       FROM @overdue;
 
@@ -245,7 +245,7 @@ GO
 /* ---------------------------------------------------------------
    Desk actions. Both need a reason and are written to the events.
    --------------------------------------------------------------- */
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_Resend
+CREATE OR ALTER PROCEDURE piv2.Integration_Resend
     @MessageId bigint,
     @Actor     nvarchar(100),
     @Reason    nvarchar(1000)
@@ -256,7 +256,7 @@ BEGIN
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50603, 'A reason is required to resend.', 1;
 
-    UPDATE dbo.PIV2_IntegrationMessage
+    UPDATE piv2.IntegrationMessage
        SET Status = 'QUEUED', Attempts = 0, NextAttemptAt = SYSUTCDATETIME(),
            ClaimedUntil = NULL, LastError = NULL, DueBy = NULL
      WHERE MessageId = @MessageId
@@ -265,12 +265,12 @@ BEGIN
     IF @@ROWCOUNT = 0
         THROW 50604, 'Only failed, rejected or overdue messages can be resent.', 1;
 
-    INSERT dbo.PIV2_IntegrationEvent (MessageId, EventType, Actor, Reason)
+    INSERT piv2.IntegrationEvent (MessageId, EventType, Actor, Reason)
     VALUES (@MessageId, 'RESENT', @Actor, @Reason);
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_Cancel
+CREATE OR ALTER PROCEDURE piv2.Integration_Cancel
     @MessageId bigint,
     @Actor     nvarchar(100),
     @Reason    nvarchar(1000)
@@ -281,7 +281,7 @@ BEGIN
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50605, 'A reason is required to cancel.', 1;
 
-    UPDATE dbo.PIV2_IntegrationMessage
+    UPDATE piv2.IntegrationMessage
        SET Status = 'CANCELLED', ClaimedUntil = NULL
      WHERE MessageId = @MessageId
        AND Status IN ('QUEUED', 'FAILED', 'REJECTED', 'OVERDUE');
@@ -289,7 +289,7 @@ BEGIN
     IF @@ROWCOUNT = 0
         THROW 50606, 'Only queued, failed, rejected or overdue messages can be cancelled.', 1;
 
-    INSERT dbo.PIV2_IntegrationEvent (MessageId, EventType, Actor, Reason)
+    INSERT piv2.IntegrationEvent (MessageId, EventType, Actor, Reason)
     VALUES (@MessageId, 'CANCELLED', @Actor, @Reason);
 END
 GO
@@ -297,7 +297,7 @@ GO
 /* ---------------------------------------------------------------
    Desk reads.
    --------------------------------------------------------------- */
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_Summary
+CREATE OR ALTER PROCEDURE piv2.Integration_Summary
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -310,8 +310,8 @@ BEGIN
            SUM(CASE WHEN m.Status = 'FAILED'       THEN 1 ELSE 0 END) AS Failed,
            SUM(CASE WHEN m.Status = 'ACKNOWLEDGED'
                      AND m.RespondedAt >= DATEADD(day, -1, SYSUTCDATETIME()) THEN 1 ELSE 0 END) AS AcknowledgedToday
-      FROM dbo.PIV2_IntegrationDestination d
-      LEFT JOIN dbo.PIV2_IntegrationMessage m
+      FROM piv2.IntegrationDestination d
+      LEFT JOIN piv2.IntegrationMessage m
         ON m.Destination = d.Destination AND m.Domain = d.Domain
        AND m.Status NOT IN ('SUPERSEDED', 'CANCELLED')
      GROUP BY d.Domain, d.Destination, d.DisplayName, d.IsActive
@@ -319,7 +319,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_Search
+CREATE OR ALTER PROCEDURE piv2.Integration_Search
     @Domain      varchar(40)   = NULL,
     @Destination varchar(40)   = NULL,
     @Status      varchar(20)   = NULL,   -- NULL = everything that needs a person: REJECTED, FAILED, OVERDUE
@@ -337,7 +337,7 @@ BEGIN
            m.Operation, m.Status, m.Attempts, m.CreatedAt, m.CreatedBy, m.SentAt, m.DueBy,
            m.RespondedAt, m.ExternalId, m.LastError,
            COUNT(*) OVER () AS TotalRows
-      FROM dbo.PIV2_IntegrationMessage m
+      FROM piv2.IntegrationMessage m
      WHERE (@Domain IS NULL OR m.Domain = @Domain)
        AND (@Destination IS NULL OR m.Destination = @Destination)
        AND ((@Status IS NULL AND m.Status IN ('REJECTED', 'FAILED', 'OVERDUE')) OR m.Status = @Status)
@@ -348,7 +348,7 @@ END
 GO
 
 /* One message: the message, its answers, its events. */
-CREATE OR ALTER PROCEDURE dbo.PIV2_Integration_Get
+CREATE OR ALTER PROCEDURE piv2.Integration_Get
     @MessageId bigint
 AS
 BEGIN
@@ -357,13 +357,13 @@ BEGIN
     SELECT MessageId, CorrelationId, Domain, EntityId, EntityLabel, Destination, Operation,
            ContractVersion, Payload, PayloadSha256, Status, Attempts, NextAttemptAt,
            CreatedAt, CreatedBy, SentAt, DueBy, RespondedAt, ExternalId, LastError
-      FROM dbo.PIV2_IntegrationMessage WHERE MessageId = @MessageId;
+      FROM piv2.IntegrationMessage WHERE MessageId = @MessageId;
 
     SELECT ResponseId, ResponseType, Result, ReasonCode, Message, ExternalId, RespondedAt, ReceivedAt, Body
-      FROM dbo.PIV2_IntegrationResponse WHERE MessageId = @MessageId ORDER BY ResponseId;
+      FROM piv2.IntegrationResponse WHERE MessageId = @MessageId ORDER BY ResponseId;
 
     SELECT EventId, EventType, Actor, Reason, At
-      FROM dbo.PIV2_IntegrationEvent WHERE MessageId = @MessageId ORDER BY EventId;
+      FROM piv2.IntegrationEvent WHERE MessageId = @MessageId ORDER BY EventId;
 END
 GO
 
@@ -372,7 +372,7 @@ GO
    Returns the existing row when the same content is already stored
    for this owner (IsDuplicate = 1); the caller then skips the upload.
    --------------------------------------------------------------- */
-CREATE OR ALTER PROCEDURE dbo.PIV2_FileLibrary_FindDuplicate
+CREATE OR ALTER PROCEDURE piv2.FileLibrary_FindDuplicate
     @Category varchar(40),
     @OwnerKey nvarchar(100),
     @Sha256   char(64)
@@ -382,12 +382,12 @@ BEGIN
 
     SELECT FileId, Category, OwnerKey, FileName, ContentType, SizeBytes, Sha256, Bucket, S3Key,
            UploadedBy, UploadedAt, Notes
-      FROM dbo.PIV2_FileLibrary
+      FROM piv2.FileLibrary
      WHERE Category = @Category AND OwnerKey = @OwnerKey AND Sha256 = @Sha256;
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.PIV2_FileLibrary_Add
+CREATE OR ALTER PROCEDURE piv2.FileLibrary_Add
     @Category    varchar(40),
     @OwnerKey    nvarchar(100),
     @FileName    nvarchar(260),
@@ -402,18 +402,18 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    INSERT dbo.PIV2_FileLibrary
+    INSERT piv2.FileLibrary
         (Category, OwnerKey, FileName, ContentType, SizeBytes, Sha256, Bucket, S3Key, UploadedBy, Notes)
     VALUES
         (@Category, @OwnerKey, @FileName, @ContentType, @SizeBytes, @Sha256, @Bucket, @S3Key, @UploadedBy, @Notes);
 
     SELECT FileId, Category, OwnerKey, FileName, ContentType, SizeBytes, Sha256, Bucket, S3Key,
            UploadedBy, UploadedAt, Notes
-      FROM dbo.PIV2_FileLibrary WHERE FileId = SCOPE_IDENTITY();
+      FROM piv2.FileLibrary WHERE FileId = SCOPE_IDENTITY();
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.PIV2_FileLibrary_Get
+CREATE OR ALTER PROCEDURE piv2.FileLibrary_Get
     @FileId bigint
 AS
 BEGIN
@@ -421,11 +421,11 @@ BEGIN
 
     SELECT FileId, Category, OwnerKey, FileName, ContentType, SizeBytes, Sha256, Bucket, S3Key,
            UploadedBy, UploadedAt, Notes
-      FROM dbo.PIV2_FileLibrary WHERE FileId = @FileId;
+      FROM piv2.FileLibrary WHERE FileId = @FileId;
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.PIV2_FileLibrary_List
+CREATE OR ALTER PROCEDURE piv2.FileLibrary_List
     @Category varchar(40),
     @OwnerKey nvarchar(100) = NULL,
     @Take     int = 100
@@ -436,7 +436,7 @@ BEGIN
     SELECT TOP (CASE WHEN @Take BETWEEN 1 AND 500 THEN @Take ELSE 100 END)
            FileId, Category, OwnerKey, FileName, ContentType, SizeBytes, Sha256, Bucket, S3Key,
            UploadedBy, UploadedAt, Notes
-      FROM dbo.PIV2_FileLibrary
+      FROM piv2.FileLibrary
      WHERE Category = @Category AND (@OwnerKey IS NULL OR OwnerKey = @OwnerKey)
      ORDER BY UploadedAt DESC, FileId DESC;
 END

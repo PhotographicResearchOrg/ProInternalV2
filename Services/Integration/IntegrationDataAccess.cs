@@ -51,7 +51,7 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             var rows = await conn.QueryAsync<IntegrationOutgoing>(
-                "dbo.PIV2_Integration_Claim",
+                "piv2.Integration_Claim",
                 new { Take = take, LeaseSeconds = leaseSeconds },
                 commandType: CommandType.StoredProcedure);
             return rows.ToList();
@@ -61,7 +61,7 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             await conn.ExecuteAsync(
-                "dbo.PIV2_Integration_MarkSent",
+                "piv2.Integration_MarkSent",
                 new { MessageId = messageId },
                 commandType: CommandType.StoredProcedure);
         }
@@ -70,7 +70,7 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             await conn.ExecuteAsync(
-                "dbo.PIV2_Integration_MarkFailed",
+                "piv2.Integration_MarkFailed",
                 new { MessageId = messageId, Error = error },
                 commandType: CommandType.StoredProcedure);
         }
@@ -79,7 +79,7 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             return await conn.ExecuteScalarAsync<int>(
-                "dbo.PIV2_Integration_MarkOverdue",
+                "piv2.Integration_MarkOverdue",
                 commandType: CommandType.StoredProcedure);
         }
 
@@ -88,7 +88,7 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             return await conn.QuerySingleAsync<IntegrationResponseApplied>(
-                "dbo.PIV2_Integration_ApplyResponse",
+                "piv2.Integration_ApplyResponse",
                 new
                 {
                     Destination = destination,
@@ -109,7 +109,7 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             await conn.ExecuteAsync(
-                "dbo.PIV2_Integration_Resend",
+                "piv2.Integration_Resend",
                 new { MessageId = messageId, Actor = actor, Reason = reason },
                 commandType: CommandType.StoredProcedure);
         }
@@ -118,7 +118,7 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             await conn.ExecuteAsync(
-                "dbo.PIV2_Integration_Cancel",
+                "piv2.Integration_Cancel",
                 new { MessageId = messageId, Actor = actor, Reason = reason },
                 commandType: CommandType.StoredProcedure);
         }
@@ -127,7 +127,7 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             var rows = await conn.QueryAsync<IntegrationSummaryRow>(
-                "dbo.PIV2_Integration_Summary",
+                "piv2.Integration_Summary",
                 commandType: CommandType.StoredProcedure);
             return rows.ToList();
         }
@@ -137,7 +137,7 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             var rows = await conn.QueryAsync<IntegrationMessageRow>(
-                "dbo.PIV2_Integration_Search",
+                "piv2.Integration_Search",
                 new
                 {
                     Domain = Blank(domain),
@@ -155,7 +155,7 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             using var grid = await conn.QueryMultipleAsync(
-                "dbo.PIV2_Integration_Get",
+                "piv2.Integration_Get",
                 new { MessageId = messageId },
                 commandType: CommandType.StoredProcedure);
 
@@ -183,7 +183,7 @@ namespace ProInternal.Services.Integration
                 throw new ArgumentException("CreatedBy is required: pass the signed-in user.", nameof(request));
 
             return await connection.QuerySingleAsync<IntegrationEnqueued>(
-                "dbo.PIV2_Integration_Enqueue",
+                "piv2.Integration_Enqueue",
                 new
                 {
                     request.Domain,

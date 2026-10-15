@@ -1,11 +1,14 @@
 # Phase 1: shared platform
 
+New platform objects (tables, views, procedures) live in the `piv2` schema, not `dbo`. Existing `dbo` objects are not moved.
+
 One outbox and acknowledgement loop for every domain, an Integration desk to watch it, and an S3 file library. Nothing here sends anything yet; each desk that follows adds its own sender.
 
 ## What is in it
 
 | Piece | Where |
 | --- | --- |
+| The `piv2` schema and the app's EXECUTE grant | `sql/phase-1-platform/00-schema-and-grant.sql` |
 | Tables: destinations, messages, answers, history, file library | `sql/phase-1-platform/01-integration-tables.sql` |
 | Procedures: enqueue, claim, mark sent / failed / overdue, apply answer, resend, cancel, desk reads, file library | `sql/phase-1-platform/02-integration-procedures.sql` |
 | Answer contract, 3 examples, 14 rejected cases | `Schemas/Integration/v1.0/` (run `python validate.py`) |
@@ -41,7 +44,7 @@ QUEUED → SENT → ACKNOWLEDGED, or REJECTED. A failed send retries after 1, 4,
 
 ## Deploy
 
-1. Run `01-integration-tables.sql`, then `02-integration-procedures.sql`, in the PRO database. Both end with a one-line result; both are safe to run twice.
+1. In the PRO database, run `00-schema-and-grant.sql` (set `@AppUser` at the top to the API's database user first), then `01-integration-tables.sql`, then `02-integration-procedures.sql`. Each ends with a one-line result; all are safe to run twice.
 2. Create an S3 bucket for the file library (private, versioning on, default encryption on) and set `FileLibrary:Bucket`. Give the app server `s3:PutObject`, `s3:GetObject` and `s3:DeleteObject` on it.
 3. For each destination that will answer, add a key to the `prod/piv2/app` secret, e.g. `"Integration:ResponseKeys:COMPUTYME": "<random 48+ characters>"`, and give that key to the system that answers.
 4. Deploy the API and the Angular app.

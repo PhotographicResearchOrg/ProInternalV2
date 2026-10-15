@@ -35,7 +35,7 @@ namespace ProInternal.Services.Files
      * Every file PRO keeps goes to S3 under
      *   {category}/{owner}/{yyyy}/{MM}/{guid}-{file name}
      * in the bucket named by FileLibrary:Bucket, with a row in
-     * PIV2_FileLibrary. The SHA-256 of the content is the duplicate check:
+     * piv2.FileLibrary. The SHA-256 of the content is the duplicate check:
      * the same vendor sheet uploaded twice is stored once.
      */
     public sealed class FileLibrary : BaseDataAccess, IFileLibrary
@@ -73,7 +73,7 @@ namespace ProInternal.Services.Files
             using var conn = GetConnection();
 
             var existing = await conn.QuerySingleOrDefaultAsync<FileLibraryEntry>(
-                "dbo.PIV2_FileLibrary_FindDuplicate",
+                "piv2.FileLibrary_FindDuplicate",
                 new { Category = category, OwnerKey = ownerKey, Sha256 = sha256 },
                 commandType: CommandType.StoredProcedure);
 
@@ -89,7 +89,7 @@ namespace ProInternal.Services.Files
                 $"{Guid.NewGuid():N}-{Segment(Path.GetFileName(fileName))}");
 
             buffer.Position = 0;
-            await _s3.PutObjectAsync(new PutObjectRequest
+            await _s3.PutObjectAsync(new global::Amazon.S3.Model.PutObjectRequest
             {
                 BucketName = _bucket,
                 Key = key,
@@ -102,7 +102,7 @@ namespace ProInternal.Services.Files
             try
             {
                 return await conn.QuerySingleAsync<FileLibraryEntry>(
-                    "dbo.PIV2_FileLibrary_Add",
+                    "piv2.FileLibrary_Add",
                     new
                     {
                         Category = category,
@@ -130,7 +130,7 @@ namespace ProInternal.Services.Files
         {
             using var conn = GetConnection();
             return await conn.QuerySingleOrDefaultAsync<FileLibraryEntry>(
-                "dbo.PIV2_FileLibrary_Get",
+                "piv2.FileLibrary_Get",
                 new { FileId = fileId },
                 commandType: CommandType.StoredProcedure);
         }
@@ -153,7 +153,7 @@ namespace ProInternal.Services.Files
             if (entry == null)
                 return null;
 
-            return _s3.GetPreSignedURL(new GetPreSignedUrlRequest
+            return _s3.GetPreSignedURL(new global::Amazon.S3.Model.GetPreSignedUrlRequest
             {
                 BucketName = entry.Bucket,
                 Key = entry.S3Key,
@@ -166,7 +166,7 @@ namespace ProInternal.Services.Files
         {
             using var conn = GetConnection();
             var rows = await conn.QueryAsync<FileLibraryEntry>(
-                "dbo.PIV2_FileLibrary_List",
+                "piv2.FileLibrary_List",
                 new { Category = category, OwnerKey = ownerKey, Take = take },
                 commandType: CommandType.StoredProcedure);
             return rows.ToArray();

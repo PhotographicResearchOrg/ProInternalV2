@@ -22,9 +22,9 @@
 SET XACT_ABORT ON;
 GO
 
-IF OBJECT_ID('dbo.PIV2_IntegrationDestination', 'U') IS NULL
+IF OBJECT_ID('piv2.IntegrationDestination', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.PIV2_IntegrationDestination
+    CREATE TABLE piv2.IntegrationDestination
     (
         Destination     varchar(40)   NOT NULL,   -- COMPUTYME, SHOPIFY, SAGE, VENDOR_EDI, ...
         Domain          varchar(40)   NOT NULL,   -- PRODUCT, CATEGORY, MEMBER, VENDOR, REBATE, PURCHASE_ORDER, PAYMENT_RUN, GL
@@ -39,9 +39,9 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('dbo.PIV2_IntegrationMessage', 'U') IS NULL
+IF OBJECT_ID('piv2.IntegrationMessage', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.PIV2_IntegrationMessage
+    CREATE TABLE piv2.IntegrationMessage
     (
         MessageId        bigint IDENTITY(1,1) NOT NULL,
         CorrelationId    uniqueidentifier NOT NULL CONSTRAINT DF_PIV2_IntMsg_Correlation DEFAULT (NEWID()),
@@ -72,15 +72,15 @@ BEGIN
         CONSTRAINT CK_PIV2_IntMsg_Payload CHECK (ISJSON(Payload) = 1)
     );
 
-    CREATE INDEX IX_PIV2_IntMsg_Queue  ON dbo.PIV2_IntegrationMessage (Status, NextAttemptAt) INCLUDE (Destination, Domain);
-    CREATE INDEX IX_PIV2_IntMsg_Entity ON dbo.PIV2_IntegrationMessage (Domain, EntityId, Destination, MessageId DESC);
-    CREATE INDEX IX_PIV2_IntMsg_Due    ON dbo.PIV2_IntegrationMessage (Status, DueBy) WHERE Status = 'SENT';
+    CREATE INDEX IX_PIV2_IntMsg_Queue  ON piv2.IntegrationMessage (Status, NextAttemptAt) INCLUDE (Destination, Domain);
+    CREATE INDEX IX_PIV2_IntMsg_Entity ON piv2.IntegrationMessage (Domain, EntityId, Destination, MessageId DESC);
+    CREATE INDEX IX_PIV2_IntMsg_Due    ON piv2.IntegrationMessage (Status, DueBy) WHERE Status = 'SENT';
 END
 GO
 
-IF OBJECT_ID('dbo.PIV2_IntegrationResponse', 'U') IS NULL
+IF OBJECT_ID('piv2.IntegrationResponse', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.PIV2_IntegrationResponse
+    CREATE TABLE piv2.IntegrationResponse
     (
         ResponseId     bigint IDENTITY(1,1) NOT NULL,
         MessageId      bigint          NOT NULL,
@@ -94,7 +94,7 @@ BEGIN
         Body           nvarchar(max)   NOT NULL,
         BodySha256     char(64)        NOT NULL,
         CONSTRAINT PK_PIV2_IntegrationResponse PRIMARY KEY (ResponseId),
-        CONSTRAINT FK_PIV2_IntResp_Message FOREIGN KEY (MessageId) REFERENCES dbo.PIV2_IntegrationMessage (MessageId),
+        CONSTRAINT FK_PIV2_IntResp_Message FOREIGN KEY (MessageId) REFERENCES piv2.IntegrationMessage (MessageId),
         CONSTRAINT UQ_PIV2_IntResp_Body UNIQUE (MessageId, BodySha256),   -- the same answer twice is recorded once
         CONSTRAINT CK_PIV2_IntResp_Type CHECK (ResponseType IN ('ACKNOWLEDGEMENT','STATUS_UPDATE','EXCEPTION')),
         CONSTRAINT CK_PIV2_IntResp_Result CHECK (Result IS NULL OR Result IN ('ACCEPTED','ACCEPTED_WITH_CHANGES','REJECTED'))
@@ -102,10 +102,10 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('dbo.PIV2_IntegrationEvent', 'U') IS NULL
+IF OBJECT_ID('piv2.IntegrationEvent', 'U') IS NULL
 BEGIN
     /* Everything a person or the dispatcher did to a message, oldest first. */
-    CREATE TABLE dbo.PIV2_IntegrationEvent
+    CREATE TABLE piv2.IntegrationEvent
     (
         EventId     bigint IDENTITY(1,1) NOT NULL,
         MessageId   bigint          NOT NULL,
@@ -114,21 +114,21 @@ BEGIN
         Reason      nvarchar(1000)  NULL,
         At          datetime2(0)    NOT NULL CONSTRAINT DF_PIV2_IntEvt_At DEFAULT (SYSUTCDATETIME()),
         CONSTRAINT PK_PIV2_IntegrationEvent PRIMARY KEY (EventId),
-        CONSTRAINT FK_PIV2_IntEvt_Message FOREIGN KEY (MessageId) REFERENCES dbo.PIV2_IntegrationMessage (MessageId)
+        CONSTRAINT FK_PIV2_IntEvt_Message FOREIGN KEY (MessageId) REFERENCES piv2.IntegrationMessage (MessageId)
     );
 
-    CREATE INDEX IX_PIV2_IntEvt_Message ON dbo.PIV2_IntegrationEvent (MessageId, EventId);
+    CREATE INDEX IX_PIV2_IntEvt_Message ON piv2.IntegrationEvent (MessageId, EventId);
 END
 GO
 
-IF OBJECT_ID('dbo.PIV2_FileLibrary', 'U') IS NULL
+IF OBJECT_ID('piv2.FileLibrary', 'U') IS NULL
 BEGIN
     /*
         Every file PRO keeps (vendor rebate sheets, PO documents, invoices)
         is stored on S3 unchanged; this row is how it is found again.
         The same content uploaded twice under one owner is stored once.
     */
-    CREATE TABLE dbo.PIV2_FileLibrary
+    CREATE TABLE piv2.FileLibrary
     (
         FileId       bigint IDENTITY(1,1) NOT NULL,
         Category     varchar(40)     NOT NULL,   -- REBATE_SOURCE, PO_DOCUMENT, VENDOR_INVOICE, ...
@@ -147,12 +147,12 @@ BEGIN
         CONSTRAINT CK_PIV2_FileLib_Size CHECK (SizeBytes > 0)
     );
 
-    CREATE INDEX IX_PIV2_FileLib_Owner ON dbo.PIV2_FileLibrary (Category, OwnerKey, UploadedAt DESC);
+    CREATE INDEX IX_PIV2_FileLib_Owner ON piv2.FileLibrary (Category, OwnerKey, UploadedAt DESC);
 END
 GO
 
 /* Destinations known today. Desks add their own rows when they start sending. */
-MERGE dbo.PIV2_IntegrationDestination AS t
+MERGE piv2.IntegrationDestination AS t
 USING (VALUES
     ('COMPUTYME', 'PRODUCT',        N'Computyme · products',    24, 5),
     ('COMPUTYME', 'MEMBER',         N'Computyme · members',     24, 5),
@@ -169,4 +169,4 @@ WHEN NOT MATCHED THEN
 GO
 
 SELECT 'tables ready' AS Result,
-       (SELECT COUNT(*) FROM dbo.PIV2_IntegrationDestination) AS Destinations;
+       (SELECT COUNT(*) FROM piv2.IntegrationDestination) AS Destinations;
