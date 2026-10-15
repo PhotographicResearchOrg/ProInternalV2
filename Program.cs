@@ -43,6 +43,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddAppSecrets();
 builder.Configuration.RequireSecret("AppConfigurations:Jwt:Secret");
 
+// EPPlus 8 refuses to open a workbook until a license is set. Same license
+// RebateIrController already used; set once here so every reader has it.
+// "EPPlus:License" in settings overrides it (e.g. a commercial key).
+if (builder.Configuration["EPPlus:License"] is { Length: > 0 } epplusKey)
+    OfficeOpenXml.ExcelPackage.License.SetCommercial(epplusKey);
+else
+    OfficeOpenXml.ExcelPackage.License.SetNonCommercialPersonal("Mark");
+
 //Add services to the container.
 // Every controller requires a signed-in user unless marked [AllowAnonymous];
 // Security:Mode decides whether a refusal is logged or enforced.
