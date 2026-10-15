@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.service';
+import { col, downloadXlsx } from '../shared/rebate-excel';
 
 /*
  * Vendors on one rail: products and programs rolled up from product to
@@ -127,6 +128,33 @@ export class RebateVendorsComponent implements OnChanges {
       next: () => { this.termsSaved = JSON.stringify(this.terms); this.termsNotice = 'Saved. The next upload for this vendor uses these terms.'; },
       error: e => (this.termsNotice = apiMessage(e))
     });
+  }
+
+  exportVendors(): void {
+    const ir = this.rail === 'IR';
+    const cols = [
+      col('Vendor', 'vendorName'), col('Parent company', r => (r.isGroup ? r.members.join(', ') : r.parentCompany)),
+      col('Active products', 'productsActive', 'number'), col('Live programs', 'programsLive', 'number'),
+      col('Liability (not reimbursed)', 'liability', 'money'), col('Liability claims', 'liabilityClaims', 'number'),
+      col('Awaiting decision', 'pendingAmount', 'money'), col('Awaiting claims', 'pendingClaims', 'number'),
+      col('Credited in period', 'creditedAmount', 'money'), col('Reimbursed in period', 'reimbursedAmount', 'money'),
+      col('Declined in period', 'declinedAmount', 'money'), ...(ir ? [col('PRO pad in period', 'proPadAmount', 'money')] : []),
+      col('Oldest not reimbursed', 'oldestUnreimbursed', 'date')
+    ];
+    const sheets: any[] = [{ name: 'Vendors', cols, rows: this.shown }];
+    if (this.selected) {
+      sheets.push({ name: 'Products', rows: this.products, cols: [
+        col('Product #', 'modelId', 'number'), col('Product', 'description', 'text', 45), col('PRO code', 'proCodeText'),
+        col('Live programs', 'programsLive', 'number'), col('Last program', 'lastProgramDate', 'date'), col('Current amount', 'liveAmount', 'money'),
+        col('Units not reimbursed', 'liabilityUnits', 'number'), col('Liability', 'liability', 'money'),
+        col('Awaiting decision', 'pendingAmount', 'money'), col('Credited in period', 'creditedAmount', 'money')] });
+      sheets.push({ name: 'Claims not reimbursed', rows: this.openClaims, cols: [
+        col('Claim', 'orderId', 'number'), col('Member', 'memberId', 'number'), col('Submitted', 'claimDate', 'date'),
+        col('State', (c: any) => (c.bucket === 'SUBMITTED' ? 'Awaiting decision' : c.bucket === 'APPROVED' ? 'Approved, not sent' : 'Credited, not billed')),
+        col('Products', 'products', 'text', 50), col('Units', 'units', 'number'), col('Member amount', 'amount', 'money'),
+        col('Vendor owes', (c: any) => (c.bucket === 'SUBMITTED' ? null : c.vendorAmount), 'money')] });
+    }
+    downloadXlsx(`${ir ? 'Rebate' : 'Price-protection'} liability ${this.selected ? this.selected.vendorName + ' ' : ''}${this.from} to ${this.to}`, sheets);
   }
 
   daysOld(d: string | null): number | null {

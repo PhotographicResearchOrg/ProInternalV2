@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, finalize, switchMap } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.service';
+import { col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
 
 /*
  * Rebate products (RebateCameraModels) on one rail: what members claim
@@ -47,6 +48,20 @@ export class RebateProductsComponent implements OnChanges {
   searchSoon(): void {
     clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(() => this.go(1), 350);
+  }
+
+  exporting = false;
+
+  async exportExcel(): Promise<void> {
+    this.exporting = true;
+    try {
+      const rows = await fetchAllPages((page, pageSize) => this.desk.products(this.rail, {
+        vendorId: this.filter.vendorId, q: this.filter.q, active: this.filter.active, page, pageSize }));
+      downloadXlsx(this.rail === 'PP' ? 'Price-protection products' : 'Rebate products', [{ name: 'Products', rows, cols: [
+        col('Product #', 'modelId', 'number'), col('Description', 'description', 'text', 45), col('Primary PRO code', 'proCodeText'),
+        col('PRO codes', 'proCodes'), col('Vendor', 'vendorName'), col('Active', 'isActive'), col('Serials required', 'serialNumbersRequired'),
+        col('Live programs', 'programsLive', 'number'), col('Last program', 'lastProgramDate', 'date'), col('Stacks', 'stacks', 'number')] }]);
+    } catch (e) { this.error = apiMessage(e); } finally { this.exporting = false; }
   }
 
   constructor(private desk: RebateDeskService) {

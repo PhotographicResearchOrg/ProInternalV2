@@ -1,6 +1,7 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage, isoDate } from 'src/app/services/rebate-desk.service';
+import { IR_PROGRAM_COLS, PP_PROGRAM_COLS, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
 
 type Pending =
   | { kind: 'active'; program: any; active: boolean }
@@ -99,6 +100,20 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
         },
         error: e => (this.error = apiMessage(e))
       });
+  }
+
+  exporting = false;
+
+  /* Every program matching the filters, not just this page. */
+  async exportExcel(): Promise<void> {
+    this.exporting = true;
+    try {
+      const f: any = { vendorId: this.filter.vendorId, modelId: this.modelId, state: this.filter.state, q: this.filter.q };
+      if (this.rail === 'IR') { f.when = this.filter.when; f.batchId = this.batchId; } else { f.from = this.filter.from; f.to = this.filter.to; }
+      const rows = await fetchAllPages((page, pageSize) => this.desk.programs(this.rail, { ...f, page, pageSize }), 500);
+      downloadXlsx(this.rail === 'PP' ? 'Price-protection programs' : 'Instant-rebate programs',
+        [{ name: 'Programs', cols: this.rail === 'PP' ? PP_PROGRAM_COLS : IR_PROGRAM_COLS, rows }]);
+    } catch (e) { this.error = apiMessage(e); } finally { this.exporting = false; }
   }
 
   go(p: number): void { this.page = Math.min(Math.max(1, p), this.pages); this.refresh(); }

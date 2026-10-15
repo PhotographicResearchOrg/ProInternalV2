@@ -1,6 +1,7 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage, saveBlob } from 'src/app/services/rebate-desk.service';
+import { CLAIM_COLS, col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
 
 type Pending = { kind: 'resend' | 'invoice' } | null;
 
@@ -54,6 +55,31 @@ export class RebateClaimsComponent implements OnChanges {
   searchSoon(): void {
     clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(() => this.go(1), 350);
+  }
+
+  exporting = false;
+
+  /* Every claim matching the filters, not just this page. */
+  async exportClaims(): Promise<void> {
+    this.exporting = true;
+    try {
+      const rows = await fetchAllPages((page, pageSize) => this.desk.claims(this.rail, { ...this.filter, page, pageSize }));
+      downloadXlsx(this.rail === 'PP' ? 'Price-protection claims' : 'Instant-rebate claims', [{ name: 'Claims', cols: CLAIM_COLS, rows }]);
+    } catch (e) { this.error = apiMessage(e); } finally { this.exporting = false; }
+  }
+
+  exportCandidates(): void {
+    downloadXlsx(`Debit memo ${this.memo?.dm || 'draft'}`, [{ name: 'Claims', rows: this.candidates.filter(l => this.chosen.has(l.orderId)), cols: [
+      col('Claim', 'orderId', 'number'), col('Member', 'memberId', 'number'), col('Vendor', 'vendorName'), col('Decided', 'processedAt', 'date'),
+      col('Product', 'description', 'text', 45), col('Catalog #', 'catalogNumber'), col('PRO code', 'proCode'), col('Program week', 'programWeek'),
+      col('Qty', 'quantity', 'number'), col('Each (vendor share)', 'reimbursementAmount', 'money'), col('Extended', 'extended', 'money')] }]);
+  }
+
+  exportMemos(): void {
+    downloadXlsx('Debit memos', [{ name: 'Debit memos', rows: this.memos, cols: [
+      col('DM', 'debitMemo'), col('Vendor', 'vendorName'), col('Claims', 'claims', 'number'), col('Total', 'total', 'money'),
+      col('Emailed', 'emailedAt', 'datetime'), col('Email to', 'emailTo'), col('Email error', 'emailError'),
+      col('Reference 1', 'ref1'), col('Reference 2', 'ref2'), col('Created by', 'createdBy'), col('Created', 'createdAt', 'datetime')] }]);
   }
 
   constructor(private desk: RebateDeskService) {}

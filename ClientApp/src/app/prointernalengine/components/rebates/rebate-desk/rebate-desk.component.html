@@ -94,6 +94,7 @@
       <ng-container *ngIf="view === 'uploads' && !upload">
         <section class="card">
           <div class="card-head"><h2>Uploads</h2><span class="grow"></span>
+            <button type="button" class="btn ghost" (click)="exportUploads()" [disabled]="!uploads.length"><i class="pi pi-file-excel"></i> Excel</button>
             <select class="in" style="max-width: 200px" [(ngModel)]="uploadStatus" (ngModelChange)="loadUploads()">
               <option value="">Not cancelled</option>
               <option value="REVIEW">In review</option>
@@ -143,6 +144,7 @@
               <i class="pi pi-plus"></i> Create {{ upload.rowsCreatable }} rebate product(s)</button>
             <button type="button" class="btn" (click)="remap()" *ngIf="upload.status === 'REVIEW'"><i class="pi pi-table"></i> Change mapping</button>
             <button type="button" class="btn ghost" (click)="openFile()"><i class="pi pi-download"></i> Original file</button>
+            <button type="button" class="btn ghost" (click)="exportUploadRows()"><i class="pi pi-file-excel"></i> Excel (these rows)</button>
             <span class="grow"></span>
             <button type="button" class="btn danger" *ngIf="!upload.rowsLoaded && upload.status !== 'CANCELLED'" (click)="pending = { kind: 'cancel-upload' }">Cancel upload</button>
           </div>
@@ -187,6 +189,7 @@
       <ng-container *ngIf="view === 'purgatory'">
         <section class="card">
           <div class="card-head"><h2>Purgatory</h2><span class="sub">{{ purgatory.length }} rows across all uploads</span><span class="grow"></span>
+            <button type="button" class="btn ghost" (click)="exportPurgatory()" [disabled]="!purgatory.length"><i class="pi pi-file-excel"></i> Excel</button>
             <select class="in" style="max-width: 220px" [(ngModel)]="purgatoryVendorId" (ngModelChange)="loadPurgatory()">
               <option [ngValue]="null">All vendors</option>
               <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
@@ -326,7 +329,8 @@
       <ng-container *ngIf="view === 'batches'">
         <div class="split" [style.grid-template-columns]="batch ? 'minmax(0, 1.2fr) minmax(0, 1fr)' : '1fr'">
           <section class="card">
-            <div class="card-head"><h2>Batches</h2><span class="sub">{{ batchTotal }} found · a batch is one load, managed together</span></div>
+            <div class="card-head"><h2>Batches</h2><span class="sub">{{ batchTotal }} found · a batch is one load, managed together</span><span class="grow"></span>
+              <button type="button" class="btn ghost" (click)="exportBatches()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button></div>
             <div class="filters">
               <input class="in" placeholder="Batch # or vendor" [(ngModel)]="batchFilter.q" (ngModelChange)="searchSoon()" (keyup.enter)="loadBatches(1)" />
               <select class="in" style="max-width: 220px" [(ngModel)]="batchFilter.vendorId" (ngModelChange)="loadBatches(1)">
@@ -368,6 +372,7 @@
               <button type="button" class="btn" *ngIf="batch.state !== 'LIVE'" (click)="pending = { kind: 'batch-active', batch: batch, active: true }"><i class="pi pi-play"></i> Turn all on</button>
               <button type="button" class="btn danger" *ngIf="batch.state !== 'OFF'" (click)="pending = { kind: 'batch-active', batch: batch, active: false }"><i class="pi pi-pause"></i> Turn all off</button>
               <button type="button" class="btn ghost" (click)="showPrograms({ batchId: batch.batchId }, 'IR')"><i class="pi pi-list"></i> Manage programs</button>
+              <button type="button" class="btn ghost" (click)="exportBatch()"><i class="pi pi-file-excel"></i> Excel</button>
             </div>
             <h3 class="sub" style="margin: 6px 0">Dates for the whole batch</h3>
             <div class="field-grid">
@@ -438,7 +443,8 @@
 
       <!-- ============ Templates ============ -->
       <section class="card" *ngIf="view === 'templates'">
-        <div class="card-head"><h2>Saved vendor layouts</h2><span class="sub">A confirmed mapping is reused automatically the next time the same headers arrive.</span></div>
+        <div class="card-head"><h2>Saved vendor layouts</h2><span class="sub">A confirmed mapping is reused automatically the next time the same headers arrive.</span><span class="grow"></span>
+          <button type="button" class="btn ghost" (click)="exportTemplates()" [disabled]="!templates.length"><i class="pi pi-file-excel"></i> Excel</button></div>
         <table class="grid">
           <thead><tr><th>Vendor</th><th>Sheet</th><th>Columns</th><th>Source</th><th class="num">Used</th><th>Last used</th><th></th></tr></thead>
           <tbody>
@@ -458,7 +464,8 @@
 
       <!-- ============ Declined claims ============ -->
       <section class="card" *ngIf="view === 'declines'">
-        <div class="card-head"><h2>Declined claims</h2><span class="sub">{{ declinesShown.length }} of {{ declines.length }}</span></div>
+        <div class="card-head"><h2>Declined claims</h2><span class="sub">{{ declinesShown.length }} of {{ declines.length }}</span><span class="grow"></span>
+          <button type="button" class="btn ghost" (click)="exportDeclines()" [disabled]="!declinesShown.length"><i class="pi pi-file-excel"></i> Excel</button></div>
         <div class="filters">
           <input class="in" placeholder="Claim #, member #, product, reason or email" [(ngModel)]="declineQ" (ngModelChange)="declineTake = 100" />
         </div>
@@ -485,7 +492,8 @@
 
       <!-- ============ History ============ -->
       <section class="card" *ngIf="view === 'history' || view === 'pp-history'">
-        <div class="card-head"><h2>History: {{ rail === 'PP' ? 'price protection' : 'instant rebates' }}</h2><span class="sub">Latest 300 changes</span></div>
+        <div class="card-head"><h2>History: {{ rail === 'PP' ? 'price protection' : 'instant rebates' }}</h2><span class="sub">Latest 300 changes</span><span class="grow"></span>
+          <button type="button" class="btn ghost" (click)="exportHistory()" [disabled]="!history.length"><i class="pi pi-file-excel"></i> Excel</button></div>
         <table class="grid">
           <thead><tr><th>When</th><th>Who</th><th>What</th><th>On</th><th>Reason</th><th>Detail</th></tr></thead>
           <tbody>

@@ -4,6 +4,7 @@
   <div class="card-head">
     <h2>{{ rail === 'PP' ? 'Price-protection vendors' : 'Rebate vendors' }} and liability</h2>
     <span class="grow"></span>
+    <button type="button" class="btn ghost" (click)="exportVendors()" [disabled]="loading || !shown.length"><i class="pi pi-file-excel"></i> {{ selected ? 'Excel (with ' + selected.vendorName + ')' : 'Excel' }}</button>
     <button type="button" class="btn ghost" (click)="refresh()" [disabled]="loading"><i class="pi pi-refresh"></i> Refresh</button>
   </div>
 

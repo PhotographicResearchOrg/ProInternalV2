@@ -3,6 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { DataService } from 'src/app/services/data.service';
 import { Rail, RebateDeskService, apiMessage, isoDate } from 'src/app/services/rebate-desk.service';
+import { IR_PROGRAM_COLS, UPLOAD_ROW_COLS, col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
@@ -33,6 +34,13 @@ type Pending =
  * Rows that fail a check go to purgatory and stay there until fixed,
  * skipped with a reason, or loaded.
  */
+const HISTORY_COLS = [
+  col('When', 'at', 'datetime'), col('Who', 'actor'), col('What', 'eventType'), col('Batch', 'batchId', 'number'),
+  col('Program', 'programId', 'number'), col('Upload', 'uploadId', 'number'), col('Product #', 'modelId', 'number'),
+  col('Product', 'modelDescription', 'text', 40), col('Claim', 'claimId', 'number'), col('Reason', 'reason', 'text', 40),
+  col('Detail', (h: any) => h.detailText ?? (typeof h.detail === 'string' ? h.detail : JSON.stringify(h.detail ?? '')), 'text', 80)
+];
+
 @Component({
   selector: 'app-rebate-desk',
   templateUrl: './rebate-desk.component.html',
@@ -240,6 +248,69 @@ export class RebateDeskComponent implements OnInit {
       },
       error: e => (this.error = apiMessage(e))
     });
+  }
+
+  /* ---- Excel ---- */
+  exporting = false;
+
+  exportUploadRows(): void {
+    if (!this.upload) return;
+    const rows = this.filteredRows.map(r => ({ ...r, uploadId: this.upload.uploadId, vendorName: this.upload.vendorName, fileName: this.upload.fileName,
+      rebateTypeName: this.typeName(r.rebateType ?? this.upload.defaultRebateType) }));
+    downloadXlsx(`Upload ${this.upload.uploadId} ${this.upload.vendorName ?? ''} ${this.rowFilter.toLowerCase()}`,
+      [{ name: 'Rows', cols: UPLOAD_ROW_COLS, rows }]);
+  }
+
+  exportPurgatory(): void {
+    const rows = this.purgatory.map(r => ({ ...r, status: 'PURGATORY', rebateTypeName: this.typeName(r.rebateType ?? r.defaultRebateType) }));
+    downloadXlsx('Purgatory', [{ name: 'Purgatory', cols: UPLOAD_ROW_COLS, rows }]);
+  }
+
+  exportUploads(): void {
+    downloadXlsx('Uploads', [{ name: 'Uploads', rows: this.uploads, cols: [
+      col('Upload', 'uploadId', 'number'), col('Vendor', 'vendorName'), col('File', 'fileName', 'text', 40), col('Status', 'status'),
+      col('Rows', 'rowsTotal', 'number'), col('Ready', 'rowsReady', 'number'), col('Purgatory', 'rowsPurgatory', 'number'),
+      col('Loaded', 'rowsLoaded', 'number'), col('Skipped', 'rowsSkipped', 'number'), col('Batch', 'batchId', 'number'),
+      col('Uploaded by', 'createdBy'), col('Uploaded', 'createdAt', 'datetime')] }]);
+  }
+
+  async exportBatches(): Promise<void> {
+    this.exporting = true;
+    try {
+      const rows = await fetchAllPages((page, pageSize) => this.desk.batches({ ...this.batchFilter, page, pageSize }));
+      downloadXlsx('Batches', [{ name: 'Batches', rows, cols: [
+        col('Batch', 'batchId', 'number'), col('Vendor', 'vendorName'), col('Type', 'irTypeName'), col('State', 'state'),
+        col('Programs', 'programs', 'number'), col('On', 'livePrograms', 'number'), col('Start', 'programStart', 'date'),
+        col('End', 'programEnd', 'date'), col('Claims until', 'expireOn', 'date'), col('Upload', 'uploadId', 'number'),
+        col('Loaded by', 'loadedBy'), col('Entered', 'enteredAt', 'datetime')] }]);
+    } catch (e) { this.error = apiMessage(e); } finally { this.exporting = false; }
+  }
+
+  exportBatch(): void {
+    if (!this.batch) return;
+    downloadXlsx(`Batch ${this.batch.batchId} ${this.batch.vendorName ?? ''}`, [
+      { name: 'Programs', cols: IR_PROGRAM_COLS, rows: this.batchPrograms },
+      { name: 'History', cols: HISTORY_COLS, rows: this.batchHistory }
+    ]);
+  }
+
+  exportDeclines(): void {
+    downloadXlsx('Declined claims', [{ name: 'Declined', rows: this.declinesShown, cols: [
+      col('Claim', 'orderID', 'number'), col('Declined', 'processDate', 'date'), col('Member', 'memberID', 'number'),
+      col('Vendor', 'vendorName'), col('Product', 'model', 'text', 40), col('Qty', 'quantity', 'number'), col('Amount', 'total', 'money'),
+      col('Reason', 'rejectReason', 'text', 50), col('Email', r => r.email ?? r.eMail)] }]);
+  }
+
+  exportTemplates(): void {
+    downloadXlsx('Saved vendor layouts', [{ name: 'Layouts', rows: this.templates, cols: [
+      col('Template', 'templateId', 'number'), col('Vendor', 'vendorName'), col('Sheet', 'sheetName'), col('Header row', 'headerRow', 'number'),
+      col('Columns', t => this.mappingText(t.mapping, t.headers), 'text', 80), col('Source', 'source'),
+      col('Times used', 'timesUsed', 'number'), col('Last used', 'lastUsedAt', 'date')] }]);
+  }
+
+  exportHistory(): void {
+    downloadXlsx(`History ${this.rail === 'PP' ? 'price protection' : 'instant rebates'}`, [{ name: 'History', cols: HISTORY_COLS,
+      rows: this.history.map(h => ({ ...h, detailText: this.detailText(h.detail) })) }]);
   }
 
   get filteredRows(): any[] {

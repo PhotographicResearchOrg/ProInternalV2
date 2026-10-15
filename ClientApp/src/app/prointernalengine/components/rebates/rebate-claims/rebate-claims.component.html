@@ -4,7 +4,8 @@
 <!-- ============ Claims ============ -->
 <div class="split" *ngIf="tab === 'claims'" [style.grid-template-columns]="claim ? 'minmax(0, 1.3fr) minmax(0, 1fr)' : '1fr'">
   <section class="card">
-    <div class="card-head"><h2>{{ rail === 'PP' ? 'Price-protection claims' : 'Instant-rebate claims' }}</h2><span class="sub">{{ total }} found</span></div>
+    <div class="card-head"><h2>{{ rail === 'PP' ? 'Price-protection claims' : 'Instant-rebate claims' }}</h2><span class="sub">{{ total }} found</span><span class="grow"></span>
+      <button type="button" class="btn ghost" (click)="exportClaims()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button></div>
     <div class="filters">
       <input class="in" placeholder="Claim #, member # or debit memo" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
       <select class="in" style="max-width: 200px" [(ngModel)]="filter.vendorId" (ngModelChange)="go(1)">
@@ -120,7 +121,8 @@
   </section>
 
   <section class="card" *ngIf="candidates.length">
-    <div class="card-head"><h2>{{ chosenCount }} claim(s) · {{ chosenTotal | currency }}</h2><span class="sub">Letter: {{ letter }}</span></div>
+    <div class="card-head"><h2>{{ chosenCount }} claim(s) · {{ chosenTotal | currency }}</h2><span class="sub">Letter: {{ letter }}</span><span class="grow"></span>
+      <button type="button" class="btn ghost" (click)="exportCandidates()" [disabled]="!chosenCount"><i class="pi pi-file-excel"></i> Excel</button></div>
     <table class="grid">
       <thead><tr><th></th><th>Claim</th><th>Member</th><th>Decided</th><th>Product</th><th>Week</th><th class="num">Qty</th><th class="num">Each</th><th class="num">Extended</th></tr></thead>
       <tbody>
@@ -150,7 +152,8 @@
   <div class="empty card" *ngIf="!candidates.length && !loading">Choose vendors and dates, then Find claims.</div>
 
   <section class="card">
-    <div class="card-head"><h2>Debit memos</h2></div>
+    <div class="card-head"><h2>Debit memos</h2><span class="grow"></span>
+      <button type="button" class="btn ghost" (click)="exportMemos()" [disabled]="!memos.length"><i class="pi pi-file-excel"></i> Excel</button></div>
     <table class="grid">
       <thead><tr><th>DM</th><th>Vendor</th><th class="num">Claims</th><th class="num">Total</th><th>Emailed</th><th>Created</th><th></th></tr></thead>
       <tbody>

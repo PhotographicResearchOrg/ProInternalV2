@@ -7,6 +7,7 @@
       <h2>{{ rail === 'PP' ? 'Price-protection products' : 'Rebate products' }}</h2>
       <span class="sub">{{ total }} found</span>
       <span class="grow"></span>
+      <button type="button" class="btn ghost" (click)="exportExcel()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button>
       <button type="button" class="btn primary" (click)="startNew()"><i class="pi pi-plus"></i> New product</button>
     </div>
     <div class="filters">
