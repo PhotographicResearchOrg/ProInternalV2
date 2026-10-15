@@ -30,6 +30,7 @@ import { ReceivablesComponent } from './prointernalengine/components/dashboards/
 import { ShippingerrorsComponent } from './prointernalengine/components/dashboards/warehouse/shippingerrors/shippingerrors.component'; 
 import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component';
 import { IntegrationDeskComponent } from './prointernalengine/components/integration/integration-desk/integration-desk.component';
+import { RebateDeskComponent } from './prointernalengine/components/rebates/rebate-desk/rebate-desk.component';
 import { ShopifyAdminComponent } from './prointernalengine/components/dashboards/Marketing/shopify-admin/shopify-admin.component';
 import { CreditsComponent } from './prointernalengine/components/dashboards/accounting/credits.component/credits.component';
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
@@ -87,6 +88,7 @@ const routes: Routes = [
 
       { path: 'members', component: MemberDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Member Desk' } },
       { path: 'integration', component: IntegrationDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Integration' } },
+      { path: 'rebatedesk', component: RebateDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Rebate Desk' } },
       { path: 'members/access-rules', component: AccessRulesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Access Rules' } },
       { path: 'members/:accountNumber', component: MemberDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Member' } },
 

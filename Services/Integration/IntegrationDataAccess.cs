@@ -27,6 +27,7 @@ namespace ProInternal.Services.Integration
         Task<List<IntegrationMessageRow>> SearchAsync(
             string? domain, string? destination, string? status, string? text, int page, int pageSize);
         Task<IntegrationMessageDetail?> GetAsync(long messageId);
+        Task<int> PurgeAsync(int keepDays);
     }
 
     /*
@@ -45,6 +46,16 @@ namespace ProInternal.Services.Integration
         {
             using var conn = GetConnection();
             return await IntegrationOutbox.EnqueueAsync(conn, null, request);
+        }
+
+        public async Task<int> PurgeAsync(int keepDays)
+        {
+            using var conn = GetConnection();
+            return await conn.ExecuteScalarAsync<int>(
+                "piv2.Integration_Purge",
+                new { KeepDays = keepDays },
+                commandType: CommandType.StoredProcedure,
+                commandTimeout: 600);
         }
 
         public async Task<List<IntegrationOutgoing>> ClaimAsync(int take, int leaseSeconds)

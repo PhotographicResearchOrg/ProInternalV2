@@ -76,6 +76,13 @@ import { PaymentTypeComponent } from './prointernalengine/components/shared/paym
 import { ConfirmPopupModule } from 'primeng/confirmpopup';
 import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component'; 
 import { IntegrationDeskComponent } from './prointernalengine/components/integration/integration-desk/integration-desk.component';
+import { RebateDeskComponent } from './prointernalengine/components/rebates/rebate-desk/rebate-desk.component';
+import { RebateUploadComponent } from './prointernalengine/components/rebates/rebate-upload/rebate-upload.component';
+import { RebateProgramsComponent } from './prointernalengine/components/rebates/rebate-programs/rebate-programs.component';
+import { RebateProductsComponent } from './prointernalengine/components/rebates/rebate-products/rebate-products.component';
+import { RebateVendorsComponent } from './prointernalengine/components/rebates/rebate-vendors/rebate-vendors.component';
+import { RebateReasonDialogComponent } from './prointernalengine/components/rebates/shared/reason-dialog.component';
+import { RebateProductPickerComponent } from './prointernalengine/components/rebates/shared/product-picker.component';
 import { PanelModule } from 'primeng/panel';
 import { BrowserModule } from '@angular/platform-browser';             // <-- add
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; // <-- add
@@ -113,6 +120,13 @@ import { AccessRulesComponent } from './prointernalengine/components/MemberManag
     VendorBillingComponent,
     ProductEditComponent,
     IntegrationDeskComponent,
+    RebateDeskComponent,
+    RebateUploadComponent,
+    RebateProgramsComponent,
+    RebateProductsComponent,
+    RebateVendorsComponent,
+    RebateReasonDialogComponent,
+    RebateProductPickerComponent,
     ReceivablesComponent,
     AffiliateGridComponent,
     ClientGridComponent,

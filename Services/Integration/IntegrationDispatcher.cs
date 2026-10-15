@@ -76,6 +76,8 @@ namespace ProInternal.Services.Integration
                     _logger.LogError(ex, "Integration dispatch cycle failed; trying again next cycle.");
                 }
 
+                await PurgeIfDueAsync(stoppingToken);
+
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(seconds), stoppingToken);
@@ -84,6 +86,30 @@ namespace ProInternal.Services.Integration
                 {
                     break;
                 }
+            }
+        }
+
+        private DateTime _lastPurgeUtc = DateTime.MinValue;
+
+        /* Once a day: delete finished messages older than Integration:RetentionDays (0 turns it off). */
+        private async Task PurgeIfDueAsync(CancellationToken cancellationToken)
+        {
+            var keepDays = _configuration.GetValue("Integration:RetentionDays", 180);
+            if (keepDays <= 0 || DateTime.UtcNow - _lastPurgeUtc < TimeSpan.FromHours(24))
+                return;
+
+            _lastPurgeUtc = DateTime.UtcNow;
+            try
+            {
+                using var scope = _scopes.CreateScope();
+                var data = scope.ServiceProvider.GetRequiredService<IIntegrationDataAccess>();
+                var deleted = await data.PurgeAsync(Math.Max(keepDays, 30));
+                if (deleted > 0)
+                    _logger.LogInformation("Integration retention removed {Count} finished message(s) older than {Days} days.", deleted, keepDays);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(ex, "Integration retention did not run; it will try again tomorrow.");
             }
         }
 

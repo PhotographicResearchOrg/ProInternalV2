@@ -1,0 +1,103 @@
+<div class="error" style="margin: 0 0 12px" *ngIf="error"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+
+<section class="card">
+  <div class="card-head">
+    <h2>{{ rail === 'PP' ? 'Price-protection vendors' : 'Rebate vendors' }} and liability</h2>
+    <span class="grow"></span>
+    <button type="button" class="btn ghost" (click)="refresh()" [disabled]="loading"><i class="pi pi-refresh"></i> Refresh</button>
+  </div>
+
+  <div class="stats" style="grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0 0 12px">
+    <div class="stat"><b class="warn">{{ totals.openLiability | currency:'USD':'symbol':'1.0-0' }}</b><span>open liability (members)</span></div>
+    <div class="stat"><b>{{ totals.submittedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>submitted, not decided</span></div>
+    <div class="stat"><b>{{ totals.approvedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>approved, not sent to Computyme</span></div>
+    <div class="stat"><b class="bad">{{ totals.unbilledAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>approved, not billed to vendor</span></div>
+    <div class="stat"><b class="ok">{{ totals.sentAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>credited in period</span></div>
+  </div>
+
+  <div class="filters">
+    <input class="in" placeholder="Vendor or parent company" [(ngModel)]="q" />
+    <label class="sub" style="display:flex; align-items:center; gap:6px">Period
+      <input class="in" type="date" style="max-width: 150px" [(ngModel)]="from" (change)="refresh()" />
+      <input class="in" type="date" style="max-width: 150px" [(ngModel)]="to" (change)="refresh()" />
+    </label>
+    <label class="sub" style="display:flex; align-items:center; gap:6px"><input type="checkbox" [(ngModel)]="byParent" /> Group by parent company</label>
+    <label class="sub" style="display:flex; align-items:center; gap:6px"><input type="checkbox" [(ngModel)]="onlyWithActivity" /> Only with activity</label>
+  </div>
+
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>Vendor</th><th class="num">Products</th><th class="num">Live programs</th>
+        <th class="num">Submitted</th><th class="num">Approved, unsent</th><th class="num">Open liability</th>
+        <th class="num">Not billed to vendor</th><th class="num">Credited</th><th>Oldest open</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let v of shown" class="click" (click)="open(v)" [class.sel]="selected?.vendorId === v.vendorId && !v.isGroup" [class.off]="v.isActive === false">
+        <td><div class="rec">{{ v.vendorName }}</div>
+          <div class="sub" *ngIf="v.parentCompany">{{ v.parentCompany }}</div>
+          <div class="sub" *ngIf="v.isGroup">{{ v.members.join(', ') }}</div></td>
+        <td class="num">{{ v.productsActive }}</td>
+        <td class="num">{{ v.programsLive }}<span class="sub" *ngIf="v.programsUpcoming"> (+{{ v.programsUpcoming }} later)</span></td>
+        <td class="money">{{ v.submittedAmount | currency }}<div class="sub">{{ v.submittedClaims }} claims</div></td>
+        <td class="money">{{ v.approvedAmount | currency }}<div class="sub">{{ v.approvedClaims }} claims</div></td>
+        <td class="money"><b [class.warn]="v.openLiability > 0">{{ v.openLiability | currency }}</b></td>
+        <td class="money"><span [class.bad]="v.unbilledAmount > 0">{{ v.unbilledAmount | currency }}</span><div class="sub">{{ v.unbilledClaims }} claims</div></td>
+        <td class="money">{{ v.sentAmount | currency }}</td>
+        <td class="mono">{{ v.oldestOpenClaim | date:'MM/dd/yy' }}<span class="sub" *ngIf="daysOld(v.oldestOpenClaim) as d"> · {{ d }} d</span></td>
+      </tr>
+      <tr *ngIf="!shown.length && !loading"><td colspan="9" class="empty">No vendors match.</td></tr>
+      <tr *ngIf="loading"><td colspan="9" class="empty">Adding up claims…</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<ng-container *ngIf="selected">
+  <section class="card">
+    <div class="card-head">
+      <h2>{{ selected.vendorName }}: products</h2>
+      <span class="sub">open liability {{ selected.openLiability | currency }} · not billed {{ selected.unbilledAmount | currency }}</span>
+      <span class="grow"></span>
+      <button type="button" class="btn ghost" (click)="showPrograms.emit({ vendorId: selected.vendorId })"><i class="pi pi-list"></i> All programs</button>
+      <button type="button" class="icon-btn" (click)="selected = null" title="Close"><i class="pi pi-times"></i></button>
+    </div>
+    <table class="grid">
+      <thead><tr><th>Product</th><th class="num">Live</th><th>Last program</th><th class="num">Current amount</th>
+        <th class="num">Open units</th><th class="num">Open liability</th><th class="num">Not billed</th><th class="num">Credited</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let p of products" class="click" (click)="showPrograms.emit({ modelId: p.modelId })" [class.off]="!p.isActive">
+          <td><div class="rec">{{ p.description }}</div><div class="sub mono">#{{ p.modelId }} · PRO {{ p.proCodeText }}</div></td>
+          <td class="num">{{ p.programsLive }}</td>
+          <td class="mono">{{ p.lastProgramDate | date:'MM/dd/yy' }}</td>
+          <td class="money">{{ p.liveAmount | currency }}</td>
+          <td class="num">{{ p.openUnits }}</td>
+          <td class="money"><b [class.warn]="p.openLiability > 0">{{ p.openLiability | currency }}</b></td>
+          <td class="money">{{ p.unbilledAmount | currency }}</td>
+          <td class="money">{{ p.sentAmount | currency }}</td>
+        </tr>
+        <tr *ngIf="!products.length && !detailLoading"><td colspan="8" class="empty">No products with activity.</td></tr>
+        <tr *ngIf="detailLoading"><td colspan="8" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Open claims</h2><span class="sub">{{ openClaims.length }} submitted or approved and not yet sent</span></div>
+    <table class="grid">
+      <thead><tr><th>Claim</th><th>Member</th><th>Submitted</th><th>State</th><th>Products</th><th class="num">Units</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let c of openClaims">
+          <td class="mono">{{ c.orderId }}</td>
+          <td class="mono">{{ c.memberId }}</td>
+          <td class="mono">{{ c.claimDate | date:'MM/dd/yy' }}<span class="sub" *ngIf="daysOld(c.claimDate) as d"> · {{ d }} d</span></td>
+          <td><span class="status" [class.warn]="c.bucket === 'SUBMITTED'" [class.info]="c.bucket === 'APPROVED'">{{ c.bucket === 'SUBMITTED' ? 'Not decided' : 'Approved' }}</span></td>
+          <td>{{ c.products }}</td>
+          <td class="num">{{ c.units }}</td>
+          <td class="money">{{ c.amount | currency }}</td>
+        </tr>
+        <tr *ngIf="!openClaims.length && !detailLoading"><td colspan="7" class="empty">No open claims.</td></tr>
+      </tbody>
+    </table>
+  </section>
+</ng-container>
