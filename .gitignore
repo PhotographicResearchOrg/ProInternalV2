@@ -252,3 +252,5 @@ appsettings.KLASSDESKTOP.json
 
 # proxy.conf.json
 ClientApp/proxy.conf.json
+*.bak
+/.claude/settings.json
