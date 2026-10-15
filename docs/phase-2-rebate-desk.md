@@ -4,7 +4,7 @@ Route `/rebatedesk`. Two rails, in the Product Desk format.
 
 | Instant rebates | Price protection |
 | --- | --- |
-| Overview, New upload, Uploads, Purgatory, Programs, Batches, Products, Vendors & liability, Templates, Naming rules, Claims, Debit memos, Declined claims, History | Programs, Products, Vendors & liability, Claims, Debit memos, History |
+| Overview, New upload, Uploads, Purgatory, Programs, Batches, Products, Vendors & liability, Templates, Claims, Debit memos, Declined claims, History | Programs, Products, Vendors & liability, Claims, Debit memos, History |
 
 All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.RebateProgramDetail` / `dbo.PriceProtectionDetail` and products into `dbo.RebateCameraModels` / `RebateCameraModelsDetails` / `RebateQualifiers`, exactly as the member site (Connection) reads them. The desk's own tables, views and procedures are in the `piv2` schema in PRO_NUKE.
 
@@ -100,7 +100,7 @@ A row with any problem waits in purgatory; nothing is dropped silently. From the
 
 ## Naming rules
 
-`piv2.RebateNamingRule`, one line per rebate type, edited on the desk (Naming rules, `Rebates.Manage`, with a reason): rebate product name = PRO product name, then " WITH <stack product>" for each stack product when the rule adds stacks, then the suffix. Seeded with the `RebateIrController` rules (IR plain; trade-in "TRADE-IN TRADE-UP"; bundle and free-with-purchase add stacks; coupon "WITH COUPON CODE"; social "WITH SOCIAL MEDIA"). A change applies to uploads checked afterwards; existing rebate products keep their names. The old (IR) Batch Upload page keeps its built-in rules.
+`piv2.RebateNamingRule`, one line per rebate type, fixed (no screen; a change is a deliberate SQL update): rebate product name = PRO product name, then " WITH <stack product>" for each stack product when the rule adds stacks, then the suffix. Seeded with the `RebateIrController` rules (IR plain; trade-in "TRADE-IN TRADE-UP"; bundle and free-with-purchase add stacks; coupon "WITH COUPON CODE"; social "WITH SOCIAL MEDIA"). If a rule is ever changed, it applies to uploads checked afterwards; existing rebate products keep their names, so the next file of that type would offer to create new ones. The old (IR) Batch Upload page keeps its built-in rules.
 
 ## After loading (Manage)
 

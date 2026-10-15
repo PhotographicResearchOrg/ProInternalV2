@@ -7,7 +7,7 @@ import { IR_PROGRAM_COLS, UPLOAD_ROW_COLS, col, downloadXlsx, fetchAllPages } fr
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
-  | 'templates' | 'naming' | 'claims' | 'debitmemos' | 'declines' | 'history'
+  | 'templates' | 'claims' | 'debitmemos' | 'declines' | 'history'
   | 'pp-programs' | 'pp-products' | 'pp-vendors' | 'pp-claims' | 'pp-debitmemos' | 'pp-history';
 
 interface RailView { key: ViewKey; label: string; icon: string; group: 'IR' | 'PP'; count?: () => number; hot?: boolean; }
@@ -20,7 +20,6 @@ type Pending =
   | { kind: 'retire-template'; template: any }
   | { kind: 'bulk-skip'; ids: number[] }
   | { kind: 'bulk-overlap'; ids: number[] }
-  | { kind: 'naming'; rule: any }
   | { kind: 'bp-amounts' }
   | { kind: 'bp-dates' }
   | { kind: 'bp-active'; program: any; active: boolean }
@@ -62,7 +61,6 @@ export class RebateDeskComponent implements OnInit {
     { key: 'products', label: 'Products', icon: 'pi pi-tags', group: 'IR' },
     { key: 'vendors', label: 'Vendors & liability', icon: 'pi pi-building', group: 'IR' },
     { key: 'templates', label: 'Templates', icon: 'pi pi-table', group: 'IR', count: () => this.overview.templates || 0 },
-    { key: 'naming', label: 'Naming rules', icon: 'pi pi-tag', group: 'IR' },
     { key: 'claims', label: 'Claims', icon: 'pi pi-wallet', group: 'IR' },
     { key: 'debitmemos', label: 'Debit memos', icon: 'pi pi-send', group: 'IR' },
     { key: 'declines', label: 'Declined claims', icon: 'pi pi-ban', group: 'IR' },
@@ -208,35 +206,9 @@ export class RebateDeskComponent implements OnInit {
       case 'purgatory': this.loadPurgatory(); break;
       case 'batches': this.loadBatches(1); break;
       case 'templates': this.desk.templates().subscribe(t => (this.templates = t)); break;
-      case 'naming': this.loadNaming(); break;
       case 'declines': this.data.GetDeclinedInstantRebates().subscribe(d => (this.declines = d as any[])); break;
       case 'history': case 'pp-history': this.loadHistory(); break;
     }
-  }
-
-  /* ---- naming rule set ---- */
-  naming: any[] = [];
-  private namingSaved = '';
-
-  loadNaming(): void {
-    this.desk.namingRules().subscribe({
-      next: r => { this.naming = (r ?? []).map(x => ({ ...x, saved: JSON.stringify([x.suffix, !!x.addStack, x.stackJoiner]) })); },
-      error: e => (this.error = apiMessage(e))
-    });
-  }
-
-  namingDirty(r: any): boolean { return JSON.stringify([r.suffix || '', !!r.addStack, r.stackJoiner || 'WITH']) !== r.saved; }
-
-  namingExample(r: any): string {
-    return ['NIKON Z6 III', r.addStack ? `${(r.stackJoiner || 'WITH').toUpperCase()} NIKKOR Z 24-120MM` : '', (r.suffix || '').toUpperCase()]
-      .filter(x => x).join(' ');
-  }
-
-  exportNaming(): void {
-    downloadXlsx('Naming rules', [{ name: 'Naming rules', rows: this.naming, cols: [
-      col('Type', 'typeName'), col('Adds stack products', (r: any) => (r.addStack ? 'Yes' : 'No')), col('Stack word', 'stackJoiner'),
-      col('Suffix', 'suffix'), col('Example', (r: any) => this.namingExample(r), 'text', 60),
-      col('Changed by', 'updatedBy'), col('Changed', 'updatedAt', 'datetime')] }]);
   }
 
   noticeUploadId: number | null = null;
@@ -471,6 +443,7 @@ export class RebateDeskComponent implements OnInit {
   proQ = '';
   proHits: any[] = [];
   proSearching = false;
+  proSearched = false;
   proErr = '';
   private proTimer: any;
 
@@ -481,13 +454,15 @@ export class RebateDeskComponent implements OnInit {
 
   searchProSoon(): void {
     clearTimeout(this.proTimer);
-    this.proTimer = setTimeout(() => this.searchPro(), 300);
+    this.proHits = [];
+    this.proTimer = setTimeout(() => this.searchPro(), 600);
   }
 
   searchPro(): void {
     const q = (this.proQ || '').trim();
     if (q.length < 2) { this.proHits = []; return; }
     this.proSearching = true;
+    this.proSearched = true;
     this.proErr = '';
     this.desk.proCodes(q).pipe(finalize(() => (this.proSearching = false))).subscribe({
       next: h => (this.proHits = h ?? []),
@@ -501,8 +476,8 @@ export class RebateDeskComponent implements OnInit {
     this.row = r;
     this.proHits = [];
     this.proErr = '';
+    this.proSearched = false;
     this.proQ = r.vendorSku || r.upc || r.description || '';
-    if (!r.productCode || (r.problems ?? []).some((p: any) => p.code === 'NO_PRODUCT')) setTimeout(() => this.searchPro());
     this.rowVendorId = vendorId;
     this.newProduct = null;
     this.ticked = [];
@@ -531,6 +506,19 @@ export class RebateDeskComponent implements OnInit {
 
   hasProblem(r: any, ...codes: string[]): boolean {
     return this.rowCodes(r).some(c => codes.includes(c));
+  }
+
+  /* Show the saved row's new state straight away; the full lists refresh behind it. */
+  private applyRowResult(r: any): void {
+    if (!r?.rowId) return;
+    const patch = (list: any[]) => {
+      const i = list.findIndex(x => x.rowId === r.rowId);
+      if (i < 0) return list;
+      const merged = { ...list[i], ...r };
+      return this.view === 'purgatory' && r.status !== 'PURGATORY' ? list.filter(x => x.rowId !== r.rowId) : list.map((x, k) => (k === i ? merged : x));
+    };
+    this.purgatory = patch(this.purgatory);
+    this.uploadRows = patch(this.uploadRows);
   }
 
   private afterRowChange(): void {
@@ -572,6 +560,7 @@ export class RebateDeskComponent implements OnInit {
     }).pipe(finalize(() => (this.busy = false))).subscribe({
       next: r => {
         this.notice = r?.status === 'READY' ? 'Fixed: the row is ready to load.' : 'Saved. The row still has problems.';
+        this.applyRowResult(r);
         this.afterRowChange();
       },
       error: err => (this.error = apiMessage(err))
@@ -738,7 +727,6 @@ export class RebateDeskComponent implements OnInit {
       case 'retire-template': return `Retire the saved layout for ${p.template.vendorName}`;
       case 'bulk-skip': return `Skip ${p.ids.length} row(s)`;
       case 'bulk-overlap': return `Load ${p.ids.length} overlapping row(s) anyway`;
-      case 'naming': return `Change the naming rule for ${p.rule.typeName}`;
       case 'bp-amounts': return `Change amounts on program ${this.bProg?.programId}`;
       case 'bp-dates': return `Change dates on program ${this.bProg?.programId}`;
       case 'bp-active': return `${p.active ? 'Turn on' : 'Turn off'} program ${p.program.programId}`;
@@ -756,7 +744,6 @@ export class RebateDeskComponent implements OnInit {
       case 'retire-template': return 'Next time this vendor sends this layout, the AI proposes the mapping again.';
       case 'bulk-skip': return 'They are not loaded and leave purgatory. Each can be restored later.';
       case 'bulk-overlap': return 'They load even though a live program for the same product and type covers some of these dates. Members may see both. An exact copy of a live program still waits; skip those.';
-      case 'naming': return `New uploads name these rebate products "${this.namingExample(p.rule)}". Existing rebate products keep their names, so the next file of this type will offer to create new ones under the new name.`;
       case 'bp-amounts': return 'Only this program changes. Claims already submitted keep the amount they were submitted with.';
       case 'bp-dates': return `Only this program moves. Members will see it apart from the rest of batch ${this.batch?.batchId}; to move the whole batch, use the batch dates above.`;
       case 'bp-active': return p.active ? 'Members see this program again.' : 'Members stop seeing this program. Submitted claims are not affected.';
@@ -782,7 +769,6 @@ export class RebateDeskComponent implements OnInit {
       case 'retire-template': call = this.desk.retireTemplate(p.template.templateId, reason); break;
       case 'bulk-skip': call = this.desk.skipRows(p.ids, reason); break;
       case 'bulk-overlap': call = this.desk.allowOverlap(p.ids, reason); break;
-      case 'naming': call = this.desk.saveNamingRule(p.rule.rebateTypeId, { suffix: p.rule.suffix || '', addStack: !!p.rule.addStack, stackJoiner: p.rule.stackJoiner || 'WITH', reason }); break;
       case 'bp-amounts': call = this.desk.changeAmounts(this.bProg.programId, {
         instantRebate: this.bEdit.instantRebate, vendorShare: this.bEdit.vendorShare, proPad: this.bEdit.proPad || 0, mapPrice: this.bEdit.mapPrice, reason }); break;
       case 'bp-dates': call = this.desk.changeProgramDates(this.bProg.programId, {
@@ -808,7 +794,6 @@ export class RebateDeskComponent implements OnInit {
           }
           case 'retire-template': this.desk.templates().subscribe(t => (this.templates = t)); this.loadOverview(); break;
           case 'bulk-skip': case 'bulk-overlap': this.picked = new Set(); this.afterRowChange(); break;
-          case 'naming': this.loadNaming(); break;
           case 'bp-amounts': case 'bp-dates': this.reloadBatch(this.bProg?.programId); break;
           case 'bp-active': this.reloadBatch(p.program.programId); break;
         }

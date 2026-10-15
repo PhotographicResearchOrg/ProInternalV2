@@ -6,7 +6,7 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
     title: 'How a row finds its rebate product',
     steps: [
       'The vendor SKU (with the vendor\'s catalog prefix), the UPC or the PRO code finds the PRO product.',
-      'The rebate product name is built from the naming rules (left menu, Naming rules): IR = product name; trade-in adds "TRADE-IN TRADE-UP"; bundle and free-with-purchase add "WITH" and the stack product; coupon adds "WITH COUPON CODE"; social adds "WITH SOCIAL MEDIA".',
+      'The rebate product name is built from the naming rules: IR = product name; trade-in adds "TRADE-IN TRADE-UP"; bundle and free-with-purchase add "WITH" and the stack product; coupon adds "WITH COUPON CODE"; social adds "WITH SOCIAL MEDIA".',
       'That name finds the rebate product. If none exists yet, use "Create rebate products" at the top of the upload.',
       'Several PRO products fit? Pick the right one and click Use.',
       'Picking a rebate product yourself overrides all of this for that row (↺ hands it back).'
