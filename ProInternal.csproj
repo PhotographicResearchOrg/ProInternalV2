@@ -259,6 +259,7 @@
 
   <ItemGroup>
     <None Include="wwwroot\Templates\invoice.pdf" />
+    <None Include="~\.aws\credentials" />
   </ItemGroup>
 
 
@@ -268,6 +269,10 @@
     <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
   </None>
   <None Update="Schemas\Integration\**\*.json">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+  </None>
+  <None Update="Templates\Rebates\**\*.*">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
   </None>

@@ -76,6 +76,15 @@ import { PaymentTypeComponent } from './prointernalengine/components/shared/paym
 import { ConfirmPopupModule } from 'primeng/confirmpopup';
 import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component'; 
 import { IntegrationDeskComponent } from './prointernalengine/components/integration/integration-desk/integration-desk.component';
+import { RebateDeskComponent } from './prointernalengine/components/rebates/rebate-desk/rebate-desk.component';
+import { RebateUploadComponent } from './prointernalengine/components/rebates/rebate-upload/rebate-upload.component';
+import { RebateProgramsComponent } from './prointernalengine/components/rebates/rebate-programs/rebate-programs.component';
+import { RebateProductsComponent } from './prointernalengine/components/rebates/rebate-products/rebate-products.component';
+import { RebateVendorsComponent } from './prointernalengine/components/rebates/rebate-vendors/rebate-vendors.component';
+import { RebateClaimsComponent } from './prointernalengine/components/rebates/rebate-claims/rebate-claims.component';
+import { RebateReasonDialogComponent } from './prointernalengine/components/rebates/shared/reason-dialog.component';
+import { RebateProductPickerComponent } from './prointernalengine/components/rebates/shared/product-picker.component';
+import { RebateHelpComponent } from './prointernalengine/components/rebates/shared/rebate-help.component';
 import { PanelModule } from 'primeng/panel';
 import { BrowserModule } from '@angular/platform-browser';             // <-- add
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; // <-- add
@@ -85,6 +94,7 @@ import { BreadcrumbModule } from 'primeng/breadcrumb';
 /* Components */
 
 import { VendorCardComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-card/vendor-card.component';
+import { VendorCustomFieldsComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-custom-fields/vendor-custom-fields.component';
 import { CreditsComponent } from './prointernalengine/components/dashboards/accounting/credits.component/credits.component';
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -109,10 +119,20 @@ import { AccessRulesComponent } from './prointernalengine/components/MemberManag
     PaymentAdministrationComponent,
     IrSetupDashboardComponent,
     VendorCardComponent,
+    VendorCustomFieldsComponent,
     CreditsComponent,
     VendorBillingComponent,
     ProductEditComponent,
     IntegrationDeskComponent,
+    RebateDeskComponent,
+    RebateUploadComponent,
+    RebateProgramsComponent,
+    RebateProductsComponent,
+    RebateVendorsComponent,
+    RebateClaimsComponent,
+    RebateReasonDialogComponent,
+    RebateProductPickerComponent,
+    RebateHelpComponent,
     ReceivablesComponent,
     AffiliateGridComponent,
     ClientGridComponent,

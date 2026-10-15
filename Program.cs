@@ -66,6 +66,8 @@ builder.Configuration.GetSection(FileStorageOptions.SectionName));
 
 builder.Services.AddScoped<IFileBrowserService, FileBrowserService>();
 
+builder.Services.AddScoped<IVendorFileService, VendorFileService>();
+
 builder.Services.AddMemoryCache();
 
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);
@@ -124,6 +126,12 @@ builder.Services.AddSingleton<IntegrationResponseValidator>();
 builder.Services.AddSingleton<IntegrationDispatcher>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<IntegrationDispatcher>());
 builder.Services.AddScoped<IFileLibrary, FileLibrary>();
+
+// Phase 2: Rebate Desk (PRO_NUKE). The AI column mapper is one shared Bedrock client.
+builder.Services.AddScoped<ProInternal.Services.Rebates.IRebateDeskDataAccess, ProInternal.Services.Rebates.RebateDeskDataAccess>();
+builder.Services.AddSingleton<ProInternal.Services.Rebates.IRebateAiMapper, ProInternal.Services.Rebates.BedrockRebateMapper>();
+builder.Services.AddScoped<ProInternal.Services.Rebates.RebateUploadService>();
+builder.Services.AddScoped<ProInternal.Services.Rebates.RebateClaimsService>();
 builder.Services.AddCors();
 
 // In production, the Angular files will be served from this directory

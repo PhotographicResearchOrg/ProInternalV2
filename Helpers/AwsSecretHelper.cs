@@ -18,11 +18,18 @@ namespace ProInternal.Helpers
         public AwsSecretHelper(IConfiguration config)
         {
             _config = config;
-            _client = new AmazonSecretsManagerClient();
+            var region = _config["AWS:Region"] ?? "us-east-1";
+            _client = new AmazonSecretsManagerClient(Amazon.RegionEndpoint.GetBySystemName(region));
         }
 
         public async Task<string> GetConnectionString(string baseConn, bool forceRefresh = false)
         {
+            // If connection string already has credentials, return it directly (development scenario)
+            if (!baseConn.Contains("User ID=;") && !baseConn.Contains("Password=;"))
+            {
+                return baseConn;
+            }
+
             if (!forceRefresh &&
                 _cache.TryGetValue(baseConn, out var cachedConn) &&
                 _cacheTime.TryGetValue(baseConn, out var cachedTime))
@@ -32,21 +39,28 @@ namespace ProInternal.Helpers
             }
 
             var secretName = _config["SECRET_NAME"];
+            string connStr = baseConn;
+            try {
+                var response = await _client.GetSecretValueAsync(new GetSecretValueRequest {
+                    SecretId = secretName
+                });
 
-            var response = await _client.GetSecretValueAsync(new GetSecretValueRequest
+                var creds = JsonConvert.DeserializeObject<Dictionary<string, string>>(response.SecretString);
+
+                connStr = baseConn
+                    .Replace("User ID=;", $"User ID={creds["username"]};")
+                    .Replace("Password=;", $"Password={creds["password"]};");
+
+                _cache[baseConn] = connStr;
+                _cacheTime[baseConn] = DateTime.UtcNow;
+            }
+            catch (Exception ex)
             {
-                SecretId = secretName
-            });
-
-            var creds = JsonConvert.DeserializeObject<Dictionary<string, string>>(response.SecretString);
-
-            var connStr = baseConn
-                .Replace("User ID=;", $"User ID={creds["username"]};")
-                .Replace("Password=;", $"Password={creds["password"]};");
-
-            _cache[baseConn] = connStr;
-            _cacheTime[baseConn] = DateTime.UtcNow;
-
+                /* Do not carry on with a blank user and password: say which secret could not be read. */
+                throw new InvalidOperationException(
+                    $"Could not read the database login from Secrets Manager secret '{secretName}'. " +
+                    "On a developer machine, put the full connection string (with User ID and Password) in a local, uncommitted settings file.", ex);
+            }
             return connStr;
         }
     }

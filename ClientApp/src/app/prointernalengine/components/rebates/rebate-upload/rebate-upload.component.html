@@ -1,0 +1,123 @@
+<div class="steps">
+  <span [class.on]="step === 1" [class.done]="step > 1">1 Vendor and file</span>
+  <span [class.on]="step === 2">2 Columns</span>
+  <span>3 Review and load</span>
+</div>
+
+<div class="error" style="margin: 0 0 12px" *ngIf="error"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+
+<!-- Step 1 -->
+<section class="card" *ngIf="step === 1">
+  <div class="card-head"><h2>New instant-rebate upload</h2>
+    <span class="sub">Excel (.xlsx or .xls) or .csv, any layout. The original is kept.</span></div>
+  <div class="field-grid">
+    <label>Vendor
+      <select class="in" [(ngModel)]="vendorId">
+        <option [ngValue]="null">Choose…</option>
+        <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
+      </select>
+    </label>
+    <label>File
+      <input class="in" type="file" accept=".xlsx,.xlsm,.xls,.csv" (change)="pickFile($event)" />
+    </label>
+  </div>
+  <div class="hint">The desk finds the header row, then uses this vendor's saved layout if it has seen it before;
+    otherwise the AI proposes which column is which and you confirm.</div>
+  <div class="actions" style="margin-top: 14px">
+    <button type="button" class="btn primary" (click)="start()" [disabled]="busy || !vendorId || !file">
+      <i class="pi pi-upload"></i> {{ busy ? 'Reading the file…' : 'Upload and read' }}
+    </button>
+  </div>
+</section>
+
+<!-- Step 2 -->
+<ng-container *ngIf="step === 2 && proposal">
+  <section class="card">
+    <div class="card-head">
+      <h2>Which column is which?</h2>
+      <span class="chip" [class.ok]="proposal.source === 'TEMPLATE'" [class.info]="proposal.source === 'AI'"
+            [class.warn]="proposal.source === 'ALIAS'">{{ sourceLabel(proposal.source) }}</span>
+      <span class="chip warn" *ngIf="edited">changed by you · will be saved as this vendor's layout</span>
+    </div>
+    <div class="hint" *ngIf="proposal.note" style="margin: -4px 0 10px">{{ proposal.note }}</div>
+
+    <div class="filters">
+      <select class="in" style="max-width: 260px" [ngModel]="proposal.sheetName" (ngModelChange)="reload($event, 0)"
+              *ngIf="proposal.sheets.length > 1" [disabled]="busy">
+        <option *ngFor="let s of proposal.sheets" [value]="s">Sheet: {{ s }}</option>
+      </select>
+      <label class="sub" style="display:flex; align-items:center; gap:6px">Column names are on row
+        <input class="in num" style="width: 70px" type="number" min="1" [ngModel]="proposal.headerRow"
+               (change)="reload(proposal.sheetName, +$any($event.target).value)" [disabled]="busy" />
+      </label>
+      <span class="sub" style="align-self:center">{{ proposal.dataRows }} rows under it</span>
+    </div>
+
+    <div class="scroll-x">
+      <table class="mapgrid">
+        <thead>
+          <tr>
+            <th *ngFor="let h of proposal.headers; let i = index" [class.mapped]="fieldFor(i)">
+              <div class="col">{{ columnLetter(i) }}</div>
+              <div>{{ h }}</div>
+              <select class="in" [ngModel]="fieldFor(i)" (ngModelChange)="setColumn(i, $event)">
+                <option value="">(not used)</option>
+                <option *ngFor="let f of fields" [value]="f.key">{{ f.label }}</option>
+              </select>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of proposal.sample">
+            <td *ngFor="let h of proposal.headers; let i = index">{{ r[i] }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>For the whole file</h2></div>
+    <div class="field-grid">
+      <label>Rebate type when a row has none
+        <select class="in" [(ngModel)]="defaultRebateType">
+          <option [ngValue]="null">{{ mapping['rebateType'] != null ? 'Use the column' : 'Choose…' }}</option>
+          <option *ngFor="let t of types" [ngValue]="t.rebateTypeId">{{ t.name }}</option>
+        </select>
+      </label>
+      <label>Members can claim until
+        <input class="in" type="date" [(ngModel)]="expireOn" />
+      </label>
+      <label>Program start (rows with no date)
+        <input class="in" type="date" [(ngModel)]="fileStart" />
+      </label>
+      <label>Program end (rows with no date)
+        <input class="in" type="date" [(ngModel)]="fileEnd" />
+      </label>
+      <label>Vendor share, % of instant rebate
+        <input class="in num" type="number" min="0" max="100" step="0.01" [(ngModel)]="vendorSharePct" placeholder="only if no reimbursement column" />
+      </label>
+      <label>Default PRO pad for combo lines without their own, % of vendor share
+        <input class="in num" type="number" min="0" max="100" step="0.01" [(ngModel)]="padPct" placeholder="e.g. 1" />
+      </label>
+      <label>When loaded
+        <select class="in" [(ngModel)]="startActive">
+          <option [ngValue]="true">On: members see it</option>
+          <option [ngValue]="false">Off: turn on later</option>
+        </select>
+      </label>
+    </div>
+    <div class="hint">Dates printed above the table are picked up for the whole file. Claim expiry is the last end date plus the vendor's claim window (60 days unless set).
+      The vendor share is what PRO claims back; the member gets the vendor share plus PRO's pad on combo rows (Bundle, Free with purchase). The pad is never on a debit memo.
+      <ng-container *ngIf="proposal.catalogPrefix"> SKUs match PRO catalog numbers with the prefix <b class="mono">{{ proposal.catalogPrefix }}</b>.</ng-container></div>
+  </section>
+
+  <div class="savebar">
+    <span class="grow" *ngIf="missing().length">Still needed: {{ missing().join(', ') }}</span>
+    <span class="grow" *ngIf="!missing().length">{{ vendorName || 'Upload ' + uploadId }} · {{ proposal.dataRows }} rows. Next: every row is checked.</span>
+    <button type="button" class="btn ghost" style="color:#fff" (click)="resetAll()" [disabled]="busy">Start over</button>
+    <button type="button" class="btn primary" (click)="apply()" [disabled]="busy || missing().length > 0">
+      {{ busy ? 'Checking rows…' : 'Check the rows' }}
+    </button>
+  </div>
+</ng-container>

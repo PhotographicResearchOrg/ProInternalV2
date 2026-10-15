@@ -29,6 +29,9 @@ namespace ProInternal.Services.Files
         Task<string?> DownloadUrlAsync(long fileId, TimeSpan validFor);
 
         Task<FileLibraryEntry[]> ListAsync(string category, string? ownerKey, int take = 100);
+
+        /* Hides a file (it stays in S3, with who removed it and when). Storing the same content again brings it back. */
+        Task<bool> RemoveAsync(long fileId, string removedBy);
     }
 
     /*
@@ -79,6 +82,8 @@ namespace ProInternal.Services.Files
 
             if (existing != null)
             {
+                /* The same file uploaded again after it was removed: bring it back. */
+                await conn.ExecuteAsync("piv2.FileLibrary_Restore", new { FileId = existing.FileId }, commandType: CommandType.StoredProcedure);
                 existing.IsDuplicate = true;
                 return existing;
             }
@@ -170,6 +175,16 @@ namespace ProInternal.Services.Files
                 new { Category = category, OwnerKey = ownerKey, Take = take },
                 commandType: CommandType.StoredProcedure);
             return rows.ToArray();
+        }
+
+        public async Task<bool> RemoveAsync(long fileId, string removedBy)
+        {
+            using var conn = GetConnection();
+            var removed = await conn.ExecuteScalarAsync<int>(
+                "piv2.FileLibrary_Remove",
+                new { FileId = fileId, RemovedBy = removedBy },
+                commandType: CommandType.StoredProcedure);
+            return removed > 0;
         }
 
         private static string Segment(string value)

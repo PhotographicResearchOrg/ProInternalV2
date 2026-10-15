@@ -1,0 +1,71 @@
+.cf-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.cf-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-color-secondary);
+}
+
+.cf-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:host ::ng-deep .cf-filter {
+  min-width: 200px;
+}
+
+.cf-group td {
+  font-weight: 600;
+  background: var(--surface-ground);
+
+  i {
+    margin-right: 6px;
+    color: var(--text-color-secondary);
+  }
+}
+
+.cf-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-color-secondary);
+}
+
+.cf-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  input {
+    width: 100%;
+  }
+}
+
+.cf-hint {
+  color: var(--text-color-secondary);
+}
+
+.cf-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

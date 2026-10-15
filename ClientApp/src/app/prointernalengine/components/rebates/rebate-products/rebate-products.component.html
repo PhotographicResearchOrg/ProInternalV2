@@ -1,0 +1,149 @@
+<div class="notice" style="margin: 0 0 12px" *ngIf="notice" (click)="notice = ''"><i class="pi pi-check"></i> {{ notice }}</div>
+<div class="error" style="margin: 0 0 12px" *ngIf="error && !pending"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+
+<div class="split" [style.grid-template-columns]="form ? 'minmax(0, 1.3fr) minmax(0, 1fr)' : '1fr'">
+  <section class="card">
+    <div class="card-head">
+      <h2>{{ rail === 'PP' ? 'Price-protection products' : 'Rebate products' }}</h2>
+      <span class="sub">{{ total }} found</span>
+      <span class="grow"></span>
+      <button type="button" class="btn ghost" (click)="exportExcel()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button>
+      <button type="button" class="btn primary" (click)="startNew()"><i class="pi pi-plus"></i> New product</button>
+    </div>
+    <div class="filters">
+      <input class="in" placeholder="Description, PRO code or product #" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
+      <select class="in" style="max-width: 220px" [(ngModel)]="filter.vendorId" (ngModelChange)="go(1)">
+        <option [ngValue]="null">All vendors</option>
+        <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
+      </select>
+      <select class="in" style="max-width: 140px" [(ngModel)]="filter.active" (ngModelChange)="go(1)">
+        <option value="true">Active</option>
+        <option value="false">Retired</option>
+        <option value="">All</option>
+      </select>
+    </div>
+    <div class="chips">
+      <span class="lbl">Show</span>
+      <button type="button" [class.on]="filter.active === 'true'" (click)="filter.active = 'true'; go(1)">Active</button>
+      <button type="button" [class.on]="filter.active === 'false'" (click)="filter.active = 'false'; go(1)">Retired</button>
+      <button type="button" [class.on]="filter.active === ''" (click)="filter.active = ''; go(1)">All</button>
+    </div>
+    <table class="grid">
+      <thead><tr><th>Product</th><th>Vendor</th><th>PRO codes</th><th class="num">Live</th><th>Last program</th><th class="num">Stacks</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let p of rows" class="click" (click)="open(p.modelId)" [class.sel]="detail?.product.modelId === p.modelId" [class.off]="!p.isActive">
+          <td><div class="rec">{{ p.description }}</div><div class="sub mono">#{{ p.modelId }}<span class="chip bad" *ngIf="!p.isActive" style="margin-left:6px">retired</span></div></td>
+          <td>{{ p.vendorName }}</td>
+          <td class="mono">{{ p.proCodes || p.proCodeText }}</td>
+          <td class="num">{{ p.programsLive }}</td>
+          <td class="mono">{{ p.lastProgramDate | date:'MM/dd/yy' }}</td>
+          <td class="num">{{ p.stacks }}</td>
+        </tr>
+        <tr *ngIf="!rows.length && !loading"><td colspan="6" class="empty">No products match.</td></tr>
+        <tr *ngIf="loading"><td colspan="6" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+    <div class="pager" *ngIf="total > pageSize">
+      <button type="button" class="btn ghost" (click)="go(page - 1)" [disabled]="page <= 1">Previous</button>
+      <span>Page {{ page }} of {{ pages }}</span>
+      <button type="button" class="btn ghost" (click)="go(page + 1)" [disabled]="page >= pages">Next</button>
+    </div>
+  </section>
+
+  <section class="card" *ngIf="form">
+    <div class="drawer-head">
+      <div class="grow">
+        <div class="sub mono" *ngIf="detail">Product #{{ detail.product.modelId }} · {{ rail === 'PP' ? 'price protection' : 'instant rebate' }}</div>
+        <h2>{{ creating ? 'New product' : detail?.product.description }}</h2>
+      </div>
+      <span class="chip bad" *ngIf="detail && !detail.product.isActive">retired</span>
+      <button type="button" class="icon-btn" (click)="close()" title="Close"><i class="pi pi-times"></i></button>
+    </div>
+
+    <div class="field-grid">
+      <label>Vendor
+        <select class="in" [(ngModel)]="form.vendorId" (ngModelChange)="changed()" [class.dirty]="form.vendorId !== saved.vendorId">
+          <option [ngValue]="null">Choose…</option>
+          <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
+        </select>
+      </label>
+      <label class="wide">Description members see
+        <input class="in" [(ngModel)]="form.description" (ngModelChange)="changed()" maxlength="255" [class.dirty]="form.description !== saved.description" />
+      </label>
+      <label class="wide">PRO codes (comma separated)
+        <input class="in mono" [(ngModel)]="form.proCodes" (ngModelChange)="changed()" [class.dirty]="form.proCodes !== saved.proCodes" />
+      </label>
+      <label class="wide">Find a PRO code
+        <div class="typeahead">
+          <input class="in" placeholder="Code or model name" [ngModel]="codeSearch" (ngModelChange)="searchCodes($event)" />
+          <div class="options" *ngIf="codeResults.length">
+            <div class="opt" *ngFor="let c of codeResults" (mousedown)="addCode(c.productCode)">
+              <b class="mono">{{ c.productCode }}</b> {{ c.modelName }}
+              <span class="chip warn" *ngIf="c.isDiscontinued">discontinued</span>
+              <div class="sub" *ngIf="c.usedBy">Already on: {{ c.usedBy }}</div>
+            </div>
+          </div>
+        </div>
+      </label>
+      <label *ngIf="rail === 'IR'" style="flex-direction: row; align-items: center; gap: 8px">
+        <input type="checkbox" [(ngModel)]="form.serialNumbersRequired" (ngModelChange)="changed()" /> Serial numbers required on claims
+      </label>
+    </div>
+
+    <div *ngIf="detail?.proCodes?.length" style="margin-top: 10px">
+      <span *ngFor="let c of detail?.proCodes" class="chip" [class.ok]="c.knownToPro" [class.bad]="!c.knownToPro"
+            [title]="c.knownToPro ? c.proModelName : 'Not in PRO products'">{{ c.proCode }}{{ c.proModelName ? ' · ' + c.proModelName : '' }}</span>
+    </div>
+
+    <div class="actions" style="margin-top: 12px">
+      <ng-container *ngIf="detail">
+        <button type="button" class="btn danger" *ngIf="detail.product.isActive" (click)="askActive(false)">Retire</button>
+        <button type="button" class="btn" *ngIf="!detail.product.isActive" (click)="askActive(true)">Reactivate</button>
+        <button type="button" class="btn ghost" (click)="showPrograms.emit(detail.product.modelId)"><i class="pi pi-list"></i> Programs</button>
+      </ng-container>
+    </div>
+
+    <ng-container *ngIf="detail">
+      <h3 class="sub" style="margin: 14px 0 6px">Stacks: this product qualifies with</h3>
+      <div>
+        <span class="chip info" *ngFor="let s of stackEdit">{{ s.description }} (#{{ s.modelId }})
+          <button type="button" (click)="removeStack(s.modelId)" title="Remove">✕</button></span>
+        <span class="sub" *ngIf="!stackEdit.length">None.</span>
+      </div>
+      <div style="margin-top: 6px"><app-rebate-product-picker [rail]="rail" placeholder="Add a stack product" (picked)="addStack($event)"></app-rebate-product-picker></div>
+      <div class="sub" style="margin-top: 6px" *ngIf="(detail.stacks | json) !== '[]'">
+        <ng-container *ngFor="let s of detail.stacks"><span *ngIf="s.direction === 'IN'" class="chip lock">qualifies this: {{ s.description }}</span></ng-container>
+      </div>
+      <div class="actions" style="margin-top: 8px" *ngIf="stacksDirty">
+        <button type="button" class="btn ghost" (click)="discard()">Discard</button>
+        <button type="button" class="btn primary" (click)="askStacks()">Save stacks</button>
+      </div>
+
+      <h3 class="sub" style="margin: 14px 0 6px">Programs</h3>
+      <table class="grid">
+        <thead><tr><th>{{ rail === 'PP' ? 'Date' : 'Dates' }}</th><th class="num">{{ rail === 'PP' ? 'Credit' : 'Reimb.' }}</th><th>{{ rail === 'PP' ? '' : 'Type' }}</th><th>State</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let p of detail.programs | slice:0:12" [class.off]="!p.isLive">
+            <td class="mono">{{ p.startDate | date:'MM/dd/yy' }}<ng-container *ngIf="p.endDate"> – {{ p.endDate | date:'MM/dd/yy' }}</ng-container></td>
+            <td class="money">{{ p.reimbursement | currency }}</td>
+            <td>{{ p.irTypeName }}</td>
+            <td><span class="status" [class.ok]="p.isLive">{{ p.isLive ? 'ON' : 'OFF' }}</span></td>
+          </tr>
+          <tr *ngIf="!detail.programs.length"><td colspan="4" class="empty">No programs yet.</td></tr>
+        </tbody>
+      </table>
+    </ng-container>
+
+    <div class="savebar" *ngIf="dirty || creating">
+      <span class="grow">{{ creating ? 'New product' : 'Unsaved changes' }}</span>
+      <button type="button" class="btn ghost" style="color:#fff" (click)="discard()">Discard</button>
+      <button type="button" class="btn primary" (click)="save()" [disabled]="busy || !form.vendorId || !form.description || !form.proCodes">
+        {{ busy ? 'Saving…' : 'Save' }}</button>
+    </div>
+    <div class="error" style="margin: 10px 0 0" *ngIf="error && !pending && form"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+  </section>
+</div>
+
+<app-rebate-reason-dialog [open]="!!pending" [title]="pendingTitle" [busy]="busy" [error]="error"
+  [danger]="pending?.kind === 'active' && !pending?.active" (confirmed)="confirm($event)" (closed)="pending = null">
+</app-rebate-reason-dialog>
