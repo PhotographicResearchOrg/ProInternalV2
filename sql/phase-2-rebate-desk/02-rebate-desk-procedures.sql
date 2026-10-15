@@ -506,14 +506,15 @@ BEGIN
                 ELSE
              LEFT(REPLACE(REPLACE(LTRIM(RTRIM(
                 r.ProductName
-                + CASE WHEN COALESCE(ru.AddStack, 0) = 1 THEN COALESCE(sn.Chain, N'') ELSE N'' END
+                + CASE WHEN COALESCE(ru.AddStack, 0) = 1 THEN REPLACE(COALESCE(sn.Chain, N''), N'{J}', COALESCE(ru.StackJoiner, N'WITH')) ELSE N'' END
                 + CASE WHEN COALESCE(ru.Suffix, N'') <> N'' THEN N' ' + ru.Suffix ELSE N'' END)), N'   ', N' '), N'  ', N' '), 400)
            END
       FROM piv2.RebateUploadRow r
       LEFT JOIN #rule ru ON ru.RebateTypeId = COALESCE(r.RebateType, @defaultType)
      OUTER APPLY
      (
-        SELECT STRING_AGG(CAST(N' ' + COALESCE(ru.StackJoiner, N'WITH') + N' ' + LTRIM(RTRIM(k.ModelName)) AS nvarchar(max)), N'')
+        /* The stack word goes in afterwards: an aggregate may not mix the outer rule with these columns. */
+        SELECT STRING_AGG(CAST(N' {J} ' + LTRIM(RTRIM(k.ModelName)) AS nvarchar(max)), N'')
                  WITHIN GROUP (ORDER BY s.Seq) AS Chain
           FROM #stack s
           CROSS APPLY (SELECT TOP (1) ModelName FROM #pk WHERE ProductCode = s.ProductCode ORDER BY Rank_) k
