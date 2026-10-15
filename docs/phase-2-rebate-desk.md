@@ -150,7 +150,9 @@ The nightly `RebateCredits` program is unchanged: it still sends approved claims
    - `05-rebate-vendors.sql`
    - `07-rebate-claims.sql`
    
-   `03` reads `[PRO].dbo.ProductData` for PRO code lookups, the same cross-database pattern `SubmitRebate` uses. `07` reads `eda.IVMST.IVMST` (catalog numbers) and `dbo.Rebate_EDA_ARHist` (the EDA database). The API's database user needs SELECT on those in PRO and EDA.
+   `02`, `03` and `07` read `[PRO].dbo.Product` (PRO codes, catalog numbers, UPCs); nothing reads Computyme's IVMST. `07` also reads `dbo.Rebate_EDA_ARHist` (the EDA database). The API's database user needs SELECT on those in PRO and EDA.
+
+   Run Phase 1 (`sql/phase-1-platform`, in PRO) first if it is not in yet: uploads, invoices and debit memos are stored through `piv2.FileLibrary`, and `06` cleans up the Phase 1 integration tables.
 2. In **PRO**, run `06-integration-retention.sql` (the outbox clean-up deferred from Phase 1; runs daily, keeps 180 days, `Integration:RetentionDays`).
 3. Bedrock: the server's AWS identity needs `bedrock:InvokeModel` on the mapping model. Settings:
    - `RebateDesk:MappingModel` (empty uses `Bedrock:TranslationModel`)

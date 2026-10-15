@@ -49,7 +49,8 @@ A user passes any permission check if their token carries the permission name or
    ```
 
 4. Let the app server read it: add `secretsmanager:GetSecretValue` on `prod/piv2/app` to the role or user that already reads `prod/sql/app-user`.
-5. Developer machines: leave `AppSecretsName` empty in a local override and set the same keys as environment variables, with `__` for `:` (for example `AppConfigurations__Jwt__Secret`).
+   `AppSecretsName` is not in the committed `appsettings.json`. To use the secret, add `"AppSecretsName": "prod/piv2/app"` on the server only (its own appsettings or the environment variable `AppSecretsName`). Without it the app reads the values from its local settings, as before.
+5. Developer machines: leave `AppSecretsName` out and set the same keys as environment variables, with `__` for `:` (for example `AppConfigurations__Jwt__Secret`).
 
 ## After you deploy
 
