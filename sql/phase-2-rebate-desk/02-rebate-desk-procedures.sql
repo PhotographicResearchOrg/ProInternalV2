@@ -397,7 +397,7 @@ BEGIN
     /* The candidates go with the problem, so the desk can list them to tick. */
     INSERT #problem (RowId, Code, Message, Candidates)
     SELECT x.RowId, 'AMBIGUOUS_PRODUCT',
-           CONCAT(N'Several PRO products match (', COUNT(*), N'). Pick one, or tick several to roll them into one rebate product.'),
+           CONCAT(N'Several PRO products match (', COUNT(*), N'). Pick the right one.'),
            (SELECT TOP (25) c.ProductCode AS code, k2.ModelName AS name
               FROM (SELECT DISTINCT ProductCode FROM #res WHERE RowId = x.RowId) c
               JOIN (SELECT ProductCode, MAX(ModelName) AS ModelName FROM #pk GROUP BY ProductCode) k2 ON k2.ProductCode = c.ProductCode

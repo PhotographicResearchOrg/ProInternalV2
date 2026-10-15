@@ -55,7 +55,9 @@
       </div>
     </header>
 
-    <div class="notice" *ngIf="notice" (click)="notice = ''"><i class="pi pi-check"></i> {{ notice }}</div>
+    <div class="notice" *ngIf="notice" (click)="notice = ''; noticeUploadId = null"><i class="pi pi-check"></i> {{ notice }}
+      <button type="button" class="btn ghost" style="margin-left: 8px; padding: 2px 10px" *ngIf="noticeUploadId"
+              (click)="$event.stopPropagation(); openUpload(noticeUploadId); notice = ''; noticeUploadId = null">Open upload #{{ noticeUploadId }} to load it</button></div>
     <div class="error" *ngIf="error && !pending"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
 
     <div class="body">
@@ -261,13 +263,12 @@
           <div class="card" style="margin: 0 0 12px" *ngIf="candidatesOf(row).length">
             <div class="card-head"><h2 style="font-size: 13px">Disposition: which PRO product?</h2><app-rebate-help code="AMBIGUOUS_PRODUCT" label="Directions"></app-rebate-help></div>
             <label *ngFor="let c of candidatesOf(row)" style="display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0">
-              <input type="checkbox" [checked]="ticked.includes(c.code)" (change)="tick(c.code, $any($event.target).checked)" />
+              <input type="radio" name="candidate" [checked]="ticked.includes(c.code)" (change)="tick(c.code, true)" />
               <span class="mono">{{ c.code }}</span> {{ c.name }}
-              <span class="chip info" *ngIf="ticked.indexOf(c.code) === 0 && ticked.length > 1">primary</span>
             </label>
             <div class="actions" style="margin-top: 8px">
               <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">
-                {{ ticked.length > 1 ? 'Use these ' + ticked.length + ' (one rebate product)' : 'Use this product' }}</button>
+                Use this product</button>
             </div>
           </div>
 
@@ -284,8 +285,8 @@
               <thead><tr><th></th><th>PRO code</th><th>Name</th><th>Catalog #</th><th>Rebate products</th></tr></thead>
               <tbody>
                 <tr *ngFor="let h of proHits" [class.off]="h.isDiscontinued">
-                  <td><input type="checkbox" [checked]="ticked.includes('' + h.productCode)" (change)="tick('' + h.productCode, $any($event.target).checked)" /></td>
-                  <td class="mono">{{ h.productCode }}<span class="chip info" *ngIf="ticked.indexOf('' + h.productCode) === 0 && ticked.length > 1">primary</span></td>
+                  <td><input type="radio" name="proHit" [checked]="ticked.includes('' + h.productCode)" (change)="tick('' + h.productCode, true)" /></td>
+                  <td class="mono">{{ h.productCode }}</td>
                   <td>{{ h.modelName }}<div class="sub" *ngIf="h.isDiscontinued">discontinued</div></td>
                   <td class="mono">{{ h.catalogNumber }}<div class="sub">{{ h.upc }}</div></td>
                   <td class="sub">{{ h.usedBy || '—' }}</td>
@@ -293,9 +294,8 @@
               </tbody>
             </table>
             <div class="actions" style="margin-top: 8px" *ngIf="proHits.length">
-              <span class="sub grow">Tick one, or several colours to put them on one rebate product. The row is checked again.</span>
-              <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">
-                {{ ticked.length > 1 ? 'Use these ' + ticked.length : 'Use this product' }}</button>
+              <span class="sub grow">Pick the product and click Use. The row is checked again; once it passes it moves to Ready in its upload.</span>
+              <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">Use this product</button>
             </div>
           </div>
 
@@ -333,7 +333,7 @@
             <div class="field-grid">
               <label>Vendor SKU <input class="in mono" [(ngModel)]="rowEdit.vendorSku" [class.dirty]="(rowEdit.vendorSku || '') !== (row.vendorSku || '')" /></label>
               <label>UPC <input class="in mono" [(ngModel)]="rowEdit.upc" [class.dirty]="(rowEdit.upc || '') !== (row.upc || '')" /></label>
-              <label>PRO code(s) <input class="in mono" [(ngModel)]="rowEdit.proCode" placeholder="10080,10108 rolls colours up" [class.dirty]="(rowEdit.proCode || '') !== (row.proCode || '')" /></label>
+              <label>PRO code(s) <input class="in mono" [(ngModel)]="rowEdit.proCode" placeholder="PRO code" [class.dirty]="(rowEdit.proCode || '') !== (row.proCode || '')" /></label>
               <label>Stack product(s) <input class="in mono" [(ngModel)]="rowEdit.stackProduct" [class.dirty]="(rowEdit.stackProduct || '') !== (row.stackProduct || '')" /></label>
               <label class="wide">Description <input class="in" [(ngModel)]="rowEdit.description" [class.dirty]="(rowEdit.description || '') !== (row.description || '')" /></label>
               <label>Vendor share <input class="in num" type="number" step="0.01" [(ngModel)]="rowEdit.reimbursement" [class.dirty]="+rowEdit.reimbursement !== +row.reimbursement" /></label>

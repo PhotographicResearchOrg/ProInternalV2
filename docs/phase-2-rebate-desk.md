@@ -35,13 +35,13 @@ All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.Rebate
 
 **Matching a row to a PRO product.** Matching reads only `[PRO].dbo.Product` (`ProductCode`, `ModelName`, `CAT_NO`, `UPC`), never Computyme. It tries these in order:
 
-1. PRO code(s), if the row has them. A comma list (e.g. `10080,10108`) rolls several colours into one rebate product. The first code listed becomes the product's primary code (`RebateCameraModels.ModelName`, which Connection uses for the catalog number); every code goes in `RebateCameraModelsDetails`.
+1. The PRO code, if the row has one. It becomes the rebate product's primary code (`RebateCameraModels.ModelName`, which Connection uses for the catalog number) and goes in `RebateCameraModelsDetails`.
 2. The vendor SKU with the vendor's **catalog prefix** added (e.g. SmallRig `4183B` → `SR_4183B`).
 3. The vendor SKU as sent.
 4. The vendor SKU ignoring dashes, spaces, dots and underscores.
 5. The UPC, compared as a number, so leading zeros don't matter.
 
-Active, non-discontinued products win. If two different products tie, the row waits as `AMBIGUOUS_PRODUCT` and the user dispositions it: the problem carries up to 25 candidates (code and name), shown as tick boxes in the row panel. Tick one and click Use, or tick several (colours) to roll them into one rebate product; the first ticked is the primary code (`ModelName`). Typing PRO code(s) still works. Every problem, and the disposition section, has an ⓘ that opens short directions (`shared/rebate-help.component.ts`). Only the products the upload refers to are read, limited to the vendor's brands when its terms list them.
+Active, non-discontinued products win. If two different products tie, the row waits as `AMBIGUOUS_PRODUCT` and the user dispositions it: the problem carries up to 25 candidates (code and name), shown as tick boxes in the row panel. Pick one and click Use. Typing the PRO code still works. Every problem, and the disposition section, has an ⓘ that opens short directions (`shared/rebate-help.component.ts`). Only the products the upload refers to are read, limited to the vendor's brands when its terms list them.
 
 **Naming rule set**, the same one as the existing PIV2 IR upload (`RebateIrController`):
 
@@ -93,7 +93,7 @@ The next upload for that vendor pre-fills from them.
 A row with any problem waits in purgatory; nothing is dropped silently. From the list or an upload's review:
 
 - **Problem chips** filter by problem, with counts.
-- **Fix a row:** open it. "Find the PRO product" searches `dbo.Product` by PRO code, catalog #, UPC or name; tick one, or several colours for one rebate product. Every value on the row can be corrected; a rebate product can be picked by hand (overrides the naming rule) or created.
+- **Fix a row:** open it. "Find the PRO product" searches `dbo.Product` by PRO code, catalog #, UPC or name; pick one and click Use. A fixed row moves to Ready in its upload and loads from there. Every value on the row can be corrected; a rebate product can be picked by hand (overrides the naming rule) or created.
 - **Skip:** one row, or tick many and "Skip them" with one reason. Skipped rows can be restored.
 - **Load anyway** (`Rebates.Manage`): a row that overlaps a live program (or another row of the file) can load with a reason. Its program is recorded in `piv2.RebateOverlapAllowed`, so turning it on later is not blocked. An exact copy of a live program still waits.
 - Lines with no PRO code, SKU, UPC or description, and lines with no rebate, are dropped when the file is mapped.

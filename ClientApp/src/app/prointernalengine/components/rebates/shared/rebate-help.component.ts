@@ -8,16 +8,15 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
       'The vendor SKU (with the vendor\'s catalog prefix), the UPC or the PRO code finds the PRO product.',
       'The rebate product name is built from the naming rules (left menu, Naming rules): IR = product name; trade-in adds "TRADE-IN TRADE-UP"; bundle and free-with-purchase add "WITH" and the stack product; coupon adds "WITH COUPON CODE"; social adds "WITH SOCIAL MEDIA".',
       'That name finds the rebate product. If none exists yet, use "Create rebate products" at the top of the upload.',
-      'Several PRO products fit? Tick the right one, or tick several (colours) to put them on one rebate product.',
+      'Several PRO products fit? Pick the right one and click Use.',
       'Picking a rebate product yourself overrides all of this for that row (↺ hands it back).'
     ]
   },
   AMBIGUOUS_PRODUCT: {
     title: 'Several PRO products match',
     steps: [
-      'Usually the same SKU or UPC on more than one product, or one vendor line that covers several colours.',
-      'One product: tick it and click Use.',
-      'Several colours on one rebate: tick each colour and click Use. The first one ticked is the primary code.',
+      'Usually the same SKU or UPC on more than one PRO product.',
+      'Pick the right one and click Use. The row is checked again; once it passes it moves to Ready in its upload.',
       'None of them: type the right PRO code in "PRO code(s)" and save.'
     ]
   },

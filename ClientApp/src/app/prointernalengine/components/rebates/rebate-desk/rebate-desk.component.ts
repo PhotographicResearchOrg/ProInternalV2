@@ -239,6 +239,8 @@ export class RebateDeskComponent implements OnInit {
       col('Changed by', 'updatedBy'), col('Changed', 'updatedAt', 'datetime')] }]);
   }
 
+  noticeUploadId: number | null = null;
+
   memoPreset: { vendorId: number; from: string; to: string } | null = null;
 
   billVendor(p: { vendorId: number; from: string; to: string }, rail: Rail): void {
@@ -542,11 +544,17 @@ export class RebateDeskComponent implements OnInit {
         if (again && again.status !== 'LOADED') this.openRow(again, this.rowVendorId); else this.row = null;
       });
     } else {
-      const rowId = this.row?.rowId;
+      const was = this.row;
       this.desk.purgatory(this.purgatoryVendorId).subscribe(p => {
         this.purgatory = p;
-        const again = p.find(x => x.rowId === rowId);
-        if (again) this.openRow(again, again.vendorId); else this.row = null;
+        const again = p.find(x => x.rowId === was?.rowId);
+        if (again) { this.openRow(again, again.vendorId); return; }
+        this.row = null;
+        /* Fixed rows leave purgatory: say where they went. */
+        if (was) {
+          this.noticeUploadId = was.uploadId;
+          this.notice = `Row ${was.sourceRow} is fixed and ready. It loads with upload #${was.uploadId}${was.vendorName ? ' (' + was.vendorName + ')' : ''}.`;
+        }
       });
     }
   }
@@ -609,13 +617,14 @@ export class RebateDeskComponent implements OnInit {
     return (r?.problems ?? []).find((p: any) => p.code === 'AMBIGUOUS_PRODUCT')?.candidates ?? [];
   }
 
+  /* One PRO product per row. */
   tick(code: string, on: boolean): void {
-    this.ticked = on ? [...this.ticked.filter(c => c !== code), code] : this.ticked.filter(c => c !== code);
+    this.ticked = on ? [code] : [];
   }
 
   useTicked(): void {
     if (!this.ticked.length) return;
-    this.rowEdit.proCode = this.ticked.join(',');
+    this.rowEdit.proCode = this.ticked[0];
     this.ticked = [];
     this.saveRow();
   }
