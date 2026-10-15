@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using ProInternal.Services;
 using ProInternal.Models.Accounting;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -20,6 +20,7 @@ namespace ProInternal.Controllers
 
     [ApiController]
     [Route("api/[controller]")]
+    [ProInternal.Helpers.Security.RequirePermission("Rebates.Upload", "/uploadrebates")]
     public class RebateIrController : ControllerBase
     {
 
@@ -248,7 +249,7 @@ namespace ProInternal.Controllers
             if (body == null || body.PreviewIds == null || body.PreviewIds.Count == 0)
                 return BadRequest("No rows selected.");
 
-            var result = _nukedataAccess.CommitRebateIRPreviewRows(body);
+            var result = _nukedataAccess.CommitRebateIRPreviewRows(body, ProInternal.Helpers.Security.Permissions.UserName(User));
             return Ok(result);
         }
 

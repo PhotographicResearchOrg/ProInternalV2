@@ -252,3 +252,5 @@ appsettings.KLASSDESKTOP.json
 
 # proxy.conf.json
 ClientApp/proxy.conf.json
+# Build output and machine-specific publish settings: never commit
+publish-output/
