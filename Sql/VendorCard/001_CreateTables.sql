@@ -177,20 +177,8 @@ GO
 
 /* Vendor rebate programs are not stored here: the Rebate Desk (PRO_NUKE) is the one record of rebates, and the vendor card reads it. */
 
-IF OBJECT_ID('dbo.VendorCustomField', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.VendorCustomField (
-        VendorCustomFieldId INT IDENTITY(1,1) PRIMARY KEY,
-        VendorId            INT           NOT NULL,
-        Section             NVARCHAR(50)  NOT NULL,
-        Label               NVARCHAR(150) NOT NULL,
-        DataType            NVARCHAR(30)  NOT NULL CONSTRAINT DF_VendorCustomField_DataType DEFAULT ('Text'),
-        Value               NVARCHAR(500) NULL,
-        IsPublishable       BIT           NOT NULL CONSTRAINT DF_VendorCustomField_Publishable DEFAULT (0),
-        CONSTRAINT FK_VendorCustomField_Vendor FOREIGN KEY (VendorId) REFERENCES dbo.Vendor (VendorId)
-    );
-END
-GO
+/* Custom fields: created by 003 (definitions + values). The first per-vendor table is no longer created here,
+   so on a new database 003 has nothing to migrate and drops nothing. */
 
 -- Generic audit trail, intentionally not vendor-only (EntityType/EntityId)
 -- so other features can reuse it instead of rolling ad hoc audit inserts.
@@ -225,8 +213,6 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_VendorContract_VendorI
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_VendorPriceList_VendorId' AND object_id = OBJECT_ID('dbo.VendorPriceList'))
     CREATE INDEX IX_VendorPriceList_VendorId ON dbo.VendorPriceList (VendorId);
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_VendorCustomField_VendorId' AND object_id = OBJECT_ID('dbo.VendorCustomField'))
-    CREATE INDEX IX_VendorCustomField_VendorId ON dbo.VendorCustomField (VendorId);
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EntityAuditLog_Entity' AND object_id = OBJECT_ID('dbo.EntityAuditLog'))
     CREATE INDEX IX_EntityAuditLog_Entity ON dbo.EntityAuditLog (EntityType, EntityId, ChangedAt DESC);
