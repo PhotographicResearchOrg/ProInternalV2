@@ -29,6 +29,10 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
       'Or use "Find the PRO product" on the row: search by PRO code, catalog #, UPC or name, tick it and click Use.'
     ]
   },
+  SEVERAL_PRO_CODES: {
+    title: 'Several PRO codes on one row',
+    steps: ['A row is one PRO product. Keep the right PRO code in "PRO code" and save.', 'If the vendor line really covers several products, put each on its own row in the file and upload it again.']
+  },
   NO_MODEL: {
     title: 'No rebate product with this name yet',
     steps: [

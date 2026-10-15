@@ -338,11 +338,10 @@ BEGIN
 
     CREATE INDEX IX_pk_code ON #pk (ProductCode);
 
-    /* Rows that name their PRO code(s): a comma list rolls several products (colours) into one rebate product. */
+    /* Rows that name their PRO code: one PRO product per row (a row naming several is held, below). */
     IF OBJECT_ID('tempdb..#match') IS NOT NULL DROP TABLE #match;
     CREATE TABLE #match (RowId bigint NOT NULL, ProductCode nvarchar(20) NOT NULL, Pri int NOT NULL, Seq int NOT NULL, Rank_ int NOT NULL);
 
-    /* Seq is the code's position in the text, so the first code typed is the primary one. */
     INSERT #match (RowId, ProductCode, Pri, Seq, Rank_)
     SELECT r.RowId, k.ProductCode, 1, x.Seq, MIN(k.Rank_)
       FROM piv2.RebateUploadRow r
@@ -352,6 +351,13 @@ BEGIN
       JOIN #pk k ON k.ProductCode = x.Code
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND r.ProCode IS NOT NULL
      GROUP BY r.RowId, k.ProductCode, x.Seq;
+
+    /* One PRO product per row: a row naming several codes waits until one is kept. */
+    INSERT #problem (RowId, Code, Message)
+    SELECT r.RowId, 'SEVERAL_PRO_CODES', N'One PRO code per row. Keep the right one, or put each product on its own row in the file.'
+      FROM piv2.RebateUploadRow r
+     WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND r.ProCode IS NOT NULL
+       AND (SELECT COUNT(*) FROM STRING_SPLIT(REPLACE(r.ProCode, N'+', N','), ',') WHERE LTRIM(RTRIM(value)) <> N'') > 1;
 
     /* PRO codes the row names that PRO does not have. */
     INSERT #problem (RowId, Code, Message)
@@ -595,7 +601,7 @@ BEGIN
                 THEN CONCAT(N'No rebate product named "', LEFT(ProposedName, 200), N'" yet. Create it (one click), or pick an existing one.')
                 ELSE N'No rebate product matches. Resolve the PRO product first.' END
       FROM r WHERE ModelId IS NULL
-       AND NOT EXISTS (SELECT 1 FROM #problem p WHERE p.RowId = r.RowId AND p.Code IN ('NO_PRODUCT', 'AMBIGUOUS_PRODUCT', 'NO_STACK', 'STACK_UNKNOWN'))
+       AND NOT EXISTS (SELECT 1 FROM #problem p WHERE p.RowId = r.RowId AND p.Code IN ('NO_PRODUCT', 'AMBIGUOUS_PRODUCT', 'SEVERAL_PRO_CODES', 'NO_STACK', 'STACK_UNKNOWN'))
     UNION ALL
     SELECT RowId, 'NO_DATES', N'Start date and end date are both required.'
       FROM r WHERE StartDate IS NULL OR EndDate IS NULL
@@ -1008,61 +1014,9 @@ BEGIN
 END
 GO
 
-/* The naming rule set, with an example name per type. */
-CREATE OR ALTER PROCEDURE piv2.Rebate_NamingRules
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-    SELECT t.ID AS RebateTypeId, t.Name AS TypeName,
-           COALESCE(n.Suffix, N'') AS Suffix, CAST(COALESCE(n.AddStack, 0) AS bit) AS AddStack,
-           COALESCE(n.StackJoiner, N'WITH') AS StackJoiner,
-           LTRIM(RTRIM(N'NIKON Z6 III'
-                 + CASE WHEN COALESCE(n.AddStack, 0) = 1 THEN N' ' + COALESCE(n.StackJoiner, N'WITH') + N' NIKKOR Z 24-120MM' ELSE N'' END
-                 + CASE WHEN COALESCE(n.Suffix, N'') <> N'' THEN N' ' + n.Suffix ELSE N'' END)) AS Example,
-           CAST(CASE WHEN n.RebateTypeId IS NULL THEN 0 ELSE 1 END AS bit) AS HasRule,
-           n.UpdatedBy, n.UpdatedAt
-      FROM dbo.RebateType t
-      LEFT JOIN piv2.RebateNamingRule n ON n.RebateTypeId = t.ID
-     ORDER BY t.ID;
-END
-GO
-
-CREATE OR ALTER PROCEDURE piv2.Rebate_SaveNamingRule
-    @RebateTypeId int,
-    @Suffix       nvarchar(100) = NULL,
-    @AddStack     bit = 0,
-    @StackJoiner  nvarchar(20) = NULL,
-    @Actor        nvarchar(100),
-    @Reason       nvarchar(500)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
-        THROW 50702, 'A reason is required.', 1;
-    IF NOT EXISTS (SELECT 1 FROM dbo.RebateType WHERE ID = @RebateTypeId)
-        THROW 50746, 'That rebate type does not exist.', 1;
-
-    SET @Suffix = UPPER(LTRIM(RTRIM(COALESCE(@Suffix, N''))));
-    SET @StackJoiner = UPPER(COALESCE(NULLIF(LTRIM(RTRIM(@StackJoiner)), N''), N'WITH'));
-
-    DECLARE @before nvarchar(max) = (SELECT Suffix, AddStack, StackJoiner FROM piv2.RebateNamingRule
-                                      WHERE RebateTypeId = @RebateTypeId FOR JSON PATH, WITHOUT_ARRAY_WRAPPER);
-
-    MERGE piv2.RebateNamingRule AS t
-    USING (SELECT @RebateTypeId AS RebateTypeId) s ON t.RebateTypeId = s.RebateTypeId
-    WHEN MATCHED THEN UPDATE SET Suffix = @Suffix, AddStack = COALESCE(@AddStack, 0), StackJoiner = @StackJoiner,
-                                 UpdatedBy = @Actor, UpdatedAt = SYSUTCDATETIME()
-    WHEN NOT MATCHED THEN INSERT (RebateTypeId, Suffix, AddStack, StackJoiner, UpdatedBy)
-                          VALUES (@RebateTypeId, @Suffix, COALESCE(@AddStack, 0), @StackJoiner, @Actor);
-
-    INSERT piv2.RebateEvent (EventType, Actor, Reason, Detail)
-    VALUES ('NAMING_RULE_CHANGED', @Actor, @Reason,
-            (SELECT @RebateTypeId AS rebateType, JSON_QUERY(@before) AS before,
-                    @Suffix AS suffix, @AddStack AS addStack, @StackJoiner AS stackJoiner FOR JSON PATH, WITHOUT_ARRAY_WRAPPER));
-END
+/* The naming rules have no screen any more (they are fixed); remove the procedures an earlier run created. */
+DROP PROCEDURE IF EXISTS piv2.Rebate_NamingRules;
+DROP PROCEDURE IF EXISTS piv2.Rebate_SaveNamingRule;
 GO
 
 CREATE OR ALTER PROCEDURE piv2.Rebate_RestoreRow
@@ -1156,7 +1110,7 @@ BEGIN
     SELECT r.ProposedName, MIN(r.ProductCode)
       FROM piv2.RebateUploadRow r
      WHERE r.UploadId = @UploadId AND r.Status = 'PURGATORY' AND r.ModelId IS NULL
-       AND r.ProposedName IS NOT NULL AND r.ProductCode IS NOT NULL
+       AND r.ProposedName IS NOT NULL AND r.ProductCode IS NOT NULL AND r.ProductCode NOT LIKE N'%,%'
        AND (@RowIds IS NULL OR r.RowId IN (SELECT RowId FROM @chosen))
        AND NOT EXISTS (SELECT 1 FROM dbo.RebateCameraModels m
                         WHERE m.IsPriceProtection = 0

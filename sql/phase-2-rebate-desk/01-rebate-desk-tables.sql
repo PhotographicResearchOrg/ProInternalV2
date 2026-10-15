@@ -113,7 +113,7 @@ BEGIN
         Notes           nvarchar(1000)  NULL,
         ModelId         int             NULL,         -- dbo.RebateCameraModels.ModelID: the row's disposition
         ModelChosenBy   nvarchar(100)   NULL,         -- set when a person picked the disposition; the checks then keep it
-        ProductCode     nvarchar(200)   NULL,         -- the PRO product(s) the row resolved to ([PRO].dbo.Product); a list rolls colours up
+        ProductCode     nvarchar(200)   NULL,         -- the PRO product the row resolved to ([PRO].dbo.Product)
         ProductName     nvarchar(400)   NULL,         -- the first one's ModelName
         StackCodes      nvarchar(200)   NULL,         -- PRO product codes of the stack products, comma separated
         ProposedName    nvarchar(400)   NULL,         -- the rebate product name by the naming rule set
@@ -292,7 +292,7 @@ IF OBJECT_ID('piv2.RebateOverlapAllowed', 'U') IS NULL
 GO
 
 /* The naming rule set, one line per rebate type: rebate product name = PRO product name [+ stack chain] [+ suffix].
-   Seeded with the rules RebateIrController uses; changed on the desk (Naming rules). */
+   Seeded with the rules RebateIrController uses. Fixed: there is no screen; a change is a deliberate SQL update. */
 IF OBJECT_ID('piv2.RebateNamingRule', 'U') IS NULL
     CREATE TABLE piv2.RebateNamingRule
     (

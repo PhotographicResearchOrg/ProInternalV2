@@ -28,6 +28,7 @@ All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.Rebate
    | `BAD_REIMBURSEMENT`, `NEGATIVE_AMOUNT` | Bad amounts |
    | `NO_TYPE`, `UNKNOWN_TYPE` | Missing or unknown rebate type |
    | `DUPLICATE_IN_FILE` | The same product, type and dates appear twice in the file |
+   | `SEVERAL_PRO_CODES` | The row names more than one PRO code; a row is one PRO product |
    | `ALREADY_LOADED`, `OVERLAP` | The same program is already live, or the dates overlap a live one |
    | `STACK_UNKNOWN`, `AMBIGUOUS_STACK` | The stack product cannot be matched |
 
@@ -41,7 +42,7 @@ All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.Rebate
 4. The vendor SKU ignoring dashes, spaces, dots and underscores.
 5. The UPC, compared as a number, so leading zeros don't matter.
 
-Active, non-discontinued products win. If two different products tie, the row waits as `AMBIGUOUS_PRODUCT` and the user dispositions it: the problem carries up to 25 candidates (code and name), shown as tick boxes in the row panel. Pick one and click Use. Typing the PRO code still works. Every problem, and the disposition section, has an ⓘ that opens short directions (`shared/rebate-help.component.ts`). Only the products the upload refers to are read, limited to the vendor's brands when its terms list them.
+Active, non-discontinued products win. If two different products tie, the row waits as `AMBIGUOUS_PRODUCT` and the user dispositions it: the problem carries up to 25 candidates (code and name), shown as a choice in the row panel. Pick one and click Use. A row is always one PRO product (no colour roll-up). Typing the PRO code still works. Every problem, and the disposition section, has an ⓘ that opens short directions (`shared/rebate-help.component.ts`). Only the products the upload refers to are read, limited to the vendor's brands when its terms list them.
 
 **Naming rule set**, the same one as the existing PIV2 IR upload (`RebateIrController`):
 

@@ -342,7 +342,7 @@ export class RebateDeskComponent implements OnInit {
   picked = new Set<number>();
 
   readonly problemLabels: { [code: string]: string } = {
-    NO_PRODUCT: 'No PRO product', AMBIGUOUS_PRODUCT: 'Several PRO products', NO_MODEL: 'No rebate product yet',
+    NO_PRODUCT: 'No PRO product', AMBIGUOUS_PRODUCT: 'Several PRO products', SEVERAL_PRO_CODES: 'Several PRO codes', NO_MODEL: 'No rebate product yet',
     MODEL_RETIRED: 'Product retired', NO_STACK: 'Stack missing', STACK_UNKNOWN: 'Stack not found', NO_DATES: 'No dates',
     DATES_REVERSED: 'Dates reversed', BAD_REIMBURSEMENT: 'No vendor share', NEGATIVE_AMOUNT: 'Negative amount',
     NO_TYPE: 'No type', UNKNOWN_TYPE: 'Unknown type', DUPLICATE_IN_FILE: 'Duplicate in file', OVERLAP_IN_FILE: 'Overlaps in file',

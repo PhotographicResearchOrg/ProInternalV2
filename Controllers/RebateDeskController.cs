@@ -212,24 +212,6 @@ namespace ProInternal.Controllers
         public Task<IActionResult> RestoreRow(long rowId) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_RestoreRow", new { RowId = rowId, Actor }));
 
-        /* ================= naming rule set ================= */
-
-        [HttpGet("naming-rules")]
-        public Task<IActionResult> NamingRules() => Read(() => _data.QueryAsync("piv2.Rebate_NamingRules"));
-
-        [HttpPut("naming-rules/{rebateTypeId:int}")]
-        [RequirePermission(ManagePermission)]
-        public Task<IActionResult> SaveNamingRule(int rebateTypeId, [FromBody] RebateNamingRuleRequest body) =>
-            Act(() => _data.ExecuteAsync("piv2.Rebate_SaveNamingRule", new
-            {
-                RebateTypeId = rebateTypeId,
-                body?.Suffix,
-                AddStack = body?.AddStack ?? false,
-                body?.StackJoiner,
-                Actor,
-                Reason = body?.Reason ?? ""
-            }));
-
         /* ================= vendor terms ================= */
 
         [HttpGet("vendors/{vendorId:int}/terms")]

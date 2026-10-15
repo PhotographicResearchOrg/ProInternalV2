@@ -101,10 +101,6 @@ export class RebateDeskService {
   restoreRow(rowId: number): Observable<any> { return this.api.post(`${this.base}/rows/${rowId}/restore`, {}); }
   skipRows(rowIds: number[], reason: string): Observable<any> { return this.api.post(`${this.base}/rows/skip`, { rowIds, reason }); }
   allowOverlap(rowIds: number[], reason: string): Observable<any> { return this.api.post(`${this.base}/rows/allow-overlap`, { rowIds, reason }); }
-  namingRules(): Observable<any[]> { return this.api.get(`${this.base}/naming-rules`); }
-  saveNamingRule(typeId: number, body: { suffix: string; addStack: boolean; stackJoiner: string; reason: string }): Observable<any> {
-    return this.api.put(`${this.base}/naming-rules/${typeId}`, body);
-  }
 
   /* ---- templates ---- */
   templates(vendorId?: number | null): Observable<any[]> { return this.api.get(`${this.base}/templates${this.q({ vendorId })}`); }
