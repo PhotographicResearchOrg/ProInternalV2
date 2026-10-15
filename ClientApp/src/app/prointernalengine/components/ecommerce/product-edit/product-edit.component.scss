@@ -1861,3 +1861,211 @@ span.th { cursor: default; }
     i { font-size: 11px; margin-right: 4px; }
   }
 }
+/* ---- stop global .badge (theme notification counter) leaking in ---- */
+.badge {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  transform: none !important;
+  min-width: 0;
+  height: auto;
+  line-height: 1.3;
+  vertical-align: middle;
+  border: none;
+
+  &::before,
+  &::after {
+    content: none !important;
+    display: none !important;
+  }
+}
+
+/* =====================================================================
+   Market pricing: exchange rates, foreign prices beside US prices,
+   price history
+   ===================================================================== */
+
+/* Same five columns on every row (pending, in force, history), so they line up. */
+.fx-row {
+  display: grid;
+  grid-template-columns: 64px minmax(150px, 1.1fr) minmax(120px, 0.9fr) minmax(170px, 1.5fr) 190px;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--borderSoft);
+  font-size: 13px;
+
+  > * { min-width: 0; }
+
+  .sub {
+    display: block;
+    color: var(--faint);
+    font-size: 11.5px;
+    line-height: 1.4;
+  }
+
+  .strong { font-weight: 650; }
+
+  &.fx-head {
+    padding: 6px 0;
+    color: var(--sub);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    border-bottom-color: var(--border);
+  }
+
+  &.fx-log {
+    grid-template-columns: 1.1fr 1.3fr 1.3fr 1.3fr 1.4fr;
+    align-items: start;
+  }
+}
+
+.fx-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.fx-pending {
+  background: #fbeecb;
+  border: 1px solid #f0d79a;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+
+  .fx-row { border-bottom-color: #f0d79a; }
+  .fx-row:last-child { border-bottom: 0; }
+  .fx-row.fx-head { color: var(--amber); }
+}
+
+.fx-pending-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  color: var(--amber);
+  font-size: 13px;
+}
+
+/* ---- set a rate by hand: one row, labels above ---- */
+.fx-override {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--borderSoft);
+
+  > .lab {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12.5px;
+    font-weight: 650;
+    color: var(--ink);
+  }
+
+  .inline {
+    display: grid;
+    grid-template-columns: 110px 140px minmax(200px, 1fr) 170px 130px;
+    gap: 8px;
+    align-items: center;
+
+    > * { width: 100%; min-width: 0; margin: 0; }
+    > input, > select { height: 36px; }
+
+    > button {
+      width: 100%;
+      height: 36px;
+      padding: 0 12px;
+      justify-content: center;
+      white-space: nowrap;
+    }
+  }
+
+  .fx-labels {
+    margin-bottom: 4px;
+
+    > span {
+      font-size: 11px;
+      font-weight: 650;
+      color: var(--sub);
+    }
+  }
+}
+
+/* ---- date picker: same box as every other input on the desk ---- */
+input[type='date'] {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color .12s, box-shadow .12s;
+
+  &:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(14, 124, 115, .12);
+  }
+
+  /* grey until a date is chosen, like a placeholder */
+  &.empty { color: var(--faint); }
+
+  &::-webkit-datetime-edit,
+  &::-webkit-datetime-edit-fields-wrapper { padding: 0; line-height: 20px; }
+
+  &::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: .5;
+    margin-left: 4px;
+
+    &:hover { opacity: 1; }
+  }
+}
+
+.fx-history { margin-top: 16px; }
+
+/* ---- US prices in market currencies, at today's rate ---- */
+.fx-equiv {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+
+  .hint { display: block; margin: 8px 0 0; }
+}
+
+.fx-equiv-row {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12.5px;
+
+  &.fx-head {
+    color: var(--sub);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+
+  .num { text-align: right; }
+}
+
+.plab .conv { color: var(--teal); }
+
+@media (max-width: 820px) {
+  .fx-override .inline { grid-template-columns: 1fr 1fr; }
+  .fx-override .inline .grow { grid-column: 1 / -1; }
+  .fx-override .fx-labels { display: none; }
+
+  .fx-row, .fx-row.fx-log { grid-template-columns: 1fr 1fr; }
+  .fx-row.fx-head { display: none; }
+}

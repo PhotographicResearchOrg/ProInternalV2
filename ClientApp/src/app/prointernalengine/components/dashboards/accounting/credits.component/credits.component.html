@@ -1,645 +1,449 @@
-<p-confirmDialog></p-confirmDialog>
-<p-toast position="top-right"></p-toast>
-<div class="grid">
+<p-toast></p-toast>
+<p-confirmDialog styleClass="desk-confirm"></p-confirmDialog>
 
-  <!-- ================================================= -->
-  <!-- APPLY CREDIT / DEBIT -->
-  <!-- ================================================= -->
-  <div class="col-12">
-    <div class="card">
+<div class="desk-page">
 
-      <!-- HEADER -->
-      <div class="flex align-items-center justify-content-between mb-3">
-        <span class="text-900 text-lg font-semibold">Apply Credit / Debit</span>
-        <span class="text-sm text-color-secondary">+ Debit / − Credit</span>
+  <!-- =========================================================== HEADER -->
+  <header class="desk-header">
+    <div>
+      <div class="eyebrow">Accounting</div>
+      <h1>Credits &amp; Debits</h1>
+      <div class="subtitle">Post member credits and debits to Universe, build the invoice PDF, and send it.</div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-secondary" [disabled]="loading" (click)="loadCredits()">
+        <i class="pi" [ngClass]="loading ? 'pi-spin pi-spinner' : 'pi-refresh'"></i>Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- =========================================================== SUMMARY -->
+  <section class="summary-grid">
+    <div class="summary-card" (click)="setTab('all')">
+      <div class="summary-label">In queue</div>
+      <div class="summary-value">{{ queue.length }}</div>
+      <div class="summary-sub">{{ queue.length ? (queuedTotal | currency:'USD':'symbol':'1.2-2') + ' ready to post' : 'Nothing waiting' }}</div>
+    </div>
+    <div class="summary-card" [class.warning-card]="countStatus('noinv')" (click)="setTab('noinv')">
+      <div class="summary-label">No invoice</div>
+      <div class="summary-value">{{ countStatus('noinv') }}</div>
+      <div class="summary-sub">Posted, PDF not built · rebuild</div>
+    </div>
+    <div class="summary-card" [class.alert-card]="countStatus('failed')" (click)="setTab('failed')">
+      <div class="summary-label">Failed</div>
+      <div class="summary-value">{{ countStatus('failed') }}</div>
+      <div class="summary-sub">Not posted to Universe</div>
+    </div>
+    <div class="summary-card" (click)="setTab('ok')">
+      <div class="summary-label">Skipped from 6 PM email</div>
+      <div class="summary-value">{{ skippedCount }}</div>
+      <div class="summary-sub">of {{ countStatus('ok') | number }} posted</div>
+    </div>
+  </section>
+
+  <!-- =========================================================== NEW ENTRY -->
+  <section class="desk-card block">
+    <div class="section-header">
+      <div>
+        <div class="section-label">New entry</div>
+        <div class="section-subtitle">Positive amount = debit · negative amount = credit</div>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="field span-4">
+        <label>Member *</label>
+        <p-autoComplete [(ngModel)]="selectedMember"
+                        [suggestions]="memberResults"
+                        (completeMethod)="searchMember($event)"
+                        field="label"
+                        [forceSelection]="true"
+                        (onSelect)="onMemberSelect($event)"
+                        placeholder="Account number or name"
+                        appendTo="body"
+                        styleClass="desk-auto"
+                        [class.invalid]="errors.proID">
+        </p-autoComplete>
+        <div class="validation-error" *ngIf="errors.proID">Member is required.</div>
       </div>
 
-      <div class="grid">
-        <!-- MEMBER -->
-        <div class="field">
-          <div class="col-12 md:col-6">
-            <label>Member *</label>
-            <p-autoComplete [(ngModel)]="selectedMember"
-                            [suggestions]="memberResults"
-                            (completeMethod)="searchMember($event)"
-                            field="label"
-                            [forceSelection]="true"
-                            (onSelect)="onMemberSelect($event)"
-                            placeholder="Member ID or Name"
-                            styleClass="w-full">
-            </p-autoComplete>
-            <small class="error-text" *ngIf="errors.proID">Member is required</small>
-          </div>
+      <div class="field span-3">
+        <label>Post to account</label>
+        <select [(ngModel)]="form.postingAccount">
+          <option *ngFor="let a of postingAccounts" [ngValue]="a.value">{{ a.label }}</option>
+        </select>
+      </div>
+
+      <div class="field span-3">
+        <label>Date *</label>
+        <p-calendar [(ngModel)]="form.orderDate"
+                    dateFormat="mm/dd/yy"
+                    [showIcon]="true"
+                    appendTo="body"
+                    placeholder="mm/dd/yyyy"
+                    styleClass="desk-calendar">
+        </p-calendar>
+      </div>
+
+      <div class="field span-2 align-end">
+        <label class="check-row"><input type="checkbox" [(ngModel)]="form.ezPay" />EZPay</label>
+      </div>
+
+      <div class="field span-3">
+        <label>Amount *</label>
+        <input type="number"
+               step="0.01"
+               class="mono"
+               placeholder="0.00"
+               [(ngModel)]="form.amount"
+               [class.invalid]="errors.amount"
+               [class.amount-neg]="form.amount < 0"
+               [class.amount-pos]="form.amount > 0" />
+        <div class="validation-error" *ngIf="errors.amount">Enter an amount up to ±95,000.</div>
+      </div>
+
+      <div class="field span-3">
+        <label>PO</label>
+        <input type="text" [(ngModel)]="form.po" maxlength="50" placeholder="Optional" />
+      </div>
+
+      <div class="field span-6">
+        <label>Description *</label>
+        <input type="text" [(ngModel)]="form.description" [class.invalid]="errors.description" placeholder="Shown on the invoice" />
+        <div class="validation-error" *ngIf="errors.description">Description is required.</div>
+      </div>
+
+      <div class="field span-12">
+        <label>Attachments <span class="label-hint">PDF only · appended to the invoice</span></label>
+        <div class="drop-zone"
+             [class.active]="dragActive"
+             (dragover)="onDragOver($event)"
+             (dragleave)="dragActive = false"
+             (drop)="onDrop($event)"
+             (click)="fileInput.click()">
+          <input type="file" hidden multiple accept="application/pdf,.pdf" #fileInput
+                 (change)="onFileSelect($event); fileInput.value = ''" />
+          <i class="pi pi-cloud-upload"></i>
+          <span>Drop PDFs here or <b>browse</b></span>
         </div>
 
-
-        <div class="field">
-          <div class="col-12 md:col-6">
-            <label>Post To Account</label>
-            <p-dropdown [options]="postingAccounts"
-                        optionLabel="label"
-                        optionValue="value"
-                        [(ngModel)]="form.postingAccount"
-                        placeholder="Select account"
-                        class="w-full">
-            </p-dropdown>
-          </div>
-        </div>
-        </div>
-
-        <!-- EZPAY -->
-        <div class="flex align-items-center gap-3 mb-3">
-          <label class="font-medium">EZPay</label>
-          <p-inputSwitch [(ngModel)]="form.ezPay"></p-inputSwitch>
-          <span class="text-sm text-color-secondary">
-            {{ form.ezPay ? 'Enabled' : 'Disabled' }}
+        <div class="file-chips" *ngIf="form.files.length">
+          <span class="file-chip" *ngFor="let f of form.files; let fi = index">
+            <i class="pi pi-file-pdf"></i>
+            <button type="button" class="link" (click)="openPreview(f)">{{ f.originalName }}</button>
+            <button type="button" class="chip-x" (click)="removeFile(fi)" title="Remove"><i class="pi pi-times"></i></button>
           </span>
         </div>
-
-        <!-- PO / DATE -->
-        <div class="grid">
-          <div class="col-12 md:col-6">
-            <div class="field">
-              <label>PO</label>
-              <input pInputText [(ngModel)]="form.po" class="w-full" />
-            </div>
-          </div>
-
-          <div class="col-12 md:col-6">
-            <div class="field">
-              <label>Date *</label>
-              <p-calendar [(ngModel)]="form.orderDate"
-                          [showIcon]="true"
-                          dateFormat="mm/dd/yy"
-                          styleClass="w-full">
-              </p-calendar>
-            </div>
-          </div>
-        </div>
-
-        <!-- AMOUNT / DESCRIPTION -->
-        <div class="grid">
-          <div class="col-12 md:col-6">
-            <div class="field">
-              <label>Amount *</label>
-              <p-inputNumber [(ngModel)]="form.amount"
-                             mode="decimal"
-                             [minFractionDigits]="2"
-                             [maxFractionDigits]="2"
-                             styleClass="w-full"
-                              [ngClass]="{
-                          'p-invalid': errors.amount,
-                          'credit-negative': form.amount < 0,
-                          'credit-positive': form.amount > 0
-                        }">
-</p-inputNumber>
-              <small class="text-color-secondary">
-                Positive = Debit, Negative = Credit
-              </small>
-            </div>
-          </div>
-
-          <div class="col-12 md:col-6">
-            <div class="field">
-              <label>Description *</label>
-              <textarea pInputTextarea
-                        rows="3"
-                        [(ngModel)]="form.description"
-                        class="w-full">
-            </textarea>
-            </div>
-          </div>
-        </div>
-
-        <!-- ATTACHMENTS -->
-        <div class="field">
-          <label>Attachments</label>
-
-          <div class="upload-box"
-               [class.has-files]="form.files.length"
-               [class.drag-active]="dragActive"
-               (dragover)="onDragOver($event)"
-               (drop)="onDrop($event)">
-
-            <input type="file"
-                   hidden
-                   multiple
-                   accept="application/pdf,.pdf"
-                   #fileInput
-                   (change)="onFileSelect($event); fileInput.value = ''" />
-
-            <button pButton
-                    type="button"
-                    icon="pi pi-upload"
-                    label="Add files"
-                    class="p-button-sm"
-                    (click)="fileInput.click()">
-            </button>
-
-            <div class="hint mt-2">Drag & drop files here</div>
-          </div>
-
-          <div class="text-xs mt-2">
-            Files attached: {{ form.files.length }}
-          </div>
-
-          <!-- FORM FILE PREVIEW -->
-          <div class="file-preview mt-2" *ngIf="form.files.length">
-            <div class="file-chip"
-                 *ngFor="let f of form.files; let fi = index">
-
-              <i class="pi mr-1" [ngClass]="getFileIcon(f)"></i>
-
-              <button pButton
-                      type="button"
-                      class="p-button-text p-button-sm file-link"
-                      icon="pi pi-eye"
-                      (click)="openPreview(f)">
-                {{ f.originalName }}
-              </button>
-
-
-
-              <button pButton
-                      icon="pi pi-times"
-                      class="p-button-text p-button-danger p-button-sm"
-                      (click)="removeFile(fi)">
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ADD TO QUEUE -->
-        <div class="text-right">
-          <button pButton
-                  label="Add to Queue"
-                  icon="pi pi-plus"
-                  [disabled]="!form.proID || !form.amount || !form.description"
-                  (click)="addToQueue()">
-          </button>
-        </div>
-
       </div>
     </div>
 
-  <!-- ================================================= -->
-  <!-- QUEUED CREDITS -->
-  <!-- ================================================= -->
-  <div class="col-12" *ngIf="queue.length">
-    <div class="card">
+    <div class="card-actions">
+      <button type="button" class="btn btn-primary"
+              [disabled]="!form.proID || !form.amount || !form.description"
+              (click)="addToQueue()">
+        <i class="pi pi-plus"></i>Add to queue
+      </button>
+    </div>
+  </section>
 
-
-
-
-      <div class="flex align-items-center justify-content-between mb-3">
-        <span class="text-900 text-lg font-semibold">Queued Credits</span>
-        <span class="text-sm text-color-secondary">
-          {{ queue.length }} pending
-        </span>
+  <!-- =========================================================== QUEUE -->
+  <section class="block" *ngIf="queue.length">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Queue · {{ queue.length }} pending</div>
+        <div class="section-subtitle">Nothing is posted until you apply.</div>
       </div>
-
-
       <div class="queue-total">
-        <span class="label">Total Credits Ready to Post:</span>
-        <span class="amount">
+        <span>Total</span>
+        <strong class="mono" [class.amount-neg]="queuedTotal < 0" [class.amount-pos]="queuedTotal > 0">
           {{ queuedTotal | currency:'USD':'symbol':'1.2-2' }}
-        </span>
+        </strong>
       </div>
-
-      <!-- DUPLICATE WARNINGS -->
-      <div *ngIf="getDuplicateCreditKeys().size"
-           class="text-orange-600 text-sm mt-1 flex align-items-center gap-2">
-        <i class="pi pi-exclamation-triangle"></i>
-        Possible duplicate credits detected in queue
-        (same member, PO, description, and amount)
-      </div>
-
-      <div *ngIf="hasAlreadyPostedInQueue()"
-           class="text-red-600 text-sm mt-1 flex align-items-center gap-2">
-        <i class="pi pi-ban"></i>
-        One or more credits already exist in history and will be skipped
-      </div>
-
-
-      <p-table [value]="queue" responsiveLayout="scroll">
-        <ng-template pTemplate="header">
-          <tr>
-            <th>Account #</th>
-            <th>Post Acct</th>
-            <th>PO</th>
-            <th>Date</th>
-            <th>Amount</th>
-            <th>Files</th>
-            <th></th>
-          </tr>
-        </ng-template>
-
-        <ng-template pTemplate="body" let-row let-i="rowIndex">
-          <tr [class.duplicate-row]="queueItemIsDuplicate(row) || isAlreadyPosted(row)">
-            <td>
-              {{ row.proID?.value || row.proID }}
-
-              <!-- DUP IN QUEUE -->
-              <i *ngIf="queueItemIsDuplicate(row)"
-                 class="pi pi-exclamation-triangle text-orange-500 ml-2"
-                 pTooltip="Duplicate credit in queue">
-              </i>
-
-              <!-- ALREADY POSTED -->
-              <i *ngIf="isAlreadyPosted(row)"
-                 class="pi pi-ban text-red-500 ml-2"
-                 pTooltip="Already posted — will be skipped">
-              </i>
-            </td>
-            <td>
-              {{ row.postingAccount || '—' }}
-            </td>
-            <td>{{ row.po || '—' }}</td>
-            <td>{{ row.orderDate | date }}</td>
-            <td>{{ row.amount | currency }}</td>
-            <td>
-              <div class="queue-files" *ngIf="row.files.length; else noFiles">
-
-
-                <div class="file-chip"
-                     *ngFor="let f of row.files; let fi = index">
-
-                  <i class="pi mr-1" [ngClass]="getFileIcon(f)"></i>
-
-                  <button pButton
-                          type="button"
-                          class="p-button-text p-button-sm file-link"
-                          icon="pi pi-eye"
-                          (click)="openPreview(f)">
-                    {{ f.originalName }}
-                  </button>
-
-                  <button pButton
-                          icon="pi pi-times"
-                          class="p-button-text p-button-danger p-button-sm"
-                          (click)="removeFileFromQueue(i, fi)">
-                  </button>
-                </div>
-
-              </div>
-
-              <ng-template #noFiles>
-                <span class="text-color-secondary">—</span>
-              </ng-template>
-
-              <!-- ADD FILES TO QUEUED ITEM -->
-              <div class="mt-1">
-                <input type="file"
-                       hidden
-                       accept="application/pdf,.pdf"
-                       multiple
-                       #queueFileInput
-                       (change)="addFilesToQueue(i, $event)" />
-
-                <button pButton
-                        icon="pi pi-plus"
-                        class="p-button-text p-button-sm"
-                        label="Add"
-                        (click)="queueFileInput.click()">
-                </button>
-              </div>
-            </td>
-
-            <td>
-              <button pButton
-                      icon="pi pi-trash"
-                      class="p-button-text p-button-danger"
-                      (click)="removeFromQueue(i)">
-              </button>
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
-
-      <div class="text-right mt-3">
-
-        <button pButton
-                label="Apply Credits"
-                icon="pi pi-check"
-                (click)="submitBatch()"
-                [disabled]="isSubmitting">
-        </button>
-        <p-progressSpinner *ngIf="isSubmitting"
-                           styleClass="submit-spinner"
-                           strokeWidth="3">
-        </p-progressSpinner>
-
-
-      </div>
-
     </div>
-  </div>
 
-  <!-- ================================================= -->
-  <!-- CREDIT HISTORY -->
-  <!-- ================================================= -->
-  <div class="col-12">
-    <div class="card">
+    <div class="warn-note" *ngIf="getDuplicateCreditKeys().size">
+      <i class="pi pi-exclamation-triangle"></i>
+      <span>Possible duplicates in the queue: same member, PO, description and amount.</span>
+    </div>
+    <div class="modal-warning" *ngIf="hasAlreadyPostedInQueue()">
+      <i class="pi pi-ban"></i>
+      <span>One or more of these already exist in history and will be skipped.</span>
+    </div>
 
-      <!-- HEADER -->
-      <div class="flex align-items-center justify-content-between mb-3">
-        <span class="text-900 text-lg font-semibold">Credit History</span>
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="desk-table compact">
+          <thead>
+            <tr>
+              <th style="width: 110px">Account</th>
+              <th style="width: 90px">Post</th>
+              <th>Description</th>
+              <th style="width: 120px">PO</th>
+              <th style="width: 100px">Date</th>
+              <th style="width: 130px" class="num">Amount</th>
+              <th>Attachments</th>
+              <th class="actions-column" style="width: 60px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of queue; let i = index"
+                [class.flag-row]="queueItemIsDuplicate(row) || isAlreadyPosted(row)">
+              <td>
+                <span class="account-number">{{ row.proID }}</span>
+                <span class="status-badge status-exception" *ngIf="queueItemIsDuplicate(row)">Duplicate</span>
+                <span class="status-badge status-hold" *ngIf="isAlreadyPosted(row)">Posted</span>
+              </td>
+              <td class="mono">{{ row.postingAccount || '—' }}</td>
+              <td>
+                {{ row.description }}
+                <div class="member-sub" *ngIf="row.ezPay">EZPay</div>
+              </td>
+              <td>{{ row.po || '—' }}</td>
+              <td class="nowrap">{{ row.orderDate | date:'MM/dd/yy' }}</td>
+              <td class="num mono" [class.amount-neg]="row.amount < 0" [class.amount-pos]="row.amount > 0">
+                {{ row.amount | currency }}
+              </td>
+              <td>
+                <div class="file-chips tight">
+                  <span class="file-chip" *ngFor="let f of row.files; let fi = index">
+                    <i class="pi pi-file-pdf"></i>
+                    <button type="button" class="link" (click)="openPreview(f)">{{ f.originalName }}</button>
+                    <button type="button" class="chip-x" (click)="removeFileFromQueue(i, fi)" title="Remove"><i class="pi pi-times"></i></button>
+                  </span>
+                  <input type="file" hidden multiple accept="application/pdf,.pdf" #queueFileInput
+                         (change)="addFilesToQueue(i, $event)" />
+                  <button type="button" class="row-action" (click)="queueFileInput.click()"><i class="pi pi-plus"></i> PDF</button>
+                </div>
+              </td>
+              <td class="actions-column">
+                <button type="button" class="row-action reject-action" title="Remove from queue" (click)="removeFromQueue(i)">
+                  <i class="pi pi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-        <div class="flex align-items-center gap-2">
+    <div class="card-actions plain">
+      <button type="button" class="btn btn-secondary" [disabled]="isSubmitting" (click)="queue = []">Clear queue</button>
+      <button type="button" class="btn btn-primary" [disabled]="isSubmitting" (click)="submitBatch()">
+        <i class="pi" [ngClass]="isSubmitting ? 'pi-spin pi-spinner' : 'pi-check'"></i>
+        {{ isSubmitting ? 'Applying…' : 'Apply ' + queue.length + ' credit' + (queue.length === 1 ? '' : 's') }}
+      </button>
+    </div>
+  </section>
 
-          <input pInputText
-                 type="text"
-                 placeholder="Search credits..."
-                 (input)="dt.filterGlobal($any($event.target).value, 'contains')" />
+  <!-- =========================================================== HISTORY -->
+  <section class="block">
+    <nav class="channel-tabs">
+      <button type="button" class="channel-tab" [class.active]="historyTab === 'all'" (click)="setTab('all')">
+        <i class="pi pi-list"></i>All<span class="tab-count">{{ credits.length }}</span>
+      </button>
+      <button type="button" class="channel-tab" [class.active]="historyTab === 'ok'" (click)="setTab('ok')">
+        <i class="pi pi-check-circle"></i>Posted<span class="tab-count">{{ countStatus('ok') }}</span>
+      </button>
+      <button type="button" class="channel-tab" [class.active]="historyTab === 'noinv'" (click)="setTab('noinv')">
+        <i class="pi pi-file-excel"></i>No invoice
+        <span class="tab-count" [class.tab-count-warn]="countStatus('noinv')">{{ countStatus('noinv') }}</span>
+      </button>
+      <button type="button" class="channel-tab" [class.active]="historyTab === 'failed'" (click)="setTab('failed')">
+        <i class="pi pi-times-circle"></i>Failed
+        <span class="tab-count" [class.tab-count-alert]="countStatus('failed')">{{ countStatus('failed') }}</span>
+      </button>
+    </nav>
 
+    <div class="desk-toolbar">
+      <div class="filter-fields">
+        <div class="field search-field">
+          <label>Search</label>
+          <span class="input-with-icon">
+            <i class="pi pi-search"></i>
+            <input type="text" placeholder="Account, description, PO, invoice or user"
+                   (input)="onSearch($any($event.target).value)" />
+          </span>
+        </div>
+        <div class="field date-field">
+          <label>Dates</label>
           <p-calendar [(ngModel)]="dateRange"
                       selectionMode="range"
+                      dateFormat="mm/dd/yy"
                       [showIcon]="true"
-                      placeholder="Date range">
+                      [showButtonBar]="true"
+                      appendTo="body"
+                      placeholder="Any date"
+                      styleClass="desk-calendar">
           </p-calendar>
-
-
-          <button pButton
-                  icon="pi pi-download"
-                  label="Excel"
-                  class="p-button-text"
-                  (click)="exportCreditsExcel()">
-          </button>
         </div>
       </div>
+      <div class="toolbar-actions">
+        <span class="result-note">{{ filteredCredits.length | number }} shown</span>
+        <button type="button" class="btn btn-secondary" [disabled]="!filteredCredits.length" (click)="exportCreditsExcel()">
+          <i class="pi pi-file-excel"></i>Download
+        </button>
+      </div>
+    </div>
 
-      <!-- HISTORY TABLE -->
+    <div class="table-card">
       <p-table #dt
                [value]="filteredCredits"
+               [loading]="loading"
                [paginator]="true"
                [rows]="25"
-               [rowsPerPageOptions]="[10, 25, 50, 100]"
+               [rowsPerPageOptions]="[25, 50, 100]"
                [showCurrentPageReport]="true"
-               currentPageReportTemplate="Showing {first} to {last} of {totalRecords}"
+               currentPageReportTemplate="{first}–{last} of {totalRecords}"
                sortMode="multiple"
-               responsiveLayout="scroll"
-               [globalFilterFields]="[
-    'proid',
-    'description',
-    'po',
-    'vendorPO',
-    'invoiceNumber',
-    'status',
-    'userEntered'
-  ]">
-
-
-        <ng-template pTemplate="rowgroupheader" let-row>
-          <tr class="bg-gray-100">
-            <td colspan="10">
-              <strong>Batch {{ row.batchID }}</strong>
-            </td>
-          </tr>
-        </ng-template>
+               styleClass="desk-ptable"
+               [tableStyle]="{ 'min-width': '1200px' }"
+               [globalFilterFields]="['proid','description','po','vendorPO','invoiceNumber','status','userEntered']">
 
         <ng-template pTemplate="header">
           <tr>
-            <th pSortableColumn="proid">
-              Account # <p-sortIcon field="proid"></p-sortIcon>
-            </th>
-            <th pSortableColumn="date">
-              Date <p-sortIcon field="date"></p-sortIcon>
-            </th>
-
-            <th pSortableColumn="description">
-              Description <p-sortIcon field="description"></p-sortIcon>
-            </th>
-
-            <th pSortableColumn="po">
-              PO <p-sortIcon field="po"></p-sortIcon>
-            </th>
-
-            <th pSortableColumn="vendorPO">
-              Vendor PO <p-sortIcon field="vendorPO"></p-sortIcon>
-            </th>
-
-            <th pSortableColumn="postingAccount">
-              Post Acct <p-sortIcon field="postingAccount"></p-sortIcon>
-            </th>
-
-            <th pSortableColumn="amount">
-              Amount <p-sortIcon field="amount"></p-sortIcon>
-            </th>
-
-            <th pSortableColumn="status">
-              Status <p-sortIcon field="status"></p-sortIcon>
-            </th>
-
-            <th pSortableColumn="invoiceNumber">
-              Invoice <p-sortIcon field="invoiceNumber"></p-sortIcon>
-            </th>
-
-            <th>File</th>
-
-
-            <th pSortableColumn="userEntered">
-              User <p-sortIcon field="userEntered"></p-sortIcon>
-            </th>
-
-            <th>Send</th>
-            <th>Skip Notify</th>
+            <th pSortableColumn="proid" style="width: 104px">Account <p-sortIcon field="proid"></p-sortIcon></th>
+            <th pSortableColumn="date" style="width: 104px">Date <p-sortIcon field="date"></p-sortIcon></th>
+            <th style="min-width: 280px">Description</th>
+            <th pSortableColumn="po" style="width: 130px">PO <p-sortIcon field="po"></p-sortIcon></th>
+            <th pSortableColumn="postingAccount" style="width: 64px">Post</th>
+            <th pSortableColumn="amount" class="num" style="width: 120px">Amount <p-sortIcon field="amount"></p-sortIcon></th>
+            <th pSortableColumn="status" style="width: 110px">Status</th>
+            <th pSortableColumn="invoiceNumber" style="min-width: 200px">Invoice &amp; files</th>
+            <th pSortableColumn="userEntered" style="width: 90px">User</th>
+            <th style="width: 84px">6 PM</th>
+            <th class="actions-column sticky-actions" style="width: 150px">Actions</th>
           </tr>
         </ng-template>
 
         <ng-template pTemplate="body" let-row>
-          <tr>
-            <td>{{ row.proid }}</td>
-            <td>{{ row.date | date:'MM/dd/yyyy' }}</td>
-
-            <td class="description-wrap">
-              {{ row.description }}
+          <tr [class.attention-row]="isNoInvoice(row)">
+            <td><span class="account-number">{{ row.proid }}</span></td>
+            <td class="nowrap">{{ row.date | date:'MM/dd/yy' }}</td>
+            <td class="desc-cell">
+              <div class="desc-text" [title]="row.description">{{ row.description }}</div>
+              <div class="member-sub" *ngIf="row.vendorPO && row.vendorPO !== row.po">Vendor PO {{ row.vendorPO }}</div>
             </td>
-
-            <td>{{ row.po || '—' }}</td>
-            <td>{{ row.vendorPO || '—' }}</td>
-
-            <td>
-              {{ row.postingAccount || row.account || '—' }}
-            </td>
-
-            <td [ngClass]="{
-                'text-red-500' : row.amount < 0,
-              'text-green-600': row.amount > 0
-            }">
+            <td class="po-cell" [title]="row.po || ''">{{ row.po || '—' }}</td>
+            <td class="mono">{{ row.postingAccount || row.account || '—' }}</td>
+            <td class="num mono" [class.amount-neg]="row.amount < 0" [class.amount-pos]="row.amount > 0">
               {{ row.amount | currency }}
             </td>
-
             <td>
-              <p-tag [severity]="row.status?.toLowerCase().includes('fail') ? 'danger' : 'success'"
-                     [value]="row.status">
-              </p-tag>
+              <span class="status-badge" [ngClass]="statusClass(row)" [title]="statusTitle(row)">{{ statusLabel(row) }}</span>
+              <div class="member-sub" *ngIf="row.retryCount">{{ row.retryCount }} rebuild{{ row.retryCount === 1 ? '' : 's' }}</div>
             </td>
-
             <td>
-              <!-- INVOICE (PDF, always exists UNLESS THERE IS A FAILURE ) -->
-              <div class="file-chip">
-                <i class="pi pi-file-pdf text-red-500 mr-1"></i>
-
-                <button pButton
-                        type="button"
-                        class="p-button-text p-button-sm file-link"
-                        (click)="openInvoicePreview(row.invoiceNumber)">
-                  {{ row.invoiceNumber }}
-                </button>
-              </div>
-
-              <!-- ATTACHED FILES -->
-              <div *ngFor="let f of row.files" class="file-chip mt-1">
-                <i class="pi mr-1" [ngClass]="getFileIcon(f)"></i>
-
-                <button pButton
-                        type="button"
-                        class="p-button-text p-button-sm file-link"
-                        (click)="openPreview(f)">
-                  {{ f.originalName }}
-                </button>
-              </div>
-
-              <span *ngIf="!row.files?.length" class="text-color-secondary">—</span>
-            </td>
-
-
-
-            <td class="text-center">
-              <button *ngIf="row.fileName"
-                      pButton
-                      icon="pi pi-paperclip"
-                      class="p-button-text p-button-sm"
-                      (click)="openHistoryFile(row)">
-              </button>
-
-              <span *ngIf="!row.fileName">—</span>
-            </td>
-
-
-
-
-
-            <td>{{ row.userEntered }}</td>
-
-            <td>
-              <button pButton
-                      icon="pi pi-envelope"
-                      class="p-button-text p-button-sm"
-                      (click)="openEmailPanel($event, emailOp, row)">
-              </button>
-            </td>
-
-            <td>
-              <div class="flex align-items-center gap-2">
-
-                <p-inputSwitch [(ngModel)]="row.includeInEmail"
-                               (onChange)="toggleInclude(row)">
-                </p-inputSwitch>
-
-                <span class="text-xs text-color-secondary">
-                  {{ row.includeInEmail ? 'Skip' : 'Auto' }}
+              <div class="file-chips tight">
+                <ng-container *ngIf="hasInvoice(row)">
+                  <button type="button" class="file-chip invoice" *ngIf="!isNoInvoice(row)" (click)="openInvoicePreview(row.invoiceNumber)">
+                    <i class="pi pi-file-pdf"></i>{{ row.invoiceNumber }}
+                  </button>
+                  <button type="button" class="file-chip invoice missing" *ngIf="isNoInvoice(row)"
+                          title="PDF may not exist yet. Click to check, or use Rebuild."
+                          (click)="openInvoicePreview(row.invoiceNumber)">
+                    <i class="pi pi-file-pdf"></i>{{ row.invoiceNumber }}
+                  </button>
+                </ng-container>
+                <span class="file-chip" *ngFor="let f of row.files">
+                  <i class="pi pi-paperclip"></i>
+                  <button type="button" class="link" (click)="openPreview(f)">{{ f.originalName }}</button>
                 </span>
-
-                <i *ngIf="row.includeInEmail"
-                   class="pi pi-exclamation-triangle text-orange-500"
-                   pTooltip="Skipped from the 6 PM email. Turn this off before 6 PM to include it."
-                   tooltipPosition="top">
-                </i>
-
-
+                <span class="faint" *ngIf="!hasInvoice(row) && !row.files?.length">—</span>
               </div>
             </td>
-
-
-
+            <td class="member-sub">{{ row.userEntered }}</td>
+            <td>
+              <label class="check-row small" *ngIf="hasInvoice(row) && !isNoInvoice(row)"
+                     title="Skipped from the 6 PM email. Untick before 6 PM to include it.">
+                <input type="checkbox" [(ngModel)]="row.includeInEmail" (ngModelChange)="toggleInclude(row)" />Skip
+              </label>
+            </td>
+            <td class="actions-column sticky-actions">
+              <button type="button" class="row-action"
+                      [class.warn-action]="isNoInvoice(row)"
+                      *ngIf="hasInvoice(row)"
+                      [disabled]="rebuilding.has(row.id)"
+                      title="Rebuild the invoice PDF (does not re-post to Universe)"
+                      (click)="rebuildInvoice(row)">
+                <i class="pi" [ngClass]="rebuilding.has(row.id) ? 'pi-spin pi-spinner' : 'pi-refresh'"></i>
+                {{ rebuilding.has(row.id) ? 'Building…' : 'Rebuild' }}
+              </button>
+              <span class="row-note" *ngIf="!hasInvoice(row)"
+                    title="Never posted to Universe, so there is no invoice to build. Re-enter it from New entry.">
+                Not posted
+              </span>
+              <button type="button" class="row-action"
+                      *ngIf="hasInvoice(row) && !isNoInvoice(row)"
+                      title="Email invoice"
+                      (click)="openEmail(row)">
+                <i class="pi pi-envelope"></i>
+              </button>
+            </td>
           </tr>
         </ng-template>
 
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="11" class="empty-state">
+              <i class="pi pi-inbox"></i>
+              <div>No credits match.</div>
+            </td>
+          </tr>
+        </ng-template>
       </p-table>
-
     </div>
-  </div>
-
+  </section>
 </div>
 
-<!-- FILE PREVIEW DIALOG -->
-<p-dialog header="File Preview"
-          [(visible)]="previewVisible"
-          [modal]="true"
-          [style]="{ width: '70vw', height: '80vh' }"
-          [draggable]="false"
-          [resizable]="false"
-          (onHide)="closePreview()">
-
-  <iframe *ngIf="previewFile"
-          [src]="previewFile.safeSrc"
-          style="width:100%; height:70vh; border:none;">
-  </iframe>
-
-</p-dialog>
-
-
-
-<p-overlayPanel   #emailOp
-                [dismissable]="true"
-                [showCloseIcon]="true"
-                appendTo="body"
-                styleClass="email-overlay-panel">
-
-  <form (ngSubmit)="sendInvoiceEmail(invoiceEmailOp)" novalidate>
-
-    <div class="text-500 text-sm mb-2">
-      Invoice: {{ emailInvoiceNumber }}
-    </div>
-
-    <!-- Recipients -->
-    <div class="field">
-      <label class="text-sm font-medium mb-1 block">Send to</label>
-      <p-chips [(ngModel)]="emailToList"
-               name="emailList"
-               [addOnBlur]="true"
-               [allowDuplicate]="false"
-               separator=",;"
-               (ngModelChange)="onEmailListChange($event)"
-               placeholder="name@example.com"></p-chips>
-
-      <div class="mt-1 text-xs" *ngIf="invalidEmails.length">
-        <span class="p-error">Invalid:</span>
-        <span class="p-error">{{ invalidEmails.join(', ') }}</span>
+<!-- =========================================================== PREVIEW MODAL -->
+<div class="modal-backdrop" *ngIf="previewVisible" (click)="closePreview()">
+  <div class="desk-modal preview" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">Preview</div>
+        <h2>{{ previewFile?.originalName }}</h2>
       </div>
+      <button type="button" class="modal-close" (click)="closePreview()"><i class="pi pi-times"></i></button>
+    </div>
+    <iframe *ngIf="previewFile" class="preview-frame" [src]="previewFile.safeSrc"></iframe>
+  </div>
+</div>
+
+<!-- =========================================================== EMAIL MODAL -->
+<div class="modal-backdrop" *ngIf="emailOpen" (click)="closeEmail()">
+  <div class="desk-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">Email invoice</div>
+        <h2 class="mono">{{ emailInvoiceNumber }}</h2>
+        <div class="subtitle">The invoice PDF is attached automatically.</div>
+      </div>
+      <button type="button" class="modal-close" (click)="closeEmail()"><i class="pi pi-times"></i></button>
     </div>
 
-    <!-- Optional Note -->
-    <div class="field mt-3">
-      <label class="text-sm font-medium mb-1 block">Note (optional)</label>
-      <textarea pInputTextarea rows="3"
-                [(ngModel)]="emailNote"
-                name="emailNote"
-                class="w-full"
-                placeholder="Optional note to include above the invoice..."></textarea>
+    <div class="field">
+      <label>Send to</label>
+      <input type="text"
+             placeholder="name@example.com, another@example.com"
+             [ngModel]="emailToText"
+             (ngModelChange)="onEmailTextChange($event)"
+             [class.invalid]="invalidEmails.length" />
+      <span class="hint" *ngIf="!invalidEmails.length">Separate addresses with commas.</span>
+      <div class="validation-error" *ngIf="invalidEmails.length">Not valid: {{ invalidEmails.join(', ') }}</div>
     </div>
 
-    <!-- Actions -->
-    <div class="flex align-items-center justify-content-end gap-2 mt-3">
-      <button pButton type="button"
-              label="Cancel"
-              class="p-button-text p-button-sm"
-              (click)="emailOp.hide()"></button>
+    <div class="field" style="margin-top: 14px">
+      <label>Note <span class="label-hint">optional</span></label>
+      <textarea [(ngModel)]="emailNote" maxlength="1000" placeholder="Shown above the invoice in the email"></textarea>
+    </div>
 
-      <button pButton type="submit"
-              label="Send"
-              icon="pi pi-send"
-              class="p-button-sm"
-              [disabled]="!emailToList.length || invalidEmails.length || sendingEmail">
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" [disabled]="sendingEmail" (click)="closeEmail()">Cancel</button>
+      <button type="button" class="btn btn-primary"
+              [disabled]="!emailToList.length || invalidEmails.length || sendingEmail"
+              (click)="sendInvoiceEmail()">
+        <i class="pi" [ngClass]="sendingEmail ? 'pi-spin pi-spinner' : 'pi-send'"></i>Send
       </button>
     </div>
-
-    <p-progressBar *ngIf="sendingEmail"
-                   mode="indeterminate"
-                   [style]="{ height: '.25rem' }"
-                   class="mt-2">
-    </p-progressBar>
-
-  </form>
-</p-overlayPanel>
+  </div>
+</div>

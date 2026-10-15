@@ -37,6 +37,15 @@ export class AccountingService {
     });
   }
 
+  rebuildInvoice(creditId: number) {
+    return this.api.post<{ invoiceNumber: string }>(
+      `API/accounting/credits/${creditId}/rebuild-invoice`,
+      {}
+    );
+  }
+
+
+
 
   //invoice/preview/
   getInvoicePdf(invoiceNumber: string): Observable<Blob> {

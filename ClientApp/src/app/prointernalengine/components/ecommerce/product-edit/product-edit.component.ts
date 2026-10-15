@@ -13,16 +13,23 @@
 // type a code, name, UPC/EAN or scan a barcode; "/" focuses it. Routes:
 // /products (finder) and /products/:id (one product). Embedded with
 // [productId] it works without a router.
+//
+// Market prices: "Convert from USD" fills a market's prices from the US prices
+// at the accepted exchange rate, plus the market's uplift and rounding. Rates
+// are pulled from the ECB on demand and used only once someone accepts them;
+// a rate can be typed by hand with a reason. Every market price change is
+// logged (PIV2_ProductPriceLog), and overriding a converted price needs a reason.
 
 import {
   Component, ElementRef, HostListener, Input, OnChanges, OnDestroy, OnInit, Optional, SimpleChanges, ViewChild
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, Subscription, of } from 'rxjs';
+import { Observable, Subject, Subscription, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map, switchMap, takeUntil, tap } from 'rxjs/operators';
 import {
-  ProductBrandOption, ProductContractService, ProductPageData, ProductSearchPage, ProductSearchQuery, ProductSearchRow,
-  ProductTranslateResult
+  ConvertPricesResult, ExchangeRate, ExchangeRateBoard, MarketOption, PriceAudit, PriceLogRow,
+  ProductBrandOption, ProductContractService, ProductPageData, ProductPricingAudit, ProductSearchPage, ProductSearchQuery,
+  ProductSearchRow, ProductTranslateResult
 } from 'src/app/services/product-contract.service';
 
 // ---- the form: the contract shape, with every field present so inputs can bind ----
@@ -44,7 +51,31 @@ interface PriceSet {
   dropShipCharge: Money;
 }
 
-interface MarketPrice extends PriceSet { country: string; }
+/* How a market's prices were made. Null = entered by hand before conversion existed. */
+interface MarketConversion {
+  method: 'CONVERTED' | 'MANUAL';
+  exchangeRateId: number | null;
+  unitsPerUsd: number | null;
+  rateDate: string | null;
+  upliftPercent: number | null;
+  sourceHash: string | null;
+}
+
+interface MarketPrice extends PriceSet {
+  country: string;
+  conversion: MarketConversion | null;
+  /* The method stored in SQL when the product was loaded: overriding a CONVERTED price needs a reason. */
+  savedMethod: 'CONVERTED' | 'MANUAL' | null;
+}
+
+/* NONE = typed before conversion existed; the rest describe a converted market. */
+type ConversionState = 'NONE' | 'CONVERTED' | 'MANUAL' | 'SOURCE_CHANGED' | 'RATE_MOVED';
+
+/* A converted market is flagged when today's rate is this far from the one it was converted at. */
+const RATE_MOVE_FLAG = 0.03;
+
+/* Converting on rates older than this asks first. */
+const RATE_AGE_DAYS = 7;
 
 interface ProductForm {
   productId: string;
@@ -219,9 +250,10 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
   /*
    * Markets PRO sells in: the US home market plus EMEA. Used for prices,
    * "where it is shown" and HS codes by importing country. The currency is
-   * the default for a new market's prices. To add a market, add a line here.
+   * the default for a new market's prices. Loaded from PIV2_Market (to add
+   * a market, add a row there); this list is only the fallback if that fails.
    */
-  readonly countries: { code: string; name: string; currency: string; locale: string }[] = [
+  countries: { code: string; name: string; currency: string; locale: string; upliftPercent?: number; roundTo?: number }[] = [
     { code: 'US', name: 'United States', currency: 'USD', locale: 'en' },
     { code: 'GB', name: 'United Kingdom', currency: 'GBP', locale: 'en-GB' },
     { code: 'DE', name: 'Germany', currency: 'EUR', locale: 'de' },
@@ -271,7 +303,20 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
   readonly documentTypes = ['INSTRUCTIONS', 'FAQ', 'SPEC_SHEET', 'WARRANTY', 'OTHER'];
 
   /* The home market: pricing on the product record itself. */
-  readonly homeCountry = 'US';
+  homeCountry = 'US';
+
+  // ---- exchange rates and conversion ----
+  rates: ExchangeRateBoard | null = null;
+  ratesBusy = false;
+  ratesError = '';
+  showRateHistory = false;
+  overrideRate = { currency: '', unitsPerUsd: null as number | null, reason: '', expiresOn: '' };
+  converting = false;
+
+  /* Why converted prices were overridden by hand; required when any were. */
+  priceReason = '';
+  priceHistory: PriceLogRow[] = [];
+  showPriceHistory = false;
 
   brandOptions: ProductBrandOption[] = [];
 
@@ -310,6 +355,13 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
       next: brands => (this.brandOptions = brands ?? []),
       error: error => console.error('Unable to load brands.', error)
     });
+
+    this.products.getMarkets().subscribe({
+      next: markets => this.applyMarkets(markets ?? []),
+      error: error => console.error('Unable to load markets; using the built-in list.', error)
+    });
+
+    this.loadRates();
 
     this.recent = this.readStore<RecentProduct[]>(RECENT_KEY, []);
     this.finder = { ...this.emptyFinder(), ...this.readStore<Partial<FinderState>>(FINDER_KEY, {}, true) };
@@ -725,7 +777,10 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
         this.activeLocale = this.content.defaultLocale || this.content.locales[0]?.locale || '';
         this.dirty = false;
         this.loading = false;
+        this.priceReason = '';
+        this.priceHistory = [];
         this.remember();
+        this.loadPricingAudit();
       },
 
       error: error => {
@@ -760,7 +815,8 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
         this.product.productId,
         this.productContract,
         this.contentContract,
-        this.product.supply.directMode === 'MARKER'
+        this.product.supply.directMode === 'MARKER',
+        this.priceAudit
       )
       .subscribe({
         next: result => {
@@ -892,7 +948,9 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
 
     if (!country) { return; }
 
-    this.product.marketPricing.push({ country: country.code, ...this.emptyPrices(country.currency) });
+    this.product.marketPricing.push({
+      country: country.code, ...this.emptyPrices(country.currency), conversion: null, savedMethod: null
+    });
     this.newMarketCountry = '';
     this.touch();
   }
@@ -901,6 +959,400 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
     this.product.marketPricing = this.product.marketPricing.filter(m => m !== market);
     this.touch();
   }
+
+  // ---- markets and exchange rates ----------------------------------------
+
+  /* Markets come from PIV2_Market: currency, language, uplift and rounding per market. */
+  private applyMarkets(markets: MarketOption[]): void {
+    if (!markets.length) { return; }
+
+    this.countries = markets.map(m => ({
+      code: m.country, name: m.name, currency: m.currency, locale: m.locale,
+      upliftPercent: m.upliftPercent, roundTo: m.roundTo
+    }));
+    this.homeCountry = markets.find(m => m.isHome)?.country ?? 'US';
+  }
+
+  loadRates(): void {
+    this.products.getExchangeRates().subscribe({
+      next: board => { this.rates = board; this.ratesError = ''; },
+      error: error => {
+        console.error('Unable to load exchange rates.', error);
+        this.ratesError = 'Exchange rates could not be loaded.';
+      }
+    });
+  }
+
+  /* Pulls the ECB file. New rates arrive PENDING: nothing is used until someone accepts them. */
+  refreshRates(): void {
+    this.rateCall(this.products.refreshExchangeRates(), board => {
+      const date = board.feedDate ? this.shortDate(board.feedDate) : 'the latest date';
+      this.showToast(board.added
+        ? `Pulled the ECB rates published ${date}: ${board.added} to review.`
+        : `No new rates: the ECB rates published ${date} are already here.`);
+    });
+  }
+
+  acceptRates(ids: number[]): void {
+    if (!ids.length) { return; }
+    this.rateCall(this.products.decideExchangeRates(ids, true), () =>
+      this.showToast(ids.length === 1 ? 'Rate accepted. Conversions now use it.' : `${ids.length} rates accepted. Conversions now use them.`));
+  }
+
+  acceptAllPending(): void {
+    this.acceptRates((this.rates?.pending ?? []).map(r => r.exchangeRateId));
+  }
+
+  rejectRate(rate: ExchangeRate): void {
+    const reason = prompt(`Why reject the ${rate.currency} rate? (optional)`, '');
+    if (reason === null) { return; }
+    this.rateCall(this.products.decideExchangeRates([rate.exchangeRateId], false, reason), () => this.showToast('Rate rejected.'));
+  }
+
+  get overrideCurrencies(): string[] {
+    return this.currencies.filter(c => c !== 'USD');
+  }
+
+  get overrideProblem(): string {
+    const o = this.overrideRate;
+    if (!o.currency) { return 'Choose a currency.'; }
+    if (!(Number(o.unitsPerUsd) > 0)) { return 'Enter how many units $1 buys.'; }
+    if (!o.reason.trim()) { return 'A reason is required.'; }
+    return '';
+  }
+
+  saveOverride(): void {
+    if (this.overrideProblem) { this.showToast(this.overrideProblem); return; }
+
+    const o = this.overrideRate;
+    this.rateCall(this.products.overrideExchangeRate({
+      currency: o.currency,
+      unitsPerUsd: Number(o.unitsPerUsd),
+      reason: o.reason.trim(),
+      expiresOn: o.expiresOn || null
+    }), () => {
+      this.showToast(`${o.currency} set to ${o.unitsPerUsd} per $1. Conversions now use it.`);
+      this.overrideRate = { currency: '', unitsPerUsd: null, reason: '', expiresOn: '' };
+    });
+  }
+
+  clearOverride(rate: ExchangeRate): void {
+    const reason = prompt(`Withdraw the manual ${rate.currency} rate? The last accepted ECB rate applies again.\nReason (optional):`, '');
+    if (reason === null) { return; }
+    this.rateCall(this.products.clearExchangeRate(rate.exchangeRateId, reason), () => this.showToast('Manual rate withdrawn.'));
+  }
+
+  private rateCall(call: Observable<ExchangeRateBoard>, done?: (board: ExchangeRateBoard) => void): void {
+    if (this.ratesBusy) { return; }
+
+    this.ratesBusy = true;
+    this.ratesError = '';
+
+    call.subscribe({
+      next: board => {
+        this.ratesBusy = false;
+        this.rates = board;
+        done?.(board);
+      },
+      error: error => {
+        this.ratesBusy = false;
+        console.error('Exchange rate action failed.', error);
+        this.ratesError = typeof error?.error === 'string' && error.error.length < 300
+          ? error.error
+          : error?.status === 403 ? 'You do not have permission to change exchange rates.' : 'The exchange rate action failed.';
+      }
+    });
+  }
+
+  /* The rate in force for a currency; USD is always 1. */
+  currentRate(currency: string): ExchangeRate | null {
+    if (currency === 'USD') { return null; }
+    return this.rates?.current.find(r => r.currency === currency) ?? null;
+  }
+
+  rateAgeDays(rate: ExchangeRate | null): number | null {
+    if (!rate?.rateDate) { return null; }
+    const published = new Date(rate.rateDate.substring(0, 10) + 'T00:00:00');
+    return Math.floor((Date.now() - published.getTime()) / 86400000);
+  }
+
+  /* Percent change a pending rate makes against the one in force. */
+  rateChange(rate: ExchangeRate): string {
+    if (!rate.currentUnitsPerUsd) { return 'first rate'; }
+    const pct = (rate.unitsPerUsd / rate.currentUnitsPerUsd - 1) * 100;
+    return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+  }
+
+  shortDate(value: string | null | undefined): string {
+    if (!value) { return '—'; }
+    const d = new Date(value.length <= 10 ? value + 'T00:00:00' : value);
+    return isNaN(d.getTime()) ? value : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // ---- converting market prices ---------------------------------------------
+
+  marketCurrency(m: MarketPrice): string {
+    return this.priceRows.map(row => m[row.key].currency).find(c => !!c)
+      || this.countries.find(c => c.code === m.country)?.currency
+      || 'USD';
+  }
+
+  /* Fingerprint of the US prices, to spot when they change after a conversion. */
+  get homePriceHash(): string {
+    const p = this.product.pricing;
+    const norm = (v: string) => (v && !isNaN(Number(v)) ? String(Number(v)) : (v || ''));
+
+    return this.fnv(JSON.stringify([
+      ...this.priceRows.map(row => [row.key, norm(p[row.key].amount), p[row.key].currency]),
+      p.cartonPrice.amount ? Number(p.cartonQuantity) || null : null
+    ]));
+  }
+
+  /* Every market the product is priced in or shown in, outside the home market. */
+  get convertTargets(): string[] {
+    const codes = [
+      ...this.product.marketPricing.map(m => m.country),
+      ...this.content.markets
+    ].filter(c => c !== this.homeCountry && this.countries.some(x => x.code === c));
+
+    return [...new Set(codes)];
+  }
+
+  get hasHomePrice(): boolean {
+    return this.priceRows.some(row => !!this.product.pricing[row.key].amount);
+  }
+
+  convertAll(): void { this.runConvert(this.convertTargets); }
+
+  convertMarket(market: MarketPrice): void { this.runConvert([market.country]); }
+
+  private runConvert(countries: string[]): void {
+    if (this.converting || !countries.length) { return; }
+
+    if (!this.hasHomePrice) {
+      this.showToast('There is no US price to convert from.');
+      return;
+    }
+
+    // Prices typed by hand are only replaced with a yes.
+    const typed = this.product.marketPricing.filter(m =>
+      countries.includes(m.country) &&
+      m.conversion?.method !== 'CONVERTED' &&
+      this.priceRows.some(row => !!m[row.key].amount));
+
+    if (typed.length && !confirm(`Replace the prices typed by hand for ${typed.map(m => this.countryName(m.country)).join(', ')} with converted ones?`)) {
+      return;
+    }
+
+    // Old rates are allowed, but only knowingly.
+    const currencies = [...new Set(countries.map(c => this.countries.find(x => x.code === c)?.currency).filter((c): c is string => !!c && c !== 'USD'))];
+    const old = currencies
+      .map(c => this.currentRate(c))
+      .filter((r): r is ExchangeRate => !!r && (this.rateAgeDays(r) ?? 0) > RATE_AGE_DAYS);
+
+    if (old.length && !confirm(`Rates in use: ${old.map(r => `${r.currency} from ${this.shortDate(r.rateDate)}`).join(', ')}. Convert anyway? (Cancel, then Refresh rates, to use newer ones.)`)) {
+      return;
+    }
+
+    const source: Record<string, { amount: string; currency: string }> = {};
+    for (const row of this.priceRows) {
+      const m = this.product.pricing[row.key];
+      if (m.amount) { source[row.key] = { amount: m.amount, currency: m.currency }; }
+    }
+
+    const hash = this.homePriceHash;
+    this.converting = true;
+
+    this.products.convertPrices({ source, countries }).subscribe({
+      next: result => {
+        this.converting = false;
+        this.applyConversions(result, hash);
+      },
+      error: error => {
+        this.converting = false;
+        console.error('Conversion failed.', error);
+        this.showToast(typeof error?.error === 'string' && error.error.length < 300 ? error.error : 'Conversion failed. Try again.');
+      }
+    });
+  }
+
+  private applyConversions(result: ConvertPricesResult, sourceHash: string): void {
+    const home = this.product.pricing;
+
+    for (const r of result.results ?? []) {
+      let market = this.product.marketPricing.find(m => m.country === r.country);
+
+      if (!market) {
+        market = { country: r.country, ...this.emptyPrices(r.currency), conversion: null, savedMethod: null };
+        this.product.marketPricing.push(market);
+      }
+
+      for (const row of this.priceRows) {
+        const price = r.prices?.[row.key];
+        market[row.key] = price ? { amount: price.amount, currency: price.currency } : this.emptyMoney(r.currency);
+      }
+
+      market.cartonQuantity = market.cartonPrice.amount ? home.cartonQuantity : null;
+
+      market.conversion = {
+        method: r.exchangeRateId ? 'CONVERTED' : 'MANUAL',
+        exchangeRateId: r.exchangeRateId,
+        unitsPerUsd: r.unitsPerUsd,
+        rateDate: r.rateDate,
+        upliftPercent: r.upliftPercent,
+        sourceHash
+      };
+    }
+
+    if ((result.results ?? []).length) { this.touch(); }
+
+    const done = (result.results ?? []).map(r => this.countryName(r.country));
+    const failed = (result.failures ?? []).map(f => `${this.countryName(f.country)}: ${f.message}`);
+
+    this.showToast([
+      done.length ? `Converted: ${done.join(', ')}. Check, then save.` : '',
+      failed.length ? `Not converted: ${failed.join('; ')}` : ''
+    ].filter(Boolean).join(' '));
+  }
+
+  /* A typed change to a converted price makes it a manual override. */
+  priceEdited(market?: MarketPrice | null): void {
+    if (market?.conversion?.method === 'CONVERTED') {
+      market.conversion = { ...market.conversion, method: 'MANUAL' };
+    }
+    this.touch();
+  }
+
+  /* Saved as converted, now changed by hand: these need a reason. */
+  get overriddenMarkets(): MarketPrice[] {
+    return this.product.marketPricing.filter(m => m.savedMethod === 'CONVERTED' && m.conversion?.method === 'MANUAL');
+  }
+
+  conversionState(m: MarketPrice): ConversionState {
+    const c = m.conversion;
+
+    if (!c) { return 'NONE'; }
+    if (c.method === 'MANUAL') { return 'MANUAL'; }
+    if (c.sourceHash && c.sourceHash !== this.homePriceHash) { return 'SOURCE_CHANGED'; }
+
+    const now = this.currentRate(this.marketCurrency(m));
+    if (now && c.unitsPerUsd && Math.abs(now.unitsPerUsd / c.unitsPerUsd - 1) > RATE_MOVE_FLAG) { return 'RATE_MOVED'; }
+
+    return 'CONVERTED';
+  }
+
+  conversionLabel(m: MarketPrice): string {
+    const c = m.conversion;
+
+    switch (this.conversionState(m)) {
+      case 'CONVERTED': return `Converted at ${c?.unitsPerUsd} · ${this.shortDate(c?.rateDate)}${c?.upliftPercent ? ` · +${c.upliftPercent}%` : ''}`;
+      case 'SOURCE_CHANGED': return 'Converted · US price changed since';
+      case 'RATE_MOVED': return 'Converted · rate has moved';
+      case 'MANUAL': return 'Set by hand';
+      default: return '';
+    }
+  }
+
+  conversionColor(m: MarketPrice): { fg: string; bg: string } {
+    switch (this.conversionState(m)) {
+      case 'CONVERTED': return { fg: this.P.green, bg: this.P.greenSoft };
+      case 'MANUAL': return { fg: this.P.violet, bg: this.P.violetSoft };
+      default: return { fg: this.P.amber, bg: this.P.amberSoft };
+    }
+  }
+
+  /* Sent with the save: how each market was priced, and why converted prices were overridden. */
+  get priceAudit(): PriceAudit {
+    return {
+      reason: this.priceReason.trim() || null,
+      markets: this.product.marketPricing.map(m => ({
+        country: m.country,
+        method: m.conversion?.method ?? 'MANUAL',
+        exchangeRateId: m.conversion?.exchangeRateId ?? null,
+        upliftPercent: m.conversion?.upliftPercent ?? null,
+        sourceHash: m.conversion?.sourceHash ?? null
+      }))
+    };
+  }
+
+  private loadPricingAudit(): void {
+    const id = this.product.productId;
+    if (!id) { return; }
+
+    this.products.getPricingAudit(id).subscribe({
+      next: (audit: ProductPricingAudit) => {
+        if (String(this.product.productId) !== String(id)) { return; }
+
+        for (const meta of audit.markets ?? []) {
+          const market = this.product.marketPricing.find(m => m.country === meta.country);
+          if (!market) { continue; }
+
+          market.savedMethod = meta.method;
+          market.conversion = meta.method
+            ? {
+              method: meta.method,
+              exchangeRateId: meta.exchangeRateId,
+              unitsPerUsd: meta.unitsPerUsd,
+              rateDate: meta.rateDate,
+              upliftPercent: meta.upliftPercent,
+              sourceHash: meta.sourceHash
+            }
+            : null;
+        }
+
+        this.priceHistory = audit.history ?? [];
+      },
+      error: error => console.error('Unable to load the price history.', error)
+    });
+  }
+
+  // ---- foreign prices beside US prices (display only, never saved) -----------
+
+  /* Currencies to show beside the US prices: those of markets it is shown or priced in, with a rate. */
+  get equivalentCurrencies(): string[] {
+    const codes = new Set([...this.content.markets, ...this.product.marketPricing.map(m => m.country)]);
+    const list = this.countries
+      .filter(c => c.code !== this.homeCountry && codes.has(c.code))
+      .map(c => c.currency)
+      .filter(c => c !== 'USD' && !!this.currentRate(c));
+
+    return [...new Set(list)];
+  }
+
+  /* A US price at today's rate: straight conversion, no uplift or rounding. */
+  equivalent(key: MoneyKey, currency: string): string {
+    const amount = Number(this.product.pricing[key].amount);
+    const rate = this.currentRate(currency);
+
+    if (!this.product.pricing[key].amount || isNaN(amount) || !rate) { return '—'; }
+    return (amount * rate.unitsPerUsd).toFixed(2);
+  }
+
+  /* A market price back in US dollars at today's rate, to compare with the US price. */
+  usdEquivalent(market: MarketPrice, key: MoneyKey): string {
+    const money = market[key];
+    const amount = Number(money.amount);
+
+    if (!money.amount || isNaN(amount)) { return ''; }
+    if (money.currency === 'USD') { return ''; }
+
+    const rate = this.currentRate(money.currency);
+    if (!rate) { return ''; }
+
+    return `≈ $${(amount / rate.unitsPerUsd).toFixed(2)} at today's rate`;
+  }
+
+  priceKeyLabel(key: string): string {
+    if (key === 'cartonQuantity') { return 'Carton quantity'; }
+    return this.priceRows.find(r => r.key === key)?.label ?? key;
+  }
+
+  logAmount(value: number | null, currency: string | null): string {
+    if (value === null || value === undefined) { return '—'; }
+    return currency ? `${Number(value).toFixed(2)} ${currency}` : String(Number(value));
+  }
+
+  trackRate(_: number, r: ExchangeRate): number { return r.exchangeRateId; }
 
   // ---- reorder ---------------------------------------------------------
 
@@ -1212,6 +1664,11 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
       l.features, l.specs.map(s => [s.label, s.value]), l.outOfStockMessage
     ].map(v => (typeof v === 'string' ? v.trim() : v)));
 
+    return this.fnv(text);
+  }
+
+  /* FNV-1a: a short fingerprint, to spot when a source has changed. */
+  private fnv(text: string): string {
     let hash = 0x811c9dc5;
     for (let i = 0; i < text.length; i++) {
       hash ^= text.charCodeAt(i);
@@ -1307,6 +1764,10 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
       }
     }
 
+    if (this.overriddenMarkets.length && !this.priceReason.trim()) {
+      add('pricing', `Say why the converted prices for ${this.overriddenMarkets.map(m => this.countryName(m.country)).join(', ')} were changed by hand.`);
+    }
+
     const costs: [string, Money][] = [
       ['Distributor cost', p.pricing.distributorCost],
       ['Landed cost', p.pricing.landedCost],
@@ -1383,6 +1844,20 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
       notes.push(`Distributor cost is in ${p.pricing.distributorCost.currency}. A vendor cost formula based on it needs converting first.`);
     }
     if (!p.returns.defectiveDisposition) { notes.push('No instruction for defective units.'); }
+
+    for (const m of p.marketPricing) {
+      const state = this.conversionState(m);
+
+      if (state === 'SOURCE_CHANGED') {
+        notes.push(`${this.countryName(m.country)}: the US prices changed after these were converted. Convert again or check them.`);
+      } else if (state === 'RATE_MOVED') {
+        notes.push(`${this.countryName(m.country)}: the ${this.marketCurrency(m)} rate has moved more than ${RATE_MOVE_FLAG * 100}% since these were converted.`);
+      }
+    }
+
+    if (this.rates?.pending.length) {
+      notes.push(`${this.rates.pending.length} pulled exchange rate(s) are waiting to be accepted or rejected (Pricing).`);
+    }
 
     for (const l of this.content.locales) {
       if (l.translation?.method === 'AI' && l.locale !== this.content.defaultLocale) {
@@ -1475,7 +1950,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
         const first = this.priceRows.map(row => m[row.key]?.currency).find((value: string) => !!value);
         const currency = first || this.countries.find(c => c.code === m.country)?.currency || 'USD';
 
-        return { country: m.country, ...this.pricesIn(m, currency) };
+        return { country: m.country, ...this.pricesIn(m, currency), conversion: null, savedMethod: null };
       }),
       supply: {
         directMode: page.followsInventoryMarker ? 'MARKER' : (supply.directVendorShip ? 'DIRECT' : 'WAREHOUSE'),
