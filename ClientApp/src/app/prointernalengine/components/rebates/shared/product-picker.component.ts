@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
 import { Subject, Subscription, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
-import { Rail, RebateDeskService } from 'src/app/services/rebate-desk.service';
+import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.service';
 
 /* Finds a rebate product (model) by description, PRO code or id, on one rail. */
 @Component({
@@ -10,7 +10,9 @@ import { Rail, RebateDeskService } from 'src/app/services/rebate-desk.service';
     <div class="typeahead">
       <input class="in" [placeholder]="placeholder" [(ngModel)]="text" (ngModelChange)="search$.next($event)"
              (focus)="open = true" (blur)="closeSoon()" />
-      <div class="options" *ngIf="open && options.length">
+      <div class="options" *ngIf="open && (error || searched)">
+        <div class="opt sub" *ngIf="error" style="color: #b42318">Search failed: {{ error }}</div>
+        <div class="opt sub" *ngIf="!error && !options.length">No rebate products match "{{ text }}".</div>
         <div class="opt" *ngFor="let p of options" (mousedown)="choose(p)">
           <b>{{ p.description }}</b>
           <span class="sub"> · #{{ p.modelId }} · PRO {{ p.proCodes || p.proCodeText }} · {{ p.vendorName }}</span>
@@ -32,6 +34,8 @@ export class RebateProductPickerComponent implements OnDestroy {
   text = '';
   open = false;
   options: any[] = [];
+  error = '';
+  searched = false;
   search$ = new Subject<string>();
   private sub: Subscription;
 
@@ -40,9 +44,14 @@ export class RebateProductPickerComponent implements OnDestroy {
       debounceTime(250),
       distinctUntilChanged(),
       switchMap(q => (q && q.trim().length >= 2)
-        ? this.desk.products(this.rail, { q: q.trim(), vendorId: this.vendorId, pageSize: 20 }).pipe(catchError(() => of({ total: 0, rows: [] })))
-        : of({ total: 0, rows: [] }))
-    ).subscribe(r => (this.options = r.rows));
+        ? this.desk.products(this.rail, { q: q.trim(), vendorId: this.vendorId, pageSize: 20 }).pipe(
+            catchError(e => of({ total: 0, rows: [], error: apiMessage(e) })))
+        : of({ total: 0, rows: [], idle: true }))
+    ).subscribe((r: any) => {
+      this.options = r.rows ?? [];
+      this.error = r.error ?? '';
+      this.searched = !r.idle;
+    });
   }
 
   choose(p: any): void {

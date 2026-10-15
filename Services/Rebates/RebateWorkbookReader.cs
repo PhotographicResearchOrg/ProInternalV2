@@ -1,4 +1,4 @@
-using OfficeOpenXml;
+using Spire.Xls;
 using ProInternal.Models.Rebates;
 using System;
 using System.Collections.Generic;
@@ -34,36 +34,29 @@ namespace ProInternal.Services.Rebates
             var ext = Path.GetExtension(fileName ?? "").ToLowerInvariant();
             if (ext == ".csv" || ext == ".txt")
                 return new List<RebateSheet> { ReadCsv(content) };
-            if (ext == ".xls")
-                throw new RebateFileException("This is an old .xls file. Open it in Excel, save it as .xlsx, and upload that.");
-            if (ext != ".xlsx" && ext != ".xlsm")
-                throw new RebateFileException("Upload an Excel file (.xlsx) or a .csv file.");
+            if (ext != ".xlsx" && ext != ".xlsm" && ext != ".xls")
+                throw new RebateFileException("Upload an Excel file (.xlsx or .xls) or a .csv file.");
 
             var sheets = new List<RebateSheet>();
             try
             {
-                using var package = new ExcelPackage(content);
-                foreach (var ws in package.Workbook.Worksheets)
+                /* Spire.XLS, licensed on the server. Reads .xls as well as .xlsx. */
+                var workbook = new Workbook();
+                workbook.LoadFromStream(content);
+                foreach (Worksheet ws in workbook.Worksheets)
                 {
-                    if (ws.Hidden != eWorkSheetHidden.Visible || ws.Dimension == null)
+                    if (ws.Visibility != WorksheetVisibility.Visible || ws.LastRow < 1 || ws.LastColumn < 1)
                         continue;
 
                     var sheet = new RebateSheet { Name = ws.Name };
-                    var lastRow = Math.Min(ws.Dimension.End.Row, MaxRows + HeaderScanRows);
-                    var lastCol = Math.Min(ws.Dimension.End.Column, MaxColumns);
+                    var lastRow = Math.Min(ws.LastRow, MaxRows + HeaderScanRows);
+                    var lastCol = Math.Min(ws.LastColumn, MaxColumns);
 
                     for (var r = 1; r <= lastRow; r++)
                     {
                         var cells = new object?[lastCol];
                         for (var c = 1; c <= lastCol; c++)
-                        {
-                            var cell = ws.Cells[r, c];
-                            object? value = cell.Value;
-                            /* Dates kept as numbers by Excel but formatted as dates. */
-                            if (value is double d && cell.Style.Numberformat.Format is { } fmt && LooksLikeDateFormat(fmt) && d > 20000 && d < 80000)
-                                value = DateTime.FromOADate(d);
-                            cells[c - 1] = value;
-                        }
+                            cells[c - 1] = CellValue(ws.Range[r, c]);
                         sheet.Rows.Add(cells);
                     }
                     sheets.Add(sheet);
@@ -83,11 +76,24 @@ namespace ProInternal.Services.Rebates
             return sheets;
         }
 
-        private static bool LooksLikeDateFormat(string format)
+        /* The cell's value as Excel shows it: a date for date cells, a number for numbers, formula results resolved. */
+        private static object? CellValue(CellRange cell)
         {
-            var f = format.ToLowerInvariant();
-            return (f.Contains('d') || f.Contains('y')) && !f.Contains('#') && !f.Contains('0');
+            if (cell.HasFormula)
+            {
+                if (cell.HasFormulaDateTime) return cell.FormulaDateTime;
+                if (cell.HasFormulaNumberValue) return cell.FormulaNumberValue;
+                if (cell.HasFormulaBoolValue) return cell.FormulaBoolValue;
+                return NullIfEmpty(cell.FormulaStringValue);
+            }
+            if (cell.IsBlank) return null;
+            if (cell.HasDateTime) return cell.DateTimeValue;
+            if (cell.HasNumber) return cell.NumberValue;
+            if (cell.HasBoolean) return cell.BooleanValue;
+            return NullIfEmpty(cell.Value);
         }
+
+        private static string? NullIfEmpty(string? text) => string.IsNullOrEmpty(text) ? null : text;
 
         private static RebateSheet ReadCsv(Stream content)
         {

@@ -14,7 +14,7 @@
 
     <div class="filters">
       <input class="in" placeholder="Product, PRO code, vendor{{ rail === 'IR' ? ', program or batch #' : ', program #' }}"
-             [(ngModel)]="filter.q" (keyup.enter)="go(1)" />
+             [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
       <select class="in" style="max-width: 220px" [(ngModel)]="filter.vendorId" (ngModelChange)="go(1)" *ngIf="!modelId">
         <option [ngValue]="null">All vendors</option>
         <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>

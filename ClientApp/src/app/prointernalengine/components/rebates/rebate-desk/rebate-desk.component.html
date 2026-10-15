@@ -328,7 +328,7 @@
           <section class="card">
             <div class="card-head"><h2>Batches</h2><span class="sub">{{ batchTotal }} found · a batch is one load, managed together</span></div>
             <div class="filters">
-              <input class="in" placeholder="Batch # or vendor" [(ngModel)]="batchFilter.q" (keyup.enter)="loadBatches(1)" />
+              <input class="in" placeholder="Batch # or vendor" [(ngModel)]="batchFilter.q" (ngModelChange)="searchSoon()" (keyup.enter)="loadBatches(1)" />
               <select class="in" style="max-width: 220px" [(ngModel)]="batchFilter.vendorId" (ngModelChange)="loadBatches(1)">
                 <option [ngValue]="null">All vendors</option>
                 <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>

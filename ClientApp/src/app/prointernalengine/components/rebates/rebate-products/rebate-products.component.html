@@ -10,7 +10,7 @@
       <button type="button" class="btn primary" (click)="startNew()"><i class="pi pi-plus"></i> New product</button>
     </div>
     <div class="filters">
-      <input class="in" placeholder="Description, PRO code or product #" [(ngModel)]="filter.q" (keyup.enter)="go(1)" />
+      <input class="in" placeholder="Description, PRO code or product #" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
       <select class="in" style="max-width: 220px" [(ngModel)]="filter.vendorId" (ngModelChange)="go(1)">
         <option [ngValue]="null">All vendors</option>
         <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>

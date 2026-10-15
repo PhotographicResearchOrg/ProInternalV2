@@ -10,7 +10,7 @@ All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.Rebate
 
 ## How an upload works
 
-1. **Vendor and file.** `.xlsx` or `.csv`. The original is stored unchanged on S3 through the file library (category `REBATE_SOURCE`, owner = vendor). The same file twice for a vendor is refused.
+1. **Vendor and file.** `.xlsx`, `.xls` or `.csv`, read with Spire.XLS (licensed on the server). The original is stored unchanged on S3 through the file library (category `REBATE_SOURCE`, owner = vendor). The same file twice for a vendor is refused.
 2. **Columns.** The desk finds the header row (title rows above it are skipped) and fingerprints the header names.
    - **Saved layout:** the vendor sent these headers before; the confirmed mapping is reused.
    - **AI:** otherwise Claude on Bedrock proposes the mapping from the headers and a few sample rows.
@@ -149,6 +149,7 @@ The nightly `RebateCredits` program is unchanged: it still sends approved claims
    - `04-rebate-programs.sql`
    - `05-rebate-vendors.sql`
    - `07-rebate-claims.sql`
+   - `08-rebate-search-indexes.sql` (indexes on legacy rebate tables for searches and claims; skips any that already exist; run outside busy hours)
    
    `02`, `03` and `07` read `[PRO].dbo.Product` (PRO codes, catalog numbers, UPCs); nothing reads Computyme's IVMST. `07` also reads `dbo.Rebate_EDA_ARHist` (the EDA database). The API's database user needs SELECT on those in PRO and EDA.
 
@@ -178,7 +179,7 @@ The old screens (`/rebatesupport`, `/uploadrebates`, `/rebatesetup`) still work.
 
 - Mapping: 25 cases pass, including the dates printed in the Nanuk, ONA, OMDS and DZO files and SKU/UPC parsing. All six vendor files you sent were also run through the reader and header-name matching (without AI). SKU, UPC, description, dealer credit/reimbursement, MAP and dates map on OMDS, Nanuk, ONA and SmallRig. DZO needs its MSRP/promo columns named, and Panasonic needs reshaping from weekly columns.
 - Earlier (before the vendor-file work): mapping, 17 cases passed. They cover the PIV2 template; a vendor sheet with title rows, `$` amounts, Excel serial dates and type names; "Vendor" not mistaken for an end date; footer totals dropped; CSV with quoted commas; `.xls` refused; AI answers with duplicates or out-of-range columns.
-- The C# compiles against .NET 10 with stand-ins for Dapper, EPPlus, Bedrock, S3 and the SQL client. The full project was not compiled: NuGet is blocked here.
+- The C# compiles against .NET 10 with stand-ins for Dapper, Spire.XLS, Bedrock, S3 and the SQL client. The full project was not compiled: NuGet is blocked here.
 - The Angular development build succeeds, with no warnings in the new files.
 - All SQL parses as T-SQL (sqlfluff). It was not run against a database.
 - The credit invoice layout was checked by rendering the template with sample data, using the same field positions and row logic in a Python copy. The C# version uses PDFsharp, which is not available here, so it is compiled against stand-ins only.

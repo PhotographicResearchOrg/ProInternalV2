@@ -72,7 +72,8 @@ BEGIN
             OR CAST(p.ProgramID AS nvarchar(20)) = @Q
             OR CAST(p.BatchID AS nvarchar(20)) = @Q)
      ORDER BY p.ProgramStartWeek DESC, m.ModelNumber
-     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY;
+     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
+    OPTION (RECOMPILE);
 END
 GO
 
@@ -265,7 +266,8 @@ BEGIN
             OR v.VendorName LIKE N'%' + @Q + N'%'
             OR CAST(p.ProgramID AS nvarchar(20)) = @Q)
      ORDER BY p.ProgramDate DESC, m.ModelNumber
-     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY;
+     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
+    OPTION (RECOMPILE);
 END
 GO
 

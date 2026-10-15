@@ -74,7 +74,8 @@ BEGIN
             OR EXISTS (SELECT 1 FROM dbo.RebateCameraModelsDetails d
                         WHERE d.ParentModelID = m.ModelID AND CAST(d.ProCode AS nvarchar(20)) = @Q))
      ORDER BY COALESCE(m.Active, 0) DESC, m.ModelNumber
-     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY;
+     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
+    OPTION (RECOMPILE);
 END
 GO
 

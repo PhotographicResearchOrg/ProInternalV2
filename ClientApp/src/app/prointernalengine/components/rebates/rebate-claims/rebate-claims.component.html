@@ -6,7 +6,7 @@
   <section class="card">
     <div class="card-head"><h2>{{ rail === 'PP' ? 'Price-protection claims' : 'Instant-rebate claims' }}</h2><span class="sub">{{ total }} found</span></div>
     <div class="filters">
-      <input class="in" placeholder="Claim #, member # or debit memo" [(ngModel)]="filter.q" (keyup.enter)="go(1)" />
+      <input class="in" placeholder="Claim #, member # or debit memo" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
       <select class="in" style="max-width: 200px" [(ngModel)]="filter.vendorId" (ngModelChange)="go(1)">
         <option [ngValue]="null">All vendors</option>
         <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>

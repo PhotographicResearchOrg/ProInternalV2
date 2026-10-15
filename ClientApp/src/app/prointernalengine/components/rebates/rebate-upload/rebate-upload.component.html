@@ -9,7 +9,7 @@
 <!-- Step 1 -->
 <section class="card" *ngIf="step === 1">
   <div class="card-head"><h2>New instant-rebate upload</h2>
-    <span class="sub">Excel (.xlsx) or .csv, any layout. The original is kept.</span></div>
+    <span class="sub">Excel (.xlsx or .xls) or .csv, any layout. The original is kept.</span></div>
   <div class="field-grid">
     <label>Vendor
       <select class="in" [(ngModel)]="vendorId">
@@ -18,7 +18,7 @@
       </select>
     </label>
     <label>File
-      <input class="in" type="file" accept=".xlsx,.xlsm,.csv" (change)="pickFile($event)" />
+      <input class="in" type="file" accept=".xlsx,.xlsm,.xls,.csv" (change)="pickFile($event)" />
     </label>
   </div>
   <div class="hint">The desk finds the header row, then uses this vendor's saved layout if it has seen it before;

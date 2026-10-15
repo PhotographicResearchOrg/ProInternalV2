@@ -49,6 +49,13 @@ export class RebateClaimsComponent implements OnChanges {
   error = '';
   notice = '';
 
+    /* Search as you type: runs a moment after the last key. */
+  private searchTimer: any;
+  searchSoon(): void {
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.go(1), 350);
+  }
+
   constructor(private desk: RebateDeskService) {}
 
   ngOnChanges(changes: SimpleChanges): void {

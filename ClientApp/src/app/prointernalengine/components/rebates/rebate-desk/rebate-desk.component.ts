@@ -115,6 +115,13 @@ export class RebateDeskComponent implements OnInit {
   error = '';
   notice = '';
 
+    /* Search as you type: runs a moment after the last key. */
+  private searchTimer: any;
+  searchSoon(): void {
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.loadBatches(1), 350);
+  }
+
   constructor(
     private desk: RebateDeskService,
     private data: DataService,

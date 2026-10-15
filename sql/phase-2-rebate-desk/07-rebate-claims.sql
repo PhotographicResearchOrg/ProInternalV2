@@ -66,6 +66,61 @@ BEGIN
     DECLARE @qInt int = TRY_CAST(@Q AS int);
     DECLARE @toEx datetime = DATEADD(day, 1, CAST(@To AS datetime));
 
+    /* A debit memo number searches the decisions first; anything else is a claim or member number. */
+    CREATE TABLE #dm (OrderId int NOT NULL PRIMARY KEY);
+    IF @Q IS NOT NULL AND @qInt IS NULL
+    BEGIN
+        IF @Rail = 'PP'
+            INSERT #dm SELECT DISTINCT OrderID FROM dbo.PriceProtectionProcess WHERE DM = @Q AND OrderID IS NOT NULL;
+        ELSE
+            INSERT #dm SELECT DISTINCT OrderID FROM dbo.RebateProcess WHERE DM = @Q AND OrderID IS NOT NULL;
+    END
+
+    /* Claims first (one pass over the redeem lines), then the latest decision for just those claims. */
+    CREATE TABLE #r
+    (
+        OrderId int NOT NULL PRIMARY KEY, MemberId int NULL, VendorId int NULL, VendorName nvarchar(200) NULL,
+        ClaimDate datetime NULL, Lines int NOT NULL, Units int NULL, Amount decimal(19,2) NOT NULL, Memo nvarchar(100) NULL
+    );
+
+    IF @Rail = 'PP'
+        INSERT #r
+        SELECT r.ORDERID, MAX(r.MemberID), MIN(m.VendorID), MIN(v.VendorName), MIN(r.Date), COUNT(*), SUM(r.Quantity),
+               SUM(CAST(COALESCE(r.Net, 0) AS decimal(19,2))), MAX(r.debit)
+          FROM dbo.PriceProtectionRedeem r
+          LEFT JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
+          LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
+         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL
+           AND (@VendorId IS NULL OR m.VendorID = @VendorId)
+           AND (@From IS NULL OR r.Date >= @From)
+           AND (@To IS NULL OR r.Date < @toEx)
+           AND (@Q IS NULL OR r.ORDERID = @qInt OR r.MemberID = @qInt OR r.ORDERID IN (SELECT OrderId FROM #dm))
+         GROUP BY r.ORDERID
+        OPTION (RECOMPILE);
+    ELSE
+        INSERT #r
+        SELECT r.ORDERID, MAX(r.MemberID), MIN(m.VendorID), MIN(v.VendorName), MIN(r.Date), COUNT(*), SUM(r.Quantity),
+               SUM(CAST(COALESCE(r.Net, 0) AS decimal(19,2))), MAX(r.debit)
+          FROM dbo.RebateRedeem r
+          LEFT JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
+          LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
+         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL
+           AND (@VendorId IS NULL OR m.VendorID = @VendorId)
+           AND (@From IS NULL OR r.Date >= @From)
+           AND (@To IS NULL OR r.Date < @toEx)
+           AND (@Q IS NULL OR r.ORDERID = @qInt OR r.MemberID = @qInt OR r.ORDERID IN (SELECT OrderId FROM #dm))
+         GROUP BY r.ORDERID
+        OPTION (RECOMPILE);
+
+    /* Claims the nightly program built an invoice for (IR): read RebateProcessBatch once, not per claim. */
+    CREATE TABLE #inv (OrderId int NOT NULL PRIMARY KEY);
+    IF @Rail <> 'PP'
+        INSERT #inv
+        SELECT DISTINCT o.OrderId
+          FROM (SELECT TRY_CAST(LTRIM(RTRIM(CAST(b.OrderID AS varchar(50)))) AS int) AS OrderId
+                  FROM dbo.RebateProcessBatch b WHERE b.Invoiced = 1) o
+          JOIN #r r ON r.OrderId = o.OrderId;
+
     CREATE TABLE #c
     (
         OrderId int NOT NULL PRIMARY KEY, MemberId int NULL, VendorId int NULL, VendorName nvarchar(200) NULL,
@@ -75,45 +130,22 @@ BEGIN
     );
 
     IF @Rail = 'PP'
-    BEGIN
-        WITH p AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY ID DESC) AS rn FROM dbo.PriceProtectionProcess)
         INSERT #c
-        SELECT r.ORDERID, MAX(r.MemberID), MIN(m.VendorID), MIN(v.VendorName), MIN(r.Date), COUNT(*), SUM(r.Quantity),
-               SUM(CAST(COALESCE(r.Net, 0) AS decimal(19,2))), p.Status, p.timeEnd, p.[User], p.Locked,
-               NULLIF(LTRIM(RTRIM(p.DM)), ''), p.ComputymeProcessed,
-               CAST(CASE WHEN p.InvoiceGenerated = 1 THEN 1 ELSE 0 END AS bit), MAX(r.debit)
-          FROM dbo.PriceProtectionRedeem r
-          LEFT JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
-          LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
-          LEFT JOIN p ON p.OrderID = r.ORDERID AND p.rn = 1
-         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL
-           AND (@VendorId IS NULL OR m.VendorID = @VendorId)
-           AND (@From IS NULL OR r.Date >= @From)
-           AND (@To IS NULL OR r.Date < @toEx)
-           AND (@Q IS NULL OR r.ORDERID = @qInt OR r.MemberID = @qInt OR p.DM = @Q)
-         GROUP BY r.ORDERID, p.Status, p.timeEnd, p.[User], p.Locked, p.DM, p.ComputymeProcessed, p.InvoiceGenerated;
-    END
+        SELECT r.OrderId, r.MemberId, r.VendorId, r.VendorName, r.ClaimDate, r.Lines, r.Units, r.Amount,
+               p.Status, p.timeEnd, p.[User], p.Locked, NULLIF(LTRIM(RTRIM(p.DM)), ''), p.ComputymeProcessed,
+               CAST(CASE WHEN p.InvoiceGenerated = 1 THEN 1 ELSE 0 END AS bit), r.Memo
+          FROM #r r
+          OUTER APPLY (SELECT TOP (1) x.Status, x.timeEnd, x.[User], x.Locked, x.DM, x.ComputymeProcessed, x.InvoiceGenerated
+                         FROM dbo.PriceProtectionProcess x WHERE x.OrderID = r.OrderId ORDER BY x.ID DESC) p;
     ELSE
-    BEGIN
-        WITH p AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY ID DESC) AS rn FROM dbo.RebateProcess)
         INSERT #c
-        SELECT r.ORDERID, MAX(r.MemberID), MIN(m.VendorID), MIN(v.VendorName), MIN(r.Date), COUNT(*), SUM(r.Quantity),
-               SUM(CAST(COALESCE(r.Net, 0) AS decimal(19,2))), p.Status, p.timeEnd, p.[User], p.Locked,
-               NULLIF(LTRIM(RTRIM(p.DM)), ''), p.ComputymeProcessed,
-               CAST(CASE WHEN EXISTS (SELECT 1 FROM dbo.RebateProcessBatch b
-                                       WHERE b.OrderID = CAST(r.ORDERID AS varchar(25)) AND b.Invoiced = 1) THEN 1 ELSE 0 END AS bit),
-               MAX(r.debit)
-          FROM dbo.RebateRedeem r
-          LEFT JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
-          LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
-          LEFT JOIN p ON p.OrderID = r.ORDERID AND p.rn = 1
-         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL
-           AND (@VendorId IS NULL OR m.VendorID = @VendorId)
-           AND (@From IS NULL OR r.Date >= @From)
-           AND (@To IS NULL OR r.Date < @toEx)
-           AND (@Q IS NULL OR r.ORDERID = @qInt OR r.MemberID = @qInt OR p.DM = @Q)
-         GROUP BY r.ORDERID, p.Status, p.timeEnd, p.[User], p.Locked, p.DM, p.ComputymeProcessed;
-    END
+        SELECT r.OrderId, r.MemberId, r.VendorId, r.VendorName, r.ClaimDate, r.Lines, r.Units, r.Amount,
+               p.Status, p.timeEnd, p.[User], p.Locked, NULLIF(LTRIM(RTRIM(p.DM)), ''), p.ComputymeProcessed,
+               CAST(CASE WHEN i.OrderId IS NULL THEN 0 ELSE 1 END AS bit), r.Memo
+          FROM #r r
+          OUTER APPLY (SELECT TOP (1) x.Status, x.timeEnd, x.[User], x.Locked, x.DM, x.ComputymeProcessed
+                         FROM dbo.RebateProcess x WHERE x.OrderID = r.OrderId ORDER BY x.ID DESC) p
+          LEFT JOIN #inv i ON i.OrderId = r.OrderId;
 
     SELECT c.*,
            CASE WHEN c.Status = 2 THEN 'DECLINED'
@@ -131,7 +163,8 @@ BEGIN
         OR (@State = 'NO_DM' AND c.Status = 1 AND c.DebitMemo IS NULL)
         OR (@State = 'NOT_INVOICED' AND c.Status = 1 AND c.ComputymeProcessed = 1 AND c.Invoiced = 0)
      ORDER BY c.ClaimDate DESC, c.OrderId DESC
-     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY;
+     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
+    OPTION (RECOMPILE);
 END
 GO
 

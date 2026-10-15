@@ -1239,7 +1239,8 @@ BEGIN
             OR (@State = 'OFF'   AND b.LivePrograms = 0)
             OR (@State = 'MIXED' AND b.LivePrograms > 0 AND b.LivePrograms < b.Programs))
      ORDER BY b.ProgramStart DESC, b.BatchId DESC
-     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY;
+     OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
+    OPTION (RECOMPILE);
 END
 GO
 
