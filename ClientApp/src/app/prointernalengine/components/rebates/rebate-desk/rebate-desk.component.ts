@@ -274,7 +274,7 @@ export class RebateDeskComponent implements OnInit {
     this.rowEdit = {
       proCode: r.proCode ?? '', vendorSku: r.vendorSku ?? '', upc: r.upc ?? '', stackProduct: r.stackProduct ?? '',
       description: r.description ?? '', instantRebate: r.instantRebate, reimbursement: r.reimbursement,
-      mapPrice: r.mapPrice, startDate: isoDate(r.startDate), endDate: isoDate(r.endDate), rebateType: r.rebateType, notes: r.notes ?? ''
+      mapPrice: r.mapPrice, proPad: r.proPadInput ?? null, startDate: isoDate(r.startDate), endDate: isoDate(r.endDate), rebateType: r.rebateType, notes: r.notes ?? ''
     };
   }
 
@@ -285,6 +285,7 @@ export class RebateDeskComponent implements OnInit {
     return (e.proCode || '') !== (r.proCode || '') || (e.description || '') !== (r.description || '')
       || (e.vendorSku || '') !== (r.vendorSku || '') || (e.upc || '') !== (r.upc || '') || (e.stackProduct || '') !== (r.stackProduct || '')
       || +e.instantRebate !== +r.instantRebate || +e.reimbursement !== +r.reimbursement || +e.mapPrice !== +r.mapPrice
+      || (e.proPad ?? null) !== (r.proPadInput ?? null)
       || e.startDate !== isoDate(r.startDate) || e.endDate !== isoDate(r.endDate)
       || (e.rebateType ?? null) !== (r.rebateType ?? null) || (e.notes || '') !== (r.notes || '');
   }
@@ -324,6 +325,7 @@ export class RebateDeskComponent implements OnInit {
     this.desk.updateRow(this.row.rowId, {
       ...e,
       rebateType: e.rebateType === '' ? null : e.rebateType,
+      proPad: e.proPad === '' || e.proPad === null || e.proPad === undefined ? null : +e.proPad,
       startDate: e.startDate || null,
       endDate: e.endDate || null
     }).pipe(finalize(() => (this.busy = false))).subscribe({

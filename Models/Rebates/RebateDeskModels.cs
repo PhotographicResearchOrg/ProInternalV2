@@ -16,6 +16,7 @@ namespace ProInternal.Models.Rebates
         public const string InstantRebate = "instantRebate";
         public const string Reimbursement = "reimbursement";
         public const string MapPrice = "mapPrice";
+        public const string ProPad = "proPad";
         public const string StartDate = "startDate";
         public const string EndDate = "endDate";
         public const string StackProduct = "stackProduct";
@@ -24,7 +25,7 @@ namespace ProInternal.Models.Rebates
 
         public static readonly string[] All =
         {
-            ProCode, VendorSku, Upc, Description, InstantRebate, Reimbursement, MapPrice,
+            ProCode, VendorSku, Upc, Description, InstantRebate, Reimbursement, MapPrice, ProPad,
             StartDate, EndDate, StackProduct, RebateType, Notes
         };
 
@@ -38,6 +39,7 @@ namespace ProInternal.Models.Rebates
             [InstantRebate] = "instant rebate amount the consumer gets off the price",
             [Reimbursement] = "amount the vendor reimburses the dealer per unit (dealer credit, wholesale rebate, support)",
             [MapPrice] = "MAP / advertised price during the program",
+            [ProPad] = "PRO's own extra per unit on top of the vendor's reimbursement (PRO pad); usually absent in vendor files",
             [StartDate] = "program start date",
             [EndDate] = "program end date",
             [StackProduct] = "PRO code of a product this one stacks or bundles with",
@@ -128,6 +130,7 @@ namespace ProInternal.Models.Rebates
         public decimal? InstantRebate { get; set; }
         public decimal? Reimbursement { get; set; }
         public decimal? MapPrice { get; set; }
+        public decimal? ProPad { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public string? StackProduct { get; set; }
@@ -162,6 +165,9 @@ namespace ProInternal.Models.Rebates
         public decimal? InstantRebate { get; set; }
         public decimal? Reimbursement { get; set; }
         public decimal? MapPrice { get; set; }
+
+        /* This line's PRO pad; empty = the upload's default for combo lines. */
+        public decimal? ProPad { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public int? RebateType { get; set; }

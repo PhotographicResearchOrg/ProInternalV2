@@ -70,7 +70,7 @@ BEGIN
         DefaultRebateType  int             NULL,       -- dbo.RebateType.ID, for rows that do not say
         ExpireOn           date            NULL,       -- written to RebateProgramDetail.ExpireOn
         StartActive        bit             NOT NULL CONSTRAINT DF_piv2_RebUp_StartActive DEFAULT (1),
-        PadPct             decimal(5,2)    NULL,       -- PRO pad on combo rows (Bundle, Free with purchase), % of the vendor share
+        PadPct             decimal(5,2)    NULL,       -- default PRO pad for combo lines that have none of their own, % of the vendor share
         VendorSharePct     decimal(5,2)    NULL,       -- vendor share as % of the instant rebate, used only when the file has no reimbursement
         Status             varchar(20)     NOT NULL CONSTRAINT DF_piv2_RebUp_Status DEFAULT ('MAPPING'),
         BatchId            int             NULL,       -- set at first load; purgatory rows loaded later join it
@@ -117,7 +117,8 @@ BEGIN
         ProductName     nvarchar(400)   NULL,         -- the first one's ModelName
         StackCodes      nvarchar(200)   NULL,         -- PRO product codes of the stack products, comma separated
         ProposedName    nvarchar(400)   NULL,         -- the rebate product name by the naming rule set
-        ProPad          decimal(19,2)   NULL,         -- PRO's pad added to the member amount; never billed to the vendor
+        ProPadInput     decimal(19,2)   NULL,         -- PRO's pad for this line, from the file's pad column or typed in
+        ProPad          decimal(19,2)   NULL,         -- the pad used: the line's own, else the upload's % on combo lines; never billed to the vendor
         StackModelId    int             NULL,         -- the stack product's rebate model, linked in RebateQualifiers at load
         Status         varchar(20)     NOT NULL CONSTRAINT DF_piv2_RebRow_Status DEFAULT ('PURGATORY'),
         Problems        nvarchar(max)   NULL,         -- JSON array of {code, message}

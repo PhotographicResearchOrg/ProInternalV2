@@ -288,6 +288,7 @@ namespace ProInternal.Services.Rebates
                     InstantRebate = ParseMoney(Cell(cells, RebateFields.InstantRebate)),
                     Reimbursement = ParseMoney(Cell(cells, RebateFields.Reimbursement)),
                     MapPrice = ParseMoney(Cell(cells, RebateFields.MapPrice)),
+                    ProPad = ParseMoney(Cell(cells, RebateFields.ProPad)),
                     StartDate = ParseDate(Cell(cells, RebateFields.StartDate)),
                     EndDate = ParseDate(Cell(cells, RebateFields.EndDate)),
                     StackProduct = ParseCode(Cell(cells, RebateFields.StackProduct)),

@@ -260,6 +260,8 @@
               <label>Vendor share <input class="in num" type="number" step="0.01" [(ngModel)]="rowEdit.reimbursement" [class.dirty]="+rowEdit.reimbursement !== +row.reimbursement" /></label>
               <label>Instant rebate <input class="in num" type="number" step="0.01" [(ngModel)]="rowEdit.instantRebate" [class.dirty]="+rowEdit.instantRebate !== +row.instantRebate" /></label>
               <label>MAP <input class="in num" type="number" step="0.01" [(ngModel)]="rowEdit.mapPrice" [class.dirty]="+rowEdit.mapPrice !== +row.mapPrice" /></label>
+              <label>PRO pad, this line ($) <input class="in num" type="number" step="0.01" min="0" [(ngModel)]="rowEdit.proPad"
+                     placeholder="{{ row.proPad ? (row.proPad | currency) + ' from the upload %' : 'none' }}" [class.dirty]="(rowEdit.proPad ?? null) !== (row.proPadInput ?? null)" /></label>
               <label>Start <input class="in" type="date" [(ngModel)]="rowEdit.startDate" /></label>
               <label>End <input class="in" type="date" [(ngModel)]="rowEdit.endDate" /></label>
               <label>Rebate type

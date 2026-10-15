@@ -35,7 +35,7 @@ All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.Rebate
 
 **Matching a row to a PRO product.** Matching reads only `[PRO].dbo.Product` (`ProductCode`, `ModelName`, `CAT_NO`, `UPC`), never Computyme. It tries these in order:
 
-1. PRO code(s), if the row has them. A comma list (e.g. `10080,10108`) rolls several colours into one rebate product.
+1. PRO code(s), if the row has them. A comma list (e.g. `10080,10108`) rolls several colours into one rebate product. The first code listed becomes the product's primary code (`RebateCameraModels.ModelName`, which Connection uses for the catalog number); every code goes in `RebateCameraModelsDetails`.
 2. The vendor SKU with the vendor's **catalog prefix** added (e.g. SmallRig `4183B` → `SR_4183B`).
 3. The vendor SKU as sent.
 4. The vendor SKU ignoring dashes, spaces, dots and underscores.
@@ -61,7 +61,7 @@ Active, non-discontinued products win. If two different products tie, the row wa
 
 A row with no product yet shows the name to create. **Create N rebate products** makes them all in one go, with their PRO codes, then checks again.
 
-**Vendor share and PRO pad.** The file's reimbursement is the **vendor share**: what PRO claims back. If the file has none, it's the vendor's standing % of the instant rebate. On combo rows (Bundle, Free with purchase), PRO adds a **pad** (% of the vendor share, from the vendor terms or the upload). The member amount written to `RebateProgramDetail.Reimbursement` is vendor share + pad, and that's what Connection shows and credits.
+**Vendor share and PRO pad.** The file's reimbursement is the **vendor share**: what PRO claims back. If the file has none, it's the vendor's standing % of the instant rebate. PRO's **pad** is set per line, i.e. per program and product: from a "PRO pad" column in the file, or typed on the line during review. A combo line (Bundle, Free with purchase) with no pad of its own takes the upload's default % of the vendor share, which comes from the vendor terms. After loading, each program's pad is changed on the program. The member amount written to `RebateProgramDetail.Reimbursement` is vendor share + pad, and that's what Connection shows and credits.
 
 The split is kept in `piv2.RebateProgramTerms`, one row per program and member amount, so a price change keeps the old split for claims made at the old amount. Debit memos and "not billed to vendor" use the vendor share only. The pad is shown separately as PRO's cost. Legacy programs, which have no terms row, are all vendor share.
 

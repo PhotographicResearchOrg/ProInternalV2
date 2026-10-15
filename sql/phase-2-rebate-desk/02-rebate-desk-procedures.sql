@@ -236,7 +236,7 @@ BEGIN
               u.PadPct, u.VendorSharePct;
 
     SELECT r.RowId, r.SourceRow, r.Raw, r.ProCode, r.VendorSku, r.Upc, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice,
-           r.ProPad, r.Reimbursement + COALESCE(r.ProPad, 0) AS MemberAmount,
+           r.ProPad, r.ProPadInput, r.Reimbursement + COALESCE(r.ProPad, 0) AS MemberAmount,
            r.ProductCode, r.ProductName, r.StackCodes, r.ProposedName,
            r.StartDate, r.EndDate, r.StackProduct, r.RebateType, r.Notes, r.ModelId,
            m.ModelNumber AS ModelDescription, m.ModelName AS ModelProCode, r.ModelChosenBy,
@@ -332,10 +332,12 @@ BEGIN
     IF OBJECT_ID('tempdb..#match') IS NOT NULL DROP TABLE #match;
     CREATE TABLE #match (RowId bigint NOT NULL, ProductCode nvarchar(20) NOT NULL, Pri int NOT NULL, Seq int NOT NULL, Rank_ int NOT NULL);
 
+    /* Seq is the code's position in the text, so the first code typed is the primary one. */
     INSERT #match (RowId, ProductCode, Pri, Seq, Rank_)
     SELECT r.RowId, k.ProductCode, 1, x.Seq, MIN(k.Rank_)
       FROM piv2.RebateUploadRow r
-     CROSS APPLY (SELECT LTRIM(RTRIM(value)) AS Code, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS Seq
+     CROSS APPLY (SELECT LTRIM(RTRIM(value)) AS Code,
+                         CHARINDEX(N',' + LTRIM(RTRIM(value)) + N',', N',' + REPLACE(REPLACE(r.ProCode, N'+', N','), N' ', N'') + N',') AS Seq
                     FROM STRING_SPLIT(REPLACE(r.ProCode, N'+', N','), ',') WHERE LTRIM(RTRIM(value)) <> N'') x
       JOIN #pk k ON k.ProductCode = x.Code
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND r.ProCode IS NOT NULL
@@ -445,7 +447,8 @@ BEGIN
              ORDER BY CASE WHEN k.ProductCode = x.Token THEN 0 ELSE 1 END, k.Rank_) AS ProductCode
       INTO #stack
       FROM piv2.RebateUploadRow r
-     CROSS APPLY (SELECT LTRIM(RTRIM(value)) AS Token, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS Seq
+     CROSS APPLY (SELECT LTRIM(RTRIM(value)) AS Token,
+                         CHARINDEX(N',' + LTRIM(RTRIM(value)) + N',', N',' + REPLACE(REPLACE(r.StackProduct, N'+', N','), N' ', N'') + N',') AS Seq
                     FROM STRING_SPLIT(REPLACE(r.StackProduct, N'+', N','), ',') WHERE LTRIM(RTRIM(value)) <> N'') x
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND r.StackProduct IS NOT NULL;
 
@@ -549,9 +552,11 @@ BEGIN
      ) d
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
 
-    /* ---- 5. Amounts: PRO's pad on combo rows (Bundle, Free with purchase), % of the vendor share ---- */
+    /* ---- 5. Amounts: PRO's pad, set per line (the file's pad column or typed on the line);
+           a combo line (Bundle, Free with purchase) with none of its own takes the upload's %. ---- */
     UPDATE r
-       SET ProPad = CASE WHEN COALESCE(r.RebateType, @defaultType) IN (4, 7) AND COALESCE(@padPct, 0) > 0 AND r.Reimbursement > 0
+       SET ProPad = CASE WHEN r.ProPadInput IS NOT NULL THEN r.ProPadInput
+                         WHEN COALESCE(r.RebateType, @defaultType) IN (4, 7) AND COALESCE(@padPct, 0) > 0 AND r.Reimbursement > 0
                          THEN ROUND(r.Reimbursement * @padPct / 100.0, 2) ELSE 0 END
       FROM piv2.RebateUploadRow r
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
@@ -564,7 +569,7 @@ BEGIN
 
     ;WITH r AS
     (
-        SELECT RowId, ProCode, Description, ModelId, StartDate, EndDate, InstantRebate, Reimbursement, MapPrice, ProposedName,
+        SELECT RowId, ProCode, Description, ModelId, StartDate, EndDate, InstantRebate, Reimbursement, MapPrice, ProposedName, ProPadInput,
                COALESCE(RebateType, @defaultType) AS IRType
           FROM piv2.RebateUploadRow
          WHERE UploadId = @UploadId AND Status IN ('READY', 'PURGATORY')
@@ -586,8 +591,8 @@ BEGIN
     SELECT RowId, 'BAD_REIMBURSEMENT', N'The vendor reimbursement (what PRO claims back) must be more than zero.'
       FROM r WHERE Reimbursement IS NULL OR Reimbursement <= 0
     UNION ALL
-    SELECT RowId, 'NEGATIVE_AMOUNT', N'Instant rebate and MAP cannot be negative.'
-      FROM r WHERE InstantRebate < 0 OR MapPrice < 0
+    SELECT RowId, 'NEGATIVE_AMOUNT', N'Instant rebate, MAP and PRO pad cannot be negative.'
+      FROM r WHERE InstantRebate < 0 OR MapPrice < 0 OR ProPadInput < 0
     UNION ALL
     SELECT RowId, 'NO_TYPE', N'Rebate type is missing and the upload has no default.'
       FROM r WHERE IRType IS NULL
@@ -697,12 +702,12 @@ BEGIN
     DELETE FROM piv2.RebateUploadRow WHERE UploadId = @UploadId;
 
     INSERT piv2.RebateUploadRow
-        (UploadId, SourceRow, Raw, ProCode, VendorSku, Upc, Description, InstantRebate, Reimbursement, MapPrice,
+        (UploadId, SourceRow, Raw, ProCode, VendorSku, Upc, Description, InstantRebate, Reimbursement, MapPrice, ProPadInput,
          StartDate, EndDate, StackProduct, RebateType, Notes, Status)
     SELECT @UploadId, j.SourceRow, COALESCE(j.Raw, N'{}'),
            NULLIF(LTRIM(RTRIM(j.ProCode)), N''), NULLIF(LTRIM(RTRIM(j.VendorSku)), N''), NULLIF(LTRIM(RTRIM(j.Upc)), N''),
            NULLIF(LTRIM(RTRIM(j.Description)), N''),
-           j.InstantRebate, j.Reimbursement, j.MapPrice, j.StartDate, j.EndDate,
+           j.InstantRebate, j.Reimbursement, j.MapPrice, j.ProPad, j.StartDate, j.EndDate,
            NULLIF(LTRIM(RTRIM(j.StackProduct)), N''), j.RebateType, NULLIF(LTRIM(RTRIM(j.Notes)), N''),
            'PURGATORY'
       FROM OPENJSON(@Rows)
@@ -717,6 +722,7 @@ BEGIN
           InstantRebate  decimal(19,2)  '$.instantRebate',
           Reimbursement  decimal(19,2)  '$.reimbursement',
           MapPrice       decimal(19,2)  '$.mapPrice',
+          ProPad         decimal(19,2)  '$.proPad',
           StartDate      date           '$.startDate',
           EndDate        date           '$.endDate',
           StackProduct   nvarchar(400)  '$.stackProduct',
@@ -812,6 +818,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_UpdateRow
     @InstantRebate decimal(19,2),
     @Reimbursement decimal(19,2),
     @MapPrice      decimal(19,2),
+    @ProPad        decimal(19,2) = NULL,   -- this line's PRO pad; NULL = the upload's default
     @StartDate     date,
     @EndDate       date,
     @RebateType    int,
@@ -842,7 +849,7 @@ BEGIN
        SET ProCode = NULLIF(LTRIM(RTRIM(@ProCode)), N''), Description = NULLIF(LTRIM(RTRIM(@Description)), N''),
            VendorSku = NULLIF(LTRIM(RTRIM(@VendorSku)), N''), Upc = NULLIF(LTRIM(RTRIM(@Upc)), N''),
            StackProduct = NULLIF(LTRIM(RTRIM(@StackProduct)), N''),
-           InstantRebate = @InstantRebate, Reimbursement = @Reimbursement, MapPrice = @MapPrice,
+           InstantRebate = @InstantRebate, Reimbursement = @Reimbursement, MapPrice = @MapPrice, ProPadInput = @ProPad,
            StartDate = @StartDate, EndDate = @EndDate, RebateType = @RebateType,
            Notes = NULLIF(LTRIM(RTRIM(@Notes)), N''),
            UpdatedBy = @Actor, UpdatedAt = SYSUTCDATETIME()
@@ -1031,7 +1038,7 @@ BEGIN
            r.ProCode, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice,
            r.StartDate, r.EndDate, r.StackProduct, r.RebateType, u.DefaultRebateType, r.Notes, r.Problems,
            r.ModelId, m.ModelNumber AS ModelDescription, r.ModelChosenBy,
-           r.VendorSku, r.Upc, r.ProductCode, r.ProductName, r.StackCodes, r.ProposedName, r.ProPad, r.Raw,
+           r.VendorSku, r.Upc, r.ProductCode, r.ProductName, r.StackCodes, r.ProposedName, r.ProPad, r.ProPadInput, r.Raw,
            r.UpdatedBy, r.UpdatedAt, u.CreatedAt AS UploadedAt
       FROM piv2.RebateUploadRow r
       JOIN piv2.RebateUpload u ON u.UploadId = r.UploadId

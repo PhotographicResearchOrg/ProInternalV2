@@ -39,6 +39,8 @@ namespace ProInternal.Services.Rebates
             (RebateFields.Reimbursement, new[] { "reimbursement", "dealer reimbursement", "reimb", "reimbursement amount", "payout", "dealer payout", "credit", "dealer credit", "support", "dealer support", "claim amount",
                                                  "wholesale rebate", "vendor share", "sta", "dealer rebate" },
                                          new[] { "reimb", "payout", "dealer credit", "support", "wholesale rebate" }),
+            (RebateFields.ProPad,        new[] { "pro pad", "pad", "pro extra", "pro adder", "pro add", "pro support" },
+                                         new[] { "pro pad", "pad" }),
             (RebateFields.MapPrice,      new[] { "map", "map price", "new map", "promo map", "ad price", "umap", "imap", "promo price", "sale price" },
                                          new[] { "map", "promo price" }),
             (RebateFields.StartDate,     new[] { "start date", "start", "begin date", "begin", "from", "effective date", "program start", "promo start", "valid from" },

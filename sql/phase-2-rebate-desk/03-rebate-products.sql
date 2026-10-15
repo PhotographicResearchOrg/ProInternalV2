@@ -216,8 +216,7 @@ BEGIN
     /* RebateCameraModels.ModelName holds the primary PRO code (the member site joins it to the catalog); the
        details rows hold every code. The first code typed is the primary one. */
     DECLARE @codeText nvarchar(255) =
-        (SELECT TOP (1) CAST(TRY_CAST(LTRIM(RTRIM(value)) AS int) AS nvarchar(20)) FROM STRING_SPLIT(COALESCE(@ProCodes, N''), ',')
-          WHERE TRY_CAST(LTRIM(RTRIM(value)) AS int) IS NOT NULL);
+        CAST(TRY_CAST(LTRIM(RTRIM(LEFT(@ProCodes, CHARINDEX(N',', @ProCodes + N',') - 1))) AS int) AS nvarchar(20));
 
     BEGIN TRAN;
 

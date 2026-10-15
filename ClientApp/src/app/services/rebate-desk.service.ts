@@ -13,6 +13,7 @@ export const REBATE_FIELDS: { key: string; label: string; required?: boolean }[]
   { key: 'reimbursement', label: 'Reimbursement (vendor share)', required: true },
   { key: 'instantRebate', label: 'Instant rebate' },
   { key: 'mapPrice', label: 'MAP' },
+  { key: 'proPad', label: 'PRO pad ($ per unit)' },
   { key: 'startDate', label: 'Start date', required: true },
   { key: 'endDate', label: 'End date', required: true },
   { key: 'rebateType', label: 'Rebate type' },

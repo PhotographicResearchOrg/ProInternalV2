@@ -150,7 +150,7 @@ namespace ProInternal.Services.Rebates
             /* Dates as plain yyyy-MM-dd for OPENJSON's date columns. */
             var json = JsonSerializer.Serialize(rows.Select(r => new
             {
-                r.SourceRow, r.Raw, r.ProCode, r.VendorSku, r.Upc, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice,
+                r.SourceRow, r.Raw, r.ProCode, r.VendorSku, r.Upc, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice, r.ProPad,
                 StartDate = r.StartDate?.ToString("yyyy-MM-dd"),
                 EndDate = r.EndDate?.ToString("yyyy-MM-dd"),
                 r.StackProduct, r.RebateType, r.Notes

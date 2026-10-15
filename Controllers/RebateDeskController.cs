@@ -168,6 +168,7 @@ namespace ProInternal.Controllers
                 body.InstantRebate,
                 body.Reimbursement,
                 body.MapPrice,
+                body.ProPad,
                 StartDate = body.StartDate?.Date,
                 EndDate = body.EndDate?.Date,
                 body.RebateType,
