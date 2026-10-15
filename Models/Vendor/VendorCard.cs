@@ -18,7 +18,7 @@ namespace ProInternal.Models.Vendor
         public VendorStatsDto Stats { get; set; }
     }
 
-    // Vocabularies from Schemas/OrderIntegration/v1.0/vendors/vendor.enums.json
+    // Vocabularies from Schemas/Vendor/v1.1/vendors/vendor.enums.json
     // that the create-vendor form uses.
     public static class VendorSchemaEnums
     {

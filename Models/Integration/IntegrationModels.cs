@@ -192,6 +192,8 @@ namespace ProInternal.Models.Integration
         public string S3Key { get; set; } = "";
         public string UploadedBy { get; set; } = "";
         public DateTime UploadedAt { get; set; }
+        public DateTime? RemovedAt { get; set; }
+        public string? RemovedBy { get; set; }
         public string? Notes { get; set; }
 
         /* True when this exact content was already stored for the owner. */

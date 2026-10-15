@@ -23,7 +23,7 @@ export interface VendorTerms {
 }
 
 // POST api/VendorCard -- mirrors CreateVendorDto. Field set follows
-// Schemas/OrderIntegration/v1.0/vendors/vendor.schema.json; name, status
+// Schemas/Vendor/v1.1/vendors/vendor.schema.json; name, status
 // and currency are required, vendorId is auto-assigned when omitted.
 export type VendorStatus = 'ACTIVE' | 'INACTIVE';
 export type VendorSupplyModel = 'WAREHOUSE' | 'DIRECT_SHIP';

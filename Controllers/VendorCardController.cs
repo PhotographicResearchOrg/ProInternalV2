@@ -247,14 +247,14 @@ namespace ProInternal.Controllers
         }
 
         // ---- Vendor files (contracts / price lists) ----
-        // category is "contracts" or "price-lists"; files live on the share
-        // configured under VendorFiles in appsettings, foldered by vendor id.
+        // category is "contracts" or "price-lists"; files are kept in the shared
+        // S3 file library (piv2.FileLibrary), owner = the vendor id.
 
         [HttpGet("{vendorId}/files/{category}")]
-        public IActionResult GetFiles(int vendorId, string category)
+        public async Task<IActionResult> GetFiles(int vendorId, string category)
         {
             if (!_vendorFiles.IsValidCategory(category)) return NotFound();
-            return Ok(_vendorFiles.ListFiles(vendorId, category));
+            return Ok(await _vendorFiles.ListFilesAsync(vendorId, category));
         }
 
         [HttpPost("{vendorId}/files/{category}")]
@@ -262,13 +262,13 @@ namespace ProInternal.Controllers
         public async Task<IActionResult> UploadFiles(int vendorId, string category, [FromForm] List<IFormFile> files, CancellationToken ct)
         {
             if (!_vendorFiles.IsValidCategory(category)) return NotFound();
-            // don't create folders for vendors that don't exist
+            // don't store files for vendors that don't exist
             if (_prodataAccess.GetVendorCard(vendorId) == null) return NotFound();
             if (files == null || files.Count == 0) return BadRequest("No files uploaded.");
 
-            var saved = await _vendorFiles.SaveFilesAsync(vendorId, category, files, ct);
-
             var actor = GetAuditActor();
+            var saved = await _vendorFiles.SaveFilesAsync(vendorId, category, files, actor.ChangedBy, ct);
+
             foreach (var name in saved)
                 _prodataAccess.LogVendorChange(vendorId, _vendorFiles.AuditSection(category), "File", null, name, actor);
 
@@ -276,28 +276,23 @@ namespace ProInternal.Controllers
         }
 
         [HttpGet("{vendorId}/files/{category}/download")]
-        public IActionResult DownloadFile(int vendorId, string category, [FromQuery] string name)
+        public async Task<IActionResult> DownloadFile(int vendorId, string category, [FromQuery] string name)
         {
             if (!_vendorFiles.IsValidCategory(category)) return NotFound();
 
-            try
-            {
-                var (full, contentType, fileName) = _vendorFiles.ResolveForDownload(vendorId, category, name);
-                return PhysicalFile(full, contentType, fileName, enableRangeProcessing: true);
-            }
-            catch (FileNotFoundException)
-            {
-                return NotFound();
-            }
+            var file = await _vendorFiles.OpenAsync(vendorId, category, name);
+            if (file == null) return NotFound();
+            return File(file.Value.Content, file.Value.ContentType, file.Value.FileName, enableRangeProcessing: true);
         }
 
         [HttpDelete("{vendorId}/files/{category}")]
-        public IActionResult DeleteFile(int vendorId, string category, [FromQuery] string name)
+        public async Task<IActionResult> DeleteFile(int vendorId, string category, [FromQuery] string name)
         {
             if (!_vendorFiles.IsValidCategory(category)) return NotFound();
-            if (!_vendorFiles.DeleteFile(vendorId, category, name)) return NotFound();
+            var actor = GetAuditActor();
+            if (!await _vendorFiles.DeleteFileAsync(vendorId, category, name, actor.ChangedBy)) return NotFound();
 
-            _prodataAccess.LogVendorChange(vendorId, _vendorFiles.AuditSection(category), "File", name, null, GetAuditActor());
+            _prodataAccess.LogVendorChange(vendorId, _vendorFiles.AuditSection(category), "File", name, null, actor);
             return Ok();
         }
 

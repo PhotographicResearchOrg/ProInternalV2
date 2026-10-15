@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using ProInternal.Helpers;
 using ProInternal.Models.Vendor;
+using ProInternal.Services.Files;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -13,21 +12,24 @@ using System.Threading.Tasks;
 
 namespace ProInternal.Services
 {
-    // Stores vendor documents on the share configured under "VendorFiles":
-    //   <RootPath>\<vendor id>\Contracts\...
-    //   <RootPath>\<vendor id>\Price Lists\...
-    // Every path is resolved through SafePath so names can't escape the root.
+    /*
+     * Vendor documents (contracts, price lists) in the shared S3 file library
+     * (piv2.FileLibrary, bucket FileLibrary:Bucket):
+     *   category VENDOR_CONTRACT or VENDOR_PRICE_LIST, owner = the vendor id.
+     * The vendor card still works by file name; a name already in use for the
+     * vendor gets " (2)", " (3)" ... Removing a file hides it; it stays in S3.
+     */
     public class VendorFileService : IVendorFileService
     {
         public const string ContractsCategory = "contracts";
         public const string PriceListsCategory = "price-lists";
 
-        private readonly VendorFileOptions _options;
+        private readonly IFileLibrary _files;
         private readonly ILogger<VendorFileService> _logger;
 
-        public VendorFileService(IOptions<VendorFileOptions> options, ILogger<VendorFileService> logger)
+        public VendorFileService(IFileLibrary files, ILogger<VendorFileService> logger)
         {
-            _options = options.Value;
+            _files = files;
             _logger = logger;
         }
 
@@ -37,79 +39,69 @@ namespace ProInternal.Services
         public string AuditSection(string category) =>
             category == ContractsCategory ? "Contracts" : "Price Lists";
 
-        public List<VendorFileDto> ListFiles(int vendorId, string category)
-        {
-            var dir = new DirectoryInfo(CategoryFolder(vendorId, category));
-            if (!dir.Exists) return new List<VendorFileDto>();
+        private static string LibraryCategory(string category) =>
+            category == ContractsCategory ? "VENDOR_CONTRACT" : "VENDOR_PRICE_LIST";
 
-            return dir.EnumerateFiles()
-                .Select(f => new VendorFileDto { FileName = f.Name, SizeBytes = f.Length, UploadedUtc = f.LastWriteTimeUtc })
+        private static string Owner(int vendorId) => vendorId.ToString(CultureInfo.InvariantCulture);
+
+        public async Task<List<VendorFileDto>> ListFilesAsync(int vendorId, string category)
+        {
+            var rows = await _files.ListAsync(LibraryCategory(category), Owner(vendorId), 500);
+            return rows
+                .Select(f => new VendorFileDto { FileId = f.FileId, FileName = f.FileName, SizeBytes = f.SizeBytes, UploadedUtc = f.UploadedAt, UploadedBy = f.UploadedBy })
                 .OrderByDescending(f => f.UploadedUtc)
                 .ToList();
         }
 
-        public async Task<List<string>> SaveFilesAsync(int vendorId, string category, IEnumerable<IFormFile> files, CancellationToken ct)
+        public async Task<List<string>> SaveFilesAsync(int vendorId, string category, IEnumerable<IFormFile> files, string uploadedBy, CancellationToken ct)
         {
-            var folder = CategoryFolder(vendorId, category);
-            Directory.CreateDirectory(folder);
-
+            var inUse = new HashSet<string>((await ListFilesAsync(vendorId, category)).Select(f => f.FileName), StringComparer.OrdinalIgnoreCase);
             var saved = new List<string>();
+
             foreach (var file in files)
             {
+                ct.ThrowIfCancellationRequested();
                 var name = CleanFileName(file.FileName);
-                if (name.Length == 0) continue;
+                if (name.Length == 0 || file.Length == 0) continue;
 
-                var dest = UniquePath(folder, name);
-                await using (var target = new FileStream(dest, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 20, FileOptions.Asynchronous))
-                await using (var source = file.OpenReadStream())
-                {
-                    await source.CopyToAsync(target, ct);
-                }
+                var unique = UniqueName(inUse, name);
+                await using var source = file.OpenReadStream();
+                var entry = await _files.StoreAsync(source, LibraryCategory(category), Owner(vendorId), unique,
+                    string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType, uploadedBy);
 
-                _logger.LogInformation("Vendor file upload {Dest} ({Bytes} bytes)", dest, file.Length);
-                saved.Add(Path.GetFileName(dest));
+                /* The same content already on file for this vendor is kept once, under its first name. */
+                _logger.LogInformation("Vendor {VendorId} {Category} file {Name} stored as file {FileId}{Dup}",
+                    vendorId, category, entry.FileName, entry.FileId, entry.IsDuplicate ? " (already on file)" : "");
+                inUse.Add(entry.FileName);
+                saved.Add(entry.FileName);
             }
             return saved;
         }
 
-        public (string FullPath, string ContentType, string FileName) ResolveForDownload(int vendorId, string category, string fileName)
+        public async Task<(Stream Content, string ContentType, string FileName)?> OpenAsync(int vendorId, string category, string fileName)
         {
-            var full = FilePath(vendorId, category, fileName);
-            if (!File.Exists(full)) throw new FileNotFoundException(fileName);
-            return (full, MimeTypes.GetMimeType(full), Path.GetFileName(full));
+            var entry = await FindAsync(vendorId, category, fileName);
+            if (entry == null) return null;
+            return (await _files.OpenAsync(entry.FileId), entry.ContentType, entry.FileName);
         }
 
-        public bool DeleteFile(int vendorId, string category, string fileName)
+        public async Task<bool> DeleteFileAsync(int vendorId, string category, string fileName, string removedBy)
         {
-            var full = FilePath(vendorId, category, fileName);
-            if (!File.Exists(full)) return false;
-
-            File.Delete(full);
-            _logger.LogInformation("Vendor file deleted {Path}", full);
-            return true;
+            var entry = await FindAsync(vendorId, category, fileName);
+            return entry != null && await _files.RemoveAsync(entry.FileId, removedBy);
         }
 
-        // ---- path helpers ----
-
-        private string CategoryFolder(int vendorId, string category)
-        {
-            if (string.IsNullOrWhiteSpace(_options.RootPath))
-                throw new InvalidOperationException("VendorFiles:RootPath is not configured.");
-
-            var sub = category == ContractsCategory ? _options.ContractsFolder : _options.PriceListsFolder;
-            return SafePath.Resolve(_options.RootPath, Path.Combine(vendorId.ToString(CultureInfo.InvariantCulture), sub));
-        }
-
-        private string FilePath(int vendorId, string category, string fileName)
+        private async Task<VendorFileDto?> FindAsync(int vendorId, string category, string fileName)
         {
             var name = CleanFileName(fileName);
-            if (name.Length == 0) throw new FileNotFoundException(fileName);
-
-            var folder = CategoryFolder(vendorId, category);
-            return SafePath.Resolve(folder, name);
+            if (name.Length == 0) return null;
+            var match = (await ListFilesAsync(vendorId, category))
+                .FirstOrDefault(f => string.Equals(f.FileName, name, StringComparison.OrdinalIgnoreCase));
+            if (match == null) return null;
+            var entry = await _files.GetAsync(match.FileId);
+            return entry == null ? null : new VendorFileDto { FileId = entry.FileId, FileName = entry.FileName, SizeBytes = entry.SizeBytes, UploadedUtc = entry.UploadedAt, UploadedBy = entry.UploadedBy, ContentType = entry.ContentType };
         }
 
-        // Swap out characters Windows won't allow in a file name and trim trailing dots.
         private static string CleanFileName(string? raw)
         {
             var name = Path.GetFileName(raw ?? "");
@@ -118,17 +110,15 @@ namespace ProInternal.Services
             return name.Trim().TrimEnd('.');
         }
 
-        private static string UniquePath(string folder, string fileName)
+        private static string UniqueName(HashSet<string> inUse, string fileName)
         {
-            var path = Path.Combine(folder, fileName);
-            if (!File.Exists(path)) return path;
-
+            if (!inUse.Contains(fileName)) return fileName;
             var stem = Path.GetFileNameWithoutExtension(fileName);
             var ext = Path.GetExtension(fileName);
             for (var i = 2; ; i++)
             {
-                path = Path.Combine(folder, $"{stem} ({i}){ext}");
-                if (!File.Exists(path)) return path;
+                var candidate = $"{stem} ({i}){ext}";
+                if (!inUse.Contains(candidate)) return candidate;
             }
         }
     }

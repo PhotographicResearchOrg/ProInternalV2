@@ -7,7 +7,7 @@ import { CreateVendorRequest, VendorContactRole } from 'src/app/models/vendor/ve
 
 type Visibility = 'all' | 'Yes' | 'No';
 
-// Values from Schemas/OrderIntegration/v1.0/vendors/vendor.enums.json
+// Values from Schemas/Vendor/v1.1/vendors/vendor.enums.json
 const CONTACT_ROLES: VendorContactRole[] =
   ['SALES', 'ORDERS', 'ACCOUNTS_RECEIVABLE', 'RETURNS', 'EDI', 'PROGRAMS', 'PRODUCT', 'EXECUTIVE', 'OTHER'];
 
