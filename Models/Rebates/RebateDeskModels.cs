@@ -143,6 +143,22 @@ namespace ProInternal.Models.Rebates
         public string? Reason { get; set; }
     }
 
+    /* Several upload rows at once (bulk skip, load anyway). */
+    public sealed class RebateRowsRequest
+    {
+        public List<long> RowIds { get; set; } = new();
+        public string? Reason { get; set; }
+    }
+
+    /* One line of the naming rule set. */
+    public sealed class RebateNamingRuleRequest
+    {
+        public string? Suffix { get; set; }
+        public bool AddStack { get; set; }
+        public string? StackJoiner { get; set; }
+        public string? Reason { get; set; }
+    }
+
     public sealed class RebateActiveRequest
     {
         public bool Active { get; set; }

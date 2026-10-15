@@ -18,6 +18,8 @@ type Pending =
   | { kind: 'batch-active'; batch: any; active: boolean }
   | { kind: 'batch-dates' }
   | { kind: 'retire-template'; template: any }
+  | { kind: 'bulk-skip'; ids: number[] }
+  | { kind: 'bulk-overlap'; ids: number[] }
   | { kind: 'bp-amounts' }
   | { kind: 'bp-dates' }
   | { kind: 'bp-active'; program: any; active: boolean }
@@ -184,6 +186,9 @@ export class RebateDeskComponent implements OnInit {
   }
 
   pick(key: ViewKey, keepFilters = false): void {
+    this.picked = new Set();
+    this.pChip = null;
+    this.uChip = null;
     if (key !== this.view && !this.leaveOk()) return;
     this.childDirty = false;
     this.view = key;
@@ -236,6 +241,8 @@ export class RebateDeskComponent implements OnInit {
   }
 
   openUpload(id: number): void {
+    this.picked = new Set();
+    this.uChip = null;
     this.view = 'uploads';
     this.row = null;
     this.loading = true;
@@ -314,7 +321,63 @@ export class RebateDeskComponent implements OnInit {
   }
 
   get filteredRows(): any[] {
-    return this.rowFilter === 'ALL' ? this.uploadRows : this.uploadRows.filter(r => r.status === this.rowFilter);
+    const byStatus = this.rowFilter === 'ALL' ? this.uploadRows : this.uploadRows.filter(r => r.status === this.rowFilter);
+    return this.uChip ? byStatus.filter(r => this.hasProblem(r, this.uChip!)) : byStatus;
+  }
+
+  /* ---- problem chips and ticked rows (upload review and purgatory) ---- */
+  uChip: string | null = null;
+  pChip: string | null = null;
+  picked = new Set<number>();
+
+  readonly problemLabels: { [code: string]: string } = {
+    NO_PRODUCT: 'No PRO product', AMBIGUOUS_PRODUCT: 'Several PRO products', NO_MODEL: 'No rebate product yet',
+    MODEL_RETIRED: 'Product retired', NO_STACK: 'Stack missing', STACK_UNKNOWN: 'Stack not found', NO_DATES: 'No dates',
+    DATES_REVERSED: 'Dates reversed', BAD_REIMBURSEMENT: 'No vendor share', NEGATIVE_AMOUNT: 'Negative amount',
+    NO_TYPE: 'No type', UNKNOWN_TYPE: 'Unknown type', DUPLICATE_IN_FILE: 'Duplicate in file', OVERLAP_IN_FILE: 'Overlaps in file',
+    OVERLAP: 'Overlaps live program', ALREADY_LOADED: 'Already loaded'
+  };
+
+
+  problemChips(rows: any[]): { code: string; label: string; count: number }[] {
+    const n = new Map<string, number>();
+    for (const r of rows) for (const p of (r.problems ?? [])) n.set(p.code, (n.get(p.code) ?? 0) + 1);
+    return [...n.entries()].map(([code, count]) => ({ code, label: this.problemLabels[code] ?? code, count }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  get purgatoryShown(): any[] {
+    return this.pChip ? this.purgatory.filter(r => this.hasProblem(r, this.pChip!)) : this.purgatory;
+  }
+
+  get tickable(): any[] {
+    return (this.view === 'purgatory' ? this.purgatoryShown : this.filteredRows).filter(r => r.status === 'PURGATORY' || r.status === 'READY' || !r.status);
+  }
+
+  tickRow(r: any, on: boolean, e?: Event): void {
+    e?.stopPropagation();
+    on ? this.picked.add(r.rowId) : this.picked.delete(r.rowId);
+    this.picked = new Set(this.picked);
+  }
+
+  tickAll(on: boolean): void {
+    this.picked = on ? new Set(this.tickable.map(r => r.rowId)) : new Set();
+  }
+
+  get allTicked(): boolean { return this.tickable.length > 0 && this.tickable.every(r => this.picked.has(r.rowId)); }
+
+  /* Ticked rows that overlap something (the only ones "Load anyway" applies to). */
+  get pickedOverlaps(): number[] {
+    const rows = this.view === 'purgatory' ? this.purgatory : this.uploadRows;
+    return rows.filter(r => this.picked.has(r.rowId) && (this.hasProblem(r, 'OVERLAP') || this.hasProblem(r, 'OVERLAP_IN_FILE'))).map(r => r.rowId);
+  }
+
+  bulkSkip(): void { this.pending = { kind: 'bulk-skip', ids: [...this.picked] }; }
+  bulkOverlap(): void { this.pending = { kind: 'bulk-overlap', ids: this.pickedOverlaps }; }
+  clearTicks(): void { this.picked = new Set(); }
+
+  rowLoadAnyway(): void {
+    if (this.row) this.pending = { kind: 'bulk-overlap', ids: [this.row.rowId] };
   }
 
   remap(): void {
@@ -365,9 +428,42 @@ export class RebateDeskComponent implements OnInit {
       .subscribe({ next: p => (this.purgatory = p), error: e => (this.error = apiMessage(e)) });
   }
 
+  /* ---- look up a PRO product for the open row (dbo.Product: code, catalog #, UPC, name) ---- */
+  proQ = '';
+  proHits: any[] = [];
+  proSearching = false;
+  proErr = '';
+  private proTimer: any;
+
+  get rowNeedsProduct(): boolean {
+    const r = this.row;
+    return !!r && (!r.productCode || this.hasProblem(r, 'NO_PRODUCT') || this.hasProblem(r, 'AMBIGUOUS_PRODUCT'));
+  }
+
+  searchProSoon(): void {
+    clearTimeout(this.proTimer);
+    this.proTimer = setTimeout(() => this.searchPro(), 300);
+  }
+
+  searchPro(): void {
+    const q = (this.proQ || '').trim();
+    if (q.length < 2) { this.proHits = []; return; }
+    this.proSearching = true;
+    this.proErr = '';
+    this.desk.proCodes(q).pipe(finalize(() => (this.proSearching = false))).subscribe({
+      next: h => (this.proHits = h ?? []),
+      error: e => { this.proHits = []; this.proErr = apiMessage(e); }
+    });
+  }
+
   openRow(r: any, vendorId: number | null): void {
     if (this.row && this.row.rowId !== r.rowId && !this.leaveOk()) return;
+    if (!r.status) r.status = 'PURGATORY';
     this.row = r;
+    this.proHits = [];
+    this.proErr = '';
+    this.proQ = r.vendorSku || r.upc || r.description || '';
+    if (!r.productCode || (r.problems ?? []).some((p: any) => p.code === 'NO_PRODUCT')) setTimeout(() => this.searchPro());
     this.rowVendorId = vendorId;
     this.newProduct = null;
     this.ticked = [];
@@ -594,6 +690,8 @@ export class RebateDeskComponent implements OnInit {
       case 'batch-active': return `${p.active ? 'Turn on' : 'Turn off'} batch ${p.batch.batchId}`;
       case 'batch-dates': return `Change dates for batch ${this.batch?.batchId}`;
       case 'retire-template': return `Retire the saved layout for ${p.template.vendorName}`;
+      case 'bulk-skip': return `Skip ${p.ids.length} row(s)`;
+      case 'bulk-overlap': return `Load ${p.ids.length} overlapping row(s) anyway`;
       case 'bp-amounts': return `Change amounts on program ${this.bProg?.programId}`;
       case 'bp-dates': return `Change dates on program ${this.bProg?.programId}`;
       case 'bp-active': return `${p.active ? 'Turn on' : 'Turn off'} program ${p.program.programId}`;
@@ -609,6 +707,8 @@ export class RebateDeskComponent implements OnInit {
       case 'batch-active': return p.active ? `All ${p.batch.programs} programs go live for members.` : `All ${p.batch.programs} programs stop showing to members. Submitted claims are not affected.`;
       case 'batch-dates': return 'Every program in the batch moves together, so members keep seeing it as one program.';
       case 'retire-template': return 'Next time this vendor sends this layout, the AI proposes the mapping again.';
+      case 'bulk-skip': return 'They are not loaded and leave purgatory. Each can be restored later.';
+      case 'bulk-overlap': return 'They load even though a live program for the same product and type covers some of these dates. Members may see both. An exact copy of a live program still waits; skip those.';
       case 'bp-amounts': return 'Only this program changes. Claims already submitted keep the amount they were submitted with.';
       case 'bp-dates': return `Only this program moves. Members will see it apart from the rest of batch ${this.batch?.batchId}; to move the whole batch, use the batch dates above.`;
       case 'bp-active': return p.active ? 'Members see this program again.' : 'Members stop seeing this program. Submitted claims are not affected.';
@@ -617,7 +717,7 @@ export class RebateDeskComponent implements OnInit {
 
   get pendingDanger(): boolean {
     const p = this.pending;
-    return !!p && (p.kind === 'skip' || p.kind === 'cancel-upload' || p.kind === 'retire-template' || (p.kind === 'batch-active' && !p.active) || (p.kind === 'bp-active' && !p.active));
+    return !!p && (p.kind === 'skip' || p.kind === 'cancel-upload' || p.kind === 'retire-template' || (p.kind === 'batch-active' && !p.active) || (p.kind === 'bp-active' && !p.active) || p.kind === 'bulk-skip' || p.kind === 'bulk-overlap');
   }
 
   confirm(reason: string): void {
@@ -632,6 +732,8 @@ export class RebateDeskComponent implements OnInit {
       case 'batch-active': call = this.desk.setBatchActive(p.batch.batchId, p.active, reason); break;
       case 'batch-dates': call = this.desk.changeBatchDates(this.batch.batchId, { ...this.batchDates, expireOn: this.batchDates.expireOn || null, reason }); break;
       case 'retire-template': call = this.desk.retireTemplate(p.template.templateId, reason); break;
+      case 'bulk-skip': call = this.desk.skipRows(p.ids, reason); break;
+      case 'bulk-overlap': call = this.desk.allowOverlap(p.ids, reason); break;
       case 'bp-amounts': call = this.desk.changeAmounts(this.bProg.programId, {
         instantRebate: this.bEdit.instantRebate, vendorShare: this.bEdit.vendorShare, proPad: this.bEdit.proPad || 0, mapPrice: this.bEdit.mapPrice, reason }); break;
       case 'bp-dates': call = this.desk.changeProgramDates(this.bProg.programId, {
@@ -656,6 +758,7 @@ export class RebateDeskComponent implements OnInit {
             break;
           }
           case 'retire-template': this.desk.templates().subscribe(t => (this.templates = t)); this.loadOverview(); break;
+          case 'bulk-skip': case 'bulk-overlap': this.picked = new Set(); this.afterRowChange(); break;
           case 'bp-amounts': case 'bp-dates': this.reloadBatch(this.bProg?.programId); break;
           case 'bp-active': this.reloadBatch(p.program.programId); break;
         }

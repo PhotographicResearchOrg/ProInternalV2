@@ -244,7 +244,7 @@ BEGIN
            r.StartDate, r.EndDate, r.StackProduct, r.RebateType, r.Notes, r.ModelId,
            m.ModelNumber AS ModelDescription, m.ModelName AS ModelProCode, r.ModelChosenBy,
            r.StackModelId, sm.ModelNumber AS StackDescription,
-           r.Status, r.Problems, r.ProgramId, r.SkipReason, r.UpdatedBy, r.UpdatedAt
+           r.Status, r.Problems, r.ProgramId, r.SkipReason, r.OverlapAllowed, r.OverlapReason, r.UpdatedBy, r.UpdatedAt
       FROM piv2.RebateUploadRow r
       LEFT JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelId
       LEFT JOIN dbo.RebateCameraModels sm ON sm.ModelID = r.StackModelId
@@ -269,6 +269,13 @@ BEGIN
     DECLARE @defaultType int = (SELECT DefaultRebateType FROM piv2.RebateUpload WHERE UploadId = @UploadId);
 
     DECLARE @padPct decimal(5,2) = (SELECT PadPct FROM piv2.RebateUpload WHERE UploadId = @UploadId);
+
+    /* The naming rule set (piv2.RebateNamingRule, editable on the desk); a type with no line names like a plain IR. */
+    IF OBJECT_ID('tempdb..#rule') IS NOT NULL DROP TABLE #rule;
+    SELECT RebateTypeId, LTRIM(RTRIM(Suffix)) AS Suffix, AddStack, COALESCE(NULLIF(LTRIM(RTRIM(StackJoiner)), N''), N'WITH') AS StackJoiner,
+           CAST(CASE WHEN LTRIM(RTRIM(Suffix)) = N'' AND AddStack = 0 THEN 1 ELSE 0 END AS bit) AS IsPlain
+      INTO #rule
+      FROM piv2.RebateNamingRule;
     DECLARE @prefix nvarchar(20) = (SELECT NULLIF(LTRIM(RTRIM(CatalogPrefix)), N'') FROM piv2.RebateVendorTerms WHERE VendorId = @vendor);
     DECLARE @brands varchar(200) = (SELECT NULLIF(LTRIM(RTRIM(BrandIds)), '') FROM piv2.RebateVendorTerms WHERE VendorId = @vendor);
 
@@ -438,7 +445,8 @@ BEGIN
            CAST(REPLACE(UPPER(LTRIM(RTRIM(CAST(m.ModelNumber AS nvarchar(850))))), N' ', N'') AS nvarchar(850)) AS NumNoSpace,
            CAST(UPPER(LTRIM(RTRIM(CAST(m.ModelName AS nvarchar(850))))) AS nvarchar(850)) AS NameKey,
            COALESCE(m.Active, 0) AS Active,
-           CASE WHEN m.ModelNumber LIKE N'% TRADE-IN TRADE-UP%' OR m.ModelNumber LIKE N'% WITH %' THEN 1 ELSE 0 END AS IsCombo
+           CASE WHEN m.ModelNumber LIKE N'% TRADE-IN TRADE-UP%' OR m.ModelNumber LIKE N'% WITH %'
+                     OR EXISTS (SELECT 1 FROM #rule ru WHERE ru.Suffix <> N'' AND m.ModelNumber LIKE N'% ' + ru.Suffix + N'%') THEN 1 ELSE 0 END AS IsCombo
       INTO #models
       FROM dbo.RebateCameraModels m
      WHERE m.IsPriceProtection = 0;
@@ -470,7 +478,8 @@ BEGIN
     SELECT r.RowId, 'NO_STACK', N'A bundle or free-with-purchase row needs its stack product (the PRO code or SKU it comes with).'
       FROM piv2.RebateUploadRow r
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY')
-       AND COALESCE(r.RebateType, @defaultType) IN (4, 7) AND r.StackProduct IS NULL;
+       AND EXISTS (SELECT 1 FROM #rule ru WHERE ru.RebateTypeId = COALESCE(r.RebateType, @defaultType) AND ru.AddStack = 1)
+       AND r.StackProduct IS NULL;
 
     UPDATE r
        SET StackCodes = (SELECT LEFT(STRING_AGG(s.ProductCode, N',') WITHIN GROUP (ORDER BY s.Seq), 200) FROM #stack s
@@ -485,32 +494,27 @@ BEGIN
       FROM piv2.RebateUploadRow r
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
 
-    /* ---- 3. The rebate product name, by the naming rule set (RebateIrController) ----
-         IR (2)                 ModelName
-         Trade-in trade-up (3)  ModelName TRADE-IN TRADE-UP
-         Bundle (4), FWP (7)    ModelName WITH stack WITH stack ...   (no name until every stack resolves)
-         Coupon (5)             ModelName WITH COUPON CODE
-         Social media (6)       ModelName WITH SOCIAL MEDIA */
+    /* ---- 3. The rebate product name, by the naming rule set (piv2.RebateNamingRule; seeded from RebateIrController) ----
+         name = PRO product name [+ " WITH <stack>" for each stack product, when the rule adds stacks] [+ " " + suffix]
+         Seeded: IR plain · Trade-in "TRADE-IN TRADE-UP" · Bundle and FWP add stacks · Coupon "WITH COUPON CODE" · Social "WITH SOCIAL MEDIA".
+         A rule that adds stacks gives no name until every stack product resolves. */
     UPDATE r
        SET ProposedName =
            CASE WHEN r.ProductName IS NULL THEN NULL
-                WHEN COALESCE(r.RebateType, @defaultType) IN (4, 7)
+                WHEN COALESCE(ru.AddStack, 0) = 1
                      AND (r.StackProduct IS NULL OR EXISTS (SELECT 1 FROM #stack s WHERE s.RowId = r.RowId AND s.ProductCode IS NULL)) THEN NULL
                 ELSE
              LEFT(REPLACE(REPLACE(LTRIM(RTRIM(
-                r.ProductName +
-                CASE COALESCE(r.RebateType, @defaultType)
-                     WHEN 3 THEN N' TRADE-IN TRADE-UP'
-                     WHEN 4 THEN COALESCE(sn.Chain, N'')
-                     WHEN 7 THEN COALESCE(sn.Chain, N'')
-                     WHEN 5 THEN N' WITH COUPON CODE'
-                     WHEN 6 THEN N' WITH SOCIAL MEDIA'
-                     ELSE N'' END)), N'   ', N' '), N'  ', N' '), 400)
+                r.ProductName
+                + CASE WHEN COALESCE(ru.AddStack, 0) = 1 THEN COALESCE(sn.Chain, N'') ELSE N'' END
+                + CASE WHEN COALESCE(ru.Suffix, N'') <> N'' THEN N' ' + ru.Suffix ELSE N'' END)), N'   ', N' '), N'  ', N' '), 400)
            END
       FROM piv2.RebateUploadRow r
+      LEFT JOIN #rule ru ON ru.RebateTypeId = COALESCE(r.RebateType, @defaultType)
      OUTER APPLY
      (
-        SELECT STRING_AGG(CAST(N' WITH ' + LTRIM(RTRIM(k.ModelName)) AS nvarchar(max)), N'') WITHIN GROUP (ORDER BY s.Seq) AS Chain
+        SELECT STRING_AGG(CAST(N' ' + COALESCE(ru.StackJoiner, N'WITH') + N' ' + LTRIM(RTRIM(k.ModelName)) AS nvarchar(max)), N'')
+                 WITHIN GROUP (ORDER BY s.Seq) AS Chain
           FROM #stack s
           CROSS APPLY (SELECT TOP (1) ModelName FROM #pk WHERE ProductCode = s.ProductCode ORDER BY Rank_) k
          WHERE s.RowId = r.RowId AND s.ProductCode IS NOT NULL
@@ -540,17 +544,17 @@ BEGIN
              WHERE r.ProposedName IS NOT NULL AND m.NumNoSpace = REPLACE(UPPER(LTRIM(RTRIM(r.ProposedName))), N' ', N'')
             UNION ALL
             SELECT m.ModelID, 21, m.Active FROM #models m
-             WHERE COALESCE(r.RebateType, @defaultType) = 2 AND r.Description IS NOT NULL AND m.IsCombo = 0
+             WHERE NOT EXISTS (SELECT 1 FROM #rule ru WHERE ru.RebateTypeId = COALESCE(r.RebateType, @defaultType) AND ru.IsPlain = 0) AND r.Description IS NOT NULL AND m.IsCombo = 0
                AND m.NumKey = UPPER(LTRIM(RTRIM(r.Description)))
             UNION ALL
             SELECT m.ModelID, 22, m.Active FROM #models m
-             WHERE COALESCE(r.RebateType, @defaultType) = 2 AND r.Description IS NOT NULL AND m.IsCombo = 0
+             WHERE NOT EXISTS (SELECT 1 FROM #rule ru WHERE ru.RebateTypeId = COALESCE(r.RebateType, @defaultType) AND ru.IsPlain = 0) AND r.Description IS NOT NULL AND m.IsCombo = 0
                AND m.NumNoSpace = REPLACE(UPPER(LTRIM(RTRIM(r.Description))), N' ', N'')
             UNION ALL
             SELECT dd.ParentModelID, 30, m.Active
               FROM dbo.RebateCameraModelsDetails dd
               JOIN #models m ON m.ModelID = dd.ParentModelID AND m.IsCombo = 0
-             WHERE COALESCE(r.RebateType, @defaultType) = 2
+             WHERE NOT EXISTS (SELECT 1 FROM #rule ru WHERE ru.RebateTypeId = COALESCE(r.RebateType, @defaultType) AND ru.IsPlain = 0)
                AND r.ProductCode IS NOT NULL
                AND dd.ProCode = TRY_CAST(LEFT(r.ProductCode, CHARINDEX(N',', r.ProductCode + N',') - 1) AS int)
             UNION ALL
@@ -565,7 +569,8 @@ BEGIN
            a combo line (Bundle, Free with purchase) with none of its own takes the upload's %. ---- */
     UPDATE r
        SET ProPad = CASE WHEN r.ProPadInput IS NOT NULL THEN r.ProPadInput
-                         WHEN COALESCE(r.RebateType, @defaultType) IN (4, 7) AND COALESCE(@padPct, 0) > 0 AND r.Reimbursement > 0
+                         WHEN EXISTS (SELECT 1 FROM #rule ru WHERE ru.RebateTypeId = COALESCE(r.RebateType, @defaultType) AND ru.AddStack = 1)
+                              AND COALESCE(@padPct, 0) > 0 AND r.Reimbursement > 0
                          THEN ROUND(r.Reimbursement * @padPct / 100.0, 2) ELSE 0 END
       FROM piv2.RebateUploadRow r
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
@@ -635,7 +640,7 @@ BEGIN
        AND COALESCE(b.RebateType, @defaultType) = COALESCE(a.RebateType, @defaultType)
        AND b.StartDate <= a.EndDate AND b.EndDate >= a.StartDate
        AND NOT (b.StartDate = a.StartDate AND b.EndDate = a.EndDate)
-     WHERE a.UploadId = @UploadId
+     WHERE a.UploadId = @UploadId AND b.OverlapAllowed = 0
        AND a.Status IN ('READY', 'PURGATORY', 'LOADED') AND b.Status IN ('READY', 'PURGATORY')
        AND a.ModelId IS NOT NULL AND a.StartDate IS NOT NULL AND b.StartDate IS NOT NULL;
 
@@ -662,7 +667,11 @@ BEGIN
          ORDER BY pd.ProgramStartWeek DESC
      ) p
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY')
-       AND r.ModelId IS NOT NULL AND r.StartDate IS NOT NULL AND r.EndDate IS NOT NULL;
+       AND r.ModelId IS NOT NULL AND r.StartDate IS NOT NULL AND r.EndDate IS NOT NULL
+       /* "Load anyway": a person allowed this row to overlap; an exact copy still waits. */
+       AND NOT (r.OverlapAllowed = 1
+                AND NOT (p.ProgramStartWeek = r.StartDate AND p.ProgramEndWeek = r.EndDate
+                         AND ROUND(p.Reimbursement, 2) = r.Reimbursement + COALESCE(r.ProPad, 0)));
 
     UPDATE r
        SET Problems = (SELECT p.Code AS code, p.Message AS message, JSON_QUERY(p.Candidates) AS candidates
@@ -911,6 +920,150 @@ BEGIN
 END
 GO
 
+/* Skip many rows at once with one reason (clearing purgatory noise). */
+CREATE OR ALTER PROCEDURE piv2.Rebate_SkipRows
+    @RowIds nvarchar(max),     -- comma list
+    @Actor  nvarchar(100),
+    @Reason nvarchar(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
+        THROW 50702, 'A reason is required.', 1;
+
+    DECLARE @rows TABLE (RowId bigint PRIMARY KEY, UploadId int NOT NULL);
+    INSERT @rows
+    SELECT r.RowId, r.UploadId
+      FROM piv2.RebateUploadRow r
+     WHERE r.RowId IN (SELECT TRY_CAST(value AS bigint) FROM STRING_SPLIT(@RowIds, ','))
+       AND r.Status IN ('READY', 'PURGATORY');
+
+    IF NOT EXISTS (SELECT 1 FROM @rows)
+        THROW 50711, 'None of those rows can be skipped (only rows not yet loaded or skipped).', 1;
+
+    BEGIN TRAN;
+    UPDATE r SET Status = 'SKIPPED', SkipReason = @Reason, UpdatedBy = @Actor, UpdatedAt = SYSUTCDATETIME()
+      FROM piv2.RebateUploadRow r JOIN @rows x ON x.RowId = r.RowId;
+
+    INSERT piv2.RebateEvent (EventType, UploadId, RowId, Actor, Reason)
+    SELECT 'ROW_SKIPPED', UploadId, RowId, @Actor, @Reason FROM @rows;
+    COMMIT;
+
+    DECLARE @u int = (SELECT MIN(UploadId) FROM @rows);
+    WHILE @u IS NOT NULL
+    BEGIN
+        EXEC piv2.Rebate_RefreshUploadStatus @u;
+        SET @u = (SELECT MIN(UploadId) FROM @rows WHERE UploadId > @u);
+    END
+
+    SELECT COUNT(*) AS Skipped FROM @rows;
+END
+GO
+
+/* "Load anyway": let rows that overlap a live program (or another row) load, with a reason.
+   An exact copy of a live program still waits; skip it instead. */
+CREATE OR ALTER PROCEDURE piv2.Rebate_AllowOverlap
+    @RowIds nvarchar(max),     -- comma list
+    @Actor  nvarchar(100),
+    @Reason nvarchar(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
+        THROW 50702, 'A reason is required.', 1;
+
+    DECLARE @rows TABLE (RowId bigint PRIMARY KEY, UploadId int NOT NULL);
+    INSERT @rows
+    SELECT r.RowId, r.UploadId
+      FROM piv2.RebateUploadRow r
+     WHERE r.RowId IN (SELECT TRY_CAST(value AS bigint) FROM STRING_SPLIT(@RowIds, ','))
+       AND r.Status IN ('READY', 'PURGATORY')
+       AND (r.Problems LIKE '%"OVERLAP"%' OR r.Problems LIKE '%"OVERLAP_IN_FILE"%');
+
+    IF NOT EXISTS (SELECT 1 FROM @rows)
+        THROW 50745, 'None of those rows has an overlap to allow.', 1;
+
+    UPDATE r SET OverlapAllowed = 1, OverlapReason = @Reason, UpdatedBy = @Actor, UpdatedAt = SYSUTCDATETIME()
+      FROM piv2.RebateUploadRow r JOIN @rows x ON x.RowId = r.RowId;
+
+    INSERT piv2.RebateEvent (EventType, UploadId, RowId, Actor, Reason)
+    SELECT 'OVERLAP_ALLOWED', UploadId, RowId, @Actor, @Reason FROM @rows;
+
+    DECLARE @u int = (SELECT MIN(UploadId) FROM @rows);
+    WHILE @u IS NOT NULL
+    BEGIN
+        EXEC piv2.Rebate_ValidateUpload @u;
+        EXEC piv2.Rebate_RefreshUploadStatus @u;
+        SET @u = (SELECT MIN(UploadId) FROM @rows WHERE UploadId > @u);
+    END
+
+    SELECT COUNT(*) AS Allowed,
+           SUM(CASE WHEN r.Status = 'READY' THEN 1 ELSE 0 END) AS NowReady
+      FROM @rows x JOIN piv2.RebateUploadRow r ON r.RowId = x.RowId;
+END
+GO
+
+/* The naming rule set, with an example name per type. */
+CREATE OR ALTER PROCEDURE piv2.Rebate_NamingRules
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    SELECT t.ID AS RebateTypeId, t.Name AS TypeName,
+           COALESCE(n.Suffix, N'') AS Suffix, CAST(COALESCE(n.AddStack, 0) AS bit) AS AddStack,
+           COALESCE(n.StackJoiner, N'WITH') AS StackJoiner,
+           LTRIM(RTRIM(N'NIKON Z6 III'
+                 + CASE WHEN COALESCE(n.AddStack, 0) = 1 THEN N' ' + COALESCE(n.StackJoiner, N'WITH') + N' NIKKOR Z 24-120MM' ELSE N'' END
+                 + CASE WHEN COALESCE(n.Suffix, N'') <> N'' THEN N' ' + n.Suffix ELSE N'' END)) AS Example,
+           CAST(CASE WHEN n.RebateTypeId IS NULL THEN 0 ELSE 1 END AS bit) AS HasRule,
+           n.UpdatedBy, n.UpdatedAt
+      FROM dbo.RebateType t
+      LEFT JOIN piv2.RebateNamingRule n ON n.RebateTypeId = t.ID
+     ORDER BY t.ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE piv2.Rebate_SaveNamingRule
+    @RebateTypeId int,
+    @Suffix       nvarchar(100) = NULL,
+    @AddStack     bit = 0,
+    @StackJoiner  nvarchar(20) = NULL,
+    @Actor        nvarchar(100),
+    @Reason       nvarchar(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
+        THROW 50702, 'A reason is required.', 1;
+    IF NOT EXISTS (SELECT 1 FROM dbo.RebateType WHERE ID = @RebateTypeId)
+        THROW 50746, 'That rebate type does not exist.', 1;
+
+    SET @Suffix = UPPER(LTRIM(RTRIM(COALESCE(@Suffix, N''))));
+    SET @StackJoiner = UPPER(COALESCE(NULLIF(LTRIM(RTRIM(@StackJoiner)), N''), N'WITH'));
+
+    DECLARE @before nvarchar(max) = (SELECT Suffix, AddStack, StackJoiner FROM piv2.RebateNamingRule
+                                      WHERE RebateTypeId = @RebateTypeId FOR JSON PATH, WITHOUT_ARRAY_WRAPPER);
+
+    MERGE piv2.RebateNamingRule AS t
+    USING (SELECT @RebateTypeId AS RebateTypeId) s ON t.RebateTypeId = s.RebateTypeId
+    WHEN MATCHED THEN UPDATE SET Suffix = @Suffix, AddStack = COALESCE(@AddStack, 0), StackJoiner = @StackJoiner,
+                                 UpdatedBy = @Actor, UpdatedAt = SYSUTCDATETIME()
+    WHEN NOT MATCHED THEN INSERT (RebateTypeId, Suffix, AddStack, StackJoiner, UpdatedBy)
+                          VALUES (@RebateTypeId, @Suffix, COALESCE(@AddStack, 0), @StackJoiner, @Actor);
+
+    INSERT piv2.RebateEvent (EventType, Actor, Reason, Detail)
+    VALUES ('NAMING_RULE_CHANGED', @Actor, @Reason,
+            (SELECT @RebateTypeId AS rebateType, JSON_QUERY(@before) AS before,
+                    @Suffix AS suffix, @AddStack AS addStack, @StackJoiner AS stackJoiner FOR JSON PATH, WITHOUT_ARRAY_WRAPPER));
+END
+GO
+
 CREATE OR ALTER PROCEDURE piv2.Rebate_RestoreRow
     @RowId  bigint,
     @Actor  nvarchar(100)
@@ -1044,12 +1197,12 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    SELECT r.RowId, r.UploadId, u.VendorId, v.VendorName, u.FileName, r.SourceRow,
+    SELECT r.RowId, r.UploadId, u.VendorId, v.VendorName, u.FileName, r.SourceRow, r.Status,
            r.ProCode, r.Description, r.InstantRebate, r.Reimbursement, r.MapPrice,
            r.StartDate, r.EndDate, r.StackProduct, r.RebateType, u.DefaultRebateType, r.Notes, r.Problems,
            r.ModelId, m.ModelNumber AS ModelDescription, r.ModelChosenBy,
            r.VendorSku, r.Upc, r.ProductCode, r.ProductName, r.StackCodes, r.ProposedName, r.ProPad, r.ProPadInput, r.Raw,
-           r.UpdatedBy, r.UpdatedAt, u.CreatedAt AS UploadedAt
+           r.OverlapAllowed, r.OverlapReason, r.UpdatedBy, r.UpdatedAt, u.CreatedAt AS UploadedAt
       FROM piv2.RebateUploadRow r
       JOIN piv2.RebateUpload u ON u.UploadId = r.UploadId
       JOIN dbo.RebateVendors v ON v.VendorID = u.VendorId
@@ -1130,6 +1283,12 @@ BEGIN
        SET Status = 'LOADED', ProgramId = m.ProgramId, UpdatedBy = @Actor, UpdatedAt = SYSUTCDATETIME()
       FROM piv2.RebateUploadRow r
       JOIN @map m ON m.RowId = r.RowId;
+
+    /* Rows a person let through despite an overlap: their programs may overlap when turned on later. */
+    INSERT piv2.RebateOverlapAllowed (ProgramId, Reason, AllowedBy)
+    SELECT m.ProgramId, COALESCE(r.OverlapReason, N'Allowed on upload'), @Actor
+      FROM @map m JOIN piv2.RebateUploadRow r ON r.RowId = m.RowId
+     WHERE r.OverlapAllowed = 1;
 
     /* What the member amount is made of: the vendor's share (claimed back) and PRO's pad (not). */
     INSERT piv2.RebateProgramTerms (ProgramId, MemberAmount, ModelId, VendorShare, ProPad, UpdatedBy)
@@ -1298,7 +1457,8 @@ BEGIN
           JOIN @ids ia ON ia.ProgramId = a.ProgramID
           JOIN dbo.RebateProgramDetail b ON b.ModelID = a.ModelID AND b.IRType = a.IRType AND b.ProgramID > a.ProgramID
           JOIN @ids ib ON ib.ProgramId = b.ProgramID
-         WHERE COALESCE(@NewStart, b.ProgramStartWeek) <= COALESCE(@NewEnd, a.ProgramEndWeek)
+         WHERE NOT EXISTS (SELECT 1 FROM piv2.RebateOverlapAllowed oa WHERE oa.ProgramId IN (a.ProgramID, b.ProgramID))
+           AND COALESCE(@NewStart, b.ProgramStartWeek) <= COALESCE(@NewEnd, a.ProgramEndWeek)
            AND COALESCE(@NewEnd, b.ProgramEndWeek) >= COALESCE(@NewStart, a.ProgramStartWeek)
     );
     IF @self IS NOT NULL
@@ -1319,6 +1479,8 @@ BEGIN
            AND other.ProgramID NOT IN (SELECT ProgramId FROM @ids)
            AND other.ProgramStartWeek <= COALESCE(@NewEnd, mine.ProgramEndWeek)
            AND other.ProgramEndWeek >= COALESCE(@NewStart, mine.ProgramStartWeek)
+         /* a program a person allowed to overlap (Load anyway) does not block, either way round */
+         WHERE NOT EXISTS (SELECT 1 FROM piv2.RebateOverlapAllowed oa WHERE oa.ProgramId IN (mine.ProgramID, other.ProgramID))
     );
 
     IF @clash IS NOT NULL

@@ -37,7 +37,6 @@ import { VendorBillingComponent } from './prointernalengine/components/dashboard
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
 import { VendorCardComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-card/vendor-card.component';
-import { IrSetupDashboardComponent } from './prointernalengine/components/instantrebate/ir-setup-dashboard/ir-setup-dashboard.component';
 import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component';
 import { OrdersComponent } from './prointernalengine/components/dashboards/Orders/orders.component';
 import { EdiManagementComponent } from './prointernalengine/components/dashboards/Orders/edi-management/edi-management.component';
@@ -73,7 +72,8 @@ const routes: Routes = [
       { path: 'instantrebate', component: RebatesupportComponent, canActivate: [AuthGuard] },
       { path: 'rebatesetup', component: RebateSetupComponent, canActivate: [AuthGuard] },
       { path: 'uploadrebates', component: RebateExcelUploaderComponent, canActivate: [AuthGuard] },
-      { path: 'rebatemanagement', component: IrSetupDashboardComponent, canActivate: [AuthGuard] },
+      /* The old Rebate Management page is replaced by the Rebate Desk; old links and bookmarks land there. */
+      { path: 'rebatemanagement', redirectTo: 'rebatedesk', pathMatch: 'full' },
       { path: 'gating', component: GatingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Gating' } },
       { path: 'stock', component: VendorStockComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor Stock' } },
       { path: 'forecast', component: ForecastComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Forcasting' } },

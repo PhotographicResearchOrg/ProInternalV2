@@ -121,6 +121,10 @@ namespace ProInternal.Services.Rebates
 
                         /* Rows with no rebate at all (a price list with 0 for items not on promotion) are not programs. */
             rows = rows.Where(r => (r.InstantRebate ?? 0) != 0 || (r.Reimbursement ?? 0) != 0).ToList();
+
+            /* Nor are lines with nothing to identify a product: no PRO code, SKU, UPC or description (subtotals, notes, stray amounts). */
+            rows = rows.Where(r => !string.IsNullOrWhiteSpace(r.ProCode) || !string.IsNullOrWhiteSpace(r.VendorSku)
+                                || !string.IsNullOrWhiteSpace(r.Upc) || !string.IsNullOrWhiteSpace(r.Description)).ToList();
             if (rows.Count == 0)
                 throw new RebateFileException("Every row has a zero rebate. Check the instant rebate and reimbursement columns.");
 

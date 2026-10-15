@@ -75,7 +75,7 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
       <button type="button" class="help-icon" (click)="toggle($event)" [title]="'Directions: ' + (entry?.title || '')">
         <i class="pi pi-info-circle"></i><span *ngIf="label"> {{ label }}</span>
       </button>
-      <div class="help-pop" *ngIf="open && entry" (click)="$event.stopPropagation()">
+      <div class="help-pop" *ngIf="open && entry" [style.top.px]="top" [style.left.px]="left" (click)="$event.stopPropagation()">
         <b>{{ entry.title }}</b>
         <ol><li *ngFor="let s of entry.steps">{{ s }}</li></ol>
       </div>
@@ -83,7 +83,7 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
   styles: [`
     .help-wrap { position: relative; display: inline-block; }
     .help-icon { border: none; background: none; cursor: pointer; color: #1d4f91; padding: 0 2px; font: inherit; font-size: 12px; }
-    .help-pop { position: absolute; z-index: 30; left: 0; top: 120%; width: 320px; background: #fff; color: #1a2434;
+    .help-pop { position: fixed; z-index: 1000; width: 320px; max-height: 70vh; overflow: auto; background: #fff; color: #1a2434;
       border: 1px solid #d9dee6; border-radius: 10px; padding: 10px 12px; box-shadow: 0 10px 30px rgba(20, 28, 43, .15);
       font-size: 12.5px; font-weight: 400; white-space: normal; text-align: left; }
     .help-pop ol { margin: 6px 0 0; padding-left: 18px; }
@@ -94,13 +94,26 @@ export class RebateHelpComponent {
   @Input() code = 'DISPOSITION';
   @Input() label = '';
   open = false;
+  top = 0;
+  left = 0;
 
   get entry(): { title: string; steps: string[] } | undefined { return REBATE_DIRECTIONS[this.code]; }
 
+  /* Opens below the icon, kept inside the window (it was cut off at the right edge in side panels). */
   toggle(e: Event): void {
     e.stopPropagation();
     this.open = !this.open;
+    if (!this.open) return;
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const w = 320, gap = 12;
+    this.left = Math.max(gap, Math.min(r.left, window.innerWidth - w - gap));
+    const below = r.bottom + 6;
+    this.top = below + 260 > window.innerHeight ? Math.max(gap, r.top - 266) : below;
   }
+
+  @HostListener('window:scroll')
+  @HostListener('window:resize')
+  onMove(): void { this.open = false; }
 
   @HostListener('document:click')
   close(): void { this.open = false; }

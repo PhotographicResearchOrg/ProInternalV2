@@ -186,10 +186,49 @@ namespace ProInternal.Controllers
         public Task<IActionResult> SkipRow(long rowId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_SkipRow", new { RowId = rowId, Actor, Reason = body?.Reason ?? "" }));
 
+        [HttpPost("rows/skip")]
+        [RequirePermission(UploadPermission)]
+        public Task<IActionResult> SkipRows([FromBody] RebateRowsRequest body) =>
+            Read(async () => (await _data.QueryAsync("piv2.Rebate_SkipRows", new
+            {
+                RowIds = string.Join(",", body?.RowIds ?? new List<long>()),
+                Actor,
+                Reason = body?.Reason ?? ""
+            })).FirstOrDefault());
+
+        /* "Load anyway": rows that overlap a live program may load, with a reason. */
+        [HttpPost("rows/allow-overlap")]
+        [RequirePermission(ManagePermission)]
+        public Task<IActionResult> AllowOverlap([FromBody] RebateRowsRequest body) =>
+            Read(async () => (await _data.QueryAsync("piv2.Rebate_AllowOverlap", new
+            {
+                RowIds = string.Join(",", body?.RowIds ?? new List<long>()),
+                Actor,
+                Reason = body?.Reason ?? ""
+            })).FirstOrDefault());
+
         [HttpPost("rows/{rowId:long}/restore")]
         [RequirePermission(UploadPermission)]
         public Task<IActionResult> RestoreRow(long rowId) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_RestoreRow", new { RowId = rowId, Actor }));
+
+        /* ================= naming rule set ================= */
+
+        [HttpGet("naming-rules")]
+        public Task<IActionResult> NamingRules() => Read(() => _data.QueryAsync("piv2.Rebate_NamingRules"));
+
+        [HttpPut("naming-rules/{rebateTypeId:int}")]
+        [RequirePermission(ManagePermission)]
+        public Task<IActionResult> SaveNamingRule(int rebateTypeId, [FromBody] RebateNamingRuleRequest body) =>
+            Act(() => _data.ExecuteAsync("piv2.Rebate_SaveNamingRule", new
+            {
+                RebateTypeId = rebateTypeId,
+                body?.Suffix,
+                AddStack = body?.AddStack ?? false,
+                body?.StackJoiner,
+                Actor,
+                Reason = body?.Reason ?? ""
+            }));
 
         /* ================= vendor terms ================= */
 

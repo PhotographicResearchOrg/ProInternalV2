@@ -398,3 +398,23 @@ input.in, select.in, textarea.in {
   .app { flex-direction: column; }
   .rail { width: 100%; flex-direction: row; flex-wrap: wrap; }
 }
+
+/* ---- filter chips ---- */
+.chips {
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 10px;
+  button {
+    font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 14px; cursor: pointer;
+    border: 1px solid var(--border); background: #fff; color: var(--sub);
+    b { font-family: var(--mono); font-weight: 650; margin-left: 4px; color: var(--ink); }
+    &.on { background: var(--teal); border-color: var(--teal); color: #fff; b { color: #fff; } }
+    &:disabled { opacity: .45; cursor: default; }
+  }
+  .lbl { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .4px; margin-right: 2px; }
+}
+
+/* ---- bulk action bar for ticked rows ---- */
+.bulkbar {
+  display: flex; gap: 8px; align-items: center; padding: 8px 10px; margin: 0 0 10px; border-radius: 8px;
+  background: var(--tealSoft); color: var(--ink); font-size: 13px;
+}
+.working { color: var(--sub); font-size: 13px; padding: 10px 0; display: flex; gap: 8px; align-items: center; }

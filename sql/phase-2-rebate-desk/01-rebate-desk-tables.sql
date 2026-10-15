@@ -270,5 +270,46 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_piv2_RebProg_Batch' AN
     CREATE INDEX IX_piv2_RebProg_Batch ON dbo.RebateProgramDetail (BatchID) INCLUDE (Expired, ModelID);
 GO
 
+/* ---- Added later; safe to run on a database that already has the tables above ---- */
+
+/* A person may let a row load even though it overlaps a live program (with a reason). */
+IF COL_LENGTH('piv2.RebateUploadRow', 'OverlapAllowed') IS NULL
+    ALTER TABLE piv2.RebateUploadRow ADD OverlapAllowed bit NOT NULL CONSTRAINT DF_piv2_RebRow_OverlapAllowed DEFAULT 0;
+GO
+IF COL_LENGTH('piv2.RebateUploadRow', 'OverlapReason') IS NULL
+    ALTER TABLE piv2.RebateUploadRow ADD OverlapReason nvarchar(500) NULL;
+GO
+
+/* Programs allowed to overlap other live programs: the "turn on" and "change dates" checks let them through. */
+IF OBJECT_ID('piv2.RebateOverlapAllowed', 'U') IS NULL
+    CREATE TABLE piv2.RebateOverlapAllowed
+    (
+        ProgramId  int            NOT NULL CONSTRAINT PK_piv2_RebateOverlapAllowed PRIMARY KEY,
+        Reason     nvarchar(500)  NOT NULL,
+        AllowedBy  nvarchar(100)  NOT NULL,
+        AllowedAt  datetime2(0)   NOT NULL CONSTRAINT DF_piv2_RebOvl_At DEFAULT SYSUTCDATETIME()
+    );
+GO
+
+/* The naming rule set, one line per rebate type: rebate product name = PRO product name [+ stack chain] [+ suffix].
+   Seeded with the rules RebateIrController uses; changed on the desk (Naming rules). */
+IF OBJECT_ID('piv2.RebateNamingRule', 'U') IS NULL
+    CREATE TABLE piv2.RebateNamingRule
+    (
+        RebateTypeId int            NOT NULL CONSTRAINT PK_piv2_RebateNamingRule PRIMARY KEY,
+        Suffix       nvarchar(100)  NOT NULL CONSTRAINT DF_piv2_RebName_Suffix DEFAULT N'',   -- added after the name, e.g. TRADE-IN TRADE-UP
+        AddStack     bit            NOT NULL CONSTRAINT DF_piv2_RebName_Stack DEFAULT 0,      -- adds " WITH <stack product>" for each stack product
+        StackJoiner  nvarchar(20)   NOT NULL CONSTRAINT DF_piv2_RebName_Join DEFAULT N'WITH', -- the word before each stack product
+        UpdatedBy    nvarchar(100)  NULL,
+        UpdatedAt    datetime2(0)   NOT NULL CONSTRAINT DF_piv2_RebName_At DEFAULT SYSUTCDATETIME()
+    );
+GO
+INSERT piv2.RebateNamingRule (RebateTypeId, Suffix, AddStack, StackJoiner, UpdatedBy)
+SELECT v.TypeId, v.Suffix, v.AddStack, N'WITH', N'seed (RebateIrController)'
+  FROM (VALUES (2, N'', 0), (3, N'TRADE-IN TRADE-UP', 0), (4, N'', 1), (5, N'WITH COUPON CODE', 0),
+               (6, N'WITH SOCIAL MEDIA', 0), (7, N'', 1)) v (TypeId, Suffix, AddStack)
+ WHERE NOT EXISTS (SELECT 1 FROM piv2.RebateNamingRule r WHERE r.RebateTypeId = v.TypeId);
+GO
+
 SELECT N'tables ready' AS Result,
        (SELECT CAST(current_value AS int) FROM sys.sequences WHERE object_id = OBJECT_ID('piv2.RebateBatchSeq')) AS NextBatchStartsNear;

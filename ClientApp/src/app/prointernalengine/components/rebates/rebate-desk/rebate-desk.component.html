@@ -158,11 +158,27 @@
             <button type="button" [class.on]="rowFilter === 'SKIPPED'" (click)="rowFilter = 'SKIPPED'">Skipped {{ upload.rowsSkipped }}</button>
           </div>
 
+          <div class="chips" *ngIf="problemChips(uploadRows).length">
+            <span class="lbl">Problems</span>
+            <button type="button" [class.on]="!uChip" (click)="uChip = null">All</button>
+            <button type="button" *ngFor="let c of problemChips(uploadRows)" [class.on]="uChip === c.code"
+                    (click)="uChip = uChip === c.code ? null : c.code; rowFilter = 'ALL'">{{ c.label }}<b>{{ c.count }}</b></button>
+          </div>
+          <div class="bulkbar" *ngIf="picked.size">
+            <b>{{ picked.size }} ticked</b>
+            <button type="button" class="btn danger" (click)="bulkSkip()"><i class="pi pi-eye-slash"></i> Skip them</button>
+            <button type="button" class="btn" *ngIf="pickedOverlaps.length" (click)="bulkOverlap()">
+              <i class="pi pi-forward"></i> Load anyway ({{ pickedOverlaps.length }} overlapping)</button>
+            <span class="grow"></span>
+            <button type="button" class="btn ghost" (click)="clearTicks()">Clear</button>
+          </div>
           <div class="split" [style.grid-template-columns]="row ? 'minmax(0, 1.4fr) minmax(0, 1fr)' : '1fr'">
             <table class="grid">
-              <thead><tr><th>Row</th><th>Vendor SKU / PRO product</th><th>Rebate product (disposition)</th><th>Dates</th><th class="num">Vendor share</th><th class="num">Member</th><th>Status</th></tr></thead>
+              <thead><tr><th style="width: 26px"><input type="checkbox" [checked]="allTicked" (change)="tickAll($any($event.target).checked)" title="Tick every row shown" /></th><th>Row</th><th>Vendor SKU / PRO product</th><th>Rebate product (disposition)</th><th>Dates</th><th class="num">Vendor share</th><th class="num">Member</th><th>Status</th></tr></thead>
               <tbody>
                 <tr *ngFor="let r of filteredRows" class="click" (click)="openRow(r, upload.vendorId)" [class.sel]="row?.rowId === r.rowId">
+                  <td (click)="$event.stopPropagation()"><input type="checkbox" *ngIf="r.status === 'PURGATORY' || r.status === 'READY'"
+                      [checked]="picked.has(r.rowId)" (change)="tickRow(r, $any($event.target).checked)" /></td>
                   <td class="mono">{{ r.sourceRow }}</td>
                   <td><div class="mono">{{ r.vendorSku || r.upc || r.proCode }}</div>
                     <div class="sub" *ngIf="r.productCode"><span class="mono">{{ r.productCode }}</span> {{ r.productName }}</div>
@@ -170,6 +186,7 @@
                   <td><ng-container *ngIf="r.modelId"><div>{{ r.modelDescription }}</div><div class="sub mono">#{{ r.modelId }}<span *ngIf="r.modelChosenBy"> · picked by {{ r.modelChosenBy }}</span></div></ng-container>
                     <div class="sub" *ngIf="!r.modelId && r.proposedName">to create: <i>{{ r.proposedName }}</i></div>
                     <ul class="problems"><li *ngFor="let p of r.problems">{{ p.message }} <app-rebate-help [code]="p.code"></app-rebate-help></li></ul>
+                    <div class="sub" *ngIf="r.overlapAllowed">Overlap allowed: {{ r.overlapReason }}</div>
                     <div class="sub" *ngIf="r.skipReason">Skipped: {{ r.skipReason }}</div></td>
                   <td class="mono">{{ r.startDate | date:'MM/dd/yy' }} – {{ r.endDate | date:'MM/dd/yy' }}</td>
                   <td class="money">{{ r.reimbursement | currency }}</td>
@@ -177,7 +194,7 @@
                   <td><span class="status" [class.ok]="r.status === 'READY' || r.status === 'LOADED'" [class.bad]="r.status === 'PURGATORY'">{{ r.status }}</span>
                     <div class="sub mono" *ngIf="r.programId">program {{ r.programId }}</div></td>
                 </tr>
-                <tr *ngIf="!filteredRows.length"><td colspan="7" class="empty">No rows here.</td></tr>
+                <tr *ngIf="!filteredRows.length"><td colspan="8" class="empty">No rows here.</td></tr>
               </tbody>
             </table>
             <ng-container *ngIf="row" [ngTemplateOutlet]="rowPanel"></ng-container>
@@ -195,11 +212,26 @@
               <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
             </select>
           </div>
+          <div class="chips" *ngIf="problemChips(purgatory).length">
+            <span class="lbl">Problems</span>
+            <button type="button" [class.on]="!pChip" (click)="pChip = null">All<b>{{ purgatory.length }}</b></button>
+            <button type="button" *ngFor="let c of problemChips(purgatory)" [class.on]="pChip === c.code"
+                    (click)="pChip = pChip === c.code ? null : c.code">{{ c.label }}<b>{{ c.count }}</b></button>
+          </div>
+          <div class="bulkbar" *ngIf="picked.size">
+            <b>{{ picked.size }} ticked</b>
+            <button type="button" class="btn danger" (click)="bulkSkip()"><i class="pi pi-eye-slash"></i> Skip them</button>
+            <button type="button" class="btn" *ngIf="pickedOverlaps.length" (click)="bulkOverlap()">
+              <i class="pi pi-forward"></i> Load anyway ({{ pickedOverlaps.length }} overlapping)</button>
+            <span class="grow"></span>
+            <button type="button" class="btn ghost" (click)="clearTicks()">Clear</button>
+          </div>
           <div class="split" [style.grid-template-columns]="row ? 'minmax(0, 1.4fr) minmax(0, 1fr)' : '1fr'">
             <table class="grid">
-              <thead><tr><th>Upload</th><th>Row</th><th>Vendor SKU / PRO product</th><th>Problems</th><th class="num">Vendor share</th></tr></thead>
+              <thead><tr><th style="width: 26px"><input type="checkbox" [checked]="allTicked" (change)="tickAll($any($event.target).checked)" title="Tick every row shown" /></th><th>Upload</th><th>Row</th><th>Vendor SKU / PRO product</th><th>Problems</th><th class="num">Vendor share</th></tr></thead>
               <tbody>
-                <tr *ngFor="let r of purgatory" class="click" (click)="openRow(r, r.vendorId)" [class.sel]="row?.rowId === r.rowId">
+                <tr *ngFor="let r of purgatoryShown" class="click" (click)="openRow(r, r.vendorId)" [class.sel]="row?.rowId === r.rowId">
+                  <td (click)="$event.stopPropagation()"><input type="checkbox" [checked]="picked.has(r.rowId)" (change)="tickRow(r, $any($event.target).checked)" /></td>
                   <td><div>{{ r.vendorName }}</div><div class="sub mono">#{{ r.uploadId }} · {{ r.fileName }}</div></td>
                   <td class="mono">{{ r.sourceRow }}</td>
                   <td><div class="mono">{{ r.vendorSku || r.upc || r.proCode }}</div>
@@ -207,7 +239,7 @@
                   <td><ul class="problems"><li *ngFor="let p of r.problems">{{ p.message }} <app-rebate-help [code]="p.code"></app-rebate-help></li></ul></td>
                   <td class="money">{{ r.reimbursement | currency }}</td>
                 </tr>
-                <tr *ngIf="!purgatory.length && !loading"><td colspan="5" class="empty">Purgatory is empty.</td></tr>
+                <tr *ngIf="!purgatoryShown.length && !loading"><td colspan="6" class="empty">{{ purgatory.length ? 'No rows with that problem.' : 'Purgatory is empty.' }}</td></tr>
               </tbody>
             </table>
             <ng-container *ngIf="row" [ngTemplateOutlet]="rowPanel"></ng-container>
@@ -236,6 +268,34 @@
             <div class="actions" style="margin-top: 8px">
               <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">
                 {{ ticked.length > 1 ? 'Use these ' + ticked.length + ' (one rebate product)' : 'Use this product' }}</button>
+            </div>
+          </div>
+
+          <div class="card" style="margin: 0 0 12px" *ngIf="rowNeedsProduct && (row.status === 'READY' || row.status === 'PURGATORY')">
+            <div class="card-head"><h2 style="font-size: 13px">Find the PRO product</h2><span class="grow"></span>
+              <app-rebate-help code="NO_PRODUCT" label="Directions"></app-rebate-help></div>
+            <input class="in" style="width: 100%" placeholder="PRO code, catalog # (e.g. SR_4770), UPC or name" [(ngModel)]="proQ"
+                   (ngModelChange)="searchProSoon()" (keyup.enter)="searchPro()" />
+            <div class="working" *ngIf="proSearching"><i class="pi pi-spin pi-spinner"></i> Searching PRO products…</div>
+            <div class="err" *ngIf="proErr">{{ proErr }}</div>
+            <div class="sub" style="margin-top: 6px" *ngIf="!proSearching && !proErr && proQ.trim().length >= 2 && !proHits.length">
+              No PRO product matches "{{ proQ }}". Try part of the name or the catalog number.</div>
+            <table class="grid" style="margin-top: 8px" *ngIf="proHits.length">
+              <thead><tr><th></th><th>PRO code</th><th>Name</th><th>Catalog #</th><th>Rebate products</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let h of proHits" [class.off]="h.isDiscontinued">
+                  <td><input type="checkbox" [checked]="ticked.includes('' + h.productCode)" (change)="tick('' + h.productCode, $any($event.target).checked)" /></td>
+                  <td class="mono">{{ h.productCode }}<span class="chip info" *ngIf="ticked.indexOf('' + h.productCode) === 0 && ticked.length > 1">primary</span></td>
+                  <td>{{ h.modelName }}<div class="sub" *ngIf="h.isDiscontinued">discontinued</div></td>
+                  <td class="mono">{{ h.catalogNumber }}<div class="sub">{{ h.upc }}</div></td>
+                  <td class="sub">{{ h.usedBy || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="actions" style="margin-top: 8px" *ngIf="proHits.length">
+              <span class="sub grow">Tick one, or several colours to put them on one rebate product. The row is checked again.</span>
+              <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">
+                {{ ticked.length > 1 ? 'Use these ' + ticked.length : 'Use this product' }}</button>
             </div>
           </div>
 
@@ -292,6 +352,7 @@
               <label class="wide">Notes <input class="in" [(ngModel)]="rowEdit.notes" /></label>
             </div>
             <div class="actions" style="margin-top: 12px">
+              <button type="button" class="btn" *ngIf="hasProblem(row, 'OVERLAP') || hasProblem(row, 'OVERLAP_IN_FILE')" (click)="rowLoadAnyway()"><i class="pi pi-forward"></i> Load anyway</button>
               <button type="button" class="btn danger" (click)="pending = { kind: 'skip', row: row }">Skip row</button>
               <span class="grow"></span>
               <button type="button" class="btn ghost" (click)="openRow(row, rowVendorId)" [disabled]="!rowDirty">Discard</button>
