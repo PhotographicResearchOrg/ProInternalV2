@@ -41,7 +41,7 @@ All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.Rebate
 4. The vendor SKU ignoring dashes, spaces, dots and underscores.
 5. The UPC, compared as a number, so leading zeros don't matter.
 
-Active, non-discontinued products win. If two different products tie, the row waits as `AMBIGUOUS_PRODUCT` until someone enters the PRO code(s). Only the products the upload refers to are read, limited to the vendor's brands when its terms list them.
+Active, non-discontinued products win. If two different products tie, the row waits as `AMBIGUOUS_PRODUCT` and the user dispositions it: the problem carries up to 25 candidates (code and name), shown as tick boxes in the row panel. Tick one and click Use, or tick several (colours) to roll them into one rebate product; the first ticked is the primary code (`ModelName`). Typing PRO code(s) still works. Every problem, and the disposition section, has an ⓘ that opens short directions (`shared/rebate-help.component.ts`). Only the products the upload refers to are read, limited to the vendor's brands when its terms list them.
 
 **Naming rule set**, the same one as the existing PIV2 IR upload (`RebateIrController`):
 

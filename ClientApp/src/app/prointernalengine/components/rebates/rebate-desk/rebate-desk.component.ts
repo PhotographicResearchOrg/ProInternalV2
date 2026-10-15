@@ -271,6 +271,7 @@ export class RebateDeskComponent implements OnInit {
     this.row = r;
     this.rowVendorId = vendorId;
     this.newProduct = null;
+    this.ticked = [];
     this.rowEdit = {
       proCode: r.proCode ?? '', vendorSku: r.vendorSku ?? '', upc: r.upc ?? '', stackProduct: r.stackProduct ?? '',
       description: r.description ?? '', instantRebate: r.instantRebate, reimbursement: r.reimbursement,
@@ -367,6 +368,24 @@ export class RebateDeskComponent implements OnInit {
       },
       error: err => (this.error = apiMessage(err))
     });
+  }
+
+  /* Several PRO products matched: the ones ticked, in the order ticked. */
+  ticked: string[] = [];
+
+  candidatesOf(r: any): any[] {
+    return (r?.problems ?? []).find((p: any) => p.code === 'AMBIGUOUS_PRODUCT')?.candidates ?? [];
+  }
+
+  tick(code: string, on: boolean): void {
+    this.ticked = on ? [...this.ticked.filter(c => c !== code), code] : this.ticked.filter(c => c !== code);
+  }
+
+  useTicked(): void {
+    if (!this.ticked.length) return;
+    this.rowEdit.proCode = this.ticked.join(',');
+    this.ticked = [];
+    this.saveRow();
   }
 
   restoreRow(r: any): void {

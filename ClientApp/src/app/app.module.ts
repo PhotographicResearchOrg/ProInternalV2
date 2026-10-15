@@ -84,6 +84,7 @@ import { RebateVendorsComponent } from './prointernalengine/components/rebates/r
 import { RebateClaimsComponent } from './prointernalengine/components/rebates/rebate-claims/rebate-claims.component';
 import { RebateReasonDialogComponent } from './prointernalengine/components/rebates/shared/reason-dialog.component';
 import { RebateProductPickerComponent } from './prointernalengine/components/rebates/shared/product-picker.component';
+import { RebateHelpComponent } from './prointernalengine/components/rebates/shared/rebate-help.component';
 import { PanelModule } from 'primeng/panel';
 import { BrowserModule } from '@angular/platform-browser';             // <-- add
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; // <-- add
@@ -129,6 +130,7 @@ import { AccessRulesComponent } from './prointernalengine/components/MemberManag
     RebateClaimsComponent,
     RebateReasonDialogComponent,
     RebateProductPickerComponent,
+    RebateHelpComponent,
     ReceivablesComponent,
     AffiliateGridComponent,
     ClientGridComponent,

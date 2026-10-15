@@ -270,7 +270,7 @@ BEGIN
     DECLARE @brands varchar(200) = (SELECT NULLIF(LTRIM(RTRIM(BrandIds)), '') FROM piv2.RebateVendorTerms WHERE VendorId = @vendor);
 
     IF OBJECT_ID('tempdb..#problem') IS NOT NULL DROP TABLE #problem;
-    CREATE TABLE #problem (RowId bigint NOT NULL, Code varchar(40) NOT NULL, Message nvarchar(800) NOT NULL);
+    CREATE TABLE #problem (RowId bigint NOT NULL, Code varchar(40) NOT NULL, Message nvarchar(800) NOT NULL, Candidates nvarchar(max) NULL);
 
     /* ---- 1. PRO products, from [PRO].dbo.Product (no Computyme) ----
        Only the products this upload's rows can refer to are read: their PRO codes, SKUs
@@ -384,10 +384,15 @@ BEGIN
             AND m.Rank_ = (SELECT MIN(m3.Rank_) FROM #match m3 WHERE m3.RowId = m.RowId
                             AND m3.Pri = (SELECT MIN(m4.Pri) FROM #match m4 WHERE m4.RowId = m.RowId)));
 
-    INSERT #problem (RowId, Code, Message)
+    /* The candidates go with the problem, so the desk can list them to tick. */
+    INSERT #problem (RowId, Code, Message, Candidates)
     SELECT x.RowId, 'AMBIGUOUS_PRODUCT',
-           LEFT(CONCAT(N'Several PRO products match; enter the PRO code (or several, comma separated, to roll them up): ',
-                       STRING_AGG(CAST(CONCAT(x.ProductCode, N' ', LEFT(k.ModelName, 50)) AS nvarchar(max)), N'; ')), 790)
+           CONCAT(N'Several PRO products match (', COUNT(*), N'). Pick one, or tick several to roll them into one rebate product.'),
+           (SELECT TOP (25) c.ProductCode AS code, k2.ModelName AS name
+              FROM (SELECT DISTINCT ProductCode FROM #res WHERE RowId = x.RowId) c
+              JOIN (SELECT ProductCode, MAX(ModelName) AS ModelName FROM #pk GROUP BY ProductCode) k2 ON k2.ProductCode = c.ProductCode
+             ORDER BY k2.ModelName
+               FOR JSON PATH)
       FROM (SELECT DISTINCT RowId, ProductCode FROM #res) x
       JOIN piv2.RebateUploadRow r ON r.RowId = x.RowId AND r.ProCode IS NULL
       JOIN (SELECT ProductCode, MAX(ModelName) AS ModelName FROM #pk GROUP BY ProductCode) k ON k.ProductCode = x.ProductCode
@@ -656,7 +661,8 @@ BEGIN
        AND r.ModelId IS NOT NULL AND r.StartDate IS NOT NULL AND r.EndDate IS NOT NULL;
 
     UPDATE r
-       SET Problems = (SELECT p.Code AS code, p.Message AS message FROM #problem p WHERE p.RowId = r.RowId FOR JSON PATH),
+       SET Problems = (SELECT p.Code AS code, p.Message AS message, JSON_QUERY(p.Candidates) AS candidates
+                         FROM #problem p WHERE p.RowId = r.RowId FOR JSON PATH),
            Status   = CASE WHEN EXISTS (SELECT 1 FROM #problem p WHERE p.RowId = r.RowId) THEN 'PURGATORY' ELSE 'READY' END
       FROM piv2.RebateUploadRow r
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY');
