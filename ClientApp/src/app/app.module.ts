@@ -75,6 +75,7 @@ import { ShippingerrorbrmComponent } from './prointernalengine/components/dashbo
 import { PaymentTypeComponent } from './prointernalengine/components/shared/payment-type/payment-type.component';
 import { ConfirmPopupModule } from 'primeng/confirmpopup';
 import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component'; 
+import { IntegrationDeskComponent } from './prointernalengine/components/integration/integration-desk/integration-desk.component';
 import { PanelModule } from 'primeng/panel';
 import { BrowserModule } from '@angular/platform-browser';             // <-- add
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; // <-- add
@@ -111,6 +112,7 @@ import { AccessRulesComponent } from './prointernalengine/components/MemberManag
     CreditsComponent,
     VendorBillingComponent,
     ProductEditComponent,
+    IntegrationDeskComponent,
     ReceivablesComponent,
     AffiliateGridComponent,
     ClientGridComponent,

@@ -16,6 +16,8 @@ using PdfSharp.Charting;
 using ProInternal;
 using ProInternal.Helpers;
 using ProInternal.Helpers.Security;
+using ProInternal.Services.Files;
+using ProInternal.Services.Integration;
 using ProInternal.Models.Accounting;
 using ProInternal.Models.Accounts;
 using ProInternal.Services;
@@ -114,6 +116,14 @@ builder.Services.AddHttpClient<IUvicornDataAccess, UvicornDataAccess>(c =>
     c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
 });
 builder.Services.AddScoped<IOrderInboxDataAccess, OrderInboxDataAccess>();
+
+// Phase 1 platform: one outbox and acknowledgement loop for every domain,
+// and the S3 file library. Desks add their IIntegrationSender here.
+builder.Services.AddScoped<IIntegrationDataAccess, IntegrationDataAccess>();
+builder.Services.AddSingleton<IntegrationResponseValidator>();
+builder.Services.AddSingleton<IntegrationDispatcher>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<IntegrationDispatcher>());
+builder.Services.AddScoped<IFileLibrary, FileLibrary>();
 builder.Services.AddCors();
 
 // In production, the Angular files will be served from this directory

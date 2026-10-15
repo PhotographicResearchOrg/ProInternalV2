@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0",
+  "correlationId": "c4a7e2f0-9d18-4b3c-a5e6-71f2b8d0c934",
+  "responseType": "ACKNOWLEDGEMENT",
+  "result": "REJECTED",
+  "reasonCode": "UNKNOWN_ITEM",
+  "message": "Product 7512 is not set up in Computyme.",
+  "respondedAt": "2026-10-15T16:20:02Z"
+}

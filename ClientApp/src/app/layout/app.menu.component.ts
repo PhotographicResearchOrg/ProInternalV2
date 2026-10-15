@@ -202,6 +202,13 @@ export class AppMenuComponent implements OnInit {
           ]
         },
 
+        {
+          label: 'Integration', icon: 'pi pi-sync',
+          items: [
+            can('/integration') && { label: 'Integration Desk', icon: 'pi pi-sync', routerLink: ['/integration'] }
+          ]
+        },
+
       ]
     });
     can('ecommerce/new-product') && rawModel.push({ label: 'New Products', icon: 'pi pi-fw pi-plus', routerLink: ['ecommerce/new-product'] });
