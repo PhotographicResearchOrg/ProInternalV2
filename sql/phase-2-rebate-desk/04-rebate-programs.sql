@@ -64,7 +64,8 @@ BEGIN
        AND (@When IS NULL
             OR (@When = 'CURRENT' AND p.ProgramStartWeek <= @today AND p.ProgramEndWeek >= @today)
             OR (@When = 'FUTURE'  AND p.ProgramStartWeek > @today)
-            OR (@When = 'PAST'    AND p.ProgramEndWeek < @today))
+            OR (@When = 'PAST'    AND p.ProgramEndWeek < @today)
+            OR (@When = 'ENDING'  AND p.ProgramEndWeek BETWEEN @today AND DATEADD(day, 14, @today)))
        AND (@Q IS NULL
             OR m.ModelNumber LIKE N'%' + @Q + N'%'
             OR m.ModelName LIKE N'%' + @Q + N'%'

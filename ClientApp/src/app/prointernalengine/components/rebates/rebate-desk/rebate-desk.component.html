@@ -377,14 +377,14 @@
         (showPrograms)="showPrograms({ modelId: $event }, 'IR')"></app-rebate-products>
       <app-rebate-products *ngIf="view === 'pp-products'" rail="PP" (dirtyChange)="childDirty = $event"
         (showPrograms)="showPrograms({ modelId: $event }, 'PP')"></app-rebate-products>
-      <app-rebate-vendors *ngIf="view === 'vendors'" rail="IR" (showPrograms)="showPrograms($event, 'IR')"></app-rebate-vendors>
-      <app-rebate-vendors *ngIf="view === 'pp-vendors'" rail="PP" (showPrograms)="showPrograms($event, 'PP')"></app-rebate-vendors>
+      <app-rebate-vendors *ngIf="view === 'vendors'" rail="IR" (showPrograms)="showPrograms($event, 'IR')" (debitMemo)="billVendor($event, 'IR')"></app-rebate-vendors>
+      <app-rebate-vendors *ngIf="view === 'pp-vendors'" rail="PP" (showPrograms)="showPrograms($event, 'PP')" (debitMemo)="billVendor($event, 'PP')"></app-rebate-vendors>
 
       <!-- ============ Claims and debit memos (accounting) ============ -->
       <app-rebate-claims *ngIf="view === 'claims'" rail="IR" tab="claims"></app-rebate-claims>
-      <app-rebate-claims *ngIf="view === 'debitmemos'" rail="IR" tab="memos"></app-rebate-claims>
+      <app-rebate-claims *ngIf="view === 'debitmemos'" rail="IR" tab="memos" [preset]="memoPreset"></app-rebate-claims>
       <app-rebate-claims *ngIf="view === 'pp-claims'" rail="PP" tab="claims"></app-rebate-claims>
-      <app-rebate-claims *ngIf="view === 'pp-debitmemos'" rail="PP" tab="memos"></app-rebate-claims>
+      <app-rebate-claims *ngIf="view === 'pp-debitmemos'" rail="PP" tab="memos" [preset]="memoPreset"></app-rebate-claims>
 
       <!-- ============ Batches ============ -->
       <ng-container *ngIf="view === 'batches'">
@@ -501,6 +501,30 @@
           </section>
         </div>
       </ng-container>
+
+      <!-- ============ Naming rules ============ -->
+      <section class="card" *ngIf="view === 'naming'">
+        <div class="card-head"><h2>Naming rules</h2>
+          <span class="sub">How an upload names the rebate product for each rebate type: PRO product name, then stack products, then the suffix.</span>
+          <span class="grow"></span>
+          <button type="button" class="btn ghost" (click)="exportNaming()" [disabled]="!naming.length"><i class="pi pi-file-excel"></i> Excel</button></div>
+        <table class="grid">
+          <thead><tr><th>Rebate type</th><th>Adds stack products</th><th>Stack word</th><th>Suffix</th><th>Example name</th><th>Changed</th><th></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let r of naming">
+              <td class="rec">{{ r.typeName }}<div class="sub" *ngIf="!r.hasRule">no rule yet: named like a plain IR</div></td>
+              <td><input type="checkbox" [(ngModel)]="r.addStack" /></td>
+              <td><input class="in mono" style="max-width: 90px" [(ngModel)]="r.stackJoiner" [disabled]="!r.addStack" maxlength="20" /></td>
+              <td><input class="in mono" [(ngModel)]="r.suffix" placeholder="none" maxlength="100" /></td>
+              <td class="mono">{{ namingExample(r) }}</td>
+              <td class="sub">{{ r.updatedAt | date:'MM/dd/yy' }}<div>{{ r.updatedBy }}</div></td>
+              <td><button type="button" class="btn primary" *ngIf="namingDirty(r)" (click)="pending = { kind: 'naming', rule: r }">Save</button></td>
+            </tr>
+            <tr *ngIf="!naming.length"><td colspan="7" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+        <div class="hint" style="margin-top: 8px">A change applies to uploads checked from now on. Rebate products already named under the old rule keep their names; the next file of that type will offer to create products under the new name. Connection is not affected (it joins on the PRO code). The old (IR) Batch Upload page still uses its own built-in rules.</div>
+      </section>
 
       <!-- ============ Templates ============ -->
       <section class="card" *ngIf="view === 'templates'">

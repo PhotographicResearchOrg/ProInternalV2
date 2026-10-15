@@ -6,7 +6,7 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
     title: 'How a row finds its rebate product',
     steps: [
       'The vendor SKU (with the vendor\'s catalog prefix), the UPC or the PRO code finds the PRO product.',
-      'The rebate product name is built from the naming rules: IR = product name; trade-in adds "TRADE-IN TRADE-UP"; bundle and free-with-purchase add "WITH" and the stack product; coupon adds "WITH COUPON CODE"; social adds "WITH SOCIAL MEDIA".',
+      'The rebate product name is built from the naming rules (left menu, Naming rules): IR = product name; trade-in adds "TRADE-IN TRADE-UP"; bundle and free-with-purchase add "WITH" and the stack product; coupon adds "WITH COUPON CODE"; social adds "WITH SOCIAL MEDIA".',
       'That name finds the rebate product. If none exists yet, use "Create rebate products" at the top of the upload.',
       'Several PRO products fit? Tick the right one, or tick several (colours) to put them on one rebate product.',
       'Picking a rebate product yourself overrides all of this for that row (↺ hands it back).'
@@ -27,7 +27,7 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
       'Check the vendor SKU and UPC on the line.',
       'PRO catalog numbers often carry a prefix (SmallRig: SR_). Set it once in Vendors → this vendor → terms, then the whole file re-matches.',
       'If the brand ids in the vendor terms are set, the product must be under one of them.',
-      'Or type the PRO code(s) on the line and save.'
+      'Or use "Find the PRO product" on the row: search by PRO code, catalog #, UPC or name, tick it and click Use.'
     ]
   },
   NO_MODEL: {
@@ -59,11 +59,12 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
   NEGATIVE_AMOUNT: { title: 'A negative amount', steps: ['Instant rebate, MAP and PRO pad must be zero or more.'] },
   NO_TYPE: { title: 'Rebate type missing', steps: ['Choose the type on the line, or set a default type for the file when mapping.'] },
   UNKNOWN_TYPE: { title: 'Rebate type not recognised', steps: ['Choose one of IR, Trade-in Trade-up, Bundle, Coupon, Social media, Free with purchase.'] },
-  DUPLICATE_IN_FILE: { title: 'The same program twice in the file', steps: ['Skip this line; the earlier one loads.'] },
+  DUPLICATE_IN_FILE: { title: 'The same program twice in the file', steps: ['Skip this line; the earlier one loads. Tick several and "Skip them" to clear many at once.'] },
   OVERLAP_IN_FILE: { title: 'Overlaps another line of this file', steps: ['Same product and type with overlapping dates. Fix the dates or skip one line.'] },
   OVERLAP: {
     title: 'Overlaps a live program',
-    steps: ['A program for the same product and type is already on for some of these dates.', 'Change these dates, or turn the live one off or change its dates in Programs.']
+    steps: ['A program for the same product and type is already on for some of these dates.', 'Change these dates, or turn the live one off or change its dates in Programs.',
+      'Or, when both should run, "Load anyway" (on the row, or tick several) with a reason.']
   },
   ALREADY_LOADED: { title: 'Already loaded', steps: ['The same program is already live. Skip this line.'] }
 };

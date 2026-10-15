@@ -9,10 +9,10 @@
   </div>
 
   <div class="stats" [style.grid-template-columns]="'repeat(' + (rail === 'IR' ? 5 : 4) + ', minmax(0, 1fr))'" style="margin: 0 0 12px">
-    <div class="stat"><b class="warn">{{ totals.liability | currency:'USD':'symbol':'1.0-0' }}</b><span>liability: approved, not reimbursed (no debit memo)</span></div>
+    <div class="stat"><b class="warn">{{ totals.liability | currency:'USD':'symbol':'1.0-0' }}</b><span>liability: approved, not billed to the vendor (no debit memo)</span></div>
     <div class="stat"><b>{{ totals.pendingAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>submitted, awaiting a decision</span></div>
     <div class="stat"><b class="ok">{{ totals.creditedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>credited to members in period</span></div>
-    <div class="stat"><b class="ok">{{ totals.reimbursedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>reimbursed (debit memo) in period</span></div>
+    <div class="stat"><b class="ok">{{ totals.reimbursedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>billed to vendors (debit memo) in period · paid: to come</span></div>
     <div class="stat" *ngIf="rail === 'IR'"><b>{{ totals.proPadAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>PRO pad in period (PRO's cost)</span></div>
   </div>
 
@@ -25,13 +25,22 @@
     <label class="sub" style="display:flex; align-items:center; gap:6px"><input type="checkbox" [(ngModel)]="byParent" /> Group by parent company</label>
     <label class="sub" style="display:flex; align-items:center; gap:6px"><input type="checkbox" [(ngModel)]="onlyWithActivity" /> Only with activity</label>
   </div>
+  <div class="chips">
+    <span class="lbl">Show</span>
+    <button type="button" [class.on]="chip === ''" (click)="chip = ''">All<b>{{ chipCount('') }}</b></button>
+    <button type="button" [class.on]="chip === 'LIABILITY'" (click)="chip = chip === 'LIABILITY' ? '' : 'LIABILITY'">Has liability<b>{{ chipCount('LIABILITY') }}</b></button>
+    <button type="button" [class.on]="chip === 'PENDING'" (click)="chip = chip === 'PENDING' ? '' : 'PENDING'">Awaiting decision<b>{{ chipCount('PENDING') }}</b></button>
+    <button type="button" [class.on]="chip === 'OLD60'" (click)="chip = chip === 'OLD60' ? '' : 'OLD60'">Not billed &gt; 60 days<b>{{ chipCount('OLD60') }}</b></button>
+    <button type="button" [class.on]="chip === 'OLD90'" (click)="chip = chip === 'OLD90' ? '' : 'OLD90'">&gt; 90 days<b>{{ chipCount('OLD90') }}</b></button>
+    <button type="button" [class.on]="chip === 'LIVE'" (click)="chip = chip === 'LIVE' ? '' : 'LIVE'">Live programs<b>{{ chipCount('LIVE') }}</b></button>
+  </div>
 
   <table class="grid">
     <thead>
       <tr>
         <th>Vendor</th><th class="num">Products</th><th class="num">Live programs</th>
         <th class="num">Liability</th><th class="num">Awaiting decision</th>
-        <th class="num">Credited</th><th class="num">Reimbursed</th><th class="num" *ngIf="rail === 'IR'">PRO pad</th><th>Oldest not reimbursed</th>
+        <th class="num">Credited</th><th class="num">Billed (DM)</th><th class="num" *ngIf="rail === 'IR'">PRO pad</th><th>Oldest not billed</th>
       </tr>
     </thead>
     <tbody>
@@ -49,7 +58,7 @@
         <td class="mono">{{ v.oldestUnreimbursed | date:'MM/dd/yy' }}<span class="sub" *ngIf="daysOld(v.oldestUnreimbursed) as d"> · {{ d }} d</span></td>
       </tr>
       <tr *ngIf="!shown.length && !loading"><td colspan="9" class="empty">No vendors match.</td></tr>
-      <tr *ngIf="loading"><td colspan="9" class="empty">Adding up claims…</td></tr>
+      <tr *ngIf="loading"><td colspan="9" class="empty"><i class="pi pi-spin pi-spinner"></i> Adding up every claim for every vendor… this can take a little while.</td></tr>
     </tbody>
   </table>
 </section>
@@ -80,7 +89,10 @@
     <div class="card-head">
       <h2>{{ selected.vendorName }}: products</h2>
       <span class="sub">liability {{ selected.liability | currency }} · awaiting decision {{ selected.pendingAmount | currency }}</span>
+      <span class="sub" *ngIf="detailLoading"><i class="pi pi-spin pi-spinner"></i> working…</span>
       <span class="grow"></span>
+      <button type="button" class="btn primary" *ngIf="selected.liability > 0" (click)="billVendor()" [disabled]="detailLoading"
+              title="Open Debit memos with this vendor's unbilled claims"><i class="pi pi-send"></i> Bill vendor (debit memo)</button>
       <button type="button" class="btn ghost" (click)="showPrograms.emit({ vendorId: selected.vendorId })"><i class="pi pi-list"></i> All programs</button>
       <button type="button" class="icon-btn" (click)="selected = null" title="Close"><i class="pi pi-times"></i></button>
     </div>
@@ -99,7 +111,7 @@
           <td class="money">{{ p.creditedAmount | currency }}</td>
         </tr>
         <tr *ngIf="!products.length && !detailLoading"><td colspan="8" class="empty">No products with activity.</td></tr>
-        <tr *ngIf="detailLoading"><td colspan="8" class="empty">Loading…</td></tr>
+        <tr *ngIf="detailLoading"><td colspan="8" class="empty"><i class="pi pi-spin pi-spinner"></i> Adding up {{ selected.vendorName }}'s claims…</td></tr>
       </tbody>
     </table>
   </section>
@@ -121,6 +133,7 @@
           <td class="money">{{ c.bucket === 'SUBMITTED' ? '—' : (c.vendorAmount | currency) }}</td>
         </tr>
         <tr *ngIf="!openClaims.length && !detailLoading"><td colspan="8" class="empty">Nothing outstanding.</td></tr>
+        <tr *ngIf="detailLoading"><td colspan="8" class="empty"><i class="pi pi-spin pi-spinner"></i> Loading claims…</td></tr>
       </tbody>
     </table>
   </section>

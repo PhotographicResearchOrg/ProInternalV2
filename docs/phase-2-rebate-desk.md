@@ -4,7 +4,7 @@ Route `/rebatedesk`. Two rails, in the Product Desk format.
 
 | Instant rebates | Price protection |
 | --- | --- |
-| Overview, New upload, Uploads, Purgatory, Programs, Batches, Products, Vendors & liability, Templates, Claims, Debit memos, Declined claims, History | Programs, Products, Vendors & liability, Claims, Debit memos, History |
+| Overview, New upload, Uploads, Purgatory, Programs, Batches, Products, Vendors & liability, Templates, Naming rules, Claims, Debit memos, Declined claims, History | Programs, Products, Vendors & liability, Claims, Debit memos, History |
 
 All rebate data stays in **PRO_NUKE**. The desk writes programs into `dbo.RebateProgramDetail` / `dbo.PriceProtectionDetail` and products into `dbo.RebateCameraModels` / `RebateCameraModelsDetails` / `RebateQualifiers`, exactly as the member site (Connection) reads them. The desk's own tables, views and procedures are in the `piv2` schema in PRO_NUKE.
 
@@ -88,6 +88,20 @@ The next upload for that vendor pre-fills from them.
 
 **Vendor files:** a vendor sheet usually needs no edits beyond what the AI and the saved layout handle. A file with no usable column for something (Nanuk has no reimbursement, Panasonic is laid out by week) is fixed by adding or reshaping the column and uploading it again. The confirmed layout is saved for next time.
 
+## Purgatory
+
+A row with any problem waits in purgatory; nothing is dropped silently. From the list or an upload's review:
+
+- **Problem chips** filter by problem, with counts.
+- **Fix a row:** open it. "Find the PRO product" searches `dbo.Product` by PRO code, catalog #, UPC or name; tick one, or several colours for one rebate product. Every value on the row can be corrected; a rebate product can be picked by hand (overrides the naming rule) or created.
+- **Skip:** one row, or tick many and "Skip them" with one reason. Skipped rows can be restored.
+- **Load anyway** (`Rebates.Manage`): a row that overlaps a live program (or another row of the file) can load with a reason. Its program is recorded in `piv2.RebateOverlapAllowed`, so turning it on later is not blocked. An exact copy of a live program still waits.
+- Lines with no PRO code, SKU, UPC or description, and lines with no rebate, are dropped when the file is mapped.
+
+## Naming rules
+
+`piv2.RebateNamingRule`, one line per rebate type, edited on the desk (Naming rules, `Rebates.Manage`, with a reason): rebate product name = PRO product name, then " WITH <stack product>" for each stack product when the rule adds stacks, then the suffix. Seeded with the `RebateIrController` rules (IR plain; trade-in "TRADE-IN TRADE-UP"; bundle and free-with-purchase add stacks; coupon "WITH COUPON CODE"; social "WITH SOCIAL MEDIA"). A change applies to uploads checked afterwards; existing rebate products keep their names. The old (IR) Batch Upload page keeps its built-in rules.
+
 ## After loading (Manage)
 
 - **Programs:** turn a program on or off, change its amounts, or extend or shorten one program.
@@ -108,11 +122,14 @@ Every change needs a reason, except adding new things. Changes are kept in `piv2
 Product → vendor → parent company. A product's own flag (`IsPriceProtection`) decides its rail; a vendor shows on a rail when it is flagged for it or has products on it. Per vendor:
 
 - live, current and upcoming programs
-- **Liability:** approved claims (sent to Computyme or not) the vendor has not reimbursed yet, i.e. no debit memo (`DM`), at the vendor's share
+- **Liability:** approved claims (sent to Computyme or not) not yet billed to the vendor, i.e. no debit memo (`DM`), at the vendor's share
 - **Awaiting decision:** submitted, not decided; shown apart, not part of liability
-- **Credited**, **reimbursed** (debit memo) and **declined** in the chosen period, and PRO pad (instant rebates only)
+- **Credited**, **billed** (debit memo) and **declined** in the chosen period, and PRO pad (instant rebates only)
+- **Paid** (the vendor settling the debit memo) is to come: it needs the source in Computyme where vendor payments land
 
-Drilling in shows per-product liability and the claims not yet reimbursed. Lines a member saved but never submitted are left out.
+Chips narrow the list (has liability, awaiting decision, not billed over 60 or 90 days, live programs). Drilling in shows per-product liability and the claims not yet billed. **Bill vendor (debit memo)** opens Debit memos with that vendor and its unbilled claims already found. Lines a member saved but never submitted are left out.
+
+The old Rebate Management page (`/rebatemanagement`) now opens the Rebate Desk.
 
 ## Claims (accounting, `Rebates.Accounting`)
 

@@ -22,6 +22,12 @@
         <option value="">All</option>
       </select>
     </div>
+    <div class="chips">
+      <span class="lbl">Show</span>
+      <button type="button" [class.on]="filter.active === 'true'" (click)="filter.active = 'true'; go(1)">Active</button>
+      <button type="button" [class.on]="filter.active === 'false'" (click)="filter.active = 'false'; go(1)">Retired</button>
+      <button type="button" [class.on]="filter.active === ''" (click)="filter.active = ''; go(1)">All</button>
+    </div>
     <table class="grid">
       <thead><tr><th>Product</th><th>Vendor</th><th>PRO codes</th><th class="num">Live</th><th>Last program</th><th class="num">Stacks</th></tr></thead>
       <tbody>

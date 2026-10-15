@@ -22,6 +22,10 @@ const SUMMED = ['productsActive', 'programsLive', 'programsCurrent', 'programsUp
 export class RebateVendorsComponent implements OnChanges {
   @Input() rail: Rail = 'IR';
   @Output() showPrograms = new EventEmitter<{ vendorId?: number; modelId?: number }>();
+  /* Bill this vendor: opens Debit memos with the vendor and dates filled in. */
+  @Output() debitMemo = new EventEmitter<{ vendorId: number; from: string; to: string }>();
+
+  chip: '' | 'LIABILITY' | 'PENDING' | 'LIVE' | 'OLD60' | 'OLD90' = '';
 
   from = new Date(new Date().getFullYear(), 0, 1).toISOString().substring(0, 10);
   to = new Date().toISOString().substring(0, 10);
@@ -64,6 +68,11 @@ export class RebateVendorsComponent implements OnChanges {
     let list = this.vendors;
     if (this.onlyWithActivity)
       list = list.filter(v => v.programsLive || v.liability || v.pendingAmount || v.creditedAmount || v.productsActive);
+    if (this.chip === 'LIABILITY') list = list.filter(v => v.liability > 0);
+    if (this.chip === 'PENDING') list = list.filter(v => v.pendingAmount > 0);
+    if (this.chip === 'LIVE') list = list.filter(v => v.programsLive > 0);
+    if (this.chip === 'OLD60') list = list.filter(v => (this.daysOld(v.oldestUnreimbursed) ?? 0) > 60);
+    if (this.chip === 'OLD90') list = list.filter(v => (this.daysOld(v.oldestUnreimbursed) ?? 0) > 90);
     if (this.q.trim()) {
       const q = this.q.trim().toLowerCase();
       list = list.filter(v => (v.vendorName || '').toLowerCase().includes(q) || (v.parentCompany || '').toLowerCase().includes(q));
@@ -135,11 +144,11 @@ export class RebateVendorsComponent implements OnChanges {
     const cols = [
       col('Vendor', 'vendorName'), col('Parent company', r => (r.isGroup ? r.members.join(', ') : r.parentCompany)),
       col('Active products', 'productsActive', 'number'), col('Live programs', 'programsLive', 'number'),
-      col('Liability (not reimbursed)', 'liability', 'money'), col('Liability claims', 'liabilityClaims', 'number'),
+      col('Liability (not billed)', 'liability', 'money'), col('Liability claims', 'liabilityClaims', 'number'),
       col('Awaiting decision', 'pendingAmount', 'money'), col('Awaiting claims', 'pendingClaims', 'number'),
-      col('Credited in period', 'creditedAmount', 'money'), col('Reimbursed in period', 'reimbursedAmount', 'money'),
+      col('Credited in period', 'creditedAmount', 'money'), col('Billed (DM) in period', 'reimbursedAmount', 'money'),
       col('Declined in period', 'declinedAmount', 'money'), ...(ir ? [col('PRO pad in period', 'proPadAmount', 'money')] : []),
-      col('Oldest not reimbursed', 'oldestUnreimbursed', 'date')
+      col('Oldest not billed', 'oldestUnreimbursed', 'date')
     ];
     const sheets: any[] = [{ name: 'Vendors', cols, rows: this.shown }];
     if (this.selected) {
@@ -155,6 +164,25 @@ export class RebateVendorsComponent implements OnChanges {
         col('Vendor owes', (c: any) => (c.bucket === 'SUBMITTED' ? null : c.vendorAmount), 'money')] });
     }
     downloadXlsx(`${ir ? 'Rebate' : 'Price-protection'} liability ${this.selected ? this.selected.vendorName + ' ' : ''}${this.from} to ${this.to}`, sheets);
+  }
+
+  chipCount(c: string): number {
+    const n = (f: (v: any) => boolean) => this.vendors.filter(f).length;
+    switch (c) {
+      case 'LIABILITY': return n(v => v.liability > 0);
+      case 'PENDING': return n(v => v.pendingAmount > 0);
+      case 'LIVE': return n(v => v.programsLive > 0);
+      case 'OLD60': return n(v => (this.daysOld(v.oldestUnreimbursed) ?? 0) > 60);
+      case 'OLD90': return n(v => (this.daysOld(v.oldestUnreimbursed) ?? 0) > 90);
+    }
+    return this.vendors.length;
+  }
+
+  billVendor(): void {
+    const v = this.selected;
+    if (!v) return;
+    const from = v.oldestUnreimbursed ? String(v.oldestUnreimbursed).substring(0, 10) : this.from;
+    this.debitMemo.emit({ vendorId: v.vendorId, from, to: new Date().toISOString().substring(0, 10) });
   }
 
   daysOld(d: string | null): number | null {

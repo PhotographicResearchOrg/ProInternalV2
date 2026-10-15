@@ -24,6 +24,10 @@
       <input class="in" type="date" style="max-width: 150px" [(ngModel)]="filter.from" (change)="go(1)" title="Claimed from" />
       <input class="in" type="date" style="max-width: 150px" [(ngModel)]="filter.to" (change)="go(1)" title="Claimed to" />
     </div>
+    <div class="chips">
+      <span class="lbl">Show</span>
+      <button type="button" *ngFor="let c of stateChips" [class.on]="filter.state === c.value" (click)="filter.state = c.value; go(1)">{{ c.label }}</button>
+    </div>
     <table class="grid">
       <thead><tr><th>Claim</th><th>Member</th><th>Vendor</th><th>Claimed</th><th class="num">Amount</th><th>State</th><th>DM</th><th>Invoice</th></tr></thead>
       <tbody>

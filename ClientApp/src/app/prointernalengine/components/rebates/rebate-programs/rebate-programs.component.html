@@ -30,6 +30,7 @@
         <option value="CURRENT">Running today</option>
         <option value="FUTURE">Starts later</option>
         <option value="PAST">Ended</option>
+        <option value="ENDING">Ending in 14 days</option>
       </select>
       <ng-container *ngIf="rail === 'PP'">
         <input class="in" type="date" style="max-width: 150px" [(ngModel)]="filter.from" (change)="go(1)" title="From" />
@@ -37,6 +38,10 @@
       </ng-container>
     </div>
 
+    <div class="chips">
+      <span class="lbl">Show</span>
+      <button type="button" *ngFor="let c of chips" [class.on]="chipOn(c)" (click)="useChip(c)">{{ c.label }}</button>
+    </div>
     <table class="grid">
       <thead>
         <tr *ngIf="rail === 'IR'">

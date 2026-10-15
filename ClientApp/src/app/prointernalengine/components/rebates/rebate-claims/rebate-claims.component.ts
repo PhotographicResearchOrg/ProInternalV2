@@ -21,6 +21,8 @@ type Pending = { kind: 'resend' | 'invoice' } | null;
 export class RebateClaimsComponent implements OnChanges {
   @Input() rail: Rail = 'IR';
   @Input() tab: 'claims' | 'memos' = 'claims';
+  /* Came from a vendor's "Bill vendor": that vendor and dates are filled in and its claims found. */
+  @Input() preset: { vendorId: number; from: string; to: string } | null = null;
 
   vendors: any[] = [];
 
@@ -59,6 +61,12 @@ export class RebateClaimsComponent implements OnChanges {
 
   exporting = false;
 
+  readonly stateChips = [
+    { value: 'SUBMITTED', label: 'Not decided' }, { value: 'APPROVED', label: 'Approved, not sent' },
+    { value: 'SENT', label: 'Credited' }, { value: 'NOT_INVOICED', label: 'Credited, no invoice' },
+    { value: 'NO_DM', label: 'Not billed to vendor' }, { value: 'DECLINED', label: 'Declined' }, { value: '', label: 'All' }
+  ];
+
   /* Every claim matching the filters, not just this page. */
   async exportClaims(): Promise<void> {
     this.exporting = true;
@@ -91,6 +99,12 @@ export class RebateClaimsComponent implements OnChanges {
       this.candidates = [];
       this.go(1);
       this.loadMemos();
+    }
+    if (changes['preset'] && this.preset) {
+      this.memoVendorIds = [this.preset.vendorId];
+      this.memoFrom = this.preset.from;
+      this.memoTo = this.preset.to;
+      setTimeout(() => this.findCandidates());
     }
   }
 

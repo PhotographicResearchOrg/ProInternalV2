@@ -116,6 +116,25 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
     } catch (e) { this.error = apiMessage(e); } finally { this.exporting = false; }
   }
 
+  /* Shortcuts for the filters above (server-side, so Excel follows them too). */
+  get chips(): { label: string; state: string; when: string }[] {
+    return this.rail === 'IR'
+      ? [{ label: 'On', state: 'ON', when: '' }, { label: 'Running today', state: 'ON', when: 'CURRENT' },
+         { label: 'Starts later', state: 'ON', when: 'FUTURE' }, { label: 'Ending in 14 days', state: 'ON', when: 'ENDING' },
+         { label: 'Off', state: 'OFF', when: '' }, { label: 'Ended', state: '', when: 'PAST' }, { label: 'Everything', state: '', when: '' }]
+      : [{ label: 'On', state: 'ON', when: '' }, { label: 'Off', state: 'OFF', when: '' }, { label: 'Everything', state: '', when: '' }];
+  }
+
+  chipOn(c: { state: string; when: string }): boolean {
+    return (this.filter.state || '') === c.state && (this.rail === 'PP' || (this.filter.when || '') === c.when);
+  }
+
+  useChip(c: { state: string; when: string }): void {
+    this.filter.state = c.state;
+    if (this.rail === 'IR') this.filter.when = c.when;
+    this.go(1);
+  }
+
   go(p: number): void { this.page = Math.min(Math.max(1, p), this.pages); this.refresh(); }
 
   open(p: any): void {
