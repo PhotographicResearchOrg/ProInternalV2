@@ -432,10 +432,11 @@ BEGIN
     /* Instant-rebate products, once, with the keys the disposition compares on. A "combo" name
        (trade-in, WITH ...) is never the plain IR product of a PRO code. */
     IF OBJECT_ID('tempdb..#models') IS NOT NULL DROP TABLE #models;
+    /* ModelNumber and ModelName are nvarchar(max) in the legacy table; an index key can hold 850 characters. */
     SELECT m.ModelID,
-           UPPER(LTRIM(RTRIM(m.ModelNumber))) AS NumKey,
-           REPLACE(UPPER(LTRIM(RTRIM(m.ModelNumber))), N' ', N'') AS NumNoSpace,
-           UPPER(LTRIM(RTRIM(m.ModelName))) AS NameKey,
+           CAST(UPPER(LTRIM(RTRIM(CAST(m.ModelNumber AS nvarchar(850))))) AS nvarchar(850)) AS NumKey,
+           CAST(REPLACE(UPPER(LTRIM(RTRIM(CAST(m.ModelNumber AS nvarchar(850))))), N' ', N'') AS nvarchar(850)) AS NumNoSpace,
+           CAST(UPPER(LTRIM(RTRIM(CAST(m.ModelName AS nvarchar(850))))) AS nvarchar(850)) AS NameKey,
            COALESCE(m.Active, 0) AS Active,
            CASE WHEN m.ModelNumber LIKE N'% TRADE-IN TRADE-UP%' OR m.ModelNumber LIKE N'% WITH %' THEN 1 ELSE 0 END AS IsCombo
       INTO #models

@@ -56,7 +56,17 @@ export class RebateUploadComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.desk.vendors('IR').subscribe(v => (this.vendors = v.filter(x => x.isActive)));
-    this.desk.types().subscribe(t => (this.types = t));
+    this.desk.types().subscribe({
+      next: t => { this.types = t ?? []; this.preselectType(); },
+      error: e => (this.error = 'Rebate types could not be loaded: ' + apiMessage(e))
+    });
+  }
+
+  /* No type column and no vendor default: most files are plain instant rebates, so start there (it can be changed). */
+  private preselectType(): void {
+    if (!this.proposal || this.mapping['rebateType'] != null || this.defaultRebateType != null) return;
+    const ir = this.types.find(t => /instant/i.test(t.name ?? '')) ?? this.types.find(t => t.rebateTypeId === 2);
+    if (ir) this.defaultRebateType = ir.rebateTypeId;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -118,6 +128,7 @@ export class RebateUploadComponent implements OnInit, OnChanges {
     if (this.vendorSharePct == null && p.vendorSharePct != null) this.vendorSharePct = p.vendorSharePct;
     if (this.padPct == null && p.padPct != null) this.padPct = p.padPct;
     if (this.defaultRebateType == null && p.defaultRebateType != null) this.defaultRebateType = p.defaultRebateType;
+    this.preselectType();
     this.step = 2;
     this.dirtyChange.emit(true);
   }
@@ -145,7 +156,7 @@ export class RebateUploadComponent implements OnInit, OnChanges {
       out.push('Reimbursement column (or a vendor share % with an instant rebate column)');
     if (this.mapping['startDate'] == null && !this.fileStart) out.push('Start date (column or for the whole file)');
     if (this.mapping['endDate'] == null && !this.fileEnd) out.push('End date (column or for the whole file)');
-    if (this.mapping['rebateType'] == null && !this.defaultRebateType) out.push('Rebate type (column or default)');
+    if (this.mapping['rebateType'] == null && this.defaultRebateType == null) out.push('Rebate type (column or default)');
     if (!this.expireOn) out.push('Claim expiry');
     return out;
   }
