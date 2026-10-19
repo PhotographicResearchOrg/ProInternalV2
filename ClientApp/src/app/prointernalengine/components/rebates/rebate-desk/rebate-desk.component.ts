@@ -475,6 +475,9 @@ export class RebateDeskComponent implements OnInit {
     if (!r.status) r.status = 'PURGATORY';
     this.row = r;
     this.mapChoice = null;
+    this.step1Open = false;
+    this.step2Open = false;
+    this.detailsOpen = this.hasProblem(r, ...this.valueProblems);
     this.proHits = [];
     this.proErr = '';
     this.proSearched = false;
@@ -602,6 +605,20 @@ export class RebateDeskComponent implements OnInit {
 
   /* Several PRO products matched: the ones ticked, in the order ticked. */
   ticked: string[] = [];
+
+  /* ---- the row panel, one step at a time ---- */
+  step1Open = false;
+  step2Open = false;
+  detailsOpen = false;
+  private readonly valueProblems = ['NO_DATES', 'DATES_REVERSED', 'BAD_REIMBURSEMENT', 'NEGATIVE_AMOUNT', 'NO_TYPE', 'UNKNOWN_TYPE',
+    'NO_STACK', 'STACK_UNKNOWN', 'SEVERAL_PRO_CODES', 'DUPLICATE_IN_FILE', 'OVERLAP_IN_FILE', 'OVERLAP', 'ALREADY_LOADED'];
+
+  get step1Done(): boolean {
+    const r = this.row;
+    return !!r?.productCode && !this.hasProblem(r, 'NO_PRODUCT', 'AMBIGUOUS_PRODUCT', 'SEVERAL_PRO_CODES');
+  }
+
+  get step2Done(): boolean { return !!this.row?.modelId && !this.hasProblem(this.row, 'NO_MODEL', 'MODEL_RETIRED'); }
 
   /* ---- mapping a row to a rebate product (no product by the rule-set name) ---- */
   mapChoice: number | 'CREATE' | null = null;

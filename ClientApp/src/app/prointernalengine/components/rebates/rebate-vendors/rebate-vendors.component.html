@@ -67,7 +67,7 @@
   <section class="card" *ngIf="rail === 'IR' && terms">
     <div class="card-head"><h2>{{ selected.vendorName }}: terms</h2><span class="sub">used by every upload for this vendor</span></div>
     <div class="field-grid">
-      <label>Catalog prefix (PRO adds) <input class="in mono" [(ngModel)]="terms.catalogPrefix" placeholder="e.g. SR_" maxlength="20" /></label>
+      <label>Catalog # prefix (rarely needed) <input class="in mono" [(ngModel)]="terms.catalogPrefix" placeholder="blank" maxlength="20" /></label>
       <label>PRO brand ids to search <input class="in mono" [(ngModel)]="terms.brandIds" placeholder="e.g. 73 (empty = all)" /></label>
       <label>Vendor share, % of IR <input class="in num" type="number" min="0" max="100" step="0.01" [(ngModel)]="terms.vendorSharePct" placeholder="when the file has none" /></label>
       <label>PRO pad on combo rows, % <input class="in num" type="number" min="0" max="100" step="0.01" [(ngModel)]="terms.comboPadPct" placeholder="e.g. 1" /></label>
@@ -77,7 +77,7 @@
       </label>
       <label class="wide">Notes <input class="in" [(ngModel)]="terms.notes" maxlength="1000" /></label>
     </div>
-    <div class="hint">Vendor SKUs match PRO catalog numbers (CAT_NO) with the prefix added, then as sent, then ignoring dashes and spaces, then by UPC, in [PRO].dbo.Product.</div>
+    <div class="hint">Vendor SKUs match PRO catalog numbers (CAT_NO) as sent, then ignoring dashes and spaces, then by UPC, in [PRO].dbo.Product. Leave the prefix blank unless this vendor's SKUs differ from PRO's catalog # by a fixed lead-in.</div>
     <div class="actions" style="margin-top: 10px" *ngIf="termsDirty || termsNotice">
       <span class="sub grow">{{ termsNotice }}</span>
       <button type="button" class="btn ghost" (click)="discardTerms()" *ngIf="termsDirty">Discard</button>

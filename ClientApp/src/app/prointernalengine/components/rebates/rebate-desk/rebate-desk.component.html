@@ -262,126 +262,157 @@
             <div *ngFor="let p of row.problems">{{ p.message }} <app-rebate-help [code]="p.code"></app-rebate-help></div>
           </div>
 
-          <div class="card" style="margin: 0 0 12px" *ngIf="candidatesOf(row).length">
-            <div class="card-head"><h2 style="font-size: 13px">Disposition: which PRO product?</h2><app-rebate-help code="AMBIGUOUS_PRODUCT" label="Directions"></app-rebate-help></div>
-            <label *ngFor="let c of candidatesOf(row)" style="display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0">
-              <input type="radio" name="candidate" [checked]="ticked.includes(c.code)" (change)="tick(c.code, true)" />
-              <span class="mono">{{ c.code }}</span> {{ c.name }}
-            </label>
-            <div class="actions" style="margin-top: 8px">
-              <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">
-                Use this product</button>
-            </div>
-          </div>
-
-          <div class="card" style="margin: 0 0 12px" *ngIf="rowNeedsProduct && (row.status === 'READY' || row.status === 'PURGATORY')">
-            <div class="card-head"><h2 style="font-size: 13px">Find the PRO product</h2><span class="grow"></span>
-              <app-rebate-help code="NO_PRODUCT" label="Directions"></app-rebate-help></div>
-            <input class="in" style="width: 100%" placeholder="PRO code, catalog # (e.g. SR_4770), UPC or name" [(ngModel)]="proQ"
-                   (ngModelChange)="searchProSoon()" (keyup.enter)="searchPro()" />
-            <div class="actions" style="margin-top: 6px" *ngIf="!proHits.length && !proSearching">
-              <button type="button" class="btn" (click)="searchPro()" [disabled]="proQ.trim().length < 2"><i class="pi pi-search"></i> Search PRO products</button>
-            </div>
-            <div class="working" *ngIf="proSearching"><i class="pi pi-spin pi-spinner"></i> Searching PRO products…</div>
-            <div class="err" *ngIf="proErr">{{ proErr }}</div>
-            <div class="sub" style="margin-top: 6px" *ngIf="proSearched && !proSearching && !proErr && !proHits.length">
-              No PRO product matches "{{ proQ }}". Try part of the name or the catalog number.</div>
-            <table class="grid" style="margin-top: 8px" *ngIf="proHits.length">
-              <thead><tr><th></th><th>PRO code</th><th>Name</th><th>Catalog #</th><th>Rebate products</th></tr></thead>
-              <tbody>
-                <tr *ngFor="let h of proHits" [class.off]="h.isDiscontinued">
-                  <td><input type="radio" name="proHit" [checked]="ticked.includes('' + h.productCode)" (change)="tick('' + h.productCode, true)" /></td>
-                  <td class="mono">{{ h.productCode }}</td>
-                  <td>{{ h.modelName }}<div class="sub" *ngIf="h.isDiscontinued">discontinued</div></td>
-                  <td class="mono">{{ h.catalogNumber }}<div class="sub">{{ h.upc }}</div></td>
-                  <td class="sub">{{ h.usedBy || '—' }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="actions" style="margin-top: 8px" *ngIf="proHits.length">
-              <span class="sub grow">Pick the product and click Use. The row is checked again; once it passes it moves to Ready in its upload.</span>
-              <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">Use this product</button>
-            </div>
-          </div>
-
           <ng-container *ngIf="row.status === 'READY' || row.status === 'PURGATORY'">
-            <div class="facts">
-              <div><span>PRO product</span><b>{{ row.productCode ? row.productCode + ' · ' + row.productName : 'not matched' }}</b></div>
-              <div><span>Rule-set name</span><b>{{ row.proposedName || '—' }}</b></div>
-              <div><span>Vendor share / PRO pad</span><b>{{ row.reimbursement | currency }} / {{ (row.proPad || 0) | currency }}</b></div>
-              <div><span>Stack products</span><b>{{ row.stackCodes || '—' }}</b></div>
-            </div>
-            <h3 class="sub" style="margin: 4px 0 6px">Rebate product <app-rebate-help code="DISPOSITION" label="How this is chosen"></app-rebate-help></h3>
-            <div *ngIf="row.modelId" style="margin-bottom: 6px">
-              <span class="chip ok">#{{ row.modelId }} {{ row.modelDescription }}</span>
-              <span class="chip lock" *ngIf="row.modelChosenBy">picked by {{ row.modelChosenBy }} <button type="button" (click)="pickModel(null)" title="Back to automatic">↺</button></span>
-            </div>
-            <app-rebate-product-picker rail="IR" [initial]="row.proposedName || row.productCode" placeholder="Pick the rebate product for this row" (picked)="pickModel($event)"></app-rebate-product-picker>
-            <div class="card" style="margin: 8px 0" *ngIf="hasProblem(row, 'NO_MODEL') && row.proposedName && !newProduct">
-              <div class="card-head"><h2 style="font-size: 13px">Which rebate product?</h2><span class="grow"></span>
-                <app-rebate-help code="NO_MODEL" label="Directions"></app-rebate-help></div>
-              <div class="sub" style="margin-bottom: 6px" *ngIf="mapCandidates(row).length">These already carry PRO {{ row.productCode }}. Map the row to one, or create a new one under the naming convention.</div>
-              <label *ngFor="let c of mapCandidates(row)" style="display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0">
-                <input type="radio" name="mapChoice" [checked]="mapChoice === c.modelId" (change)="mapChoice = c.modelId" />
-                <span>{{ c.name }}</span>
-                <span class="chip info">{{ c.kind }}</span>
-                <span class="sub mono">#{{ c.modelId }}<span *ngIf="c.vendor"> · {{ c.vendor }}</span></span>
-                <span class="chip bad" *ngIf="!c.active">retired</span>
-              </label>
-              <label style="display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0">
-                <input type="radio" name="mapChoice" [checked]="mapChoice === 'CREATE'" (change)="mapChoice = 'CREATE'" />
-                <span>Create <b>"{{ previewName(row, effectiveType(row)) }}"</b></span>
-                <span class="chip ok">{{ typeName(effectiveType(row)) || 'type' }}, naming convention</span>
-              </label>
-              <div class="actions" style="margin-top: 8px">
-                <span class="sub grow">Change the rebate type below and save to see the name for another type.</span>
-                <button type="button" class="btn primary" (click)="useMapChoice()" [disabled]="busy || mapChoice === null">
-                  {{ mapChoice === 'CREATE' ? 'Create and use' : 'Use this product' }}</button>
-              </div>
-            </div>
-            <div class="card" style="margin: 8px 0" *ngIf="newProduct">
-              <div class="field-grid">
-                <label>Vendor
-                  <select class="in" [(ngModel)]="newProduct.vendorId"><option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option></select>
-                </label>
-                <label class="wide">Description <input class="in" [(ngModel)]="newProduct.description" /></label>
-                <label class="wide">PRO codes <input class="in mono" [(ngModel)]="newProduct.proCodes" /></label>
-              </div>
-              <div class="actions" style="margin-top: 10px">
-                <button type="button" class="btn ghost" (click)="newProduct = null">Cancel</button>
-                <button type="button" class="btn primary" (click)="saveNewProduct()" [disabled]="busy || !newProduct.description || !newProduct.proCodes">Add product</button>
-              </div>
+            <!-- Where this row is: one step at a time -->
+            <div class="steps rowsteps">
+              <span [class.done]="step1Done" [class.on]="!step1Done">1 · PRO product</span>
+              <span [class.done]="step1Done && step2Done" [class.on]="step1Done && !step2Done">2 · Rebate product</span>
+              <span [class.done]="row.status === 'READY'" [class.on]="step1Done && step2Done && row.status !== 'READY'">3 · Program details</span>
             </div>
 
-            <h3 class="sub" style="margin: 14px 0 6px">Values</h3>
-            <div class="field-grid">
-              <label>Vendor SKU <input class="in mono" [(ngModel)]="rowEdit.vendorSku" [class.dirty]="(rowEdit.vendorSku || '') !== (row.vendorSku || '')" /></label>
-              <label>UPC <input class="in mono" [(ngModel)]="rowEdit.upc" [class.dirty]="(rowEdit.upc || '') !== (row.upc || '')" /></label>
-              <label>PRO code(s) <input class="in mono" [(ngModel)]="rowEdit.proCode" placeholder="PRO code" [class.dirty]="(rowEdit.proCode || '') !== (row.proCode || '')" /></label>
-              <label>Stack product(s) <input class="in mono" [(ngModel)]="rowEdit.stackProduct" [class.dirty]="(rowEdit.stackProduct || '') !== (row.stackProduct || '')" /></label>
-              <label class="wide">Description <input class="in" [(ngModel)]="rowEdit.description" [class.dirty]="(rowEdit.description || '') !== (row.description || '')" /></label>
-              <label>Vendor share <input class="in num" type="number" step="0.01" [(ngModel)]="rowEdit.reimbursement" [class.dirty]="+rowEdit.reimbursement !== +row.reimbursement" /></label>
-              <label>Instant rebate <input class="in num" type="number" step="0.01" [(ngModel)]="rowEdit.instantRebate" [class.dirty]="+rowEdit.instantRebate !== +row.instantRebate" /></label>
-              <label>MAP <input class="in num" type="number" step="0.01" [(ngModel)]="rowEdit.mapPrice" [class.dirty]="+rowEdit.mapPrice !== +row.mapPrice" /></label>
-              <label>PRO pad, this line ($) <input class="in num" type="number" step="0.01" min="0" [(ngModel)]="rowEdit.proPad"
-                     placeholder="{{ row.proPad ? (row.proPad | currency) + ' from the upload %' : 'none' }}" [class.dirty]="(rowEdit.proPad ?? null) !== (row.proPadInput ?? null)" /></label>
-              <label>Start <input class="in" type="date" [(ngModel)]="rowEdit.startDate" /></label>
-              <label>End <input class="in" type="date" [(ngModel)]="rowEdit.endDate" /></label>
-              <label>Rebate type
-                <select class="in" [(ngModel)]="rowEdit.rebateType">
-                  <option [ngValue]="null">Upload default</option>
-                  <option *ngFor="let t of types" [ngValue]="t.rebateTypeId">{{ t.name }}</option>
-                </select>
-                <span class="sub" *ngIf="row.productName">Names the rebate product: <b>{{ previewName(row, effectiveType(row, rowEdit.rebateType)) }}</b></span>
-              </label>
-              <label class="wide">Notes <input class="in" [(ngModel)]="rowEdit.notes" /></label>
+            <!-- Step 1: which PRO product (dbo.Product) -->
+            <div class="rstep">
+              <div class="rstep-head"><b>1 · PRO product</b><span class="grow"></span>
+                <app-rebate-help code="NO_PRODUCT" label="Directions"></app-rebate-help></div>
+              <div *ngIf="step1Done && !step1Open" class="rstep-done">
+                <i class="pi pi-check-circle"></i> <span class="mono">{{ row.productCode }}</span> {{ row.productName }}
+                <button type="button" class="btn ghost" style="padding: 2px 10px" (click)="step1Open = true">Change</button>
+              </div>
+              <ng-container *ngIf="!step1Done || step1Open">
+                <ng-container *ngIf="candidatesOf(row).length">
+                  <div class="sub" style="margin-bottom: 6px">Several PRO products match. Pick the right one.</div>
+                  <label *ngFor="let c of candidatesOf(row)" class="rchoice">
+                    <input type="radio" name="candidate" [checked]="ticked.includes(c.code)" (change)="tick(c.code, true)" />
+                    <span class="mono">{{ c.code }}</span> {{ c.name }}
+                  </label>
+                  <div class="actions" style="margin-top: 8px"><span class="grow"></span>
+                    <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">Use this product</button></div>
+                </ng-container>
+                <ng-container *ngIf="!candidatesOf(row).length">
+                  <div class="sub" style="margin-bottom: 6px">Search PRO's catalog for the item on this line.</div>
+                  <div class="vp-row" style="display: flex; gap: 8px">
+                    <input class="in" style="flex: 1" placeholder="PRO code, catalog #, UPC or name" [(ngModel)]="proQ"
+                           (ngModelChange)="searchProSoon()" (keyup.enter)="searchPro()" />
+                    <button type="button" class="btn" (click)="searchPro()" [disabled]="proQ.trim().length < 2"><i class="pi pi-search"></i> Search</button>
+                  </div>
+                  <div class="working" *ngIf="proSearching"><i class="pi pi-spin pi-spinner"></i> Searching PRO products…</div>
+                  <div class="err" *ngIf="proErr">{{ proErr }}</div>
+                  <div class="sub" style="margin-top: 6px" *ngIf="proSearched && !proSearching && !proErr && !proHits.length">
+                    No PRO product matches "{{ proQ }}". Try part of the name, the catalog # or the UPC. If PRO does not carry it yet, it has to be added to the catalog first; skip the row for now.</div>
+                  <table class="grid" style="margin-top: 8px" *ngIf="proHits.length">
+                    <thead><tr><th></th><th>PRO code</th><th>Name</th><th>Catalog #</th><th>Rebate products</th></tr></thead>
+                    <tbody>
+                      <tr *ngFor="let h of proHits" [class.off]="h.isDiscontinued" class="click" (click)="tick('' + h.productCode, true)">
+                        <td><input type="radio" name="proHit" [checked]="ticked.includes('' + h.productCode)" /></td>
+                        <td class="mono">{{ h.productCode }}</td>
+                        <td>{{ h.modelName }}<div class="sub" *ngIf="h.isDiscontinued">discontinued</div></td>
+                        <td class="mono">{{ h.catalogNumber }}<div class="sub">{{ h.upc }}</div></td>
+                        <td class="sub">{{ h.usedBy || '—' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div class="actions" style="margin-top: 8px" *ngIf="proHits.length">
+                    <span class="grow"></span>
+                    <button type="button" class="btn ghost" *ngIf="step1Done" (click)="step1Open = false">Cancel</button>
+                    <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">Use this product</button>
+                  </div>
+                </ng-container>
+              </ng-container>
             </div>
+
+            <!-- Step 2: which rebate product (the rebate setup) -->
+            <div class="rstep" [class.locked]="!step1Done">
+              <div class="rstep-head"><b>2 · Rebate product</b><span class="grow"></span>
+                <app-rebate-help code="DISPOSITION" label="How this is chosen"></app-rebate-help></div>
+              <div class="sub" *ngIf="!step1Done">After the PRO product is known.</div>
+              <ng-container *ngIf="step1Done">
+                <div *ngIf="row.modelId && !step2Open" class="rstep-done">
+                  <i class="pi pi-check-circle"></i> #{{ row.modelId }} {{ row.modelDescription }}
+                  <span class="chip lock" *ngIf="row.modelChosenBy">picked by {{ row.modelChosenBy }} <button type="button" (click)="pickModel(null)" title="Back to automatic">↺</button></span>
+                  <button type="button" class="btn ghost" style="padding: 2px 10px" (click)="step2Open = true">Change</button>
+                </div>
+                <ng-container *ngIf="!row.modelId && row.proposedName && hasProblem(row, 'NO_MODEL')">
+                  <div class="sub" style="margin-bottom: 6px">
+                    {{ mapCandidates(row).length ? 'These rebate products already carry PRO ' + row.productCode + '. Map the row to one, or create a new one.' : 'No rebate product carries PRO ' + row.productCode + ' yet. Create it under the naming convention.' }}</div>
+                  <label *ngFor="let c of mapCandidates(row)" class="rchoice">
+                    <input type="radio" name="mapChoice" [checked]="mapChoice === c.modelId" (change)="mapChoice = c.modelId" />
+                    <span>{{ c.name }}</span>
+                    <span class="chip info">{{ c.kind }}</span>
+                    <span class="sub mono">#{{ c.modelId }}<span *ngIf="c.vendor"> · {{ c.vendor }}</span></span>
+                    <span class="chip bad" *ngIf="!c.active">retired</span>
+                  </label>
+                  <label class="rchoice">
+                    <input type="radio" name="mapChoice" [checked]="mapChoice === 'CREATE'" (change)="mapChoice = 'CREATE'" />
+                    <span>Create <b>"{{ previewName(row, effectiveType(row)) }}"</b></span>
+                    <span class="chip ok">{{ typeName(effectiveType(row)) || 'type' }}</span>
+                  </label>
+                  <div class="actions" style="margin-top: 8px">
+                    <span class="sub grow">The name follows the rebate type (step 3).</span>
+                    <button type="button" class="btn primary" (click)="useMapChoice()" [disabled]="busy || mapChoice === null">
+                      {{ mapChoice === 'CREATE' ? 'Create and use' : 'Use this product' }}</button>
+                  </div>
+                </ng-container>
+                <div class="sub" *ngIf="!row.modelId && !row.proposedName">Fix the stack product in step 3 first; the rebate product name needs it.</div>
+                <div *ngIf="step2Open || (!row.modelId && !hasProblem(row, 'NO_MODEL'))" style="margin-top: 8px">
+                  <div class="sub" style="margin-bottom: 4px">Or pick any rebate product:</div>
+                  <app-rebate-product-picker rail="IR" [initial]="row.proposedName || row.productCode" (picked)="pickModel($event); step2Open = false"></app-rebate-product-picker>
+                  <div class="actions" style="margin-top: 6px" *ngIf="step2Open"><span class="grow"></span>
+                    <button type="button" class="btn ghost" (click)="step2Open = false">Cancel</button></div>
+                </div>
+              </ng-container>
+            </div>
+
+            <!-- Step 3: the program itself -->
+            <div class="rstep">
+              <div class="rstep-head"><b>3 · Program details</b><span class="grow"></span>
+                <button type="button" class="btn ghost" style="padding: 2px 10px" (click)="detailsOpen = !detailsOpen">{{ detailsOpen ? 'Close' : 'Edit' }}</button></div>
+              <div class="rstep-sum" *ngIf="!detailsOpen">
+                <span>{{ typeName(effectiveType(row)) || 'No type' }}</span>
+                <span class="mono">{{ row.startDate | date:'MM/dd/yy' }} – {{ row.endDate | date:'MM/dd/yy' }}</span>
+                <span>Vendor share <b>{{ row.reimbursement | currency }}</b></span>
+                <span>IR <b>{{ row.instantRebate != null ? (row.instantRebate | currency) : '—' }}</b></span>
+                <span>MAP <b>{{ row.mapPrice != null ? (row.mapPrice | currency) : '—' }}</b></span>
+                <span *ngIf="row.proPad">PRO pad <b>{{ row.proPad | currency }}</b></span>
+                <span *ngIf="row.stackCodes">Stack <b class="mono">{{ row.stackCodes }}</b></span>
+              </div>
+              <ng-container *ngIf="detailsOpen">
+                <div class="field-grid">
+                  <label>Rebate type
+                    <select class="in" [(ngModel)]="rowEdit.rebateType">
+                      <option [ngValue]="null">Upload default</option>
+                      <option *ngFor="let t of types" [ngValue]="t.rebateTypeId">{{ t.name }}</option>
+                    </select>
+                    <span class="sub" *ngIf="row.productName">Rebate product name: <b>{{ previewName(row, effectiveType(row, rowEdit.rebateType)) }}</b></span>
+                  </label>
+                  <label>Stack product(s) <input class="in mono" [(ngModel)]="rowEdit.stackProduct" placeholder="bundle / free with purchase only" [class.dirty]="(rowEdit.stackProduct || '') !== (row.stackProduct || '')" /></label>
+                  <label>Start <input class="in" type="date" [(ngModel)]="rowEdit.startDate" /></label>
+                  <label>End <input class="in" type="date" [(ngModel)]="rowEdit.endDate" /></label>
+                  <label>Vendor share <input class="in num" type="number" step="0.01" [(ngModel)]="rowEdit.reimbursement" [class.dirty]="+rowEdit.reimbursement !== +row.reimbursement" /></label>
+                  <label>Instant rebate <input class="in num" type="number" step="0.01" [(ngModel)]="rowEdit.instantRebate" [class.dirty]="+rowEdit.instantRebate !== +row.instantRebate" /></label>
+                  <label>MAP <input class="in num" type="number" step="0.01" [(ngModel)]="rowEdit.mapPrice" [class.dirty]="+rowEdit.mapPrice !== +row.mapPrice" /></label>
+                  <label>PRO pad, this line ($) <input class="in num" type="number" step="0.01" min="0" [(ngModel)]="rowEdit.proPad"
+                         placeholder="{{ row.proPad ? (row.proPad | currency) + ' from the upload %' : 'none' }}" [class.dirty]="(rowEdit.proPad ?? null) !== (row.proPadInput ?? null)" /></label>
+                  <label class="wide">Notes <input class="in" [(ngModel)]="rowEdit.notes" /></label>
+                </div>
+                <details style="margin-top: 8px"><summary class="sub">Line identifiers (vendor SKU, UPC, PRO code, description)</summary>
+                  <div class="field-grid" style="margin-top: 6px">
+                    <label>Vendor SKU <input class="in mono" [(ngModel)]="rowEdit.vendorSku" [class.dirty]="(rowEdit.vendorSku || '') !== (row.vendorSku || '')" /></label>
+                    <label>UPC <input class="in mono" [(ngModel)]="rowEdit.upc" [class.dirty]="(rowEdit.upc || '') !== (row.upc || '')" /></label>
+                    <label>PRO code <input class="in mono" [(ngModel)]="rowEdit.proCode" placeholder="PRO code" [class.dirty]="(rowEdit.proCode || '') !== (row.proCode || '')" /></label>
+                    <label class="wide">Description <input class="in" [(ngModel)]="rowEdit.description" [class.dirty]="(rowEdit.description || '') !== (row.description || '')" /></label>
+                  </div>
+                </details>
+              </ng-container>
+            </div>
+
             <div class="actions" style="margin-top: 12px">
               <button type="button" class="btn" *ngIf="hasProblem(row, 'OVERLAP') || hasProblem(row, 'OVERLAP_IN_FILE')" (click)="rowLoadAnyway()"><i class="pi pi-forward"></i> Load anyway</button>
               <button type="button" class="btn danger" (click)="pending = { kind: 'skip', row: row }">Skip row</button>
               <span class="grow"></span>
-              <button type="button" class="btn ghost" (click)="openRow(row, rowVendorId)" [disabled]="!rowDirty">Discard</button>
-              <button type="button" class="btn primary" (click)="saveRow()" [disabled]="busy || !rowDirty">Save and check</button>
+              <ng-container *ngIf="rowDirty">
+                <button type="button" class="btn ghost" (click)="openRow(row, rowVendorId)">Discard</button>
+                <button type="button" class="btn primary" (click)="saveRow()" [disabled]="busy">Save and check</button>
+              </ng-container>
             </div>
           </ng-container>
 

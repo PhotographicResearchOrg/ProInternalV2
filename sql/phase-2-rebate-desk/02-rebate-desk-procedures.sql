@@ -438,7 +438,7 @@ BEGIN
                   CASE WHEN r.VendorSku IS NOT NULL THEN CONCAT(N' SKU ', r.VendorSku, CASE WHEN @prefix IS NOT NULL THEN CONCAT(N' (as ', @prefix, r.VendorSku, N')') ELSE N'' END) ELSE N'' END,
                   CASE WHEN r.Upc IS NOT NULL THEN CONCAT(N' or UPC ', r.Upc) ELSE N'' END,
                   CASE WHEN r.VendorSku IS NULL AND r.Upc IS NULL THEN N': the row has no PRO code, SKU or UPC' ELSE N'' END,
-                  N'. Enter the PRO code, or set the vendor''s catalog prefix in vendor terms.')
+                  N'. Find the PRO product on the row (PRO code, catalog #, UPC or name).')
       FROM piv2.RebateUploadRow r
      WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY')
        AND r.ProCode IS NULL AND r.ProductCode IS NULL
