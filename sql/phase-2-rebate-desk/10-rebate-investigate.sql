@@ -128,7 +128,9 @@ BEGIN
         SELECT TRY_CAST(a.Account AS int),
                TRY_CAST(RIGHT(v.Vinvno, PATINDEX('%[^0-9]%', REVERSE(v.Vinvno) + 'x') - 1) AS int),
                LEFT(CAST(a.id AS varchar(50)), 50),
-               LEFT(SUBSTRING(CAST(a.id AS varchar(50)), LEN(CAST(TRY_CAST(a.Account AS int) AS varchar(20))) + 1, 50), 50),
+               /* The AR id starts with the member number, padded to 4 digits under 10000. */
+               LEFT(SUBSTRING(CAST(a.id AS varchar(50)), CASE WHEN TRY_CAST(a.Account AS int) < 10000 THEN 4
+                                                             ELSE LEN(CAST(TRY_CAST(a.Account AS int) AS varchar(20))) END + 1, 50), 50),
                v.Vinvno, TRY_CAST(a.AMOUNT AS decimal(19,2)), a.DT_POSTED, LEFT(RTRIM(CAST(a.TERMS AS varchar(50))), 50), LEFT(RTRIM(CAST(a.P_O_ AS varchar(50))), 50)
           FROM [EDA].dbo.ARHistorical a
          CROSS APPLY (SELECT LEFT(RTRIM(CAST(a.VINVNO AS varchar(50))), 50) AS Vinvno) v
@@ -222,9 +224,13 @@ BEGIN
 
     ;WITH cl AS
     (
-        SELECT r.MemberID AS MemberId, COUNT(DISTINCT r.ORDERID) AS Claims, SUM(COALESCE(r.Quantity, 0)) AS UnitsClaimed,
-               SUM(CAST(COALESCE(r.Net, 0) AS decimal(19,2))) AS AmountClaimed, MIN(r.Date) AS FirstClaim, MAX(r.Date) AS LastClaim
+        /* Declined claims are listed but not counted against purchases (same rule as the member view). */
+        SELECT r.MemberID AS MemberId, COUNT(DISTINCT r.ORDERID) AS Claims,
+               SUM(CASE WHEN COALESCE(p.Status, 0) <> 2 THEN COALESCE(r.Quantity, 0) ELSE 0 END) AS UnitsClaimed,
+               SUM(CASE WHEN COALESCE(p.Status, 0) <> 2 THEN CAST(COALESCE(r.Net, 0) AS decimal(19,2)) ELSE 0 END) AS AmountClaimed,
+               MIN(r.Date) AS FirstClaim, MAX(r.Date) AS LastClaim
           FROM dbo.RebateRedeem r JOIN #m m ON m.ModelId = r.ModelID
+         OUTER APPLY (SELECT TOP (1) x.Status FROM dbo.RebateProcess x WHERE x.OrderID = r.ORDERID ORDER BY x.ID DESC) p
          WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL AND r.Date >= @since
          GROUP BY r.MemberID
     ),
@@ -277,7 +283,7 @@ BEGIN
     SELECT r.[KEY], r.ORDERID, r.ModelID, r.Date, r.Quantity, CAST(COALESCE(r.Net, 0) AS decimal(19,2)), r.ReimbursementAmount,
            NULLIF(LTRIM(RTRIM(CAST(r.SerialNumber AS nvarchar(200)))), N''), CAST(r.StringProgramWeek AS nvarchar(100))
       FROM dbo.RebateRedeem r
-     WHERE r.MemberID = @MemberId AND COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL AND r.Date >= @since
+     WHERE r.MemberID = @MemberId AND COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL AND r.ModelID IS NOT NULL AND r.Date >= @since
        AND (@ModelIds IS NULL OR r.ModelID IN (SELECT TRY_CAST(value AS int) FROM STRING_SPLIT(@ModelIds, ',')));
 
     CREATE TABLE #m (ModelId int NOT NULL PRIMARY KEY);
@@ -308,13 +314,14 @@ BEGIN
      GROUP BY c.ModelId, s.MonthStart;
 
     /* Serial numbers on these lines that appear on another claim (any member). */
-    CREATE TABLE #dup (LineId int NOT NULL PRIMARY KEY, Others nvarchar(400) NULL);
+    CREATE TABLE #dup (LineId int NOT NULL PRIMARY KEY, Others nvarchar(max) NULL);
     INSERT #dup
-    SELECT l.LineId, STRING_AGG(CAST(CONCAT(N'claim ', o.ORDERID, N' (member ', o.MemberID, N')') AS nvarchar(max)), N', ')
-      FROM #l l
-      JOIN dbo.RebateRedeem o ON CAST(o.SerialNumber AS nvarchar(200)) = l.SerialNumber AND o.ORDERID <> l.OrderId AND COALESCE(o.Saved, 0) = 0
-     WHERE l.SerialNumber IS NOT NULL AND LEN(l.SerialNumber) >= 4
-     GROUP BY l.LineId;
+    SELECT x.LineId, LEFT(STRING_AGG(CAST(CONCAT(N'claim ', x.OrderId, N' (member ', x.MemberId, N')') AS nvarchar(max)), N', '), 400)
+      FROM (SELECT DISTINCT l.LineId, o.ORDERID AS OrderId, o.MemberID AS MemberId
+              FROM #l l
+              JOIN dbo.RebateRedeem o ON CAST(o.SerialNumber AS nvarchar(200)) = l.SerialNumber AND o.ORDERID <> l.OrderId AND COALESCE(o.Saved, 0) = 0
+             WHERE l.SerialNumber IS NOT NULL AND LEN(l.SerialNumber) >= 4) x
+     GROUP BY x.LineId;
 
     /* ---- 1: products ---- */
     SELECT m.ModelId, rm.ModelNumber AS Description, rm.ModelName AS ProCodeText, v.VendorName,
@@ -337,16 +344,27 @@ BEGIN
                           SUM(CASE WHEN COALESCE(d.Status, 0) NOT IN (1, 2, 3) THEN l.Net END) AS Pending,
                           MIN(l.ClaimDate) AS FirstClaim, MAX(l.ClaimDate) AS LastClaim
                      FROM #l l LEFT JOIN #d d ON d.OrderId = l.OrderId WHERE l.ModelId = m.ModelId) c
-      OUTER APPLY (SELECT SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM #s s WHERE s.ModelId = l.ModelId AND s.Units > 0
-                                                      AND s.MonthStart <= DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1)) THEN 1 ELSE 0 END) AS NoPurchaseBefore,
+      OUTER APPLY (SELECT SUM(nb.NoBuy) AS NoPurchaseBefore,
                           SUM(CASE WHEN dp.LineId IS NOT NULL THEN 1 ELSE 0 END) AS RepeatedSerials
-                     FROM #l l LEFT JOIN #dup dp ON dp.LineId = l.LineId WHERE l.ModelId = m.ModelId) f
+                     FROM #l l LEFT JOIN #dup dp ON dp.LineId = l.LineId
+                    CROSS APPLY (SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM #s s WHERE s.ModelId = l.ModelId AND s.Units > 0
+                                                AND s.MonthStart <= DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1))
+                                             THEN 1 ELSE 0 END AS NoBuy) nb
+                    WHERE l.ModelId = m.ModelId) f
      ORDER BY CASE WHEN COALESCE(c.UnitsCounted, 0) > COALESCE(b.UnitsBought, 0) THEN 0 ELSE 1 END, COALESCE(c.UnitsClaimed, 0) DESC;
 
     /* ---- 2: months (all chosen products together) ---- */
+    /* Purchases once per PRO code: two chosen products can share one (an IR and its trade-in). */
+    CREATE TABLE #sm (MonthStart date NOT NULL PRIMARY KEY, Units decimal(19,2) NOT NULL, Amount decimal(19,2) NOT NULL);
+    INSERT #sm
+    SELECT s.MonthStart, SUM(s.Units), SUM(s.Amount)
+      FROM piv2.MemberSalesMonth s JOIN (SELECT DISTINCT ProCode FROM #code) c ON c.ProCode = s.ProCode
+     WHERE s.MemberId = @MemberId AND s.MonthStart >= @buyFrom
+     GROUP BY s.MonthStart;
+
     ;WITH mo AS
     (
-        SELECT MonthStart, SUM(Units) AS UnitsBought, CAST(0 AS decimal(19,2)) AS UnitsClaimed FROM #s GROUP BY MonthStart
+        SELECT MonthStart, Units AS UnitsBought, CAST(0 AS decimal(19,2)) AS UnitsClaimed FROM #sm
         UNION ALL
         SELECT DATEFROMPARTS(YEAR(ClaimDate), MONTH(ClaimDate), 1), 0, SUM(COALESCE(Quantity, 0)) FROM #l WHERE ClaimDate IS NOT NULL
          GROUP BY DATEFROMPARTS(YEAR(ClaimDate), MONTH(ClaimDate), 1)
@@ -358,9 +376,9 @@ BEGIN
     SELECT x.*
       FROM
       (
-        SELECT CAST(s.MonthStart AS datetime) AS At, 'BOUGHT' AS Kind, NULL AS OrderId, s.ModelId,
-               CONCAT(N'Bought ', CAST(s.Units AS decimal(19,0)), N' unit(s) this month') AS Text, s.Units AS Quantity, s.Amount, NULL AS Detail
-          FROM #s s WHERE s.Units <> 0
+        SELECT CAST(s.MonthStart AS datetime) AS At, 'BOUGHT' AS Kind, NULL AS OrderId, CAST(NULL AS int) AS ModelId,
+               CONCAT(N'Bought ', CAST(s.Units AS decimal(19,0)), N' unit(s) this month') AS Text, s.Units AS Quantity, s.Amount, CAST(NULL AS nvarchar(max)) AS Detail
+          FROM #sm s WHERE s.Units <> 0
         UNION ALL
         SELECT l.ClaimDate, 'CLAIMED', l.OrderId, l.ModelId,
                CONCAT(N'Claimed ', l.Quantity, N' × ', FORMAT(l.Each, 'C', 'en-US'), CASE WHEN l.SerialNumber IS NOT NULL THEN N' · SN ' + l.SerialNumber ELSE N'' END),
@@ -379,7 +397,7 @@ BEGIN
         UNION ALL
         SELECT dm.CreatedAt, 'DEBIT_MEMO', d.OrderId, NULL, CONCAT(N'On debit memo ', d.DebitMemo), NULL, NULL, NULL
           FROM #d d
-          OUTER APPLY (SELECT TOP (1) CreatedAt FROM piv2.RebateDebitMemo WHERE DM = d.DebitMemo ORDER BY DebitMemoId DESC) dm
+          OUTER APPLY (SELECT TOP (1) CreatedAt FROM piv2.RebateDebitMemo WHERE DM = d.DebitMemo AND Rail = 'IR' ORDER BY DebitMemoId DESC) dm
          WHERE d.DebitMemo IS NOT NULL
         UNION ALL
         SELECT e.At, 'DESK', e.ClaimId, NULL, CONCAT(N'Desk: ', e.EventType, N' by ', e.Actor), NULL, NULL, e.Reason

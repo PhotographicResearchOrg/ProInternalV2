@@ -71,11 +71,20 @@ RETURN
     SELECT c.ArId, c.InvoiceNumber, c.Vinvno, c.Amount, c.PostedAt, c.Terms, c.PoNumber
       FROM piv2.RebateArCredit c
      WHERE c.OrderId = @OrderId AND c.MemberId = @MemberId
-    UNION
-    SELECT a.ID, SUBSTRING(a.ID, LEN(CAST(@MemberId AS varchar(20))) + 1, 50), RTRIM(a.VINVNO), a.AMOUNT, a.DT_POSTED, a.TERMS, a.P_O_
+    UNION ALL
+    /* Credits since the last nightly copy (a day's margin: AR dates are local, the log is UTC), not already copied.
+       The AR id starts with the member number, padded to 4 digits under 10000. */
+    SELECT CAST(a.ID AS varchar(50)),
+           CAST(SUBSTRING(a.ID, LEN(p.Prefix) + 1, 50) AS varchar(50)),
+           CAST(RTRIM(a.VINVNO) AS varchar(50)), CAST(a.AMOUNT AS decimal(19,2)), a.DT_POSTED,
+           CAST(RTRIM(a.TERMS) AS varchar(50)), CAST(RTRIM(a.P_O_) AS varchar(50))
       FROM dbo.Rebate_EDA_ARHist a
-     WHERE a.DT_POSTED >= COALESCE((SELECT MAX(StartedAt) FROM piv2.SalesRefreshLog WHERE Error IS NULL AND FinishedAt IS NOT NULL), '19000101')
-       AND LEFT(a.ID, LEN(CAST(@MemberId AS varchar(20)))) = CAST(@MemberId AS varchar(20))
+     CROSS APPLY (SELECT CASE WHEN @MemberId < 10000 THEN RIGHT('0000' + CAST(@MemberId AS varchar(20)), 4)
+                              ELSE CAST(@MemberId AS varchar(20)) END AS Prefix) p
+     WHERE a.DT_POSTED >= DATEADD(day, -1, CAST(COALESCE((SELECT MAX(StartedAt) FROM piv2.SalesRefreshLog
+                                                          WHERE Error IS NULL AND FinishedAt IS NOT NULL), '19000102') AS date))
+       AND NOT EXISTS (SELECT 1 FROM piv2.RebateArCredit c WHERE c.ArId = CAST(a.ID AS varchar(50)))
+       AND LEFT(a.ID, LEN(p.Prefix)) = p.Prefix
        AND RTRIM(a.VINVNO) LIKE '%' + CAST(@OrderId AS varchar(20))
        AND (LEN(RTRIM(a.VINVNO)) = LEN(CAST(@OrderId AS varchar(20)))
             OR SUBSTRING(RTRIM(a.VINVNO), LEN(RTRIM(a.VINVNO)) - LEN(CAST(@OrderId AS varchar(20))), 1) NOT LIKE '[0-9]');
@@ -112,7 +121,8 @@ BEGIN
     DECLARE @qInt int = TRY_CAST(@Q AS int);
     DECLARE @toEx datetime = DATEADD(day, 1, CAST(@To AS datetime));
     DECLARE @since date = CASE WHEN @Months > 0 THEN DATEADD(month, -@Months, CAST(GETDATE() AS date)) ELSE '19000101' END;
-    IF @From IS NULL OR @From < @since SET @From = @since;
+    /* An exact claim # or debit memo is found however old; otherwise only the window. */
+    IF @From IS NULL OR @From < @since SET @From = CASE WHEN @Q IS NOT NULL THEN @From ELSE @since END;
 
     /* A debit memo number searches the decisions first; anything else is a claim or member number. */
     CREATE TABLE #dm (OrderId int NOT NULL PRIMARY KEY);

@@ -1113,7 +1113,7 @@ BEGIN
     DECLARE @u int = (SELECT MIN(UploadId) FROM @rows), @ids nvarchar(max);
     WHILE @u IS NOT NULL
     BEGIN
-        SET @ids = (SELECT STRING_AGG(CAST(RowId AS nvarchar(30)), ',') FROM @rows WHERE UploadId = @u);
+        SET @ids = (SELECT STRING_AGG(CAST(RowId AS nvarchar(max)), ',') FROM @rows WHERE UploadId = @u);
         EXEC piv2.Rebate_ValidateUpload @u, @ids;   -- just the rows allowed
         EXEC piv2.Rebate_RefreshUploadStatus @u;
         SET @u = (SELECT MIN(UploadId) FROM @rows WHERE UploadId > @u);
@@ -1171,6 +1171,9 @@ BEGIN
     IF @ModelId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM dbo.RebateCameraModels WHERE ModelID = @ModelId AND IsPriceProtection = 0)
         THROW 50722, 'That is not an instant-rebate model.', 1;
 
+    /* The model before the pick: its other rows in the file may lose a duplicate or overlap problem. */
+    DECLARE @old int = (SELECT ModelId FROM piv2.RebateUploadRow WHERE RowId = @RowId);
+
     BEGIN TRAN;
 
     UPDATE piv2.RebateUploadRow
@@ -1179,8 +1182,10 @@ BEGIN
            UpdatedBy = @Actor, UpdatedAt = SYSUTCDATETIME()
      WHERE RowId = @RowId;
 
-    DECLARE @one nvarchar(30) = CAST(@RowId AS nvarchar(30));
-    EXEC piv2.Rebate_ValidateUpload @upload, @one;   -- this row only
+    DECLARE @one nvarchar(max) =
+        (SELECT STRING_AGG(CAST(RowId AS nvarchar(max)), ',') FROM piv2.RebateUploadRow
+          WHERE RowId = @RowId OR (UploadId = @upload AND @old IS NOT NULL AND ModelId = @old AND Status IN ('READY', 'PURGATORY')));
+    EXEC piv2.Rebate_ValidateUpload @upload, @one;   -- this row, and the rows of the model it had
 
     INSERT piv2.RebateEvent (EventType, UploadId, RowId, ModelId, Actor)
     VALUES ('ROW_DISPOSITION', @upload, @RowId, @ModelId, @Actor);
