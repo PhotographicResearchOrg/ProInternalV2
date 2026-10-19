@@ -607,7 +607,7 @@ namespace ProInternal.Controllers
                 };
             });
 
-        /* One member (and products): bought against claimed, by month, the timeline and the flags. */
+        /* One member (and products): bought against claimed, by month, one row per claim, and the flags. */
         [HttpGet("investigate/member/{memberId:int}")]
         public Task<IActionResult> InvestigateMember(int memberId, [FromQuery] string? modelIds, [FromQuery] int months = 12) =>
             Read(async () =>
@@ -622,8 +622,9 @@ namespace ProInternal.Controllers
                 {
                     products = sets.ElementAtOrDefault(0) ?? new List<RebateRow>(),
                     months = sets.ElementAtOrDefault(1) ?? new List<RebateRow>(),
-                    timeline = sets.ElementAtOrDefault(2) ?? new List<RebateRow>(),
-                    about = (sets.ElementAtOrDefault(3) ?? new List<RebateRow>()).FirstOrDefault()
+                    claims = sets.ElementAtOrDefault(2) ?? new List<RebateRow>(),
+                    purchases = sets.ElementAtOrDefault(3) ?? new List<RebateRow>(),
+                    about = (sets.ElementAtOrDefault(4) ?? new List<RebateRow>()).FirstOrDefault()
                 };
             });
 

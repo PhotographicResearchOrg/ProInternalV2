@@ -214,7 +214,7 @@ export class RebateDeskComponent implements OnInit {
     this.error = '';
     this.row = null;
     this.newProduct = null;
-    if (!keepFilters) { this.programModelId = null; this.programBatchId = null; this.programOpenId = null; this.memoPreset = null; this.investigatePreset = null; }
+    if (!keepFilters) { this.programModelId = null; this.programBatchId = null; this.programOpenId = null; this.memoPreset = null; this.investigatePreset = null; this.claimsOpenId = null; }
     if (key !== 'uploads') this.upload = null;
     if (key !== 'upload') this.remapUploadId = null;
     this.router.navigate([], { queryParams: { view: key }, replaceUrl: true });
@@ -236,6 +236,12 @@ export class RebateDeskComponent implements OnInit {
 
   /* Investigate a claim's member and products (from the claim, or a needs-support / declined row). */
   investigatePreset: { memberId: number; modelIds?: number[] } | null = null;
+  claimsOpenId: number | null = null;
+  openClaim(orderId: number): void {
+    if (!this.leaveOk()) return;
+    this.claimsOpenId = orderId;
+    this.pick('claims', true);
+  }
   investigate(p: { memberId: number; modelIds?: number[] }): void {
     if (!this.leaveOk()) return;
     this.investigatePreset = { ...p };

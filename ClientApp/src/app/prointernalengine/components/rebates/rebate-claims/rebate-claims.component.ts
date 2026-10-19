@@ -28,6 +28,8 @@ export class RebateClaimsComponent implements OnChanges {
   @Input() preset: { vendorId: number; from: string; to: string } | null = null;
   /* Open Investigate on this claim's member and products. */
   @Output() investigate = new EventEmitter<{ memberId: number; modelIds: number[] }>();
+  /* Came from Investigate: find this claim (any age) and open it. */
+  @Input() openClaimId: number | null = null;
 
   investigateClaim(): void {
     if (!this.claim) return;
@@ -122,8 +124,20 @@ export class RebateClaimsComponent implements OnChanges {
       this.desk.vendors(this.rail).subscribe(v => (this.vendors = v));
       this.claim = null;
       this.candidates = [];
-      this.go(1);
+      if (!this.openClaimId) this.go(1);
       this.loadMemos();
+    }
+    if (changes['openClaimId'] && this.openClaimId) {
+      const id = this.openClaimId;
+      this.filter = { ...this.filter, q: String(id), state: '', months: 0, memberId: null, modelId: null, vendorId: null, from: '', to: '' };
+      this.modelLabel = '';
+      this.loading = true;
+      this.desk.claims(this.rail, { ...this.filter, page: 1, pageSize: this.pageSize })
+        .pipe(finalize(() => (this.loading = false)))
+        .subscribe({
+          next: r => { this.rows = r.rows; this.total = r.total; const c = r.rows.find((x: any) => +x.orderId === +id); if (c) this.open(c); },
+          error: e => (this.error = apiMessage(e))
+        });
     }
     if (changes['preset'] && this.preset) {
       this.memoVendorIds = [this.preset.vendorId];

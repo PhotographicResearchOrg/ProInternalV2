@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { Subject, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, finalize, switchMap } from 'rxjs/operators';
 import { RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.service';
@@ -9,7 +9,7 @@ import { DEFAULT_MONTHS } from '../shared/rebate-window.component';
  * Investigate (instant rebates): does what a member claimed match what they bought from PRO?
  *   Look up a claim #, a member (number or name), a rebate product or a vendor.
  *   A claim or a member opens the member view: per product bought against claimed,
- *   a month-by-month chart, the full timeline and the flags.
+ *   a month-by-month chart, one row per claim (decision, credit, debit memo, flags).
  *   A product or a vendor lists every member who claimed it, the ones that look wrong first.
  * Sales come from piv2.MemberSalesMonth (EDA.ARHistorical, rebuilt nightly).
  */
@@ -21,6 +21,8 @@ import { DEFAULT_MONTHS } from '../shared/rebate-window.component';
 export class RebateInvestigateComponent implements OnChanges {
   /* Opened from a claim: that member and the claim's products. */
   @Input() preset: { memberId: number; modelIds?: number[] } | null = null;
+  /* Open a claim on the Claims screen. */
+  @Output() openClaim = new EventEmitter<number>();
 
   q = '';
   hits: any[] = [];
@@ -34,16 +36,48 @@ export class RebateInvestigateComponent implements OnChanges {
   /* What is open: a member, or the claimants of a product or vendor. */
   memberId: number | null = null;
   modelIds: number[] = [];
-  member: { products: any[]; months: any[]; timeline: any[]; about: any } | null = null;
+  member: { products: any[]; months: any[]; claims: any[]; purchases: any[]; about: any } | null = null;
   focusLabel = '';
   claimantsOf: { modelId?: number; vendorId?: number; label: string } | null = null;
   claimants: { members: any[]; about: any } | null = null;
 
-  timelineKinds: { [k: string]: boolean } = { BOUGHT: true, CLAIMED: true, APPROVED: true, DECLINED: true, NEEDS_SUPPORT: true, POSTED: true, DEBIT_MEMO: true, DESK: true, DECIDED: true };
-  readonly kindLabels: { [k: string]: string } = {
-    BOUGHT: 'Bought', CLAIMED: 'Claimed', APPROVED: 'Approved', DECLINED: 'Declined', NEEDS_SUPPORT: 'Needs support',
-    DECIDED: 'Decision', POSTED: 'Posted to GL', DEBIT_MEMO: 'Debit memo', DESK: 'Desk action'
-  };
+  /* One chip at a time, like the rest of the desk. */
+  claimChip = '';
+  showPurchases = false;
+  readonly claimChips = [
+    { key: '', label: 'All' }, { key: 'APPROVED', label: 'Approved' }, { key: 'DECLINED', label: 'Declined' },
+    { key: 'SUPPORT', label: 'Needs support' }, { key: 'OPEN', label: 'Not decided' },
+    { key: 'NOT_IN_AR', label: 'Posted, not in AR' }, { key: 'NO_DM', label: 'Approved, no debit memo' }, { key: 'FLAGGED', label: 'Flagged' }
+  ];
+
+  claimState(c: any): string {
+    return c.status === 1 ? 'APPROVED' : c.status === 2 ? 'DECLINED' : c.status === 3 ? 'SUPPORT' : 'OPEN';
+  }
+
+  stateLabel(c: any): string {
+    return ({ APPROVED: 'Approved', DECLINED: 'Declined', SUPPORT: 'Needs support', OPEN: 'Not decided' } as any)[this.claimState(c)];
+  }
+
+  isFlagged(c: any): boolean { return !!c.serialAlsoOn || (+c.linesWithNoPurchaseBefore || 0) > 0; }
+
+  private matches(c: any, key: string): boolean {
+    switch (key) {
+      case '': return true;
+      case 'NOT_IN_AR': return c.status === 1 && !!c.markedPosted && !c.arInvoice;
+      case 'NO_DM': return c.status === 1 && !c.debitMemo;
+      case 'FLAGGED': return this.isFlagged(c);
+      default: return this.claimState(c) === key;
+    }
+  }
+
+  chipCount(key: string): number { return (this.member?.claims ?? []).filter(c => this.matches(c, key)).length; }
+
+  get claimsShown(): any[] { return (this.member?.claims ?? []).filter(c => this.matches(c, this.claimChip)); }
+
+  /* "Duplicate of 112299": the claim numbers in a decline reason, to open them. */
+  claimRefs(reason: string | null): number[] {
+    return [...new Set((String(reason ?? '').match(/\b\d{5,7}\b/g) ?? []).map(Number))];
+  }
 
   chartData: any = null;
   readonly chartOptions = {
@@ -73,7 +107,7 @@ export class RebateInvestigateComponent implements OnChanges {
     this.hits = [];
     this.q = '';
     switch (h.kind) {
-      case 'CLAIM': this.openClaim(+h.key, h.memberId); break;
+      case 'CLAIM': this.loadClaim(+h.key, h.memberId); break;
       case 'MEMBER': this.openMember(+h.memberId, [], ''); break;
       case 'PRODUCT': this.openClaimants({ modelId: +h.modelId, label: h.label }); break;
       case 'VENDOR': this.openClaimants({ vendorId: +h.vendorId, label: h.label }); break;
@@ -81,7 +115,7 @@ export class RebateInvestigateComponent implements OnChanges {
   }
 
   /* A claim: its member, narrowed to the claim's products. */
-  private openClaim(orderId: number, memberId: number): void {
+  private loadClaim(orderId: number, memberId: number): void {
     this.desk.claim('IR', orderId).subscribe({
       next: d => this.openMember(memberId, [...new Set((d.lines ?? []).map((l: any) => +l.modelId))], `Claim ${orderId}`),
       error: () => this.openMember(memberId, [], `Claim ${orderId}`)
@@ -156,21 +190,6 @@ export class RebateInvestigateComponent implements OnChanges {
   }
 
   /* Debit memos show as a chip on the claim's lines, not as rows of their own. */
-  get timelineShown(): any[] {
-    return (this.member?.timeline ?? []).filter(e => e.kind !== 'DEBIT_MEMO' && this.timelineKinds[e.kind] !== false);
-  }
-
-  private dmCache: { src: any; map: Map<number, string> } | null = null;
-  debitMemoFor(orderId: number | null): string | null {
-    if (!orderId || !this.member) return null;
-    if (!this.dmCache || this.dmCache.src !== this.member.timeline) {
-      const map = new Map<number, string>();
-      for (const e of this.member.timeline) if (e.kind === 'DEBIT_MEMO' && e.orderId) map.set(+e.orderId, String(e.text || '').replace(/^On debit memo\s*/, ''));
-      this.dmCache = { src: this.member.timeline, map };
-    }
-    return this.dmCache.map.get(+orderId) ?? null;
-  }
-
   productName(modelId: number | null): string {
     if (!modelId) return '';
     return this.member?.products.find(p => p.modelId === modelId)?.description ?? '#' + modelId;
@@ -201,11 +220,15 @@ export class RebateInvestigateComponent implements OnChanges {
         col('Repeated serials', 'repeatedSerials', 'number')] },
       { name: 'Months', rows: this.member.months, cols: [
         col('Month', 'monthStart', 'date'), col('Units bought', 'unitsBought', 'number'), col('Units claimed', 'unitsClaimed', 'number')] },
-      { name: 'Timeline', rows: this.member.timeline.filter(e => e.kind !== 'DEBIT_MEMO'), cols: [
-        col('When', 'at', 'datetime'), col('What', r => this.kindLabels[r.kind] ?? r.kind), col('Claim', 'orderId', 'number'),
-        col('Debit memo', r => this.debitMemoFor(r.orderId)),
-        col('Product', r => this.productName(r.modelId), 'text', 40), col('Detail', 'text', 'text', 50), col('Qty', 'quantity', 'number'),
-        col('Amount', 'amount', 'money'), col('Note', 'detail', 'text', 50)] }
+      { name: 'Claims', rows: this.member.claims, cols: [
+        col('Claim', 'orderId', 'number'), col('Claimed', 'claimDate', 'date'), col('Product(s)', 'products', 'text', 45),
+        col('Units', 'units', 'number'), col('Amount', 'amount', 'money'), col('Status', r => this.stateLabel(r)),
+        col('Decided', 'decidedAt', 'date'), col('Decided by', 'decidedBy'), col('Reason', 'reason', 'text', 40),
+        col('AR invoice', 'arInvoice'), col('Posted', 'arPostedAt', 'date'), col('Debit memo', 'debitMemo'),
+        col('Serials', 'serials'), col('Serial also on', 'serialAlsoOn', 'text', 40),
+        col('Lines with no purchase before', 'linesWithNoPurchaseBefore', 'number')] },
+      { name: 'Purchases', rows: this.member.purchases, cols: [
+        col('Month', 'monthStart', 'date'), col('Units', 'units', 'number'), col('Amount', 'amount', 'money')] }
     ]);
   }
 

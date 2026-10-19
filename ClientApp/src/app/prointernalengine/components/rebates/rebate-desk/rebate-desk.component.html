@@ -439,8 +439,8 @@
       <app-rebate-vendors *ngIf="view === 'pp-vendors'" rail="PP" (showPrograms)="showPrograms($event, 'PP')" (debitMemo)="billVendor($event, 'PP')"></app-rebate-vendors>
 
       <!-- ============ Claims and debit memos (accounting) ============ -->
-      <app-rebate-claims *ngIf="view === 'claims'" rail="IR" tab="claims" (investigate)="investigate($event)"></app-rebate-claims>
-      <app-rebate-investigate *ngIf="view === 'investigate'" [preset]="investigatePreset"></app-rebate-investigate>
+      <app-rebate-claims *ngIf="view === 'claims'" rail="IR" tab="claims" [openClaimId]="claimsOpenId" (investigate)="investigate($event)"></app-rebate-claims>
+      <app-rebate-investigate *ngIf="view === 'investigate'" [preset]="investigatePreset" (openClaim)="openClaim($event)"></app-rebate-investigate>
       <app-rebate-claims *ngIf="view === 'debitmemos'" rail="IR" tab="memos" [preset]="memoPreset"></app-rebate-claims>
       <app-rebate-claims *ngIf="view === 'pp-claims'" rail="PP" tab="claims"></app-rebate-claims>
       <app-rebate-claims *ngIf="view === 'pp-debitmemos'" rail="PP" tab="memos" [preset]="memoPreset"></app-rebate-claims>

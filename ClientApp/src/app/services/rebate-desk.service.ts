@@ -173,7 +173,7 @@ export class RebateDeskService {
     return this.api.get(`${this.base}/investigate/claimants${this.q(f)}`);
   }
   investigateMember(memberId: number, modelIds: number[] | null, months: number):
-    Observable<{ products: any[]; months: any[]; timeline: any[]; about: any }> {
+    Observable<{ products: any[]; months: any[]; claims: any[]; purchases: any[]; about: any }> {
     return this.api.get(`${this.base}/investigate/member/${memberId}${this.q({ modelIds: modelIds?.length ? modelIds.join(',') : null, months })}`);
   }
 

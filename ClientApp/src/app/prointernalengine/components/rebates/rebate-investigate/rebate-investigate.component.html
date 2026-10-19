@@ -76,10 +76,19 @@
       </span>
     </div>
 
-    <div style="height: 260px; margin-bottom: 12px" *ngIf="chartData">
+    <div style="height: 260px; margin-bottom: 6px" *ngIf="chartData">
       <p-chart type="bar" [data]="chartData" [options]="chartOptions" height="260px"></p-chart>
     </div>
     <div class="empty" *ngIf="!chartData">No purchases or claims in this window.</div>
+    <div style="margin: 0 0 12px" *ngIf="member.purchases.length">
+      <button type="button" class="btn ghost" (click)="showPurchases = !showPurchases">
+        <i class="pi" [ngClass]="showPurchases ? 'pi-chevron-down' : 'pi-chevron-right'"></i> Bought by month ({{ member.purchases.length }} months)</button>
+      <table class="grid" *ngIf="showPurchases" style="margin-top: 6px; max-width: 420px">
+        <thead><tr><th>Month</th><th class="num">Units</th><th class="num">Amount</th></tr></thead>
+        <tbody><tr *ngFor="let p of member.purchases"><td class="mono">{{ p.monthStart | date:'MMM yyyy':'UTC' }}</td>
+          <td class="num">{{ p.units | number:'1.0-0' }}</td><td class="money">{{ p.amount | currency }}</td></tr></tbody>
+      </table>
+    </div>
 
     <table class="grid">
       <thead><tr><th>Product</th><th class="num">Bought</th><th class="num">Claimed</th><th class="num">Approved</th><th class="num">Declined</th>
@@ -105,26 +114,41 @@
   </section>
 
   <section class="card">
-    <div class="card-head"><h2>Timeline</h2><span class="sub">{{ timelineShown.length }} events, oldest first</span></div>
+    <div class="card-head"><h2>Claims</h2><span class="sub">{{ claimsShown.length }} of {{ member.claims.length }}, newest first{{ modelIds.length === 1 ? ' · ' + productName(modelIds[0]) : '' }}</span></div>
     <div class="chips">
       <span class="lbl">Show</span>
-      <button type="button" *ngFor="let k of ['BOUGHT', 'CLAIMED', 'APPROVED', 'NEEDS_SUPPORT', 'DECLINED', 'POSTED', 'DESK']"
-              [class.on]="timelineKinds[k] !== false" (click)="timelineKinds[k] = timelineKinds[k] === false">{{ kindLabels[k] }}</button>
+      <button type="button" *ngFor="let c of claimChips" [class.on]="claimChip === c.key" (click)="claimChip = c.key">{{ c.label }}<b>{{ chipCount(c.key) }}</b></button>
     </div>
     <table class="grid">
-      <thead><tr><th>When</th><th>What</th><th>Claim</th><th>Product</th><th>Detail</th><th class="num">Amount</th></tr></thead>
+      <thead><tr><th>Claim</th><th>Claimed</th><th>Product</th><th class="num">Units</th><th class="num">Amount</th><th>Status</th>
+        <th>Posted to GL</th><th>Debit memo</th><th>Flags</th></tr></thead>
       <tbody>
-        <tr *ngFor="let e of timelineShown">
-          <td class="mono">{{ e.kind === 'BOUGHT' ? (e.at | date:'MMM yyyy':'UTC') : (e.at | date:'MM/dd/yy') }}</td>
-          <td><span class="status" [class.ok]="e.kind === 'APPROVED' || e.kind === 'POSTED'" [class.bad]="e.kind === 'DECLINED'"
-                    [class.warn]="e.kind === 'NEEDS_SUPPORT'" [class.info]="e.kind === 'BOUGHT'">{{ kindLabels[e.kind] || e.kind }}</span></td>
-          <td><span class="mono">{{ e.orderId }}</span>
-            <div *ngIf="e.kind === 'CLAIMED' && debitMemoFor(e.orderId) as dm"><span class="chip" title="Billed to the vendor on this debit memo">DM {{ dm }}</span></div></td>
-          <td>{{ productName(e.modelId) }}</td>
-          <td>{{ e.text }}<div class="sub" *ngIf="e.detail" [style.color]="e.kind === 'CLAIMED' ? '#b42318' : null">{{ e.detail }}</div></td>
-          <td class="money">{{ e.amount != null ? (e.amount | currency) : '' }}</td>
+        <tr *ngFor="let c of claimsShown">
+          <td><a class="mono" href="" (click)="$event.preventDefault(); openClaim.emit(c.orderId)" title="Open on the Claims screen">{{ c.orderId }}</a></td>
+          <td class="mono">{{ c.claimDate | date:'MM/dd/yy' }}</td>
+          <td>{{ c.products }}<span class="sub" *ngIf="c.productCount > 1"> ({{ c.productCount }} products)</span></td>
+          <td class="num">{{ c.units }}</td>
+          <td class="money">{{ c.amount | currency }}</td>
+          <td>
+            <span class="status" [class.ok]="c.status === 1" [class.bad]="c.status === 2" [class.warn]="c.status === 3">{{ stateLabel(c) }}</span>
+            <div class="sub" *ngIf="c.decidedAt">{{ c.decidedAt | date:'MM/dd/yy' }}{{ c.decidedBy ? ' · ' + c.decidedBy : '' }}</div>
+            <div class="sub" *ngIf="c.reason">{{ c.reason }}
+              <ng-container *ngFor="let n of claimRefs(c.reason)"> · <a href="" (click)="$event.preventDefault(); openClaim.emit(n)">open {{ n }}</a></ng-container></div>
+          </td>
+          <td>
+            <ng-container *ngIf="c.arInvoice"><span class="mono">inv {{ c.arInvoice }}</span><div class="sub">{{ c.arPostedAt | date:'MM/dd/yy' }}</div></ng-container>
+            <span class="status warn" *ngIf="!c.arInvoice && c.status === 1 && c.markedPosted">not in AR</span>
+            <span class="sub" *ngIf="!c.arInvoice && c.status === 1 && !c.markedPosted">not posted yet</span>
+          </td>
+          <td><span class="chip" *ngIf="c.debitMemo" title="Billed to the vendor on this debit memo">DM {{ c.debitMemo }}</span>
+            <span class="sub" *ngIf="!c.debitMemo && c.status === 1">none</span></td>
+          <td>
+            <span class="status bad" *ngIf="c.serialAlsoOn" [title]="'Serial ' + c.serials + ' also on ' + c.serialAlsoOn">serial on another claim</span>
+            <div class="sub" *ngIf="c.serialAlsoOn">{{ c.serialAlsoOn }}</div>
+            <span class="status warn" *ngIf="c.linesWithNoPurchaseBefore > 0">no purchase before</span>
+          </td>
         </tr>
-        <tr *ngIf="!timelineShown.length"><td colspan="6" class="empty">Nothing to show.</td></tr>
+        <tr *ngIf="!claimsShown.length"><td colspan="9" class="empty">No claims here.</td></tr>
       </tbody>
     </table>
   </section>

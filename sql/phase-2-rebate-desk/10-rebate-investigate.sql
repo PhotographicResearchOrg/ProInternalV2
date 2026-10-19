@@ -263,8 +263,9 @@ GO
    what happened to it, and the flags.
      1 products   per product: bought, claimed, amounts by state, flags
      2 months     per month: units bought, units claimed (chart)
-     3 timeline   every event, oldest first
-     4 about      member name, window, when sales were last refreshed
+     3 claims     one row per claim: products, units, amount, decision, AR credit, debit memo, flags
+     4 purchases  by month
+     5 about      member name, window, when sales were last refreshed
    --------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE piv2.Investigate_Member
     @MemberId int,
@@ -372,40 +373,54 @@ BEGIN
     SELECT MonthStart, SUM(UnitsBought) AS UnitsBought, SUM(UnitsClaimed) AS UnitsClaimed
       FROM mo GROUP BY MonthStart ORDER BY MonthStart;
 
-    /* ---- 3: timeline ---- */
-    SELECT x.*
-      FROM
-      (
-        SELECT CAST(s.MonthStart AS datetime) AS At, 'BOUGHT' AS Kind, NULL AS OrderId, CAST(NULL AS int) AS ModelId,
-               CONCAT(N'Bought ', CAST(s.Units AS decimal(19,0)), N' unit(s) this month') AS Text, s.Units AS Quantity, s.Amount, CAST(NULL AS nvarchar(max)) AS Detail
-          FROM #sm s WHERE s.Units <> 0
-        UNION ALL
-        SELECT l.ClaimDate, 'CLAIMED', l.OrderId, l.ModelId,
-               CONCAT(N'Claimed ', l.Quantity, N' × ', FORMAT(l.Each, 'C', 'en-US'), CASE WHEN l.SerialNumber IS NOT NULL THEN N' · SN ' + l.SerialNumber ELSE N'' END),
-               l.Quantity, l.Net,
-               CASE WHEN dp.Others IS NOT NULL THEN N'Serial also on ' + dp.Others END
-          FROM #l l LEFT JOIN #dup dp ON dp.LineId = l.LineId
-        UNION ALL
-        SELECT d.DecidedAt, CASE d.Status WHEN 1 THEN 'APPROVED' WHEN 2 THEN 'DECLINED' WHEN 3 THEN 'NEEDS_SUPPORT' ELSE 'DECIDED' END, d.OrderId, NULL,
-               CONCAT(CASE d.Status WHEN 1 THEN N'Approved' WHEN 2 THEN N'Declined' WHEN 3 THEN N'Needs support' ELSE N'Decision' END,
-                      CASE WHEN d.DecidedBy IS NOT NULL THEN N' by ' + d.DecidedBy ELSE N'' END),
-               NULL, NULL, d.RejectReason
-          FROM #d d WHERE d.DecidedAt IS NOT NULL
-        UNION ALL
-        SELECT c.PostedAt, 'POSTED', c.OrderId, NULL, CONCAT(N'Credit posted to the GL: invoice ', c.InvoiceNumber), NULL, c.Amount, NULL
-          FROM piv2.RebateArCredit c WHERE c.MemberId = @MemberId AND c.OrderId IN (SELECT OrderId FROM #d)
-        UNION ALL
-        SELECT dm.CreatedAt, 'DEBIT_MEMO', d.OrderId, NULL, CONCAT(N'On debit memo ', d.DebitMemo), NULL, NULL, NULL
-          FROM #d d
-          OUTER APPLY (SELECT TOP (1) CreatedAt FROM piv2.RebateDebitMemo WHERE DM = d.DebitMemo AND Rail = 'IR' ORDER BY DebitMemoId DESC) dm
-         WHERE d.DebitMemo IS NOT NULL
-        UNION ALL
-        SELECT e.At, 'DESK', e.ClaimId, NULL, CONCAT(N'Desk: ', e.EventType, N' by ', e.Actor), NULL, NULL, e.Reason
-          FROM piv2.RebateEvent e WHERE e.Rail = 'IR' AND e.ClaimId IN (SELECT OrderId FROM #d)
-      ) x
-     ORDER BY CASE WHEN x.At IS NULL THEN 1 ELSE 0 END, x.At, x.OrderId;
+    /* AR credits for these claims: the nightly copy, then the live view only for posted claims it does not have yet. */
+    CREATE TABLE #ar (OrderId int NOT NULL PRIMARY KEY, InvoiceNumber varchar(50) NULL, PostedAt datetime NULL, Amount decimal(19,2) NULL);
+    INSERT #ar
+    SELECT x.OrderId, x.InvoiceNumber, x.PostedAt, x.Amount
+      FROM (SELECT c.OrderId, c.InvoiceNumber, c.PostedAt, c.Amount, ROW_NUMBER() OVER (PARTITION BY c.OrderId ORDER BY c.PostedAt DESC) AS rn
+              FROM piv2.RebateArCredit c JOIN #d d ON d.OrderId = c.OrderId WHERE c.MemberId = @MemberId) x
+     WHERE x.rn = 1;
+    INSERT #ar
+    SELECT d.OrderId, a.InvoiceNumber, a.PostedAt, a.Amount
+      FROM #d d
+     CROSS APPLY (SELECT TOP (1) c.InvoiceNumber, c.PostedAt, c.Amount FROM piv2.Rebate_ArCredit(@MemberId, d.OrderId) c ORDER BY c.PostedAt DESC) a
+     WHERE d.Posted = 1 AND d.OrderId NOT IN (SELECT OrderId FROM #ar);
 
-    /* ---- 4: about ---- */
+    /* ---- 3: claims, one row per claim (only these products' lines), newest first ---- */
+    SELECT o.OrderId,
+           MIN(l.ClaimDate) AS ClaimDate,
+           STRING_AGG(CAST(CAST(rm.ModelNumber AS nvarchar(300)) AS nvarchar(max)), N'; ') WITHIN GROUP (ORDER BY l.LineId) AS Products,
+           MIN(l.ModelId) AS ModelId,
+           COUNT(DISTINCT l.ModelId) AS ProductCount,
+           SUM(COALESCE(l.Quantity, 0)) AS Units,
+           SUM(l.Net) AS Amount,
+           MAX(d.Status) AS Status,
+           MAX(d.DecidedAt) AS DecidedAt,
+           /* The old system wrote "Cant get user" when it had no user: show nothing. */
+           MAX(CASE WHEN d.DecidedBy LIKE N'%t get user%' THEN NULL ELSE d.DecidedBy END) AS DecidedBy,
+           MAX(d.RejectReason) AS Reason,
+           MAX(CASE WHEN d.Posted = 1 THEN 1 ELSE 0 END) AS MarkedPosted,
+           MAX(d.DebitMemo) AS DebitMemo,
+           MAX(ar.InvoiceNumber) AS ArInvoice, MAX(ar.PostedAt) AS ArPostedAt, MAX(ar.Amount) AS ArAmount,
+           LEFT(STRING_AGG(CAST(l.SerialNumber AS nvarchar(max)), N', '), 400) AS Serials,
+           LEFT(STRING_AGG(CAST(dp.Others AS nvarchar(max)), N'; '), 400) AS SerialAlsoOn,
+           SUM(nb.NoBuy) AS LinesWithNoPurchaseBefore
+      FROM (SELECT DISTINCT OrderId FROM #l) o
+      JOIN #l l ON l.OrderId = o.OrderId
+      JOIN dbo.RebateCameraModels rm ON rm.ModelID = l.ModelId
+      LEFT JOIN #d d ON d.OrderId = o.OrderId
+      LEFT JOIN #dup dp ON dp.LineId = l.LineId
+     CROSS APPLY (SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM #s s WHERE s.ModelId = l.ModelId AND s.Units > 0
+                                AND s.MonthStart <= DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1))
+                              THEN 1 ELSE 0 END AS NoBuy) nb
+      LEFT JOIN #ar ar ON ar.OrderId = o.OrderId
+     GROUP BY o.OrderId
+     ORDER BY MIN(l.ClaimDate) DESC, o.OrderId DESC;
+
+    /* ---- 4: purchases by month, for the table under the chart ---- */
+    SELECT MonthStart, Units, Amount FROM #sm ORDER BY MonthStart DESC;
+
+    /* ---- 5: about ---- */
     SELECT @MemberId AS MemberId, (SELECT Name FROM piv2.MemberName WHERE MemberId = @MemberId) AS MemberName,
            @since AS WindowFrom, @buyFrom AS PurchasesFrom,
            (SELECT MAX(FinishedAt) FROM piv2.SalesRefreshLog WHERE Error IS NULL AND FinishedAt IS NOT NULL) AS SalesAsOf;
