@@ -420,7 +420,9 @@ BEGIN
            MAX(ar.InvoiceNumber) AS ArInvoice, MAX(ar.PostedAt) AS ArPostedAt, MAX(ar.Amount) AS ArAmount,
            LEFT(STRING_AGG(CAST(l.SerialNumber AS nvarchar(max)), N', '), 400) AS Serials,
            LEFT(STRING_AGG(CAST(dp.Others AS nvarchar(max)), N'; '), 400) AS SerialAlsoOn,
-           SUM(nb.NoBuy) AS LinesWithNoPurchaseBefore
+           SUM(nb.NoBuy) AS LinesWithNoPurchaseBefore,
+           /* The member's proof files for the claim (pipe list; the API turns them into links). */
+           MAX(pf.ProofFiles) AS ProofFiles
       FROM (SELECT DISTINCT OrderId FROM #l) o
       JOIN #l l ON l.OrderId = o.OrderId
       JOIN dbo.RebateCameraModels rm ON rm.ModelID = l.ModelId
@@ -431,6 +433,12 @@ BEGIN
                                 AND s.MonthStart <= DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1))
                               THEN 1 ELSE 0 END AS NoBuy) nb
       LEFT JOIN #ar ar ON ar.OrderId = o.OrderId
+     OUTER APPLY (SELECT STRING_AGG(CAST(f.FileName AS nvarchar(max)), N'|') AS ProofFiles
+                    FROM (SELECT LTRIM(RTRIM(CAST(x.MasterFileLoc AS nvarchar(400)))) AS FileName
+                            FROM dbo.RebateRedeem x WHERE x.ORDERID = o.OrderId AND COALESCE(x.Saved, 0) = 0
+                          UNION
+                          SELECT LTRIM(RTRIM(CAST(a.filename AS nvarchar(400)))) FROM dbo.RebateRedeemAdditionalFiles a WHERE a.orderID = o.OrderId) f
+                   WHERE NULLIF(f.FileName, N'') IS NOT NULL AND f.FileName <> N'Additional Files') pf
      GROUP BY o.OrderId
      ORDER BY MIN(l.ClaimDate) DESC, o.OrderId DESC;
 

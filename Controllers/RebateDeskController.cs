@@ -550,7 +550,11 @@ namespace ProInternal.Controllers
                     decisions = sets.ElementAtOrDefault(0) ?? new List<RebateRow>(),
                     lines,
                     arCredits = sets.ElementAtOrDefault(2) ?? new List<RebateRow>(),
-                    history = sets.ElementAtOrDefault(3) ?? new List<RebateRow>()
+                    history = sets.ElementAtOrDefault(3) ?? new List<RebateRow>(),
+                    /* The member's proof files, as links to the IR site. */
+                    proof = (sets.ElementAtOrDefault(4) ?? new List<RebateRow>())
+                        .Select(f => new { name = f.Get<string>("fileName"), url = _claims.ProofUrl(orderId, f.Get<string>("fileName") ?? "") })
+                        .ToList()
                 };
             });
 
@@ -618,11 +622,14 @@ namespace ProInternal.Controllers
                     ModelIds = string.IsNullOrWhiteSpace(modelIds) ? null : modelIds,
                     Months = months
                 });
+                var claims = sets.ElementAtOrDefault(2) ?? new List<RebateRow>();
+                foreach (var c in claims)
+                    c["proof"] = _claims.ProofLinks(c.Get<int>("orderId"), c.Get<string>("proofFiles"));
                 return new
                 {
                     products = sets.ElementAtOrDefault(0) ?? new List<RebateRow>(),
                     months = sets.ElementAtOrDefault(1) ?? new List<RebateRow>(),
-                    claims = sets.ElementAtOrDefault(2) ?? new List<RebateRow>(),
+                    claims,
                     purchases = sets.ElementAtOrDefault(3) ?? new List<RebateRow>(),
                     about = (sets.ElementAtOrDefault(4) ?? new List<RebateRow>()).FirstOrDefault()
                 };

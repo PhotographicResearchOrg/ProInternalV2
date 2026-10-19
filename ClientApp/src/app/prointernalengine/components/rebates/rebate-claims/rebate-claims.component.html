@@ -91,6 +91,14 @@
           <td class="num">{{ l.quantity }}</td><td class="money">{{ l.reimbursementAmount | currency }}</td><td class="money">{{ l.net | currency }}</td><td class="sub">{{ l.programWeek }}</td></tr></tbody>
       </table>
 
+      <ng-container *ngIf="rail === 'IR'">
+        <h3 class="sub" style="margin: 14px 0 6px">Proof from the member</h3>
+        <div class="proof" *ngIf="detail.proof?.length">
+          <a *ngFor="let f of detail.proof" [href]="f.url" target="_blank" rel="noopener"><i class="pi pi-paperclip"></i> {{ f.name }}</a>
+        </div>
+        <div class="sub" *ngIf="!detail.proof?.length">No proof files on this claim.</div>
+      </ng-container>
+
       <h3 class="sub" style="margin: 14px 0 6px">Decision</h3>
       <div class="facts" *ngFor="let d of detail.decisions | slice:0:1">
         <div><span>Status</span><b>{{ d.status === 1 ? 'Approved' : d.status === 2 ? 'Declined' : d.status === 3 ? 'Needs support' : 'Not decided' }}</b></div>

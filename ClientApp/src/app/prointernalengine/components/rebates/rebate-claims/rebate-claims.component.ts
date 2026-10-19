@@ -48,7 +48,7 @@ export class RebateClaimsComponent implements OnChanges {
   total = 0;
   rows: any[] = [];
   claim: any = null;
-  detail: { decisions: any[]; lines: any[]; arCredits: any[]; history: any[] } | null = null;
+  detail: { decisions: any[]; lines: any[]; arCredits: any[]; history: any[]; proof?: { name: string; url: string }[] } | null = null;
 
   /* ---- debit memos ---- */
   memoVendorIds: number[] = [];
@@ -310,7 +310,12 @@ export class RebateClaimsComponent implements OnChanges {
     this.error = '';
     this.desk.createDebitMemo(form).pipe(finalize(() => (this.busy = false))).subscribe({
       next: r => {
-        this.notice = `Debit memo ${this.memo.dm} created: ${r.claims} claim(s), ${r.total.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}.`
+        const rr: any = r;
+        const proof = rr.proofError ? ` Proof ZIP failed: ${rr.proofError}.`
+          : rr.proofFiles ? ` Proof ZIP: ${rr.proofFiles} file(s)${rr.proofMissing ? `, ${rr.proofMissing} could not be read (listed in the ZIP)` : ''}.`
+          : this.rail === 'IR' ? ' No proof files on these claims.' : '';
+        this.notice = `Debit memo ${this.memo.dm} created: ${r.claims} claim(s), ${r.total.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}. Member level claim detail attached.`
+          + proof
           + (this.memo.sendEmail ? (r.emailed ? ' Emailed.' : ` Not emailed: ${r.emailError}. Download the CSV from the list.`) : '');
         this.candidates = [];
         this.chosen.clear();

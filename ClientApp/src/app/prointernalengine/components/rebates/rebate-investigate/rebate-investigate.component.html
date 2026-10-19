@@ -133,7 +133,7 @@
     </div>
     <table class="grid">
       <thead><tr><th>Claim</th><th>Claimed</th><th>Product</th><th class="num">Units</th><th class="num">Amount</th><th>Status</th>
-        <th>Posted to GL</th><th>Debit memo</th><th>Flags</th></tr></thead>
+        <th>Posted to GL</th><th>Debit memo</th><th>Proof</th><th>Flags</th></tr></thead>
       <tbody>
         <tr *ngFor="let c of claimsShown">
           <td><a class="mono" href="" (click)="$event.preventDefault(); openClaim.emit(c.orderId)" title="Open on the Claims screen">{{ c.orderId }}</a></td>
@@ -154,13 +154,17 @@
           </td>
           <td><span class="chip" *ngIf="c.debitMemo" title="Billed to the vendor on this debit memo">DM {{ c.debitMemo }}</span>
             <span class="sub" *ngIf="!c.debitMemo && c.status === 1">none</span></td>
+          <td class="proof">
+            <a *ngFor="let f of c.proof" [href]="f.url" target="_blank" rel="noopener" [title]="f.name"><i class="pi pi-paperclip"></i> {{ f.name | slice:0:18 }}{{ f.name.length > 18 ? '…' : '' }}</a>
+            <span class="sub" *ngIf="!c.proof?.length">none</span>
+          </td>
           <td>
             <span class="status bad" *ngIf="c.serialAlsoOn" [title]="'Serial ' + c.serials + ' also on ' + c.serialAlsoOn">serial on another claim</span>
             <div class="sub" *ngIf="c.serialAlsoOn">{{ c.serialAlsoOn }}</div>
             <span class="status warn" *ngIf="c.linesWithNoPurchaseBefore > 0">no purchase before</span>
           </td>
         </tr>
-        <tr *ngIf="!claimsShown.length"><td colspan="9" class="empty">No claims here.</td></tr>
+        <tr *ngIf="!claimsShown.length"><td colspan="10" class="empty">No claims here.</td></tr>
       </tbody>
     </table>
   </section>

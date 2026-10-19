@@ -450,3 +450,7 @@ input.in, select.in, textarea.in {
 .vs-claimed { background: #d9822b; }
 .vs-claimed.over { background: #b42318; }
 td.flags .status { display: inline-block; margin: 0 4px 3px 0; white-space: nowrap; }
+
+/* Proof files: one link per file */
+.proof { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.proof a { white-space: nowrap; font-size: 12px; }

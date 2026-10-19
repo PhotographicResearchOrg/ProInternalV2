@@ -300,6 +300,41 @@ BEGIN
 
     SELECT EventId, EventType, Actor, Reason, Detail, At
       FROM piv2.RebateEvent WHERE Rail = @Rail AND ClaimId = @OrderId ORDER BY EventId DESC;
+
+    /* 5: the member's proof files (instant rebates). */
+    IF @Rail = 'IR'
+    BEGIN
+        DECLARE @ids varchar(20) = CAST(@OrderId AS varchar(20));
+        EXEC piv2.Claim_ProofFiles @OrderIds = @ids;
+    END
+END
+GO
+
+/* ---------------------------------------------------------------
+   Proof files the member uploaded with a claim (instant rebates):
+   each line's MasterFileLoc, and RebateRedeemAdditionalFiles.
+   On the IR site a file is Proof/<claim #>_<file name>.
+   --------------------------------------------------------------- */
+CREATE OR ALTER PROCEDURE piv2.Claim_ProofFiles
+    @OrderIds varchar(max)          -- comma list of claim numbers
+AS
+BEGIN
+    SET NOCOUNT ON;
+    CREATE TABLE #o (OrderId int NOT NULL PRIMARY KEY);
+    INSERT #o SELECT DISTINCT TRY_CAST(value AS int) FROM STRING_SPLIT(@OrderIds, ',') WHERE TRY_CAST(value AS int) IS NOT NULL;
+
+    SELECT DISTINCT x.OrderId, x.FileName
+      FROM
+      (
+        SELECT r.ORDERID AS OrderId, LTRIM(RTRIM(CAST(r.MasterFileLoc AS nvarchar(400)))) AS FileName
+          FROM dbo.RebateRedeem r JOIN #o o ON o.OrderId = r.ORDERID
+         WHERE COALESCE(r.Saved, 0) = 0
+        UNION ALL
+        SELECT a.orderID, LTRIM(RTRIM(CAST(a.filename AS nvarchar(400))))
+          FROM dbo.RebateRedeemAdditionalFiles a JOIN #o o ON o.OrderId = a.orderID
+      ) x
+     WHERE NULLIF(x.FileName, N'') IS NOT NULL AND x.FileName <> N'Additional Files'
+     ORDER BY x.OrderId, x.FileName;
 END
 GO
 
@@ -730,7 +765,8 @@ BEGIN
     IF @rail = 'PP'
     BEGIN
         WITH p AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY ID DESC) AS rn FROM dbo.PriceProtectionProcess)
-        SELECT r.ORDERID AS OrderId, r.MemberID AS MemberId, m.VendorID AS VendorId, v.VendorName, r.ModelID AS ModelId,
+        SELECT r.ORDERID AS OrderId, r.MemberID AS MemberId, mn.Name AS MemberName, MIN(r.Date) AS ClaimDate,
+               m.VendorID AS VendorId, v.VendorName, r.ModelID AS ModelId,
                m.ModelNumber AS Description, m.ModelName AS ProCode, iv.CatNo AS CatalogNumber, r.StringProgramWeek AS ProgramWeek,
                p.timeEnd AS ProcessedAt, SUM(r.Quantity) AS Quantity, r.ReimbursementAmount,
                SUM(CAST(COALESCE(r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2))) AS Extended
@@ -739,15 +775,17 @@ BEGIN
           JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
           JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
           LEFT JOIN #cat iv ON iv.Code = LTRIM(RTRIM(LEFT(m.ModelName, CHARINDEX(',', m.ModelName + ',') - 1)))
+          LEFT JOIN piv2.MemberName mn ON mn.MemberId = r.MemberID
          WHERE COALESCE(r.Saved, 0) = 0
-         GROUP BY r.ORDERID, r.MemberID, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CatNo,
+         GROUP BY r.ORDERID, r.MemberID, mn.Name, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CatNo,
                   r.StringProgramWeek, p.timeEnd, r.ReimbursementAmount
          ORDER BY r.MemberID, r.ORDERID;
     END
     ELSE
     BEGIN
         WITH p AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY ID DESC) AS rn FROM dbo.RebateProcess)
-        SELECT r.ORDERID AS OrderId, r.MemberID AS MemberId, m.VendorID AS VendorId, v.VendorName, r.ModelID AS ModelId,
+        SELECT r.ORDERID AS OrderId, r.MemberID AS MemberId, mn.Name AS MemberName, MIN(r.Date) AS ClaimDate,
+               m.VendorID AS VendorId, v.VendorName, r.ModelID AS ModelId,
                m.ModelNumber AS Description, m.ModelName AS ProCode, iv.CatNo AS CatalogNumber, r.StringProgramWeek AS ProgramWeek,
                p.timeEnd AS ProcessedAt, SUM(r.Quantity) AS Quantity,
                COALESCE(vs.VendorShare, r.ReimbursementAmount) AS ReimbursementAmount,
@@ -766,8 +804,9 @@ BEGIN
           JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
           JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
           LEFT JOIN #cat iv ON iv.Code = LTRIM(RTRIM(LEFT(m.ModelName, CHARINDEX(',', m.ModelName + ',') - 1)))
+          LEFT JOIN piv2.MemberName mn ON mn.MemberId = r.MemberID
          WHERE COALESCE(r.Saved, 0) = 0
-         GROUP BY r.ORDERID, r.MemberID, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CatNo,
+         GROUP BY r.ORDERID, r.MemberID, mn.Name, m.VendorID, v.VendorName, r.ModelID, m.ModelNumber, m.ModelName, iv.CatNo,
                   r.StringProgramWeek, p.timeEnd, r.ReimbursementAmount, vs.VendorShare
          ORDER BY r.MemberID, r.ORDERID;
     END

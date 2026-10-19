@@ -144,7 +144,7 @@ export class RebateDeskService {
 
   /* ---- claims (accounting) ---- */
   claims(rail: Rail, f: any): Observable<Paged> { return this.api.get(`${this.base}/claims${this.q({ rail, ...f })}`); }
-  claim(rail: Rail, orderId: number): Observable<{ decisions: any[]; lines: any[]; arCredits: any[]; history: any[] }> {
+  claim(rail: Rail, orderId: number): Observable<{ decisions: any[]; lines: any[]; arCredits: any[]; history: any[]; proof?: { name: string; url: string }[] }> {
     return this.api.get(`${this.base}/claims/${rail}/${orderId}`);
   }
   resendCredit(rail: Rail, orderId: number, reason: string): Observable<any> {
