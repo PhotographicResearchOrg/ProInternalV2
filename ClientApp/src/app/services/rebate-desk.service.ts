@@ -96,6 +96,7 @@ export class RebateDeskService {
   /* ---- purgatory ---- */
   purgatory(vendorId?: number | null): Observable<any[]> { return this.api.get(`${this.base}/purgatory${this.q({ vendorId })}`); }
   updateRow(rowId: number, body: any): Observable<any> { return this.api.put(`${this.base}/rows/${rowId}`, body); }
+  rowOptions(rowId: number): Observable<any[]> { return this.api.get(`${this.base}/rows/${rowId}/options`); }
   pickModel(rowId: number, modelId: number | null): Observable<any> { return this.api.post(`${this.base}/rows/${rowId}/model`, { modelId }); }
   skipRow(rowId: number, reason: string): Observable<any> { return this.api.post(`${this.base}/rows/${rowId}/skip`, { reason }); }
   restoreRow(rowId: number): Observable<any> { return this.api.post(`${this.base}/rows/${rowId}/restore`, {}); }

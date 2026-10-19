@@ -1,6 +1,7 @@
 import { Component, HostListener, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { finalize, switchMap } from 'rxjs/operators';
 import { DataService } from 'src/app/services/data.service';
 import { Rail, RebateDeskService, apiMessage, isoDate } from 'src/app/services/rebate-desk.service';
 import { IR_PROGRAM_COLS, UPLOAD_ROW_COLS, col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
@@ -478,6 +479,10 @@ export class RebateDeskComponent implements OnInit {
     this.step1Open = false;
     this.step2Open = false;
     this.detailsOpen = this.hasProblem(r, ...this.valueProblems);
+    this.s2Type = this.effectiveType(r);
+    this.s2Choice = r.modelId ?? null;
+    this.s2Options = [];
+    if (r.productCode) this.desk.rowOptions(r.rowId).subscribe({ next: o => (this.s2Options = o ?? []), error: () => (this.s2Options = []) });
     this.proHits = [];
     this.proErr = '';
     this.proSearched = false;
@@ -622,6 +627,54 @@ export class RebateDeskComponent implements OnInit {
   }
 
   get step2Done(): boolean { return !!this.row?.modelId && !this.hasProblem(this.row, 'NO_MODEL', 'MODEL_RETIRED'); }
+
+  /* ---- step 2: map to a rebate product, or create one by the naming convention, for the chosen type ---- */
+  s2Type: number | null = null;
+  s2Choice: number | 'CREATE' | null = null;
+  s2Options: any[] = [];
+
+  /* Rebate products carrying the PRO code; the one in use first. */
+  get s2List(): any[] {
+    const list = [...this.s2Options];
+    const r = this.row;
+    if (r?.modelId && !list.some(o => o.modelId === r.modelId))
+      list.unshift({ modelId: r.modelId, name: r.modelDescription, kind: '', vendor: '', active: true });
+    return list.sort((a, b) => (a.modelId === r?.modelId ? -1 : b.modelId === r?.modelId ? 1 : 0));
+  }
+
+  get s2Name(): string { return this.previewName(this.row, this.s2Type); }
+
+  get s2Changed(): boolean {
+    return this.s2Choice !== null && (this.s2Choice !== this.row?.modelId || this.s2Type !== this.effectiveType(this.row));
+  }
+
+  /* Applies step 2: the type first (it decides the name), then the mapping or the new product. */
+  applyStep2(): void {
+    const r = this.row;
+    if (!r || this.s2Choice === null) return;
+    const typeChanged = this.s2Type !== this.effectiveType(r);
+    const choice = this.s2Choice;
+    this.busy = true;
+    this.error = '';
+    const setType$ = typeChanged
+      ? this.desk.updateRow(r.rowId, { ...this.rowEdit, rebateType: this.s2Type, proPad: this.rowEdit.proPad === '' || this.rowEdit.proPad == null ? null : +this.rowEdit.proPad,
+          startDate: this.rowEdit.startDate || null, endDate: this.rowEdit.endDate || null })
+      : of(null);
+    setType$.pipe(
+      switchMap(() => choice === 'CREATE'
+        ? this.desk.addProduct({ rail: 'IR', vendorId: this.rowVendorId ?? r.vendorId, description: this.s2Name,
+            proCodes: String(r.productCode).split(',')[0], serialNumbersRequired: false, forRowId: r.rowId })
+        : this.desk.pickModel(r.rowId, choice as number)),
+      finalize(() => (this.busy = false))
+    ).subscribe({
+      next: () => {
+        this.notice = choice === 'CREATE' ? `Created "${this.s2Name}" and set it on row ${r.sourceRow}.` : `Row ${r.sourceRow} mapped to rebate product #${choice}.`;
+        this.loadOverview();
+        this.afterRowChange();
+      },
+      error: e => (this.error = apiMessage(e))
+    });
+  }
 
   /* ---- mapping a row to a rebate product (no product by the rule-set name) ---- */
   mapChoice: number | 'CREATE' | null = null;

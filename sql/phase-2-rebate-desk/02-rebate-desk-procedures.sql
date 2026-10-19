@@ -963,6 +963,33 @@ BEGIN
 END
 GO
 
+/* Step 2 of the row panel: the rebate products that already carry the row's PRO code (any type),
+   for mapping by hand, whatever the automatic match found. */
+CREATE OR ALTER PROCEDURE piv2.Rebate_RowOptions
+    @RowId bigint
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @code nvarchar(20) =
+        (SELECT LEFT(ProductCode, CHARINDEX(N',', COALESCE(ProductCode, N'') + N',') - 1) FROM piv2.RebateUploadRow WHERE RowId = @RowId);
+
+    SELECT TOP (25) m.ModelID AS ModelId, CAST(m.ModelNumber AS nvarchar(400)) AS Name,
+           CASE WHEN m.ModelNumber LIKE N'% TRADE-IN%' OR m.ModelNumber LIKE N'%TRADE IN%' THEN N'Trade-in'
+                WHEN m.ModelNumber LIKE N'%COUPON%'       THEN N'Coupon'
+                WHEN m.ModelNumber LIKE N'%SOCIAL MEDIA%' THEN N'Social media'
+                WHEN m.ModelNumber LIKE N'% WITH %'       THEN N'Bundle / free with purchase'
+                ELSE N'Instant rebate' END AS Kind,
+           v.VendorName AS Vendor, CAST(COALESCE(m.Active, 0) AS bit) AS Active
+      FROM dbo.RebateCameraModelsDetails d
+      JOIN dbo.RebateCameraModels m ON m.ModelID = d.ParentModelID AND m.IsPriceProtection = 0
+      LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
+     WHERE @code IS NOT NULL AND CAST(d.ProCode AS nvarchar(20)) = @code
+     ORDER BY COALESCE(m.Active, 0) DESC, m.ModelID DESC;
+END
+GO
+
 /* Skip many rows at once with one reason (clearing purgatory noise). */
 CREATE OR ALTER PROCEDURE piv2.Rebate_SkipRows
     @RowIds nvarchar(max),     -- comma list

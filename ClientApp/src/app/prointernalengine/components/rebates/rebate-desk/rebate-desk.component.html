@@ -330,39 +330,37 @@
                 <app-rebate-help code="DISPOSITION" label="How this is chosen"></app-rebate-help></div>
               <div class="sub" *ngIf="!step1Done">After the PRO product is known.</div>
               <ng-container *ngIf="step1Done">
-                <div *ngIf="row.modelId && !step2Open" class="rstep-done">
-                  <i class="pi pi-check-circle"></i> #{{ row.modelId }} {{ row.modelDescription }}
-                  <span class="chip lock" *ngIf="row.modelChosenBy">picked by {{ row.modelChosenBy }} <button type="button" (click)="pickModel(null)" title="Back to automatic">↺</button></span>
-                  <button type="button" class="btn ghost" style="padding: 2px 10px" (click)="step2Open = true">Change</button>
+                <div class="sub" style="margin-bottom: 6px" *ngIf="row.modelId">In use: <b>#{{ row.modelId }} {{ row.modelDescription }}</b>
+                  <span class="chip lock" *ngIf="row.modelChosenBy">picked by {{ row.modelChosenBy }} <button type="button" (click)="pickModel(null)" title="Back to automatic">↺</button></span></div>
+                <label class="rchoice" style="gap: 10px">Rebate type
+                  <select class="in" style="max-width: 220px" [(ngModel)]="s2Type">
+                    <option *ngFor="let t of types" [ngValue]="t.rebateTypeId">{{ t.name }}</option>
+                  </select>
+                  <span class="sub">decides the name</span>
+                </label>
+                <div class="sub" style="margin: 6px 0 2px" *ngIf="s2List.length">Rebate products carrying PRO {{ row.productCode }}:</div>
+                <label *ngFor="let c of s2List" class="rchoice">
+                  <input type="radio" name="s2" [checked]="s2Choice === c.modelId" (change)="s2Choice = c.modelId" />
+                  <span>{{ c.name }}</span>
+                  <span class="chip info" *ngIf="c.kind">{{ c.kind }}</span>
+                  <span class="sub mono">#{{ c.modelId }}<span *ngIf="c.vendor"> · {{ c.vendor }}</span></span>
+                  <span class="chip ok" *ngIf="c.modelId === row.modelId">in use</span>
+                  <span class="chip bad" *ngIf="c.active === false">retired</span>
+                </label>
+                <label class="rchoice">
+                  <input type="radio" name="s2" [checked]="s2Choice === 'CREATE'" (change)="s2Choice = 'CREATE'" />
+                  <span>Create <b>"{{ s2Name }}"</b></span>
+                  <span class="chip ok">naming convention</span>
+                </label>
+                <div class="actions" style="margin-top: 8px">
+                  <span class="sub grow" *ngIf="!s2Changed">{{ row.modelId ? 'Keep as is, or choose another and apply.' : 'Choose one and apply.' }}</span>
+                  <span class="sub grow" *ngIf="s2Changed">{{ s2Type !== effectiveType(row) ? 'Saves the type, then ' : '' }}{{ s2Choice === 'CREATE' ? 'creates the product and uses it.' : 'maps the row to it.' }}</span>
+                  <button type="button" class="btn primary" (click)="applyStep2()" [disabled]="busy || !s2Changed">
+                    {{ s2Choice === 'CREATE' ? 'Create and use' : 'Use this product' }}</button>
                 </div>
-                <ng-container *ngIf="!row.modelId && row.proposedName && hasProblem(row, 'NO_MODEL')">
-                  <div class="sub" style="margin-bottom: 6px">
-                    {{ mapCandidates(row).length ? 'These rebate products already carry PRO ' + row.productCode + '. Map the row to one, or create a new one.' : 'No rebate product carries PRO ' + row.productCode + ' yet. Create it under the naming convention.' }}</div>
-                  <label *ngFor="let c of mapCandidates(row)" class="rchoice">
-                    <input type="radio" name="mapChoice" [checked]="mapChoice === c.modelId" (change)="mapChoice = c.modelId" />
-                    <span>{{ c.name }}</span>
-                    <span class="chip info">{{ c.kind }}</span>
-                    <span class="sub mono">#{{ c.modelId }}<span *ngIf="c.vendor"> · {{ c.vendor }}</span></span>
-                    <span class="chip bad" *ngIf="!c.active">retired</span>
-                  </label>
-                  <label class="rchoice">
-                    <input type="radio" name="mapChoice" [checked]="mapChoice === 'CREATE'" (change)="mapChoice = 'CREATE'" />
-                    <span>Create <b>"{{ previewName(row, effectiveType(row)) }}"</b></span>
-                    <span class="chip ok">{{ typeName(effectiveType(row)) || 'type' }}</span>
-                  </label>
-                  <div class="actions" style="margin-top: 8px">
-                    <span class="sub grow">The name follows the rebate type (step 3).</span>
-                    <button type="button" class="btn primary" (click)="useMapChoice()" [disabled]="busy || mapChoice === null">
-                      {{ mapChoice === 'CREATE' ? 'Create and use' : 'Use this product' }}</button>
-                  </div>
-                </ng-container>
-                <div class="sub" *ngIf="!row.modelId && !row.proposedName">Fix the stack product in step 3 first; the rebate product name needs it.</div>
-                <div *ngIf="step2Open || (!row.modelId && !hasProblem(row, 'NO_MODEL'))" style="margin-top: 8px">
-                  <div class="sub" style="margin-bottom: 4px">Or pick any rebate product:</div>
-                  <app-rebate-product-picker rail="IR" [initial]="row.proposedName || row.productCode" (picked)="pickModel($event); step2Open = false"></app-rebate-product-picker>
-                  <div class="actions" style="margin-top: 6px" *ngIf="step2Open"><span class="grow"></span>
-                    <button type="button" class="btn ghost" (click)="step2Open = false">Cancel</button></div>
-                </div>
+                <details style="margin-top: 6px"><summary class="sub">Search any rebate product</summary>
+                  <div style="margin-top: 6px"><app-rebate-product-picker rail="IR" [initial]="row.productCode" (picked)="pickModel($event)"></app-rebate-product-picker></div>
+                </details>
               </ng-container>
             </div>
 

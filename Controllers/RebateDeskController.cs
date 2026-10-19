@@ -176,6 +176,10 @@ namespace ProInternal.Controllers
                 Actor
             })).FirstOrDefault());
 
+        [HttpGet("rows/{rowId:long}/options")]
+        public Task<IActionResult> RowOptions(long rowId) =>
+            Read(() => _data.QueryAsync("piv2.Rebate_RowOptions", new { RowId = rowId }));
+
         [HttpPost("rows/{rowId:long}/model")]
         [RequirePermission(UploadPermission)]
         public Task<IActionResult> PickModel(long rowId, [FromBody] RebatePickModelRequest body) =>
