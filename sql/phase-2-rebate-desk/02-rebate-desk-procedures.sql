@@ -492,7 +492,7 @@ BEGIN
     UPDATE r
        SET StackCodes = (SELECT LEFT(STRING_AGG(s.ProductCode, N',') WITHIN GROUP (ORDER BY s.Seq), 200) FROM #stack s
                           WHERE s.RowId = r.RowId AND s.ProductCode IS NOT NULL),
-           /* The stack product's own plain IR product, for the RebateQualifiers link at load. */
+           /* The stack product's own plain IR product, shown on the row (links are set by hand in Products > Stacks). */
            StackModelId = (SELECT TOP (1) d.ParentModelID
                              FROM #stack s
                              JOIN dbo.RebateCameraModelsDetails d ON CAST(d.ProCode AS nvarchar(20)) = s.ProductCode
@@ -1315,15 +1315,8 @@ BEGIN
     SELECT m.ProgramId, r.Reimbursement + COALESCE(r.ProPad, 0), r.ModelId, r.Reimbursement, COALESCE(r.ProPad, 0), @Actor
       FROM @map m JOIN piv2.RebateUploadRow r ON r.RowId = m.RowId;
 
-    /* A stack product in the file becomes a qualifier link (row's model qualifies with the stack model), once. */
-    INSERT dbo.RebateQualifiers (PROQualifierID, PROAssociatedID, PROAssociatedName)
-    SELECT DISTINCT r.ModelId, r.StackModelId, sm.ModelNumber
-      FROM piv2.RebateUploadRow r
-      JOIN @map m ON m.RowId = r.RowId
-      JOIN dbo.RebateCameraModels sm ON sm.ModelID = r.StackModelId
-     WHERE r.StackModelId IS NOT NULL
-       AND NOT EXISTS (SELECT 1 FROM dbo.RebateQualifiers q
-                        WHERE q.PROQualifierID = r.ModelId AND q.PROAssociatedID = r.StackModelId);
+    /* Stack links (dbo.RebateQualifiers) are not written here: as in legacy, they are set up by hand
+       (Products > Stacks). The stack product only shapes the rebate product name. */
 
     UPDATE piv2.RebateUpload
        SET LoadedBy = COALESCE(LoadedBy, @Actor), LoadedAt = COALESCE(LoadedAt, SYSUTCDATETIME()),
