@@ -143,7 +143,9 @@
             <button type="button" class="btn primary" (click)="loadReady()" [disabled]="busy || !upload.rowsReady">
               <i class="pi pi-check"></i> {{ busy ? 'Loading…' : 'Load ' + upload.rowsReady + ' ready row(s)' }}</button>
             <button type="button" class="btn" (click)="createMissing()" *ngIf="upload.rowsCreatable > 0" [disabled]="busy">
-              <i class="pi pi-plus"></i> Create {{ upload.rowsCreatable }} rebate product(s)</button>
+              <i class="pi pi-plus"></i> Create {{ upload.rowsCreatable }} new rebate product(s)</button>
+            <span class="chip warn" *ngIf="upload.rowsToMap > 0" title="Rebate products already carry these PRO codes: open each row and map it, or create">
+              {{ upload.rowsToMap }} row(s) to map</span>
             <button type="button" class="btn" (click)="remap()" *ngIf="upload.status === 'REVIEW'"><i class="pi pi-table"></i> Change mapping</button>
             <button type="button" class="btn ghost" (click)="openFile()"><i class="pi pi-download"></i> Original file</button>
             <button type="button" class="btn ghost" (click)="exportUploadRows()"><i class="pi pi-file-excel"></i> Excel (these rows)</button>
@@ -315,8 +317,27 @@
               <span class="chip lock" *ngIf="row.modelChosenBy">picked by {{ row.modelChosenBy }} <button type="button" (click)="pickModel(null)" title="Back to automatic">↺</button></span>
             </div>
             <app-rebate-product-picker rail="IR" [initial]="row.proposedName || row.productCode" placeholder="Pick the rebate product for this row" (picked)="pickModel($event)"></app-rebate-product-picker>
-            <div class="actions" style="margin-top: 8px" *ngIf="hasProblem(row, 'NO_MODEL') && !newProduct">
-              <button type="button" class="btn" (click)="startNewProduct()"><i class="pi pi-plus"></i> Create "{{ row.proposedName || 'new product' }}"</button>
+            <div class="card" style="margin: 8px 0" *ngIf="hasProblem(row, 'NO_MODEL') && row.proposedName && !newProduct">
+              <div class="card-head"><h2 style="font-size: 13px">Which rebate product?</h2><span class="grow"></span>
+                <app-rebate-help code="NO_MODEL" label="Directions"></app-rebate-help></div>
+              <div class="sub" style="margin-bottom: 6px" *ngIf="mapCandidates(row).length">These already carry PRO {{ row.productCode }}. Map the row to one, or create a new one under the naming convention.</div>
+              <label *ngFor="let c of mapCandidates(row)" style="display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0">
+                <input type="radio" name="mapChoice" [checked]="mapChoice === c.modelId" (change)="mapChoice = c.modelId" />
+                <span>{{ c.name }}</span>
+                <span class="chip info">{{ c.kind }}</span>
+                <span class="sub mono">#{{ c.modelId }}<span *ngIf="c.vendor"> · {{ c.vendor }}</span></span>
+                <span class="chip bad" *ngIf="!c.active">retired</span>
+              </label>
+              <label style="display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0">
+                <input type="radio" name="mapChoice" [checked]="mapChoice === 'CREATE'" (change)="mapChoice = 'CREATE'" />
+                <span>Create <b>"{{ previewName(row, effectiveType(row)) }}"</b></span>
+                <span class="chip ok">{{ typeName(effectiveType(row)) || 'type' }}, naming convention</span>
+              </label>
+              <div class="actions" style="margin-top: 8px">
+                <span class="sub grow">Change the rebate type below and save to see the name for another type.</span>
+                <button type="button" class="btn primary" (click)="useMapChoice()" [disabled]="busy || mapChoice === null">
+                  {{ mapChoice === 'CREATE' ? 'Create and use' : 'Use this product' }}</button>
+              </div>
             </div>
             <div class="card" style="margin: 8px 0" *ngIf="newProduct">
               <div class="field-grid">
@@ -351,6 +372,7 @@
                   <option [ngValue]="null">Upload default</option>
                   <option *ngFor="let t of types" [ngValue]="t.rebateTypeId">{{ t.name }}</option>
                 </select>
+                <span class="sub" *ngIf="row.productName">Names the rebate product: <b>{{ previewName(row, effectiveType(row, rowEdit.rebateType)) }}</b></span>
               </label>
               <label class="wide">Notes <input class="in" [(ngModel)]="rowEdit.notes" /></label>
             </div>

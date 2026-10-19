@@ -36,9 +36,10 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
   NO_MODEL: {
     title: 'No rebate product with this name yet',
     steps: [
-      'The name shown is what the naming rules call for.',
-      'Create it: "Create rebate products" at the top of the upload makes all of them at once, or "Create" on this line.',
-      'Or pick an existing rebate product if it is named differently.'
+      'The name shown is what the naming convention calls for, for this rebate type.',
+      'If rebate products already carry this PRO code, they are listed (with their type): map the row to the right one.',
+      'Otherwise create it under the convention. Changing the rebate type changes the name.',
+      '"Create N new rebate products" at the top of the upload only covers rows where nothing carries the PRO code yet; rows with candidates need a person to map them.'
     ]
   },
   MODEL_RETIRED: {

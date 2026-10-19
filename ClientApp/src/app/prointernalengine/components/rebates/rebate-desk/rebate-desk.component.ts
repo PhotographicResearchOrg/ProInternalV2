@@ -474,6 +474,7 @@ export class RebateDeskComponent implements OnInit {
     if (this.row && this.row.rowId !== r.rowId && !this.leaveOk()) return;
     if (!r.status) r.status = 'PURGATORY';
     this.row = r;
+    this.mapChoice = null;
     this.proHits = [];
     this.proErr = '';
     this.proSearched = false;
@@ -601,6 +602,60 @@ export class RebateDeskComponent implements OnInit {
 
   /* Several PRO products matched: the ones ticked, in the order ticked. */
   ticked: string[] = [];
+
+  /* ---- mapping a row to a rebate product (no product by the rule-set name) ---- */
+  mapChoice: number | 'CREATE' | null = null;
+
+  mapCandidates(r: any): any[] {
+    return (r?.problems ?? []).find((p: any) => p.code === 'NO_MODEL')?.candidates ?? [];
+  }
+
+  /* The naming rule set (fixed; same as piv2.RebateNamingRule): suffix, or stack products added with WITH. */
+  private readonly nameRules: { [type: number]: { suffix?: string; stack?: boolean } } = {
+    3: { suffix: 'TRADE-IN TRADE-UP' }, 4: { stack: true }, 5: { suffix: 'WITH COUPON CODE' },
+    6: { suffix: 'WITH SOCIAL MEDIA' }, 7: { stack: true }
+  };
+
+  /* The type the row will load as: its own, or the upload's default. */
+  effectiveType(r: any, edited?: any): number | null {
+    const own = edited !== undefined ? edited : r?.rebateType;
+    return own ?? r?.defaultRebateType ?? this.upload?.defaultRebateType ?? null;
+  }
+
+  /* The rebate product name that Create would use for this row and type. */
+  previewName(r: any, typeId: number | null): string {
+    const base = (r?.productName || '').trim();
+    if (!base) return '';
+    if (typeId === this.effectiveType(r) && r?.proposedName) return r.proposedName;
+    const rule = typeId != null ? this.nameRules[typeId] : undefined;
+    if (rule?.stack) {
+      const stacks = String(r?.stackCodes || r?.stackProduct || '').split(/[,+]/).map(x => x.trim()).filter(x => x);
+      return `${base} ${stacks.length ? stacks.map(x => 'WITH ' + x).join(' ') : 'WITH <stack product>'}`;
+    }
+    return rule?.suffix ? `${base} ${rule.suffix}` : base;
+  }
+
+  useMapChoice(): void {
+    if (this.mapChoice === null || !this.row) return;
+    if (this.mapChoice === 'CREATE') { this.createForRow(); return; }
+    this.pickModel({ modelId: this.mapChoice });
+  }
+
+  /* Creates the one rebate product this row calls for, under the naming convention, and checks again. */
+  createForRow(): void {
+    const uploadId = this.row?.uploadId ?? this.upload?.uploadId;
+    if (!uploadId) return;
+    this.busy = true;
+    this.error = '';
+    this.desk.createMissingProducts(uploadId, [this.row.rowId]).pipe(finalize(() => (this.busy = false))).subscribe({
+      next: r => {
+        this.notice = r.created ? `Created "${this.row?.proposedName}" and set it on this row.` : 'Nothing was created: the row may already have a product.';
+        this.loadOverview();
+        this.afterRowChange();
+      },
+      error: e => (this.error = apiMessage(e))
+    });
+  }
 
   candidatesOf(r: any): any[] {
     return (r?.problems ?? []).find((p: any) => p.code === 'AMBIGUOUS_PRODUCT')?.candidates ?? [];

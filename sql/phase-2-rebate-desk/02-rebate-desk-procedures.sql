@@ -223,7 +223,9 @@ BEGIN
            u.Fingerprint, u.TemplateId, u.MappingSource, u.DefaultRebateType, u.ExpireOn, u.StartActive,
            u.Status, u.BatchId, u.CreatedBy, u.CreatedAt, u.LoadedBy, u.LoadedAt, u.CancelledBy, u.CancelReason,
            u.PadPct, u.VendorSharePct,
-           SUM(CASE WHEN r.Status = 'PURGATORY' AND r.Problems LIKE '%"NO_MODEL"%' AND r.ProposedName IS NOT NULL AND r.ProductCode IS NOT NULL THEN 1 ELSE 0 END) AS RowsCreatable,
+           SUM(CASE WHEN r.Status = 'PURGATORY' AND r.Problems LIKE '%"NO_MODEL"%' AND r.Problems NOT LIKE '%"candidates":%'
+                    AND r.ProposedName IS NOT NULL AND r.ProductCode IS NOT NULL THEN 1 ELSE 0 END) AS RowsCreatable,
+           SUM(CASE WHEN r.Status = 'PURGATORY' AND r.Problems LIKE '%"NO_MODEL"%' AND r.Problems LIKE '%"candidates":%' THEN 1 ELSE 0 END) AS RowsToMap,
            SUM(CASE WHEN r.Status = 'READY' THEN 1 ELSE 0 END)     AS RowsReady,
            SUM(CASE WHEN r.Status = 'PURGATORY' THEN 1 ELSE 0 END) AS RowsPurgatory,
            SUM(CASE WHEN r.Status = 'LOADED' THEN 1 ELSE 0 END)    AS RowsLoaded,
@@ -595,14 +597,48 @@ BEGIN
           FROM piv2.RebateUploadRow
          WHERE UploadId = @UploadId AND Status IN ('READY', 'PURGATORY')
     )
+    /* No rebate product by name: the user maps it. Candidates are the rebate products that already carry
+       this line's PRO code (any type, shown with their kind), as the legacy screen offered; or Create
+       under the naming convention. Nothing is picked automatically here. */
+    INSERT #problem (RowId, Code, Message, Candidates)
+    SELECT x.RowId, 'NO_MODEL',
+           CASE WHEN x.ProposedName IS NOT NULL
+                THEN CONCAT(N'No rebate product named "', LEFT(x.ProposedName, 200), N'". ',
+                            CASE WHEN c.Json IS NOT NULL THEN N'Map it to one that already carries this PRO code, or create it.'
+                                 ELSE N'Create it (one click), or pick an existing one.' END)
+                ELSE N'No rebate product matches. Resolve the PRO product first.' END,
+           c.Json
+      FROM (SELECT r.RowId, r.ProposedName, u.ProductCode
+              FROM piv2.RebateUploadRow r
+              CROSS APPLY (SELECT LEFT(r.ProductCode, CHARINDEX(N',', COALESCE(r.ProductCode, N'') + N',') - 1) AS ProductCode) u
+             WHERE r.UploadId = @UploadId AND r.Status IN ('READY', 'PURGATORY') AND r.ModelId IS NULL) x
+     OUTER APPLY
+     (
+        SELECT (SELECT TOP (10) m.ModelID AS modelId, CAST(m.ModelNumber AS nvarchar(400)) AS name,
+                       CASE WHEN m.ModelNumber LIKE N'% TRADE-IN%' OR m.ModelNumber LIKE N'%TRADE IN%' THEN N'Trade-in'
+                            WHEN m.ModelNumber LIKE N'%COUPON%'      THEN N'Coupon'
+                            WHEN m.ModelNumber LIKE N'%SOCIAL MEDIA%' THEN N'Social media'
+                            WHEN m.ModelNumber LIKE N'% WITH %'      THEN N'Bundle / free with purchase'
+                            ELSE N'Instant rebate' END AS kind,
+                       v.VendorName AS vendor,
+                       CAST(COALESCE(m.Active, 0) AS bit) AS active
+                  FROM dbo.RebateCameraModelsDetails d
+                  JOIN dbo.RebateCameraModels m ON m.ModelID = d.ParentModelID AND m.IsPriceProtection = 0
+                  LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
+                 WHERE x.ProductCode IS NOT NULL AND CAST(d.ProCode AS nvarchar(20)) = x.ProductCode
+                 ORDER BY COALESCE(m.Active, 0) DESC, m.ModelID DESC
+                   FOR JSON PATH) AS Json
+     ) c
+     WHERE NOT EXISTS (SELECT 1 FROM #problem p WHERE p.RowId = x.RowId AND p.Code IN ('NO_PRODUCT', 'AMBIGUOUS_PRODUCT', 'SEVERAL_PRO_CODES', 'NO_STACK', 'STACK_UNKNOWN'));
+
+    ;WITH r AS
+    (
+        SELECT RowId, ProCode, Description, ModelId, StartDate, EndDate, InstantRebate, Reimbursement, MapPrice, ProposedName, ProPadInput,
+               COALESCE(RebateType, @defaultType) AS IRType
+          FROM piv2.RebateUploadRow
+         WHERE UploadId = @UploadId AND Status IN ('READY', 'PURGATORY')
+    )
     INSERT #problem (RowId, Code, Message)
-    SELECT RowId, 'NO_MODEL',
-           CASE WHEN ProposedName IS NOT NULL
-                THEN CONCAT(N'No rebate product named "', LEFT(ProposedName, 200), N'" yet. Create it (one click), or pick an existing one.')
-                ELSE N'No rebate product matches. Resolve the PRO product first.' END
-      FROM r WHERE ModelId IS NULL
-       AND NOT EXISTS (SELECT 1 FROM #problem p WHERE p.RowId = r.RowId AND p.Code IN ('NO_PRODUCT', 'AMBIGUOUS_PRODUCT', 'SEVERAL_PRO_CODES', 'NO_STACK', 'STACK_UNKNOWN'))
-    UNION ALL
     SELECT RowId, 'NO_DATES', N'Start date and end date are both required.'
       FROM r WHERE StartDate IS NULL OR EndDate IS NULL
     UNION ALL
@@ -1112,6 +1148,8 @@ BEGIN
      WHERE r.UploadId = @UploadId AND r.Status = 'PURGATORY' AND r.ModelId IS NULL
        AND r.ProposedName IS NOT NULL AND r.ProductCode IS NOT NULL AND r.ProductCode NOT LIKE N'%,%'
        AND (@RowIds IS NULL OR r.RowId IN (SELECT RowId FROM @chosen))
+       /* Bulk create only where nothing already carries the PRO code; a row with candidates needs a person to map it. */
+       AND (@RowIds IS NOT NULL OR r.Problems NOT LIKE N'%"candidates":%')
        AND NOT EXISTS (SELECT 1 FROM dbo.RebateCameraModels m
                         WHERE m.IsPriceProtection = 0
                           AND REPLACE(UPPER(LTRIM(RTRIM(m.ModelNumber))), N' ', N'') = REPLACE(UPPER(LTRIM(RTRIM(r.ProposedName))), N' ', N''))
