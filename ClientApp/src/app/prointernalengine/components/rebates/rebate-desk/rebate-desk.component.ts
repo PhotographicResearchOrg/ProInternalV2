@@ -542,11 +542,14 @@ export class RebateDeskComponent implements OnInit {
         const again = p.find(x => x.rowId === was?.rowId);
         if (again) { this.openRow(again, again.vendorId); return; }
         this.row = null;
-        /* Fixed rows leave purgatory: say where they went. */
-        if (was) {
-          this.noticeUploadId = was.uploadId;
-          this.notice = `Row ${was.sourceRow} is fixed and ready. It loads with upload #${was.uploadId}${was.vendorName ? ' (' + was.vendorName + ')' : ''}.`;
-        }
+        if (!was) return;
+        /* A fixed row leaves the purgatory list; keep it open so you see what it resolved to, and say where it loads. */
+        this.noticeUploadId = was.uploadId;
+        this.notice = `Row ${was.sourceRow} is fixed and ready. It loads with upload #${was.uploadId}${was.vendorName ? ' (' + was.vendorName + ')' : ''}.`;
+        this.desk.getUpload(was.uploadId).subscribe(d => {
+          const fixed = d.rows.find((x: any) => x.rowId === was.rowId);
+          if (fixed && !this.row) this.openRow({ ...fixed, uploadId: was.uploadId, vendorName: was.vendorName, fileName: was.fileName, defaultRebateType: d.upload?.defaultRebateType }, was.vendorId);
+        });
       });
     }
   }

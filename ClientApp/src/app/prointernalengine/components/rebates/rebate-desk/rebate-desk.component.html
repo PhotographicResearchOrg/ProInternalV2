@@ -263,6 +263,10 @@
           </div>
 
           <ng-container *ngIf="row.status === 'READY' || row.status === 'PURGATORY'">
+            <div class="notice" style="margin: 0 0 10px" *ngIf="row.status === 'READY'"><i class="pi pi-check"></i>
+              Ready. It loads with upload #{{ row.uploadId || upload?.uploadId }}<span *ngIf="view === 'purgatory'"> and has left the purgatory list</span>.
+              <button type="button" class="btn ghost" style="margin-left: 6px; padding: 2px 10px" *ngIf="view === 'purgatory'"
+                      (click)="openUpload(row.uploadId)">Open upload to load</button></div>
             <!-- Where this row is: one step at a time -->
             <div class="steps rowsteps">
               <span [class.done]="step1Done" [class.on]="!step1Done">1 · PRO product</span>
