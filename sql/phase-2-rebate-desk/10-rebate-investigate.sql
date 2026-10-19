@@ -241,14 +241,19 @@ BEGIN
          WHERE s.MonthStart >= @buyFrom AND s.MemberId IN (SELECT MemberId FROM cl)
          GROUP BY s.MemberId
     )
-    SELECT TOP (500) cl.MemberId, n.Name AS MemberName, cl.Claims, cl.UnitsClaimed, cl.AmountClaimed, cl.FirstClaim, cl.LastClaim,
+    /* Members with no purchase of these PRO codes in their whole AR history. */
+    SELECT TOP (500) cl.MemberId, n.Name AS MemberName,
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
+                                   WHERE s.MemberId = cl.MemberId AND s.Units > 0) THEN 0 ELSE 1 END AS bit) AS NoPurchaseOnRecord, cl.Claims, cl.UnitsClaimed, cl.AmountClaimed, cl.FirstClaim, cl.LastClaim,
            COALESCE(bo.UnitsBought, 0) AS UnitsBought, COALESCE(bo.AmountBought, 0) AS AmountBought,
            CAST(CASE WHEN COALESCE(bo.UnitsBought, 0) > 0 THEN cl.UnitsClaimed * 100.0 / bo.UnitsBought END AS decimal(9,1)) AS ClaimRatePct,
            CAST(CASE WHEN cl.UnitsClaimed > COALESCE(bo.UnitsBought, 0) THEN 1 ELSE 0 END AS bit) AS ClaimedMoreThanBought
       FROM cl
       LEFT JOIN bo ON bo.MemberId = cl.MemberId
       LEFT JOIN piv2.MemberName n ON n.MemberId = cl.MemberId
-     ORDER BY CASE WHEN cl.UnitsClaimed > COALESCE(bo.UnitsBought, 0) THEN 0 ELSE 1 END,
+     ORDER BY CASE WHEN NOT EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
+                                     WHERE s.MemberId = cl.MemberId AND s.Units > 0) THEN 0 ELSE 1 END,
+              CASE WHEN cl.UnitsClaimed > COALESCE(bo.UnitsBought, 0) THEN 0 ELSE 1 END,
               CASE WHEN COALESCE(bo.UnitsBought, 0) > 0 THEN cl.UnitsClaimed * 1.0 / bo.UnitsBought ELSE 999 END DESC,
               cl.UnitsClaimed DESC;
 
@@ -333,7 +338,11 @@ BEGIN
            c.FirstClaim, c.LastClaim,
            CAST(CASE WHEN COALESCE(c.UnitsCounted, 0) > COALESCE(b.UnitsBought, 0) THEN 1 ELSE 0 END AS bit) AS ClaimedMoreThanBought,
            COALESCE(f.NoPurchaseBefore, 0) AS ClaimsWithNoPurchaseBefore,
-           COALESCE(f.RepeatedSerials, 0) AS RepeatedSerials
+           COALESCE(f.RepeatedSerials, 0) AS RepeatedSerials,
+           /* No purchase of any of the product's PRO codes in the member's whole AR history (not just the window). */
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
+                                   WHERE s.MemberId = @MemberId AND c.ModelId = m.ModelId AND s.Units > 0)
+                     THEN 0 ELSE 1 END AS bit) AS NoPurchaseOnRecord
       FROM #m m
       JOIN dbo.RebateCameraModels rm ON rm.ModelID = m.ModelId
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = rm.VendorID

@@ -178,7 +178,8 @@ export class RebateInvestigateComponent implements OnChanges {
   productChip = '';
   productTake = 25;
   readonly productChips = [
-    { key: '', label: 'All' }, { key: 'FLAGGED', label: 'Flagged' }, { key: 'MORE', label: 'Claimed more than bought' },
+    { key: '', label: 'All' }, { key: 'FLAGGED', label: 'Flagged' }, { key: 'NONE', label: 'No PRO purchase on record' },
+    { key: 'MORE', label: 'Claimed more than bought' },
     { key: 'NOBUY', label: 'Claims before any purchase' }, { key: 'SERIAL', label: 'Repeated serial' }
   ];
 
@@ -187,10 +188,11 @@ export class RebateInvestigateComponent implements OnChanges {
   private productIs(p: any, key: string): boolean {
     switch (key) {
       case '': return true;
+      case 'NONE': return !!p.noPurchaseOnRecord;
       case 'MORE': return !!p.claimedMoreThanBought;
       case 'NOBUY': return (+p.claimsWithNoPurchaseBefore || 0) > 0;
       case 'SERIAL': return (+p.repeatedSerials || 0) > 0;
-      case 'FLAGGED': return !!p.claimedMoreThanBought || (+p.claimsWithNoPurchaseBefore || 0) > 0 || (+p.repeatedSerials || 0) > 0;
+      case 'FLAGGED': return !!p.noPurchaseOnRecord || !!p.claimedMoreThanBought || (+p.claimsWithNoPurchaseBefore || 0) > 0 || (+p.repeatedSerials || 0) > 0;
       default: return true;
     }
   }
@@ -209,7 +211,7 @@ export class RebateInvestigateComponent implements OnChanges {
   }
 
   get flagged(): any[] {
-    return (this.member?.products ?? []).filter(p => p.claimedMoreThanBought || p.claimsWithNoPurchaseBefore > 0 || p.repeatedSerials > 0);
+    return (this.member?.products ?? []).filter(p => p.noPurchaseOnRecord || p.claimedMoreThanBought || p.claimsWithNoPurchaseBefore > 0 || p.repeatedSerials > 0);
   }
 
   get totals(): any {
@@ -250,6 +252,7 @@ export class RebateInvestigateComponent implements OnChanges {
         col('Units bought', 'unitsBought', 'number'), col('Bought $', 'amountBought', 'money'), col('Units claimed', 'unitsClaimed', 'number'),
         col('Claims', 'claims', 'number'), col('Approved', 'approvedAmount', 'money'), col('Declined', 'declinedAmount', 'money'),
         col('Needs support', 'supportAmount', 'money'), col('Not decided', 'pendingAmount', 'money'),
+        col('No PRO purchase on record', 'noPurchaseOnRecord'),
         col('Claimed more than bought', 'claimedMoreThanBought'), col('Claims with no purchase before', 'claimsWithNoPurchaseBefore', 'number'),
         col('Repeated serials', 'repeatedSerials', 'number')] },
       { name: 'Months', rows: this.member.months, cols: [
@@ -272,6 +275,7 @@ export class RebateInvestigateComponent implements OnChanges {
       col('Member', 'memberId', 'number'), col('Name', 'memberName', 'text', 30), col('Claims', 'claims', 'number'),
       col('Units claimed', 'unitsClaimed', 'number'), col('Units bought', 'unitsBought', 'number'), col('Claim rate %', 'claimRatePct', 'number'),
       col('Claimed $', 'amountClaimed', 'money'), col('Bought $', 'amountBought', 'money'),
-      col('First claim', 'firstClaim', 'date'), col('Last claim', 'lastClaim', 'date'), col('Claimed more than bought', 'claimedMoreThanBought')] }]);
+      col('First claim', 'firstClaim', 'date'), col('Last claim', 'lastClaim', 'date'),
+      col('No PRO purchase on record', 'noPurchaseOnRecord'), col('Claimed more than bought', 'claimedMoreThanBought')] }]);
   }
 }

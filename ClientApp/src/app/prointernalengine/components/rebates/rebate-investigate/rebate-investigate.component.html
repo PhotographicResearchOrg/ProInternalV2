@@ -38,7 +38,8 @@
         <td class="num">{{ m.claimRatePct != null ? (m.claimRatePct | number:'1.0-1') + '%' : '—' }}</td>
         <td class="money">{{ m.amountClaimed | currency }}</td>
         <td class="mono">{{ m.firstClaim | date:'MM/dd/yy' }} – {{ m.lastClaim | date:'MM/dd/yy' }}</td>
-        <td><span class="status bad" *ngIf="m.claimedMoreThanBought">claimed more than bought</span></td>
+        <td><span class="status bad" *ngIf="m.noPurchaseOnRecord" title="No purchase of these PRO codes from PRO in the member's whole AR history">no PRO purchase on record</span>
+          <span class="status bad" *ngIf="m.claimedMoreThanBought && !m.noPurchaseOnRecord">claimed more than bought</span></td>
       </tr>
       <tr *ngIf="!claimants.members.length"><td colspan="8" class="empty">Nobody claimed it in this window.</td></tr>
     </tbody>
@@ -70,7 +71,7 @@
          title="Show only the flagged products">
       <i class="pi pi-flag"></i>
       <span><b>{{ flagged.length }} of {{ member.products.length }} products flagged</b> ·
-        {{ flagCount('MORE') }} claimed more than bought · {{ flagCount('NOBUY') }} with claims before any purchase · {{ flagCount('SERIAL') }} with a repeated serial</span>
+        {{ flagCount('NONE') }} with no PRO purchase on record · {{ flagCount('MORE') }} claimed more than bought · {{ flagCount('NOBUY') }} with claims before any purchase · {{ flagCount('SERIAL') }} with a repeated serial</span>
     </div>
 
     <div style="height: 260px; margin-bottom: 6px" *ngIf="chartData">
@@ -109,7 +110,8 @@
           <td class="money">{{ p.approvedAmount | currency:'USD':'symbol':'1.0-0' }}</td>
           <td class="money">{{ p.declinedAmount | currency:'USD':'symbol':'1.0-0' }}</td>
           <td class="flags">
-            <span class="status warn" *ngIf="p.claimsWithNoPurchaseBefore" title="Claim lines with no purchase of this product in or before the claim month">no purchase before · {{ p.claimsWithNoPurchaseBefore }}</span>
+            <span class="status bad" *ngIf="p.noPurchaseOnRecord" title="No purchase of this product's PRO codes from PRO in the member's whole AR history">no PRO purchase on record</span>
+            <span class="status warn" *ngIf="p.claimsWithNoPurchaseBefore && !p.noPurchaseOnRecord" title="Claim lines with no purchase of this product in or before the claim month">no purchase before · {{ p.claimsWithNoPurchaseBefore }}</span>
             <span class="status bad" *ngIf="p.repeatedSerials" title="Serial numbers also on another claim">serial · {{ p.repeatedSerials }}</span>
           </td>
           <td><button type="button" class="btn ghost" *ngIf="modelIds.length !== 1 || modelIds[0] !== p.modelId" (click)="onlyProduct(p.modelId)">Only this</button></td>
