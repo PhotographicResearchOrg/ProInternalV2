@@ -9,7 +9,7 @@ import { DEFAULT_MONTHS, windowStart } from '../shared/rebate-window.component';
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
-  | 'templates' | 'claims' | 'debitmemos' | 'declines' | 'history'
+  | 'templates' | 'claims' | 'debitmemos' | 'declines' | 'investigate' | 'history'
   | 'pp-programs' | 'pp-products' | 'pp-vendors' | 'pp-claims' | 'pp-debitmemos' | 'pp-history';
 
 interface RailView { key: ViewKey; label: string; icon: string; group: 'IR' | 'PP'; count?: () => number; hot?: boolean; }
@@ -67,6 +67,7 @@ export class RebateDeskComponent implements OnInit {
     { key: 'claims', label: 'Claims', icon: 'pi pi-wallet', group: 'IR' },
     { key: 'debitmemos', label: 'Debit memos', icon: 'pi pi-send', group: 'IR' },
     { key: 'declines', label: 'Needs support / declined', icon: 'pi pi-ban', group: 'IR' },
+    { key: 'investigate', label: 'Investigate', icon: 'pi pi-search', group: 'IR' },
     { key: 'history', label: 'History', icon: 'pi pi-history', group: 'IR' },
     { key: 'pp-programs', label: 'Programs', icon: 'pi pi-list', group: 'PP', count: () => this.overview.priceProtectionLive || 0 },
     { key: 'pp-products', label: 'Products', icon: 'pi pi-tags', group: 'PP' },
@@ -213,7 +214,7 @@ export class RebateDeskComponent implements OnInit {
     this.error = '';
     this.row = null;
     this.newProduct = null;
-    if (!keepFilters) { this.programModelId = null; this.programBatchId = null; this.programOpenId = null; this.memoPreset = null; }
+    if (!keepFilters) { this.programModelId = null; this.programBatchId = null; this.programOpenId = null; this.memoPreset = null; this.investigatePreset = null; }
     if (key !== 'uploads') this.upload = null;
     if (key !== 'upload') this.remapUploadId = null;
     this.router.navigate([], { queryParams: { view: key }, replaceUrl: true });
@@ -232,6 +233,14 @@ export class RebateDeskComponent implements OnInit {
   noticeUploadId: number | null = null;
 
   memoPreset: { vendorId: number; from: string; to: string } | null = null;
+
+  /* Investigate a claim's member and products (from the claim, or a needs-support / declined row). */
+  investigatePreset: { memberId: number; modelIds?: number[] } | null = null;
+  investigate(p: { memberId: number; modelIds?: number[] }): void {
+    if (!this.leaveOk()) return;
+    this.investigatePreset = { ...p };
+    this.pick('investigate', true);
+  }
 
   billVendor(p: { vendorId: number; from: string; to: string }, rail: Rail): void {
     if (!this.leaveOk()) return;
@@ -505,6 +514,8 @@ export class RebateDeskComponent implements OnInit {
     this.proSearched = false;
     this.proQ = r.vendorSku || r.upc || r.description || '';
     this.rowVendorId = vendorId;
+    /* The file's original line is not in the purgatory list: fetch it for this row. */
+    if (r.raw === undefined) this.desk.getRow(r.rowId).subscribe({ next: full => { if (this.row?.rowId === r.rowId) this.row.raw = full?.raw ?? null; }, error: () => {} });
     this.newProduct = null;
     this.ticked = [];
     this.rowEdit = {
@@ -568,9 +579,8 @@ export class RebateDeskComponent implements OnInit {
         /* A fixed row leaves the purgatory list; keep it open so you see what it resolved to, and say where it loads. */
         this.noticeUploadId = was.uploadId;
         this.notice = `Row ${was.sourceRow} is fixed and ready. It loads with upload #${was.uploadId}${was.vendorName ? ' (' + was.vendorName + ')' : ''}.`;
-        this.desk.getUpload(was.uploadId).subscribe(d => {
-          const fixed = d.rows.find((x: any) => x.rowId === was.rowId);
-          if (fixed && !this.row) this.openRow({ ...fixed, uploadId: was.uploadId, vendorName: was.vendorName, fileName: was.fileName, defaultRebateType: d.upload?.defaultRebateType }, was.vendorId);
+        this.desk.getRow(was.rowId).subscribe(fixed => {
+          if (fixed && !this.row) this.openRow(fixed, was.vendorId);
         });
       });
     }

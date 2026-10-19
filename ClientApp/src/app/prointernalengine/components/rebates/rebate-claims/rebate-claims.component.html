@@ -70,6 +70,8 @@
               [title]="detail?.arCredits?.length ? 'Rebuild the member credit invoice from the AR credit' : 'No AR credit yet: there is nothing to build the invoice from'"><i class="pi pi-file-pdf"></i> Recreate invoice</button>
       <button type="button" class="btn ghost" (click)="reprint()" [disabled]="!detail?.arCredits?.length"
               title="Download the member credit invoice that already exists"><i class="pi pi-print"></i> Reprint</button>
+      <button type="button" class="btn ghost" *ngIf="rail === 'IR'" (click)="investigateClaim()"
+              title="This member's purchases against their claims for these products"><i class="pi pi-search"></i> Investigate</button>
     </div>
 
     <ng-container *ngIf="detail">

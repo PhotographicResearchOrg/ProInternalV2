@@ -27,19 +27,60 @@ GO
 SET XACT_ABORT ON;
 GO
 
-/* The AR credit for a claim: member is the first 4 characters of the AR id; VINVNO ends with the claim number. */
+/* The nightly copy of AR rebate credits and its run log (filled by piv2.Rebate_RefreshSales in 10). */
+IF OBJECT_ID('piv2.RebateArCredit') IS NULL
+CREATE TABLE piv2.RebateArCredit
+(
+    ArCreditId    int IDENTITY   NOT NULL CONSTRAINT PK_RebateArCredit PRIMARY KEY,
+    MemberId      int            NOT NULL,
+    OrderId       int            NULL,      -- the claim number at the end of VINVNO
+    ArId          varchar(50)    NOT NULL,
+    InvoiceNumber varchar(50)    NULL,
+    Vinvno        varchar(50)    NULL,
+    Amount        decimal(19,2)  NULL,
+    PostedAt      datetime       NULL,
+    Terms         varchar(50)    NULL,
+    PoNumber      varchar(50)    NULL
+);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_RebateArCredit_Claim' AND object_id = OBJECT_ID('piv2.RebateArCredit'))
+    CREATE INDEX IX_RebateArCredit_Claim ON piv2.RebateArCredit (OrderId, MemberId);
+GO
+
+IF OBJECT_ID('piv2.SalesRefreshLog') IS NULL
+CREATE TABLE piv2.SalesRefreshLog
+(
+    RunId      int IDENTITY   NOT NULL CONSTRAINT PK_SalesRefreshLog PRIMARY KEY,
+    StartedAt  datetime2(0)   NOT NULL CONSTRAINT DF_SalesRefreshLog_Start DEFAULT SYSUTCDATETIME(),
+    FinishedAt datetime2(0)   NULL,
+    SalesRows  int            NULL,
+    Credits    int            NULL,
+    Error      nvarchar(2000) NULL
+);
+GO
+
+/* ---------------------------------------------------------------
+   A claim's AR credit: the nightly copy (by member account), plus the
+   live AR view for credits posted since the last run.
+   Matches the member account, not the first 4 characters of the AR id (5-digit members).
+   --------------------------------------------------------------- */
 CREATE OR ALTER FUNCTION piv2.Rebate_ArCredit (@MemberId int, @OrderId int)
 RETURNS TABLE
 AS
 RETURN
-    SELECT a.ID AS ArId, SUBSTRING(a.ID, 5, 50) AS InvoiceNumber, RTRIM(a.VINVNO) AS Vinvno,
-           a.AMOUNT AS Amount, a.DT_POSTED AS PostedAt, a.TERMS AS Terms, a.P_O_ AS PoNumber
+    SELECT c.ArId, c.InvoiceNumber, c.Vinvno, c.Amount, c.PostedAt, c.Terms, c.PoNumber
+      FROM piv2.RebateArCredit c
+     WHERE c.OrderId = @OrderId AND c.MemberId = @MemberId
+    UNION
+    SELECT a.ID, SUBSTRING(a.ID, LEN(CAST(@MemberId AS varchar(20))) + 1, 50), RTRIM(a.VINVNO), a.AMOUNT, a.DT_POSTED, a.TERMS, a.P_O_
       FROM dbo.Rebate_EDA_ARHist a
-     WHERE LEFT(a.ID, 4) = RIGHT('0000' + CAST(@MemberId AS varchar(10)), 4)
+     WHERE a.DT_POSTED >= COALESCE((SELECT MAX(StartedAt) FROM piv2.SalesRefreshLog WHERE Error IS NULL AND FinishedAt IS NOT NULL), '19000101')
+       AND LEFT(a.ID, LEN(CAST(@MemberId AS varchar(20)))) = CAST(@MemberId AS varchar(20))
        AND RTRIM(a.VINVNO) LIKE '%' + CAST(@OrderId AS varchar(20))
        AND (LEN(RTRIM(a.VINVNO)) = LEN(CAST(@OrderId AS varchar(20)))
             OR SUBSTRING(RTRIM(a.VINVNO), LEN(RTRIM(a.VINVNO)) - LEN(CAST(@OrderId AS varchar(20))), 1) NOT LIKE '[0-9]');
 GO
+
 
 /* ---------------------------------------------------------------
    Claims for a rail, newest first.
@@ -161,10 +202,17 @@ BEGIN
                          FROM dbo.RebateProcess x WHERE x.OrderID = r.OrderId ORDER BY x.ID DESC) p
           LEFT JOIN #inv i ON i.OrderId = r.OrderId;
 
-    /* Posted claims with no member invoice: does AR show the credit? (Few claims; the AR lookup runs only for these.) */
-    UPDATE c SET HasAr = CASE WHEN EXISTS (SELECT 1 FROM piv2.Rebate_ArCredit(c.MemberId, c.OrderId)) THEN 1 ELSE 0 END
+    /* Posted claims with no member invoice: does AR show the credit? The nightly copy answers fast;
+       before its first run (or for credits since), the live AR view is asked, claim by claim. */
+    UPDATE c SET HasAr = CASE WHEN EXISTS (SELECT 1 FROM piv2.RebateArCredit a WHERE a.OrderId = c.OrderId AND a.MemberId = c.MemberId)
+                              THEN 1 ELSE 0 END
       FROM #c c
      WHERE c.Status = 1 AND c.ComputymeProcessed = 1 AND c.Invoiced = 0;
+
+    UPDATE c SET HasAr = 1
+      FROM #c c
+     WHERE c.HasAr = 0
+       AND EXISTS (SELECT 1 FROM piv2.Rebate_ArCredit(c.MemberId, c.OrderId));
 
     SELECT c.*,
            CASE WHEN c.Status = 2 THEN 'DECLINED'

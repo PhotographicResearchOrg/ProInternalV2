@@ -176,6 +176,11 @@ namespace ProInternal.Controllers
                 Actor
             })).FirstOrDefault());
 
+        /* One row with the file's original line (the purgatory list leaves that out to stay light). */
+        [HttpGet("rows/{rowId:long}")]
+        public Task<IActionResult> GetRow(long rowId) =>
+            Read(async () => (await _data.QueryAsync("piv2.Rebate_GetRow", new { RowId = rowId })).FirstOrDefault());
+
         [HttpGet("rows/{rowId:long}/options")]
         public Task<IActionResult> RowOptions(long rowId) =>
             Read(() => _data.QueryAsync("piv2.Rebate_RowOptions", new { RowId = rowId }));
@@ -581,6 +586,46 @@ namespace ProInternal.Controllers
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
+
+        /* ================= investigate ================= */
+
+        /* The lookup box: claim #, member number or name, rebate product, vendor. */
+        [HttpGet("investigate/find")]
+        public Task<IActionResult> InvestigateFind([FromQuery] string? q) =>
+            Read(() => _data.QueryAsync("piv2.Investigate_Find", new { Q = q }));
+
+        /* Every member who claimed a product (or a vendor's products), claimed against bought. */
+        [HttpGet("investigate/claimants")]
+        public Task<IActionResult> InvestigateClaimants([FromQuery] int? modelId, [FromQuery] int? vendorId, [FromQuery] int months = 12) =>
+            Read(async () =>
+            {
+                var sets = await _data.QuerySetsAsync("piv2.Investigate_Claimants", new { ModelId = modelId, VendorId = vendorId, Months = months });
+                return new
+                {
+                    members = sets.ElementAtOrDefault(0) ?? new List<RebateRow>(),
+                    about = (sets.ElementAtOrDefault(1) ?? new List<RebateRow>()).FirstOrDefault()
+                };
+            });
+
+        /* One member (and products): bought against claimed, by month, the timeline and the flags. */
+        [HttpGet("investigate/member/{memberId:int}")]
+        public Task<IActionResult> InvestigateMember(int memberId, [FromQuery] string? modelIds, [FromQuery] int months = 12) =>
+            Read(async () =>
+            {
+                var sets = await _data.QuerySetsAsync("piv2.Investigate_Member", new
+                {
+                    MemberId = memberId,
+                    ModelIds = string.IsNullOrWhiteSpace(modelIds) ? null : modelIds,
+                    Months = months
+                });
+                return new
+                {
+                    products = sets.ElementAtOrDefault(0) ?? new List<RebateRow>(),
+                    months = sets.ElementAtOrDefault(1) ?? new List<RebateRow>(),
+                    timeline = sets.ElementAtOrDefault(2) ?? new List<RebateRow>(),
+                    about = (sets.ElementAtOrDefault(3) ?? new List<RebateRow>()).FirstOrDefault()
+                };
+            });
 
         [HttpGet("debitmemos/candidates")]
         public Task<IActionResult> DebitMemoCandidates([FromQuery] string? rail, [FromQuery] string vendorIds, [FromQuery] DateTime from, [FromQuery] DateTime to) =>

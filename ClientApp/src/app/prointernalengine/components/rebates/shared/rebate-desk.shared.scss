@@ -181,6 +181,7 @@
   display: flex; gap: 8px; align-items: center;
 }
 .notice { background: var(--tealSoft); color: var(--teal); cursor: pointer; }
+.notice.warn-notice { background: #fff4e5; color: #8a4b08; cursor: default; flex-wrap: wrap; }
 .error { background: var(--redSoft); color: var(--red); }
 
 /* ---- body ---- */

@@ -439,7 +439,8 @@
       <app-rebate-vendors *ngIf="view === 'pp-vendors'" rail="PP" (showPrograms)="showPrograms($event, 'PP')" (debitMemo)="billVendor($event, 'PP')"></app-rebate-vendors>
 
       <!-- ============ Claims and debit memos (accounting) ============ -->
-      <app-rebate-claims *ngIf="view === 'claims'" rail="IR" tab="claims"></app-rebate-claims>
+      <app-rebate-claims *ngIf="view === 'claims'" rail="IR" tab="claims" (investigate)="investigate($event)"></app-rebate-claims>
+      <app-rebate-investigate *ngIf="view === 'investigate'" [preset]="investigatePreset"></app-rebate-investigate>
       <app-rebate-claims *ngIf="view === 'debitmemos'" rail="IR" tab="memos" [preset]="memoPreset"></app-rebate-claims>
       <app-rebate-claims *ngIf="view === 'pp-claims'" rail="PP" tab="claims"></app-rebate-claims>
       <app-rebate-claims *ngIf="view === 'pp-debitmemos'" rail="PP" tab="memos" [preset]="memoPreset"></app-rebate-claims>
@@ -599,7 +600,7 @@
           ? 'Waiting on the member for more information or support. Once it is added, send the claim back to the approval queue.'
           : 'Declined for good; shown for reference.' }}</div>
         <table class="grid">
-          <thead><tr><th>Claim</th><th>{{ declineStatus === 3 ? 'Asked' : 'Declined' }}</th><th>Member</th><th>Product</th><th class="num">Qty</th><th class="num">Amount</th><th>Reason</th><th>Email</th><th *ngIf="declineStatus === 3"></th></tr></thead>
+          <thead><tr><th>Claim</th><th>{{ declineStatus === 3 ? 'Asked' : 'Declined' }}</th><th>Member</th><th>Product</th><th class="num">Qty</th><th class="num">Amount</th><th>Reason</th><th>Email</th><th *ngIf="declineStatus === 3"></th><th></th></tr></thead>
           <tbody>
             <tr *ngFor="let d of declinesShown | slice:0:declineTake">
               <td class="mono">{{ d.orderID }}</td>
@@ -611,8 +612,9 @@
               <td>{{ d.rejectReason }}</td>
               <td class="sub">{{ d.email || d.eMail }}</td>
               <td *ngIf="declineStatus === 3"><button type="button" class="btn" (click)="resubmitDecline(d)" title="Support received: back into the approval queue"><i class="pi pi-undo"></i> Back to queue</button></td>
+              <td><button type="button" class="icon-btn" (click)="investigate({ memberId: +d.memberID })" title="Investigate this member: bought against claimed"><i class="pi pi-search"></i></button></td>
             </tr>
-            <tr *ngIf="!declinesShown.length"><td [attr.colspan]="declineStatus === 3 ? 9 : 8" class="empty">{{ declines.length ? 'Nothing here in this window.' : 'Loading…' }}</td></tr>
+            <tr *ngIf="!declinesShown.length"><td [attr.colspan]="declineStatus === 3 ? 10 : 9" class="empty">{{ declines.length ? 'Nothing here in this window.' : 'Loading…' }}</td></tr>
           </tbody>
         </table>
         <div class="pager" *ngIf="declinesShown.length > declineTake">

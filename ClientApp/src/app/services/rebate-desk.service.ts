@@ -96,6 +96,7 @@ export class RebateDeskService {
   /* ---- purgatory ---- */
   purgatory(vendorId?: number | null): Observable<any[]> { return this.api.get(`${this.base}/purgatory${this.q({ vendorId })}`); }
   updateRow(rowId: number, body: any): Observable<any> { return this.api.put(`${this.base}/rows/${rowId}`, body); }
+  getRow(rowId: number): Observable<any> { return this.api.get(`${this.base}/rows/${rowId}`); }
   rowOptions(rowId: number): Observable<any[]> { return this.api.get(`${this.base}/rows/${rowId}/options`); }
   pickModel(rowId: number, modelId: number | null): Observable<any> { return this.api.post(`${this.base}/rows/${rowId}/model`, { modelId }); }
   skipRow(rowId: number, reason: string): Observable<any> { return this.api.post(`${this.base}/rows/${rowId}/skip`, { reason }); }
@@ -165,6 +166,16 @@ export class RebateDeskService {
   }
   debitMemos(rail: Rail, q?: string, months?: number): Observable<any[]> { return this.api.get(`${this.base}/debitmemos${this.q({ rail, q, months })}`); }
   debitMemoCsv(id: number): Observable<Blob> { return this.api.getBlob(`${this.base}/debitmemos/${id}/csv`); }
+
+  /* ---- investigate ---- */
+  investigateFind(q: string): Observable<any[]> { return this.api.get(`${this.base}/investigate/find${this.q({ q })}`); }
+  investigateClaimants(f: { modelId?: number | null; vendorId?: number | null; months: number }): Observable<{ members: any[]; about: any }> {
+    return this.api.get(`${this.base}/investigate/claimants${this.q(f)}`);
+  }
+  investigateMember(memberId: number, modelIds: number[] | null, months: number):
+    Observable<{ products: any[]; months: any[]; timeline: any[]; about: any }> {
+    return this.api.get(`${this.base}/investigate/member/${memberId}${this.q({ modelIds: modelIds?.length ? modelIds.join(',') : null, months })}`);
+  }
 
   /* ---- history ---- */
   history(f: any): Observable<any[]> { return this.api.get(`${this.base}/history${this.q(f)}`); }

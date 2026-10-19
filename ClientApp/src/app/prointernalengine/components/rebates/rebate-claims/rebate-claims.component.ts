@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage, saveBlob } from 'src/app/services/rebate-desk.service';
 import { CLAIM_COLS, col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
@@ -26,6 +26,14 @@ export class RebateClaimsComponent implements OnChanges {
   @Input() tab: 'claims' | 'memos' = 'claims';
   /* Came from a vendor's "Bill vendor": that vendor and dates are filled in and its claims found. */
   @Input() preset: { vendorId: number; from: string; to: string } | null = null;
+  /* Open Investigate on this claim's member and products. */
+  @Output() investigate = new EventEmitter<{ memberId: number; modelIds: number[] }>();
+
+  investigateClaim(): void {
+    if (!this.claim) return;
+    const modelIds = [...new Set((this.detail?.lines ?? []).map((l: any) => +l.modelId))];
+    this.investigate.emit({ memberId: +this.claim.memberId, modelIds });
+  }
 
   vendors: any[] = [];
 
