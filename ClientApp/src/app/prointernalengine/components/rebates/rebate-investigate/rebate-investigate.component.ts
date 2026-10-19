@@ -136,7 +136,7 @@ export class RebateInvestigateComponent implements OnChanges {
     this.loading = true;
     this.error = '';
     this.desk.investigateMember(this.memberId, this.modelIds, this.months).pipe(finalize(() => (this.loading = false))).subscribe({
-      next: r => { this.member = r; this.buildChart(); },
+      next: r => { this.member = r; this.productChip = ''; this.productTake = 25; this.claimChip = ''; this.buildChart(); },
       error: e => (this.error = apiMessage(e))
     });
   }
@@ -172,6 +172,40 @@ export class RebateInvestigateComponent implements OnChanges {
   onlyProduct(modelId: number | null): void {
     this.modelIds = modelId ? [modelId] : [];
     this.loadMember();
+  }
+
+  /* ---- products: one chip at a time, the biggest gap first ---- */
+  productChip = '';
+  productTake = 25;
+  readonly productChips = [
+    { key: '', label: 'All' }, { key: 'FLAGGED', label: 'Flagged' }, { key: 'MORE', label: 'Claimed more than bought' },
+    { key: 'NOBUY', label: 'Claims before any purchase' }, { key: 'SERIAL', label: 'Repeated serial' }
+  ];
+
+  over(p: any): number { return Math.round((+p.unitsClaimed || 0) - (+p.unitsBought || 0)); }
+
+  private productIs(p: any, key: string): boolean {
+    switch (key) {
+      case '': return true;
+      case 'MORE': return !!p.claimedMoreThanBought;
+      case 'NOBUY': return (+p.claimsWithNoPurchaseBefore || 0) > 0;
+      case 'SERIAL': return (+p.repeatedSerials || 0) > 0;
+      case 'FLAGGED': return !!p.claimedMoreThanBought || (+p.claimsWithNoPurchaseBefore || 0) > 0 || (+p.repeatedSerials || 0) > 0;
+      default: return true;
+    }
+  }
+
+  flagCount(key: string): number { return (this.member?.products ?? []).filter(p => this.productIs(p, key)).length; }
+
+  get productsShown(): any[] {
+    return (this.member?.products ?? []).filter(p => this.productIs(p, this.productChip))
+      .sort((a, b) => this.over(b) - this.over(a) || (+b.unitsClaimed || 0) - (+a.unitsClaimed || 0));
+  }
+
+  /* Bars on one scale: the largest bought or claimed figure among the products. */
+  barPct(v: any): number {
+    const max = Math.max(1, ...(this.member?.products ?? []).map(p => Math.max(+p.unitsBought || 0, +p.unitsClaimed || 0)));
+    return Math.max(0, Math.min(100, ((+v || 0) / max) * 100));
   }
 
   get flagged(): any[] {

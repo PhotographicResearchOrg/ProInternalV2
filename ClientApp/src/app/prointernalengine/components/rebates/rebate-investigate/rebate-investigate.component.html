@@ -66,14 +66,11 @@
         <span>declined · {{ totals.supportAmount | currency:'USD':'symbol':'1.0-0' }} needs support · {{ totals.pendingAmount | currency:'USD':'symbol':'1.0-0' }} not decided</span></div>
     </div>
 
-    <div class="notice warn-notice" *ngIf="flagged.length" style="margin: 0 0 12px">
+    <div class="notice warn-notice" *ngIf="flagged.length" style="margin: 0 0 12px; cursor: pointer" (click)="productChip = 'FLAGGED'"
+         title="Show only the flagged products">
       <i class="pi pi-flag"></i>
-      <span *ngFor="let p of flagged; let last = last">
-        <b>{{ p.description }}</b>:
-        <span *ngIf="p.claimedMoreThanBought">claimed {{ p.unitsClaimed }}, bought {{ p.unitsBought | number:'1.0-0' }}</span>
-        <span *ngIf="p.claimsWithNoPurchaseBefore"> · {{ p.claimsWithNoPurchaseBefore }} claim line(s) with no purchase before</span>
-        <span *ngIf="p.repeatedSerials"> · {{ p.repeatedSerials }} serial number(s) also on another claim</span>{{ last ? '' : ';' }}
-      </span>
+      <span><b>{{ flagged.length }} of {{ member.products.length }} products flagged</b> ·
+        {{ flagCount('MORE') }} claimed more than bought · {{ flagCount('NOBUY') }} with claims before any purchase · {{ flagCount('SERIAL') }} with a repeated serial</span>
     </div>
 
     <div style="height: 260px; margin-bottom: 6px" *ngIf="chartData">
@@ -90,27 +87,39 @@
       </table>
     </div>
 
+    <div class="chips">
+      <span class="lbl">Products</span>
+      <button type="button" *ngFor="let c of productChips" [class.on]="productChip === c.key" (click)="productChip = c.key; productTake = 25">{{ c.label }}<b>{{ flagCount(c.key) }}</b></button>
+    </div>
     <table class="grid">
-      <thead><tr><th>Product</th><th class="num">Bought</th><th class="num">Claimed</th><th class="num">Approved</th><th class="num">Declined</th>
-        <th class="num">Needs support</th><th>Flags</th><th></th></tr></thead>
+      <thead><tr><th>Product</th><th class="num">Bought</th><th class="num">Claimed</th><th class="num">Over</th><th style="width: 160px">Claimed against bought</th>
+        <th class="num">Approved</th><th class="num">Declined</th><th>Flags</th><th></th></tr></thead>
       <tbody>
-        <tr *ngFor="let p of member.products">
-          <td><div>{{ p.description }}</div><div class="sub mono">#{{ p.modelId }} · PRO {{ p.proCodeText }} · {{ p.vendorName }}</div></td>
-          <td class="num">{{ p.unitsBought | number:'1.0-0' }}<div class="sub">{{ p.amountBought | currency:'USD':'symbol':'1.0-0' }}</div></td>
-          <td class="num">{{ p.unitsClaimed }}<div class="sub">{{ p.claims }} claim(s)</div></td>
-          <td class="money">{{ p.approvedAmount | currency }}</td>
-          <td class="money">{{ p.declinedAmount | currency }}</td>
-          <td class="money">{{ p.supportAmount | currency }}</td>
+        <tr *ngFor="let p of productsShown | slice:0:productTake">
+          <td><div>{{ p.description }}</div><div class="sub mono">PRO {{ p.proCodeText }} · {{ p.vendorName }}</div></td>
+          <td class="num">{{ p.unitsBought | number:'1.0-0' }}</td>
+          <td class="num">{{ p.unitsClaimed }}</td>
+          <td class="num"><b [style.color]="over(p) > 0 ? '#b42318' : null">{{ over(p) > 0 ? '+' + over(p) : '—' }}</b></td>
           <td>
-            <span class="status bad" *ngIf="p.claimedMoreThanBought">more claimed than bought</span>
-            <span class="status warn" *ngIf="p.claimsWithNoPurchaseBefore">no purchase before ({{ p.claimsWithNoPurchaseBefore }})</span>
-            <span class="status warn" *ngIf="p.repeatedSerials">repeated serial ({{ p.repeatedSerials }})</span>
+            <div class="vs" [title]="'Bought ' + (+p.unitsBought || 0) + ', claimed ' + p.unitsClaimed">
+              <div class="vs-bought" [style.width.%]="barPct(p.unitsBought)"></div>
+              <div class="vs-claimed" [class.over]="over(p) > 0" [style.width.%]="barPct(p.unitsClaimed)"></div>
+            </div>
+          </td>
+          <td class="money">{{ p.approvedAmount | currency:'USD':'symbol':'1.0-0' }}</td>
+          <td class="money">{{ p.declinedAmount | currency:'USD':'symbol':'1.0-0' }}</td>
+          <td class="flags">
+            <span class="status warn" *ngIf="p.claimsWithNoPurchaseBefore" title="Claim lines with no purchase of this product in or before the claim month">no purchase before · {{ p.claimsWithNoPurchaseBefore }}</span>
+            <span class="status bad" *ngIf="p.repeatedSerials" title="Serial numbers also on another claim">serial · {{ p.repeatedSerials }}</span>
           </td>
           <td><button type="button" class="btn ghost" *ngIf="modelIds.length !== 1 || modelIds[0] !== p.modelId" (click)="onlyProduct(p.modelId)">Only this</button></td>
         </tr>
-        <tr *ngIf="!member.products.length"><td colspan="8" class="empty">No claims in this window.</td></tr>
+        <tr *ngIf="!productsShown.length"><td colspan="9" class="empty">No products here.</td></tr>
       </tbody>
     </table>
+    <div class="pager" *ngIf="productsShown.length > productTake">
+      <button type="button" class="btn ghost" (click)="productTake = productTake + 25">Show more ({{ productsShown.length - productTake }})</button>
+    </div>
   </section>
 
   <section class="card">
