@@ -736,17 +736,30 @@ GO
 
 /* The memo's claims, for downloading or re-sending its CSV. */
 CREATE OR ALTER PROCEDURE piv2.Claim_DebitMemoLines
-    @DebitMemoId int
+    @DebitMemoId int = NULL,
+    /* Test run (no @DebitMemoId): the chosen claims, nothing stamped. */
+    @Rail        char(2) = NULL,
+    @VendorIds   varchar(500) = NULL,
+    @OrderIds    varchar(max) = NULL,
+    @DM          varchar(50) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @rail char(2), @dm varchar(50);
-    SELECT @rail = Rail, @dm = DM FROM piv2.RebateDebitMemo WHERE DebitMemoId = @DebitMemoId;
+    DECLARE @preview bit = CASE WHEN @DebitMemoId IS NULL THEN 1 ELSE 0 END;
+    DECLARE @rail char(2), @dm varchar(50), @vendorIds varchar(500);
+    IF @preview = 1
+        SELECT @rail = CASE WHEN UPPER(@Rail) = 'PP' THEN 'PP' ELSE 'IR' END, @dm = @DM, @vendorIds = @VendorIds;
+    ELSE
+        SELECT @rail = Rail, @dm = DM, @vendorIds = VendorIds FROM piv2.RebateDebitMemo WHERE DebitMemoId = @DebitMemoId;
+
+    CREATE TABLE #o (OrderId int NOT NULL PRIMARY KEY);
+    IF @preview = 1
+        INSERT #o SELECT DISTINCT TRY_CAST(value AS int) FROM STRING_SPLIT(@OrderIds, ',') WHERE TRY_CAST(value AS int) IS NOT NULL;
 
     DECLARE @v TABLE (VendorId int PRIMARY KEY);
-    INSERT @v SELECT DISTINCT TRY_CAST(value AS int) FROM STRING_SPLIT((SELECT VendorIds FROM piv2.RebateDebitMemo WHERE DebitMemoId = @DebitMemoId), ',')
+    INSERT @v SELECT DISTINCT TRY_CAST(value AS int) FROM STRING_SPLIT(@vendorIds, ',')
      WHERE TRY_CAST(value AS int) IS NOT NULL;
 
     /* Catalog numbers for the products involved, read from the product view once. */
@@ -759,8 +772,11 @@ BEGIN
               FROM dbo.RebateCameraModels m WHERE m.VendorID IN (SELECT VendorId FROM @v) AND m.ModelName IS NOT NULL)
      GROUP BY CAST(p.ProductCode AS nvarchar(20));
 
-    SELECT DebitMemoId, Rail, DM AS DebitMemo, VendorIds, VendorName, Claims, Total, EmailTo, Ref1, Ref2, FileId, EmailedAt, CreatedBy, CreatedAt
-      FROM piv2.RebateDebitMemo WHERE DebitMemoId = @DebitMemoId;
+    IF @preview = 1
+        SELECT CAST(NULL AS int) AS DebitMemoId, @rail AS Rail, @dm AS DebitMemo, @vendorIds AS VendorIds;
+    ELSE
+        SELECT DebitMemoId, Rail, DM AS DebitMemo, VendorIds, VendorName, Claims, Total, EmailTo, Ref1, Ref2, FileId, EmailedAt, CreatedBy, CreatedAt
+          FROM piv2.RebateDebitMemo WHERE DebitMemoId = @DebitMemoId;
 
     IF @rail = 'PP'
     BEGIN
@@ -771,7 +787,8 @@ BEGIN
                p.timeEnd AS ProcessedAt, SUM(r.Quantity) AS Quantity, r.ReimbursementAmount,
                SUM(CAST(COALESCE(r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2))) AS Extended
           FROM dbo.PriceProtectionRedeem r
-          JOIN p ON p.OrderID = r.ORDERID AND p.rn = 1 AND p.DM = @dm
+          JOIN p ON p.OrderID = r.ORDERID AND p.rn = 1
+                AND ((@preview = 0 AND p.DM = @dm) OR (@preview = 1 AND r.ORDERID IN (SELECT OrderId FROM #o)))
           JOIN dbo.RebateCameraModels m ON m.ModelID = r.ModelID
           JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
           LEFT JOIN #cat iv ON iv.Code = LTRIM(RTRIM(LEFT(m.ModelName, CHARINDEX(',', m.ModelName + ',') - 1)))
@@ -792,7 +809,8 @@ BEGIN
                r.ReimbursementAmount AS MemberAmount,
                SUM(CAST(COALESCE(vs.VendorShare, r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) AS decimal(19,2))) AS Extended
           FROM dbo.RebateRedeem r
-          JOIN p ON p.OrderID = r.ORDERID AND p.rn = 1 AND p.DM = @dm
+          JOIN p ON p.OrderID = r.ORDERID AND p.rn = 1
+                AND ((@preview = 0 AND p.DM = @dm) OR (@preview = 1 AND r.ORDERID IN (SELECT OrderId FROM #o)))
           OUTER APPLY (SELECT TOP (1) t.VendorShare
                          FROM piv2.RebateProgramTerms t
                          JOIN dbo.RebateProgramDetail pd ON pd.ProgramID = t.ProgramId

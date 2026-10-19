@@ -291,8 +291,29 @@ export class RebateClaimsComponent implements OnChanges {
     this.supportFiles = input.files ? Array.from(input.files).slice(0, 10) : [];
   }
 
-  createMemo(): void {
-    if (!this.memo.dm.trim() || !this.chosen.size) return;
+  /* ---- test run: everything goes to the test address; nothing is stamped ---- */
+  testTo = (() => { try { return localStorage.getItem('rebateDesk.testTo') || ''; } catch { return ''; } })();
+  rememberTestTo(): void { try { localStorage.setItem('rebateDesk.testTo', this.testTo.trim()); } catch { /* not kept */ } }
+
+  testMemo(): void {
+    if (!this.chosen.size || !this.testTo.trim()) return;
+    const form = this.memoForm();
+    form.append('testTo', this.testTo.trim());
+    this.busy = true;
+    this.error = '';
+    this.desk.testDebitMemo(form).pipe(finalize(() => (this.busy = false))).subscribe({
+      next: (r: any) => {
+        const proof = r.proofError ? ` Proof ZIP failed: ${r.proofError}.`
+          : r.proofFiles ? ` Proof ZIP: ${r.proofFiles} file(s)${r.proofMissing ? `, ${r.proofMissing} could not be read` : ''}.` : '';
+        this.notice = r.emailed
+          ? `Test sent to ${r.sentTo}: ${r.claims} claim(s), ${(+r.total).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}.${proof} Nothing was stamped.`
+          : `Test built but not emailed: ${r.emailError}.${proof} Nothing was stamped.`;
+      },
+      error: e => (this.error = apiMessage(e))
+    });
+  }
+
+  private memoForm(): FormData {
     const vendorNames = [...new Set(this.candidates.filter(l => this.chosen.has(l.orderId)).map(l => l.vendorName))];
     const form = new FormData();
     form.append('rail', this.rail);
@@ -305,6 +326,12 @@ export class RebateClaimsComponent implements OnChanges {
     form.append('ref2', this.memo.ref2);
     form.append('sendEmail', String(this.memo.sendEmail));
     this.supportFiles.forEach(f => form.append('support', f, f.name));
+    return form;
+  }
+
+  createMemo(): void {
+    if (!this.memo.dm.trim() || !this.chosen.size) return;
+    const form = this.memoForm();
 
     this.busy = true;
     this.error = '';

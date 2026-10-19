@@ -164,6 +164,8 @@ export class RebateDeskService {
   createDebitMemo(form: FormData): Observable<{ debitMemoId: number; claims: number; total: number; emailed: boolean; emailError?: string }> {
     return this.api.postMultipartJson(`${this.base}/debitmemos`, form);
   }
+  /* Test run: emailed to the test address only; nothing stamped. */
+  testDebitMemo(form: FormData): Observable<any> { return this.api.postMultipartJson(`${this.base}/debitmemos/test`, form); }
   debitMemos(rail: Rail, q?: string, months?: number): Observable<any[]> { return this.api.get(`${this.base}/debitmemos${this.q({ rail, q, months })}`); }
   debitMemoCsv(id: number): Observable<Blob> { return this.api.getBlob(`${this.base}/debitmemos/${id}/csv`); }
 

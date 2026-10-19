@@ -652,6 +652,13 @@ namespace ProInternal.Controllers
         public Task<IActionResult> CreateDebitMemo([FromForm] RebateClaimsService.DebitMemoRequest body, CancellationToken cancellationToken) =>
             Read(() => _claims.CreateDebitMemoAsync(body, Request.HasFormContentType ? Request.Form.Files : null, Actor, cancellationToken));
 
+        /* Test run: builds and emails everything to the test address; nothing is stamped or recorded. */
+        [HttpPost("debitmemos/test")]
+        [RequirePermission(AccountingPermission)]
+        [RequestSizeLimit(40 * 1024 * 1024)]
+        public Task<IActionResult> TestDebitMemo([FromForm] RebateClaimsService.DebitMemoRequest body, CancellationToken cancellationToken) =>
+            Read(() => _claims.TestDebitMemoAsync(body, Request.HasFormContentType ? Request.Form.Files : null, Actor, cancellationToken));
+
         [HttpGet("debitmemos")]
         public Task<IActionResult> DebitMemos([FromQuery] string? rail, [FromQuery] string? q, [FromQuery] int months = 12) =>
             Read(() => _data.QueryAsync("piv2.Claim_DebitMemos", new { Rail = Rail(rail), Q = q, Take = 200, Months = months }));

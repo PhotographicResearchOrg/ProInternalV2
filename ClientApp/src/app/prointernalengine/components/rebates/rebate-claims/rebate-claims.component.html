@@ -175,9 +175,13 @@
       <label>Reference 2 <input class="in" [(ngModel)]="memo.ref2" /></label>
       <label>Support files <input class="in" type="file" multiple (change)="pickSupport($event)" /></label>
       <label style="flex-direction: row; align-items: center; gap: 8px"><input type="checkbox" [(ngModel)]="memo.sendEmail" /> Email it now</label>
+      <label class="wide">Send test to <input class="in" [(ngModel)]="testTo" (ngModelChange)="rememberTestTo()" placeholder="your address: a test run goes only here" /></label>
     </div>
     <div class="savebar">
       <span class="grow">Stamps {{ memo.dm || 'the DM' }} on {{ chosenCount }} claim(s) for {{ chosenTotal | currency }}{{ memo.sendEmail ? ' and emails the vendor' : '' }}.</span>
+      <button type="button" class="btn" (click)="testMemo()" [disabled]="busy || !chosenCount || !testTo.trim()"
+              title="Builds and emails everything to the test address only. No DM is stamped and nothing is recorded.">
+        <i class="pi pi-eye"></i> Test run</button>
       <button type="button" class="btn primary" (click)="createMemo()" [disabled]="busy || !memo.dm.trim() || !chosenCount || (memo.sendEmail && !memo.emailTo.trim())">
         {{ busy ? 'Working…' : 'Create debit memo' }}</button>
     </div>

@@ -203,6 +203,9 @@ namespace ProInternal.Services.Rebates
             public string? Ref1 { get; set; }
             public string? Ref2 { get; set; }
             public bool SendEmail { get; set; }
+            /* Test run: where the test goes. */
+            public string? TestTo { get; set; }
+            internal bool IsTest { get; set; }
         }
 
         public async Task<object> CreateDebitMemoAsync(DebitMemoRequest req, IFormFileCollection? support, string actor, CancellationToken cancellationToken)
@@ -275,9 +278,11 @@ namespace ProInternal.Services.Rebates
         }
 
         /* Same columns as the legacy file: one row per claim and product, total at the bottom. */
-        public async Task<(byte[] Csv, string FileName)> DebitMemoCsvAsync(int debitMemoId)
+        public async Task<(byte[] Csv, string FileName)> DebitMemoCsvAsync(int debitMemoId) =>
+            CsvFrom(await _data.QuerySetsAsync("piv2.Claim_DebitMemoLines", new { DebitMemoId = debitMemoId }), debitMemoId);
+
+        private static (byte[] Csv, string FileName) CsvFrom(List<List<RebateRow>> sets, int debitMemoId)
         {
-            var sets = await _data.QuerySetsAsync("piv2.Claim_DebitMemoLines", new { DebitMemoId = debitMemoId });
             var memo = sets.ElementAtOrDefault(0)?.FirstOrDefault() ?? throw new RebateFileException("That debit memo does not exist.");
             var lines = sets.ElementAtOrDefault(1) ?? new List<RebateRow>();
 
@@ -354,6 +359,10 @@ namespace ProInternal.Services.Rebates
                 body = linked != body ? linked + note : body + note;
             }
 
+            if (req.IsTest)
+                body = "<div style=\"background:#fff4e5;border:1px solid #f0b37e;padding:10px;margin-bottom:12px;font-weight:bold\">" +
+                       "TEST RUN: this debit memo was not created and the claims are not marked. Not sent to the vendor.</div>" + body;
+
             var from = _config["RebateDesk:DebitMemoFrom"] is { Length: > 0 } f ? f : _config["Email:GmailUser"] ?? "noreply@promaster.com";
             using var message = new MailMessage
             {
@@ -364,7 +373,7 @@ namespace ProInternal.Services.Rebates
             };
             foreach (var address in (req.EmailTo ?? "").Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.OrdinalIgnoreCase))
                 message.To.Add(address);
-            if (_config["RebateDesk:DebitMemoBcc"] is { Length: > 0 } bcc)
+            if (!req.IsTest && _config["RebateDesk:DebitMemoBcc"] is { Length: > 0 } bcc)
                 message.Bcc.Add(bcc);
 
             var streams = new List<Stream> { new MemoryStream(csv), new MemoryStream(detail) };
@@ -397,12 +406,67 @@ namespace ProInternal.Services.Rebates
             }
         }
 
+        /* ---------------- test run ---------------- */
+
+        /* Everything a real memo builds (letter, CSV, member level detail, proof ZIP and link), emailed only to the
+           test address with TEST in the subject. Nothing is stamped on the claims and no memo is recorded. */
+        public async Task<object> TestDebitMemoAsync(DebitMemoRequest req, IFormFileCollection? support, string actor, CancellationToken cancellationToken)
+        {
+            var rail = Rail(req.Rail);
+            var to = (req.TestTo ?? "").Trim();
+            if (to.Length == 0) throw new RebateFileException("Enter where the test goes in Send test to.");
+            if (string.IsNullOrWhiteSpace(req.OrderIds)) throw new RebateFileException("Tick at least one claim.");
+            var dm = string.IsNullOrWhiteSpace(req.DM) ? "TEST" : req.DM.Trim();
+
+            var sets = await _data.QuerySetsAsync("piv2.Claim_DebitMemoLines",
+                new { DebitMemoId = (int?)null, Rail = rail, VendorIds = req.VendorIds, OrderIds = req.OrderIds, DM = dm });
+            var lines = sets.ElementAtOrDefault(1) ?? new List<RebateRow>();
+            if (lines.Count == 0) throw new RebateFileException("None of the ticked claims has lines to bill.");
+            var total = lines.Sum(l => l.Get<decimal?>("extended") ?? 0);
+
+            var (csv, fileName) = CsvFrom(sets, 0);
+            var (detail, detailName) = await DetailFromAsync(sets, 0, rail);
+
+            ProofZip? proof = null;
+            string? proofError = null;
+            if (rail == "IR")
+            {
+                try { proof = await BuildProofZipAsync(req.OrderIds, $"TEST {dm}", actor, cancellationToken); }
+                catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException or TaskCanceledException)
+                {
+                    proofError = ex.Message.Length > 300 ? ex.Message[..300] : ex.Message;
+                }
+            }
+
+            var test = new DebitMemoRequest
+            {
+                Rail = rail, DM = dm, OrderIds = req.OrderIds, VendorIds = req.VendorIds, VendorName = req.VendorName,
+                EmailTo = to, Ref1 = $"TEST: {(string.IsNullOrWhiteSpace(req.Ref1) ? $"PRO debit memo {dm}" : req.Ref1!.Trim())}",
+                Ref2 = req.Ref2, SendEmail = true, IsTest = true
+            };
+            string? emailError = null;
+            try { await SendDebitMemoAsync(test, total, fileName, csv, detailName, detail, proof, support, cancellationToken); }
+            catch (Exception ex) when (ex is SmtpException or InvalidOperationException or FormatException)
+            {
+                emailError = ex.Message.Length > 450 ? ex.Message[..450] : ex.Message;
+            }
+
+            return new
+            {
+                test = true, sentTo = to, emailed = emailError == null, emailError,
+                claims = lines.Select(l => l.Get<int>("orderId")).Distinct().Count(), total,
+                proofFiles = proof?.Files ?? 0, proofMissing = proof?.Missing ?? 0, proofLink = proof?.Link, proofError
+            };
+        }
+
         /* ---------------- member level claim detail ---------------- */
 
         /* One row per claim and product, grouped by dealer with a subtotal each, and each claim's proof files. */
-        public async Task<(byte[] Xlsx, string FileName)> MemberDetailAsync(int debitMemoId, string rail)
+        public async Task<(byte[] Xlsx, string FileName)> MemberDetailAsync(int debitMemoId, string rail) =>
+            await DetailFromAsync(await _data.QuerySetsAsync("piv2.Claim_DebitMemoLines", new { DebitMemoId = debitMemoId }), debitMemoId, rail);
+
+        private async Task<(byte[] Xlsx, string FileName)> DetailFromAsync(List<List<RebateRow>> sets, int debitMemoId, string rail)
         {
-            var sets = await _data.QuerySetsAsync("piv2.Claim_DebitMemoLines", new { DebitMemoId = debitMemoId });
             var memo = sets.ElementAtOrDefault(0)?.FirstOrDefault() ?? throw new RebateFileException("That debit memo does not exist.");
             var lines = sets.ElementAtOrDefault(1) ?? new List<RebateRow>();
             var dm = (memo.Get<string>("debitMemo") ?? debitMemoId.ToString(CultureInfo.InvariantCulture)).Trim();
