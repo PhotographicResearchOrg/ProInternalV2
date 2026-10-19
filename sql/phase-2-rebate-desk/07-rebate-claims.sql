@@ -93,8 +93,8 @@ GO
 
 /* ---------------------------------------------------------------
    Claims for a rail, newest first.
-   @State: SUBMITTED (no decision), SUPPORT (status 3, needs support), APPROVED (not posted, incl. on hold),
-           HELD (on hold), SENT (posted to the GL), DECLINED, NO_DM (approved, no debit memo),
+   @State: SUBMITTED (no decision), SUPPORT (status 3, needs support), APPROVED (not posted),
+           SENT (posted to the GL), DECLINED, NO_DM (approved, no debit memo),
            NOT_INVOICED (posted, AR shows the credit, no member invoice), NOT_IN_AR (marked posted, AR has no credit)
    Only claims from the last @Months months (12 by default; 0 = all history).
    --------------------------------------------------------------- */
@@ -229,8 +229,7 @@ BEGIN
                 WHEN c.Status = 3 THEN 'SUPPORT'
                 WHEN c.Status = 1 AND c.ComputymeProcessed = 1 AND c.HasAr = 0 THEN 'NOT_IN_AR'
                 WHEN c.Status = 1 AND c.ComputymeProcessed = 1 THEN 'SENT'
-                WHEN c.Status = 1 AND c.ComputymeProcessed IS NULL THEN 'APPROVED'
-                WHEN c.Status = 1 THEN 'HELD'
+                WHEN c.Status = 1 THEN 'APPROVED'
                 ELSE 'SUBMITTED' END AS Bucket,
            COUNT(*) OVER () AS TotalRows
       FROM #c c
@@ -238,7 +237,6 @@ BEGIN
         OR (@State = 'SUBMITTED' AND COALESCE(c.Status, 0) NOT IN (1, 2, 3))
         OR (@State = 'SUPPORT' AND c.Status = 3)
         OR (@State = 'APPROVED' AND c.Status = 1 AND COALESCE(c.ComputymeProcessed, 0) <> 1)
-        OR (@State = 'HELD' AND c.Status = 1 AND COALESCE(c.ComputymeProcessed, 1) <> 1)
         OR (@State = 'SENT' AND c.Status = 1 AND c.ComputymeProcessed = 1)
         OR (@State = 'DECLINED' AND c.Status = 2)
         OR (@State = 'NO_DM' AND c.Status = 1 AND c.DebitMemo IS NULL)

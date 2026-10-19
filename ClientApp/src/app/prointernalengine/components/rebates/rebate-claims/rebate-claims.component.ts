@@ -78,7 +78,7 @@ export class RebateClaimsComponent implements OnChanges {
   /* The states a claim can be in (and the filters). Credits post to the GL through the accounting system. */
   readonly stateChips = [
     { value: 'SUBMITTED', label: 'Not decided' }, { value: 'SUPPORT', label: 'Needs support' },
-    { value: 'APPROVED', label: 'Approved, not posted' }, { value: 'HELD', label: 'On hold' },
+    { value: 'APPROVED', label: 'Approved, not posted' },
     { value: 'SENT', label: 'Posted to GL' }, { value: 'NOT_INVOICED', label: 'Posted, no member invoice' },
     { value: 'NOT_IN_AR', label: 'Posted, not in AR' }, { value: 'NO_DM', label: 'No debit memo' },
     { value: 'DECLINED', label: 'Declined' }, { value: '', label: 'All' }
@@ -151,7 +151,7 @@ export class RebateClaimsComponent implements OnChanges {
   }
 
   bucketLabel(b: string): string {
-    return ({ SUBMITTED: 'Not decided', SUPPORT: 'Needs support', APPROVED: 'Approved, not posted', HELD: 'On hold',
+    return ({ SUBMITTED: 'Not decided', SUPPORT: 'Needs support', APPROVED: 'Approved, not posted',
               SENT: 'Posted to GL', NOT_IN_AR: 'Posted, not in AR', DECLINED: 'Declined' } as any)[b] ?? b;
   }
 

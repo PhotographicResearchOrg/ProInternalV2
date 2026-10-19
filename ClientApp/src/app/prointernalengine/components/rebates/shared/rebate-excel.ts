@@ -109,7 +109,7 @@ export const CLAIM_COLS: XCol[] = [
 
 /* What each claim state is called on screen and in exports. Credits post to the GL through the accounting system. */
 export const CLAIM_STATES: { [bucket: string]: string } = {
-  SUBMITTED: 'Not decided', SUPPORT: 'Needs support', APPROVED: 'Approved, not posted', HELD: 'On hold',
+  SUBMITTED: 'Not decided', SUPPORT: 'Needs support', APPROVED: 'Approved, not posted',
   SENT: 'Posted to GL', NOT_IN_AR: 'Posted, not in AR', DECLINED: 'Declined'
 };
 

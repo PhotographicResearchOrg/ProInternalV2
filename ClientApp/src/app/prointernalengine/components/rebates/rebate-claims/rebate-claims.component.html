@@ -36,7 +36,7 @@
           <td>{{ c.vendorName }}</td>
           <td class="mono">{{ c.claimDate | date:'MM/dd/yy' }}</td>
           <td class="money">{{ c.amount | currency }}</td>
-          <td><span class="status" [class.ok]="c.bucket === 'SENT'" [class.info]="c.bucket === 'APPROVED' || c.bucket === 'HELD'"
+          <td><span class="status" [class.ok]="c.bucket === 'SENT'" [class.info]="c.bucket === 'APPROVED'"
                     [class.warn]="c.bucket === 'SUBMITTED' || c.bucket === 'SUPPORT' || c.bucket === 'NOT_IN_AR'" [class.bad]="c.bucket === 'DECLINED'">{{ bucketLabel(c.bucket) }}</span></td>
           <td class="mono">{{ c.debitMemo || '—' }}</td>
           <td><span class="chip" [class.ok]="c.invoiced" *ngIf="c.bucket === 'SENT' || c.bucket === 'NOT_IN_AR'">{{ c.invoiced ? 'yes' : 'no' }}</span></td>
@@ -64,8 +64,8 @@
       <button type="button" class="btn primary" *ngIf="claim.bucket === 'SUPPORT' && rail === 'IR'" (click)="pending = { kind: 'resubmit' }"
               title="The member added the support asked for: back into the approval queue"><i class="pi pi-undo"></i> Send back to queue</button>
       <button type="button" class="btn" (click)="pending = { kind: 'resend' }"
-              [disabled]="(claim.bucket !== 'SENT' && claim.bucket !== 'NOT_IN_AR' && claim.bucket !== 'HELD') || !!detail?.arCredits?.length"
-              [title]="detail?.arCredits?.length ? 'AR already shows this credit' : 'Only credits already posted (or on hold) can be re-posted'"><i class="pi pi-replay"></i> Re-post credit</button>
+              [disabled]="(claim.bucket !== 'SENT' && claim.bucket !== 'NOT_IN_AR') || !!detail?.arCredits?.length"
+              [title]="detail?.arCredits?.length ? 'AR already shows this credit' : 'Only credits already posted can be re-posted'"><i class="pi pi-replay"></i> Re-post credit</button>
       <button type="button" class="btn" (click)="pending = { kind: 'invoice' }" [disabled]="!detail?.arCredits?.length"
               [title]="detail?.arCredits?.length ? 'Rebuild the member credit invoice from the AR credit' : 'No AR credit yet: there is nothing to build the invoice from'"><i class="pi pi-file-pdf"></i> Recreate invoice</button>
       <button type="button" class="btn ghost" (click)="reprint()" [disabled]="!detail?.arCredits?.length"
@@ -82,8 +82,7 @@
           <td class="mono">{{ a.postedAt | date:'MM/dd/yy' }}</td><td class="money">{{ a.amount | currency }}</td></tr></tbody>
       </table>
       <div class="sub" *ngIf="!detail.arCredits.length">AR shows no credit for this claim, so there is no member invoice to build or print yet.
-        <span *ngIf="claim.bucket === 'SENT' || claim.bucket === 'NOT_IN_AR'">A credit usually shows in AR within two days of posting. If it is still missing after that, it did not post: re-post it.</span>
-        <span *ngIf="claim.bucket === 'HELD'">This claim is on hold, so the nightly run skips it. Re-post releases it.</span></div>
+        <span *ngIf="claim.bucket === 'SENT' || claim.bucket === 'NOT_IN_AR'">A credit usually shows in AR within two days of posting. If it is still missing after that, it did not post: re-post it.</span></div>
 
       <h3 class="sub" style="margin: 14px 0 6px">Lines</h3>
       <table class="grid">
@@ -97,7 +96,7 @@
         <div><span>Status</span><b>{{ d.status === 1 ? 'Approved' : d.status === 2 ? 'Declined' : d.status === 3 ? 'Needs support' : 'Not decided' }}</b></div>
         <div><span>By</span><b>{{ d.decidedBy }}</b></div>
         <div><span>Decided</span><b>{{ d.decidedAt | date:'MM/dd/yy h:mm a' }}</b></div>
-        <div><span>Posted to GL</span><b>{{ d.computymeProcessed === 1 ? 'Yes' : d.status === 1 && d.computymeProcessed === 0 ? 'On hold' : 'No' }}</b></div>
+        <div><span>Posted to GL</span><b>{{ d.computymeProcessed === 1 ? 'Yes' : 'No' }}</b></div>
         <div class="wide" *ngIf="d.rejectReason"><span>Reason</span><b>{{ d.rejectReason }}</b></div>
       </div>
 
