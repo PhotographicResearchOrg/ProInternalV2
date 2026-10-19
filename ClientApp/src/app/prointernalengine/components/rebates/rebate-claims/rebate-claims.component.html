@@ -110,14 +110,30 @@
   <section class="card">
     <div class="card-head"><h2>New debit memo</h2><span class="sub">Approved claims with no debit memo, decided in the dates, billed back to the vendor</span></div>
     <div class="field-grid">
-      <label class="wide">Vendors
-        <div>
-          <span *ngFor="let p of parents" class="chip info" style="cursor:pointer" (click)="pickParent(p)">{{ p }} (all)</span>
-          <label *ngFor="let v of vendors" class="chip" [class.ok]="memoVendorIds.includes(v.vendorId)" style="cursor:pointer">
-            <input type="checkbox" [checked]="memoVendorIds.includes(v.vendorId)" (change)="toggleVendor(v.vendorId, $any($event.target).checked)" /> {{ v.vendorName }}
-          </label>
+      <div class="wide vendor-pick">
+        <span class="lbl">Vendors to bill</span>
+        <div class="vp-row">
+          <div class="typeahead vp-find">
+            <input class="in" placeholder="Find a vendor…" [(ngModel)]="vendorQ" (focus)="vendorOpen = true" (blur)="closeVendorsSoon()"
+                   (keyup.enter)="addFirstVendor()" />
+            <div class="options" *ngIf="vendorOpen && vendorMatches.length">
+              <div class="opt" *ngFor="let v of vendorMatches" (mousedown)="addVendor(v.vendorId)">
+                <b>{{ v.vendorName }}</b><span class="sub" *ngIf="v.parentCompany"> · {{ v.parentCompany }}</span>
+              </div>
+            </div>
+          </div>
+          <select class="in vp-parent" *ngIf="parents.length" [ngModel]="''" (ngModelChange)="pickParent($event)">
+            <option value="">Add a parent company…</option>
+            <option *ngFor="let p of parents" [value]="p">{{ p }} (all its vendors)</option>
+          </select>
         </div>
-      </label>
+        <div class="vp-chosen" *ngIf="memoVendorIds.length">
+          <span class="chip ok" *ngFor="let v of chosenVendors">{{ v.vendorName }}
+            <button type="button" (click)="toggleVendor(v.vendorId, false)" title="Remove">×</button></span>
+          <button type="button" class="btn ghost" style="padding: 2px 10px" (click)="memoVendorIds = []">Clear</button>
+        </div>
+        <div class="sub" *ngIf="!memoVendorIds.length">No vendor chosen yet.</div>
+      </div>
       <label>Decided from <input class="in" type="date" [(ngModel)]="memoFrom" /></label>
       <label>to <input class="in" type="date" [(ngModel)]="memoTo" /></label>
     </div>

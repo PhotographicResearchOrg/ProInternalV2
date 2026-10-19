@@ -181,8 +181,37 @@ export class RebateClaimsComponent implements OnChanges {
     return [...new Set(this.vendors.map(v => v.parentCompany).filter((p: string) => !!p))];
   }
 
+  /* ---- vendor finder for the debit memo ---- */
+  vendorQ = '';
+  vendorOpen = false;
+
+  get vendorMatches(): any[] {
+    const q = this.vendorQ.trim().toLowerCase();
+    return this.vendors
+      .filter(v => !this.memoVendorIds.includes(v.vendorId))
+      .filter(v => !q || (v.vendorName || '').toLowerCase().includes(q) || (v.parentCompany || '').toLowerCase().includes(q))
+      .slice(0, 12);
+  }
+
+  get chosenVendors(): any[] {
+    return this.memoVendorIds.map(id => this.vendors.find(v => v.vendorId === id) ?? { vendorId: id, vendorName: '#' + id });
+  }
+
+  addVendor(id: number): void {
+    this.toggleVendor(id, true);
+    this.vendorQ = '';
+  }
+
+  addFirstVendor(): void {
+    const v = this.vendorMatches[0];
+    if (v) this.addVendor(v.vendorId);
+  }
+
+  closeVendorsSoon(): void { setTimeout(() => (this.vendorOpen = false), 150); }
+
   pickParent(parent: string): void {
-    this.memoVendorIds = this.vendors.filter(v => v.parentCompany === parent).map(v => v.vendorId);
+    if (!parent) return;
+    this.memoVendorIds = [...new Set([...this.memoVendorIds, ...this.vendors.filter(v => v.parentCompany === parent).map(v => v.vendorId)])];
   }
 
   findCandidates(): void {

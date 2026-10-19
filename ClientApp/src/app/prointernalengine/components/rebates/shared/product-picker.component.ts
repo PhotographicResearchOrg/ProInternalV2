@@ -3,7 +3,7 @@ import { Subject, Subscription, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.service';
 
-/* Finds a rebate product (model) by description, PRO code or id, on one rail. */
+/* Finds a rebate product (dbo.RebateCameraModels, the rebate setup) by description, PRO code or product #, on one rail. Not the PRO catalog. */
 @Component({
   selector: 'app-rebate-product-picker',
   template: `
@@ -25,7 +25,7 @@ import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-des
 export class RebateProductPickerComponent implements OnDestroy {
   @Input() rail: Rail = 'IR';
   @Input() vendorId: number | null = null;
-  @Input() placeholder = 'Search description or PRO code';
+  @Input() placeholder = 'Search rebate products: description, PRO code or product #';
   @Input() set initial(v: string | null | undefined) {
     if (v) { this.text = v; this.search$.next(v); }
   }
