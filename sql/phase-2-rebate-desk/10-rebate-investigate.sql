@@ -212,8 +212,8 @@ AS
 BEGIN
     SET NOCOUNT ON;
     DECLARE @since date = CASE WHEN @Months > 0 THEN DATEADD(month, -@Months, CAST(GETDATE() AS date)) ELSE '19000101' END;
-    /* Purchases count from six months before the window: a unit is often bought before it is claimed. */
-    DECLARE @buyFrom date = DATEADD(month, -6, @since);
+    /* Purchases from the window start, the same as claims. */
+    DECLARE @buyFrom date = @since;
 
     CREATE TABLE #m (ModelId int NOT NULL PRIMARY KEY);
     INSERT #m SELECT ModelID FROM dbo.RebateCameraModels
@@ -280,7 +280,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     DECLARE @since date = CASE WHEN @Months > 0 THEN DATEADD(month, -@Months, CAST(GETDATE() AS date)) ELSE '19000101' END;
-    DECLARE @buyFrom date = DATEADD(month, -6, @since);
+    DECLARE @buyFrom date = @since;   -- purchases from the window start, the same as claims
 
     /* Claim lines in the window (submitted, not saved drafts). */
     CREATE TABLE #l (LineId int NOT NULL PRIMARY KEY, OrderId int NOT NULL, ModelId int NOT NULL, ClaimDate datetime NULL,
@@ -332,7 +332,9 @@ BEGIN
     /* ---- 1: products ---- */
     SELECT m.ModelId, rm.ModelNumber AS Description, rm.ModelName AS ProCodeText, v.VendorName,
            COALESCE(b.UnitsBought, 0) AS UnitsBought, COALESCE(b.AmountBought, 0) AS AmountBought,
-           COALESCE(c.UnitsClaimed, 0) AS UnitsClaimed, COALESCE(c.Claims, 0) AS Claims,
+           /* Units claimed = not declined (what is compared with purchases); declined apart. */
+           COALESCE(c.UnitsCounted, 0) AS UnitsClaimed, COALESCE(c.UnitsClaimed, 0) - COALESCE(c.UnitsCounted, 0) AS UnitsDeclined,
+           COALESCE(c.Claims, 0) AS Claims,
            COALESCE(c.Approved, 0) AS ApprovedAmount, COALESCE(c.Declined, 0) AS DeclinedAmount,
            COALESCE(c.Support, 0) AS SupportAmount, COALESCE(c.Pending, 0) AS PendingAmount,
            c.FirstClaim, c.LastClaim,
@@ -357,7 +359,8 @@ BEGIN
       OUTER APPLY (SELECT SUM(nb.NoBuy) AS NoPurchaseBefore,
                           SUM(CASE WHEN dp.LineId IS NOT NULL THEN 1 ELSE 0 END) AS RepeatedSerials
                      FROM #l l LEFT JOIN #dup dp ON dp.LineId = l.LineId
-                    CROSS APPLY (SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM #s s WHERE s.ModelId = l.ModelId AND s.Units > 0
+                    CROSS APPLY (SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code cc ON cc.ProCode = s.ProCode
+                                                         WHERE s.MemberId = @MemberId AND cc.ModelId = l.ModelId AND s.Units > 0
                                                 AND s.MonthStart <= DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1))
                                              THEN 1 ELSE 0 END AS NoBuy) nb
                     WHERE l.ModelId = m.ModelId) f
@@ -374,12 +377,16 @@ BEGIN
 
     ;WITH mo AS
     (
-        SELECT MonthStart, Units AS UnitsBought, CAST(0 AS decimal(19,2)) AS UnitsClaimed FROM #sm
+        SELECT MonthStart, Units AS UnitsBought, CAST(0 AS decimal(19,2)) AS UnitsClaimed, CAST(0 AS decimal(19,2)) AS UnitsDeclined FROM #sm
         UNION ALL
-        SELECT DATEFROMPARTS(YEAR(ClaimDate), MONTH(ClaimDate), 1), 0, SUM(COALESCE(Quantity, 0)) FROM #l WHERE ClaimDate IS NOT NULL
-         GROUP BY DATEFROMPARTS(YEAR(ClaimDate), MONTH(ClaimDate), 1)
+        SELECT DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1), 0,
+               SUM(CASE WHEN COALESCE(d.Status, 0) <> 2 THEN COALESCE(l.Quantity, 0) ELSE 0 END),
+               SUM(CASE WHEN d.Status = 2 THEN COALESCE(l.Quantity, 0) ELSE 0 END)
+          FROM #l l LEFT JOIN #d d ON d.OrderId = l.OrderId
+         WHERE l.ClaimDate IS NOT NULL
+         GROUP BY DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1)
     )
-    SELECT MonthStart, SUM(UnitsBought) AS UnitsBought, SUM(UnitsClaimed) AS UnitsClaimed
+    SELECT MonthStart, SUM(UnitsBought) AS UnitsBought, SUM(UnitsClaimed) AS UnitsClaimed, SUM(UnitsDeclined) AS UnitsDeclined
       FROM mo GROUP BY MonthStart ORDER BY MonthStart;
 
     /* AR credits for these claims: the nightly copy, then the live view only for posted claims it does not have yet. */
@@ -419,7 +426,8 @@ BEGIN
       JOIN dbo.RebateCameraModels rm ON rm.ModelID = l.ModelId
       LEFT JOIN #d d ON d.OrderId = o.OrderId
       LEFT JOIN #dup dp ON dp.LineId = l.LineId
-     CROSS APPLY (SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM #s s WHERE s.ModelId = l.ModelId AND s.Units > 0
+     CROSS APPLY (SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code cc ON cc.ProCode = s.ProCode
+                                                         WHERE s.MemberId = @MemberId AND cc.ModelId = l.ModelId AND s.Units > 0
                                 AND s.MonthStart <= DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1))
                               THEN 1 ELSE 0 END AS NoBuy) nb
       LEFT JOIN #ar ar ON ar.OrderId = o.OrderId

@@ -83,7 +83,7 @@ export class RebateInvestigateComponent implements OnChanges {
   readonly chartOptions = {
     maintainAspectRatio: false,
     plugins: { legend: { position: 'bottom' } },
-    scales: { y: { beginAtZero: true, title: { display: true, text: 'Units' } } }
+    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Units' } } }
   };
 
   constructor(private desk: RebateDeskService) {
@@ -215,7 +215,7 @@ export class RebateInvestigateComponent implements OnChanges {
   }
 
   get totals(): any {
-    const t = { unitsBought: 0, unitsClaimed: 0, approvedAmount: 0, declinedAmount: 0, supportAmount: 0, pendingAmount: 0 };
+    const t = { unitsBought: 0, unitsClaimed: 0, unitsDeclined: 0, approvedAmount: 0, declinedAmount: 0, supportAmount: 0, pendingAmount: 0 };
     for (const p of this.member?.products ?? []) for (const k of Object.keys(t)) (t as any)[k] += +p[k] || 0;
     return t;
   }
@@ -237,8 +237,9 @@ export class RebateInvestigateComponent implements OnChanges {
     this.chartData = {
       labels: rows.map(r => new Date(r.monthStart).toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' })),
       datasets: [
-        { label: 'Units bought from PRO', data: rows.map(r => +r.unitsBought || 0), backgroundColor: '#1d4f91' },
-        { label: 'Units claimed', data: rows.map(r => +r.unitsClaimed || 0), backgroundColor: '#d9822b' }
+        { label: 'Units bought from PRO', data: rows.map(r => +r.unitsBought || 0), backgroundColor: '#1d4f91', stack: 'bought' },
+        { label: 'Units claimed', data: rows.map(r => +r.unitsClaimed || 0), backgroundColor: '#d9822b', stack: 'claimed' },
+        { label: 'Units declined', data: rows.map(r => +r.unitsDeclined || 0), backgroundColor: '#c0392b', stack: 'claimed' }
       ]
     };
   }
@@ -249,14 +250,16 @@ export class RebateInvestigateComponent implements OnChanges {
     downloadXlsx(name, [
       { name: 'Products', rows: this.member.products, cols: [
         col('Product #', 'modelId', 'number'), col('Product', 'description', 'text', 40), col('PRO code', 'proCodeText'), col('Vendor', 'vendorName'),
-        col('Units bought', 'unitsBought', 'number'), col('Bought $', 'amountBought', 'money'), col('Units claimed', 'unitsClaimed', 'number'),
+        col('Units bought', 'unitsBought', 'number'), col('Bought $', 'amountBought', 'money'), col('Units claimed (not declined)', 'unitsClaimed', 'number'),
+        col('Units declined', 'unitsDeclined', 'number'),
         col('Claims', 'claims', 'number'), col('Approved', 'approvedAmount', 'money'), col('Declined', 'declinedAmount', 'money'),
         col('Needs support', 'supportAmount', 'money'), col('Not decided', 'pendingAmount', 'money'),
         col('No PRO purchase on record', 'noPurchaseOnRecord'),
         col('Claimed more than bought', 'claimedMoreThanBought'), col('Claims with no purchase before', 'claimsWithNoPurchaseBefore', 'number'),
         col('Repeated serials', 'repeatedSerials', 'number')] },
       { name: 'Months', rows: this.member.months, cols: [
-        col('Month', 'monthStart', 'date'), col('Units bought', 'unitsBought', 'number'), col('Units claimed', 'unitsClaimed', 'number')] },
+        col('Month', 'monthStart', 'date'), col('Units bought', 'unitsBought', 'number'), col('Units claimed (not declined)', 'unitsClaimed', 'number'),
+        col('Units declined', 'unitsDeclined', 'number')] },
       { name: 'Claims', rows: this.member.claims, cols: [
         col('Claim', 'orderId', 'number'), col('Claimed', 'claimDate', 'date'), col('Product(s)', 'products', 'text', 45),
         col('Units', 'units', 'number'), col('Amount', 'amount', 'money'), col('Status', r => this.stateLabel(r)),

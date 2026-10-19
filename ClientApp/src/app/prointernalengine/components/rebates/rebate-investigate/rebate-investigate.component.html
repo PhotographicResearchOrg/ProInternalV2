@@ -24,7 +24,7 @@
 <section class="card" *ngIf="claimants && claimantsOf">
   <div class="card-head"><h2>Who claimed {{ claimantsOf.label }}</h2><span class="sub">{{ claimants.members.length }} members</span><span class="grow"></span>
     <button type="button" class="btn ghost" (click)="exportClaimants()" [disabled]="!claimants.members.length"><i class="pi pi-file-excel"></i> Excel</button></div>
-  <div class="sub" style="margin: 0 0 8px">Purchases count from {{ claimants.about?.purchasesFrom | date:'MM/dd/yy' }} (six months before the window, since units are bought before they are claimed).
+  <div class="sub" style="margin: 0 0 8px">Claims and purchases from {{ claimants.about?.windowFrom | date:'MM/dd/yy' }}. Declined claims are not counted against purchases.
     Sales as of {{ (claimants.about?.salesAsOf | date:'MM/dd/yy h:mm a') || 'never: the nightly sales summary has not run yet' }}.</div>
   <table class="grid">
     <thead><tr><th>Member</th><th class="num">Claims</th><th class="num">Units claimed</th><th class="num">Units bought</th><th class="num">Claim rate</th>
@@ -52,7 +52,7 @@
     <div class="card-head">
       <div class="grow"><div class="sub mono">{{ focusLabel ? focusLabel + ' · ' : '' }}member {{ memberId }}</div>
         <h2>{{ member.about?.memberName || 'Member ' + memberId }}</h2>
-        <div class="sub">Claims from {{ member.about?.windowFrom | date:'MM/dd/yy' }} · purchases from {{ member.about?.purchasesFrom | date:'MM/dd/yy' }} ·
+        <div class="sub">Claims and purchases from {{ member.about?.windowFrom | date:'MM/dd/yy' }} ·
           sales as of {{ (member.about?.salesAsOf | date:'MM/dd/yy h:mm a') || 'never: the nightly sales summary has not run yet' }}</div></div>
       <button type="button" class="btn ghost" *ngIf="modelIds.length" (click)="onlyProduct(null)">All their products</button>
       <button type="button" class="btn ghost" (click)="exportMember()"><i class="pi pi-file-excel"></i> Excel</button>
@@ -60,7 +60,8 @@
 
     <div class="stats" style="grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0 0 12px">
       <div class="stat"><b>{{ totals.unitsBought | number:'1.0-0' }}</b><span>units bought from PRO</span></div>
-      <div class="stat"><b [class.warn]="totals.unitsClaimed > totals.unitsBought">{{ totals.unitsClaimed | number:'1.0-0' }}</b><span>units claimed</span></div>
+      <div class="stat"><b [class.warn]="totals.unitsClaimed > totals.unitsBought">{{ totals.unitsClaimed | number:'1.0-0' }}</b>
+        <span>units claimed{{ totals.unitsDeclined ? ' · ' + (totals.unitsDeclined | number:'1.0-0') + ' more declined' : '' }}</span></div>
       <div class="stat"><b [class.warn]="(claimRate ?? 0) > 100">{{ claimRate != null ? claimRate + '%' : '—' }}</b><span>claimed ÷ bought</span></div>
       <div class="stat"><b class="ok">{{ totals.approvedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>approved</span></div>
       <div class="stat"><b>{{ totals.declinedAmount | currency:'USD':'symbol':'1.0-0' }}</b>
