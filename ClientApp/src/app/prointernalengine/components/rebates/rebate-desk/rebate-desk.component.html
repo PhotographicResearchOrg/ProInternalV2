@@ -452,6 +452,7 @@
               <button type="button" class="btn ghost" (click)="exportBatches()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button></div>
             <div class="filters">
               <input class="in" placeholder="Batch # or vendor" [(ngModel)]="batchFilter.q" (ngModelChange)="searchSoon()" (keyup.enter)="loadBatches(1)" />
+              <app-rebate-window [(months)]="batchFilter.months" (monthsChange)="loadBatches(1)"></app-rebate-window>
               <select class="in" style="max-width: 220px" [(ngModel)]="batchFilter.vendorId" (ngModelChange)="loadBatches(1)">
                 <option [ngValue]="null">All vendors</option>
                 <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
@@ -583,13 +584,22 @@
 
       <!-- ============ Declined claims ============ -->
       <section class="card" *ngIf="view === 'declines'">
-        <div class="card-head"><h2>Declined claims</h2><span class="sub">{{ declinesShown.length }} of {{ declines.length }}</span><span class="grow"></span>
+        <div class="card-head"><h2>Needs support and declined</h2><span class="sub">{{ declinesShown.length }} shown</span><span class="grow"></span>
           <button type="button" class="btn ghost" (click)="exportDeclines()" [disabled]="!declinesShown.length"><i class="pi pi-file-excel"></i> Excel</button></div>
         <div class="filters">
           <input class="in" placeholder="Claim #, member #, product, reason or email" [(ngModel)]="declineQ" (ngModelChange)="declineTake = 100" />
+          <app-rebate-window [(months)]="declineMonths" (monthsChange)="declineTake = 100"></app-rebate-window>
         </div>
+        <div class="chips">
+          <span class="lbl">Show</span>
+          <button type="button" [class.on]="declineStatus === 3" (click)="declineStatus = 3; declineTake = 100">Needs support<b>{{ declineCount(3) }}</b></button>
+          <button type="button" [class.on]="declineStatus === 2" (click)="declineStatus = 2; declineTake = 100">Declined<b>{{ declineCount(2) }}</b></button>
+        </div>
+        <div class="sub" style="margin: 0 0 8px">{{ declineStatus === 3
+          ? 'Waiting on the member for more information or support. Once it is added, send the claim back to the approval queue.'
+          : 'Declined for good; shown for reference.' }}</div>
         <table class="grid">
-          <thead><tr><th>Claim</th><th>Declined</th><th>Member</th><th>Product</th><th class="num">Qty</th><th class="num">Amount</th><th>Reason</th><th>Email</th></tr></thead>
+          <thead><tr><th>Claim</th><th>{{ declineStatus === 3 ? 'Asked' : 'Declined' }}</th><th>Member</th><th>Product</th><th class="num">Qty</th><th class="num">Amount</th><th>Reason</th><th>Email</th><th *ngIf="declineStatus === 3"></th></tr></thead>
           <tbody>
             <tr *ngFor="let d of declinesShown | slice:0:declineTake">
               <td class="mono">{{ d.orderID }}</td>
@@ -600,8 +610,9 @@
               <td class="money">{{ d.total | currency }}</td>
               <td>{{ d.rejectReason }}</td>
               <td class="sub">{{ d.email || d.eMail }}</td>
+              <td *ngIf="declineStatus === 3"><button type="button" class="btn" (click)="resubmitDecline(d)" title="Support received: back into the approval queue"><i class="pi pi-undo"></i> Back to queue</button></td>
             </tr>
-            <tr *ngIf="!declinesShown.length"><td colspan="8" class="empty">{{ declines.length ? 'No declined claims match.' : 'Loading…' }}</td></tr>
+            <tr *ngIf="!declinesShown.length"><td [attr.colspan]="declineStatus === 3 ? 9 : 8" class="empty">{{ declines.length ? 'Nothing here in this window.' : 'Loading…' }}</td></tr>
           </tbody>
         </table>
         <div class="pager" *ngIf="declinesShown.length > declineTake">

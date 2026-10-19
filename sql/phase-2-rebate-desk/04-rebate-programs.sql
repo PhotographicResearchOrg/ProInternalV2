@@ -32,7 +32,8 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Programs
     @When     varchar(10) = NULL,
     @Q        nvarchar(100) = NULL,
     @Page     int = 1,
-    @PageSize int = 50
+    @PageSize int = 50,
+    @Months   int = 12      -- programs running in the last @Months months (or live); 0 = all history
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -42,6 +43,8 @@ BEGIN
     SET @PageSize = CASE WHEN @PageSize NOT BETWEEN 1 AND 500 THEN 50 ELSE @PageSize END;
     SET @Q = NULLIF(LTRIM(RTRIM(@Q)), N'');
     DECLARE @today date = CAST(GETDATE() AS date);
+    DECLARE @since date = CASE WHEN @Months > 0 THEN DATEADD(month, -@Months, CAST(GETDATE() AS date)) ELSE '19000101' END;
+    IF TRY_CAST(@Q AS int) IS NOT NULL SET @since = '19000101';   -- a program or batch number is found however old
 
     SELECT p.ProgramID AS ProgramId, p.BatchID AS BatchId, p.ModelID AS ModelId,
            m.ModelName AS ProCodeText, m.ModelNumber AS Description, m.VendorID AS VendorId, v.VendorName,
@@ -57,7 +60,8 @@ BEGIN
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
       LEFT JOIN dbo.RebateType t ON t.ID = p.IRType
       LEFT JOIN piv2.RebateProgramTerms pt ON pt.ProgramId = p.ProgramID AND pt.MemberAmount = ROUND(p.Reimbursement, 2)
-     WHERE (@VendorId IS NULL OR m.VendorID = @VendorId)
+     WHERE (p.ProgramEndWeek >= @since OR p.Expired = 0 OR @BatchId IS NOT NULL)
+       AND (@VendorId IS NULL OR m.VendorID = @VendorId)
        AND (@ModelId IS NULL OR p.ModelID = @ModelId)
        AND (@BatchId IS NULL OR p.BatchID = @BatchId)
        AND (@State IS NULL OR (@State = 'ON' AND p.Expired = 0) OR (@State = 'OFF' AND COALESCE(p.Expired, 1) <> 0))
@@ -238,7 +242,8 @@ CREATE OR ALTER PROCEDURE piv2.PP_Programs
     @To       date = NULL,
     @Q        nvarchar(100) = NULL,
     @Page     int = 1,
-    @PageSize int = 50
+    @PageSize int = 50,
+    @Months   int = 12      -- programs dated in the last @Months months (or live); 0 = all history
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -247,6 +252,8 @@ BEGIN
     SET @Page = CASE WHEN @Page < 1 THEN 1 ELSE @Page END;
     SET @PageSize = CASE WHEN @PageSize NOT BETWEEN 1 AND 500 THEN 50 ELSE @PageSize END;
     SET @Q = NULLIF(LTRIM(RTRIM(@Q)), N'');
+    DECLARE @since date = CASE WHEN @Months > 0 THEN DATEADD(month, -@Months, CAST(GETDATE() AS date)) ELSE '19000101' END;
+    IF TRY_CAST(@Q AS int) IS NOT NULL SET @since = '19000101';   -- a program number is found however old
 
     SELECT p.ProgramID AS ProgramId, p.ModelID AS ModelId, m.ModelName AS ProCodeText, m.ModelNumber AS Description,
            m.VendorID AS VendorId, v.VendorName,
@@ -256,7 +263,8 @@ BEGIN
       FROM dbo.PriceProtectionDetail p
       JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
-     WHERE (@VendorId IS NULL OR m.VendorID = @VendorId)
+     WHERE (p.ProgramDate >= @since OR p.Expired = 0)
+       AND (@VendorId IS NULL OR m.VendorID = @VendorId)
        AND (@ModelId IS NULL OR p.ModelID = @ModelId)
        AND (@State IS NULL OR (@State = 'ON' AND p.Expired = 0) OR (@State = 'OFF' AND p.Expired <> 0))
        AND (@From IS NULL OR p.ProgramDate >= @From)

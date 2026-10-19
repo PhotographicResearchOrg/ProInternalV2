@@ -5,6 +5,7 @@ import { finalize, switchMap } from 'rxjs/operators';
 import { DataService } from 'src/app/services/data.service';
 import { Rail, RebateDeskService, apiMessage, isoDate } from 'src/app/services/rebate-desk.service';
 import { IR_PROGRAM_COLS, UPLOAD_ROW_COLS, col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
+import { DEFAULT_MONTHS, windowStart } from '../shared/rebate-window.component';
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
@@ -24,6 +25,7 @@ type Pending =
   | { kind: 'bp-amounts' }
   | { kind: 'bp-dates' }
   | { kind: 'bp-active'; program: any; active: boolean }
+  | { kind: 'resubmit-claim'; claim: any }
   | null;
 
 /*
@@ -64,7 +66,7 @@ export class RebateDeskComponent implements OnInit {
     { key: 'templates', label: 'Templates', icon: 'pi pi-table', group: 'IR', count: () => this.overview.templates || 0 },
     { key: 'claims', label: 'Claims', icon: 'pi pi-wallet', group: 'IR' },
     { key: 'debitmemos', label: 'Debit memos', icon: 'pi pi-send', group: 'IR' },
-    { key: 'declines', label: 'Declined claims', icon: 'pi pi-ban', group: 'IR' },
+    { key: 'declines', label: 'Needs support / declined', icon: 'pi pi-ban', group: 'IR' },
     { key: 'history', label: 'History', icon: 'pi pi-history', group: 'IR' },
     { key: 'pp-programs', label: 'Programs', icon: 'pi pi-list', group: 'PP', count: () => this.overview.priceProtectionLive || 0 },
     { key: 'pp-products', label: 'Products', icon: 'pi pi-tags', group: 'PP' },
@@ -104,7 +106,7 @@ export class RebateDeskComponent implements OnInit {
   newProduct: any = null;
 
   /* ---- batches ---- */
-  batchFilter = { q: '', vendorId: null as number | null, state: 'LIVE' };
+  batchFilter = { q: '', vendorId: null as number | null, state: 'LIVE', months: DEFAULT_MONTHS };
   batches: any[] = [];
   batchTotal = 0;
   batchPage = 1;
@@ -118,19 +120,34 @@ export class RebateDeskComponent implements OnInit {
   declines: any[] = [];
   declineQ = '';
   declineTake = 100;
+  /* 3 = needs support from the member (actionable: back to the queue once added), 2 = declined (final). */
+  declineStatus: 2 | 3 = 3;
+  declineMonths = DEFAULT_MONTHS;
 
-  private declineCache: { src: any[]; q: string; out: any[] } | null = null;
+  private declineCache: { src: any[]; key: string; out: any[] } | null = null;
 
-  /* Newest first, filtered by the search box; worked out again only when the list or the search changes. */
+  /* In the window, newest first, filtered by status and the search box; worked out again only when one of those changes. */
+  get declinesInWindow(): any[] {
+    const start = windowStart(this.declineMonths);
+    return start ? this.declines.filter(d => String(d.processDate ?? '').substring(0, 10) >= start) : this.declines;
+  }
+
+  declineCount(status: number): number { return this.declinesInWindow.filter(d => d.status === status).length; }
+
   get declinesShown(): any[] {
     const q = this.declineQ.trim().toLowerCase();
-    if (this.declineCache && this.declineCache.src === this.declines && this.declineCache.q === q) return this.declineCache.out;
-    let out = [...this.declines].sort((a, b) => String(b.processDate ?? '').localeCompare(String(a.processDate ?? '')));
+    const key = `${q}|${this.declineStatus}|${this.declineMonths}`;
+    if (this.declineCache && this.declineCache.src === this.declines && this.declineCache.key === key) return this.declineCache.out;
+    let out = this.declinesInWindow.filter(d => d.status === this.declineStatus)
+      .sort((a, b) => String(b.processDate ?? '').localeCompare(String(a.processDate ?? '')));
     if (q) out = out.filter(d => [d.orderID, d.memberID, d.model, d.rejectReason, d.email, d.eMail, d.vendorName]
       .some(v => v != null && String(v).toLowerCase().includes(q)));
-    this.declineCache = { src: this.declines, q, out };
+    this.declineCache = { src: this.declines, key, out };
     return out;
   }
+
+  /* Needs support: the member added what was asked for, so it goes back into the approval queue. */
+  resubmitDecline(d: any): void { this.pending = { kind: 'resubmit-claim', claim: d }; }
 
   readonly declineCols = [
     { header: 'Order_ID', field: 'orderID' }, { header: 'Decline_Date', field: 'processDate' },
@@ -314,7 +331,7 @@ export class RebateDeskComponent implements OnInit {
   }
 
   exportDeclines(): void {
-    downloadXlsx('Declined claims', [{ name: 'Declined', rows: this.declinesShown, cols: [
+    downloadXlsx(this.declineStatus === 3 ? 'Claims needing support' : 'Declined claims', [{ name: this.declineStatus === 3 ? 'Needs support' : 'Declined', rows: this.declinesShown, cols: [
       col('Claim', 'orderID', 'number'), col('Declined', 'processDate', 'date'), col('Member', 'memberID', 'number'),
       col('Vendor', 'vendorName'), col('Product', 'model', 'text', 40), col('Qty', 'quantity', 'number'), col('Amount', 'total', 'money'),
       col('Reason', 'rejectReason', 'text', 50), col('Email', r => r.email ?? r.eMail)] }]);
@@ -858,6 +875,7 @@ export class RebateDeskComponent implements OnInit {
       case 'bp-amounts': return `Change amounts on program ${this.bProg?.programId}`;
       case 'bp-dates': return `Change dates on program ${this.bProg?.programId}`;
       case 'bp-active': return `${p.active ? 'Turn on' : 'Turn off'} program ${p.program.programId}`;
+      case 'resubmit-claim': return `Send claim ${p.claim.orderID} back to the approval queue`;
     }
   }
 
@@ -875,6 +893,7 @@ export class RebateDeskComponent implements OnInit {
       case 'bp-amounts': return 'Only this program changes. Claims already submitted keep the amount they were submitted with.';
       case 'bp-dates': return `Only this program moves. Members will see it apart from the rest of batch ${this.batch?.batchId}; to move the whole batch, use the batch dates above.`;
       case 'bp-active': return p.active ? 'Members see this program again.' : 'Members stop seeing this program. Submitted claims are not affected.';
+      case 'resubmit-claim': return 'The member has added the support asked for. The claim goes back into the approval queue (the same as Resubmit on the BRM dashboard).';
     }
   }
 
@@ -902,6 +921,7 @@ export class RebateDeskComponent implements OnInit {
       case 'bp-dates': call = this.desk.changeProgramDates(this.bProg.programId, {
         startDate: this.bEdit.startDate, endDate: this.bEdit.endDate, expireOn: this.bEdit.expireOn || null, reason }); break;
       case 'bp-active': call = this.desk.setProgramActive('IR', p.program.programId, p.active, reason); break;
+      case 'resubmit-claim': call = this.desk.resubmit('IR', p.claim.orderID, reason); break;
     }
     call.pipe(finalize(() => (this.busy = false))).subscribe({
       next: () => {
@@ -924,6 +944,10 @@ export class RebateDeskComponent implements OnInit {
           case 'bulk-skip': case 'bulk-overlap': this.picked = new Set(); this.afterRowChange(); break;
           case 'bp-amounts': case 'bp-dates': this.reloadBatch(this.bProg?.programId); break;
           case 'bp-active': this.reloadBatch(p.program.programId); break;
+          case 'resubmit-claim':
+            this.declines = this.declines.filter(x => x !== p.claim);
+            this.notice = `Claim ${p.claim.orderID} is back in the approval queue.`;
+            break;
         }
       },
       error: e => (this.error = apiMessage(e))

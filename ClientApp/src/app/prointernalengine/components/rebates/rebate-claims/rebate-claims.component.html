@@ -7,29 +7,28 @@
     <div class="card-head"><h2>{{ rail === 'PP' ? 'Price-protection claims' : 'Instant-rebate claims' }}</h2><span class="sub">{{ total }} found</span><span class="grow"></span>
       <button type="button" class="btn ghost" (click)="exportClaims()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button></div>
     <div class="filters">
-      <input class="in" placeholder="Claim #, member # or debit memo" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
+      <input class="in" placeholder="Claim # or debit memo" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
+      <input class="in" type="number" style="max-width: 130px" placeholder="Member #" [(ngModel)]="filter.memberId" (ngModelChange)="searchSoon()" />
       <select class="in" style="max-width: 200px" [(ngModel)]="filter.vendorId" (ngModelChange)="go(1)">
         <option [ngValue]="null">All vendors</option>
         <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
       </select>
-      <select class="in" style="max-width: 220px" [(ngModel)]="filter.state" (ngModelChange)="go(1)">
-        <option value="">All</option>
-        <option value="SUBMITTED">Not decided</option>
-        <option value="APPROVED">Approved, not sent to Computyme (incl. held)</option>
-        <option value="SENT">Credited</option>
-        <option value="NOT_INVOICED">Credited, no invoice</option>
-        <option value="NO_DM">Approved, not billed to vendor</option>
-        <option value="DECLINED">Declined</option>
-      </select>
-      <input class="in" type="date" style="max-width: 150px" [(ngModel)]="filter.from" (change)="go(1)" title="Claimed from" />
+      <app-rebate-window [(months)]="filter.months" (monthsChange)="go(1)"></app-rebate-window>
+      <input class="in" type="date" style="max-width: 150px" [(ngModel)]="filter.from" (change)="go(1)" title="Claimed from (inside the window)" />
       <input class="in" type="date" style="max-width: 150px" [(ngModel)]="filter.to" (change)="go(1)" title="Claimed to" />
+    </div>
+    <div class="filters">
+      <div style="flex: 1; min-width: 260px" *ngIf="!filter.modelId">
+        <app-rebate-product-picker [rail]="rail" [vendorId]="filter.vendorId" placeholder="Only claims for one rebate product: description or PRO code" (picked)="pickModel($event)"></app-rebate-product-picker>
+      </div>
+      <div class="chip" *ngIf="filter.modelId">Product: {{ modelLabel }} <button type="button" class="icon-btn" (click)="clearModel()" title="All products"><i class="pi pi-times"></i></button></div>
     </div>
     <div class="chips">
       <span class="lbl">Show</span>
       <button type="button" *ngFor="let c of stateChips" [class.on]="filter.state === c.value" (click)="filter.state = c.value; go(1)">{{ c.label }}</button>
     </div>
     <table class="grid">
-      <thead><tr><th>Claim</th><th>Member</th><th>Vendor</th><th>Claimed</th><th class="num">Amount</th><th>State</th><th>DM</th><th>Invoice</th></tr></thead>
+      <thead><tr><th>Claim</th><th>Member</th><th>Vendor</th><th>Claimed</th><th class="num">Amount</th><th>State</th><th>Debit memo</th><th>Member invoice</th></tr></thead>
       <tbody>
         <tr *ngFor="let c of rows" class="click" (click)="open(c)" [class.sel]="claim?.orderId === c.orderId">
           <td class="mono">{{ c.orderId }}</td>
@@ -37,9 +36,10 @@
           <td>{{ c.vendorName }}</td>
           <td class="mono">{{ c.claimDate | date:'MM/dd/yy' }}</td>
           <td class="money">{{ c.amount | currency }}</td>
-          <td><span class="status" [class.ok]="c.bucket === 'SENT'" [class.info]="c.bucket === 'APPROVED'" [class.warn]="c.bucket === 'SUBMITTED'" [class.bad]="c.bucket === 'DECLINED'">{{ bucketLabel(c.bucket) }}</span></td>
+          <td><span class="status" [class.ok]="c.bucket === 'SENT'" [class.info]="c.bucket === 'APPROVED' || c.bucket === 'HELD'"
+                    [class.warn]="c.bucket === 'SUBMITTED' || c.bucket === 'SUPPORT' || c.bucket === 'NOT_IN_AR'" [class.bad]="c.bucket === 'DECLINED'">{{ bucketLabel(c.bucket) }}</span></td>
           <td class="mono">{{ c.debitMemo || '—' }}</td>
-          <td><span class="chip" [class.ok]="c.invoiced" *ngIf="c.bucket === 'SENT'">{{ c.invoiced ? 'yes' : 'no' }}</span></td>
+          <td><span class="chip" [class.ok]="c.invoiced" *ngIf="c.bucket === 'SENT' || c.bucket === 'NOT_IN_AR'">{{ c.invoiced ? 'yes' : 'no' }}</span></td>
         </tr>
         <tr *ngIf="!rows.length && !loading"><td colspan="8" class="empty">No claims match.</td></tr>
         <tr *ngIf="loading"><td colspan="8" class="empty">Loading…</td></tr>
@@ -61,11 +61,15 @@
     </div>
 
     <div class="actions">
+      <button type="button" class="btn primary" *ngIf="claim.bucket === 'SUPPORT' && rail === 'IR'" (click)="pending = { kind: 'resubmit' }"
+              title="The member added the support asked for: back into the approval queue"><i class="pi pi-undo"></i> Send back to queue</button>
       <button type="button" class="btn" (click)="pending = { kind: 'resend' }"
-              [disabled]="(claim.bucket !== 'SENT' && claim.bucket !== 'HELD') || !!detail?.arCredits?.length"
-              [title]="detail?.arCredits?.length ? 'AR already shows this credit' : 'Only credits already sent (or held) can be resent'"><i class="pi pi-replay"></i> Resend credit</button>
-      <button type="button" class="btn" (click)="pending = { kind: 'invoice' }" [disabled]="!detail?.arCredits?.length"><i class="pi pi-file-pdf"></i> Recreate invoice</button>
-      <button type="button" class="btn ghost" (click)="reprint()" [disabled]="!detail?.arCredits?.length"><i class="pi pi-print"></i> Reprint</button>
+              [disabled]="(claim.bucket !== 'SENT' && claim.bucket !== 'NOT_IN_AR' && claim.bucket !== 'HELD') || !!detail?.arCredits?.length"
+              [title]="detail?.arCredits?.length ? 'AR already shows this credit' : 'Only credits already posted (or on hold) can be re-posted'"><i class="pi pi-replay"></i> Re-post credit</button>
+      <button type="button" class="btn" (click)="pending = { kind: 'invoice' }" [disabled]="!detail?.arCredits?.length"
+              [title]="detail?.arCredits?.length ? 'Rebuild the member credit invoice from the AR credit' : 'No AR credit yet: there is nothing to build the invoice from'"><i class="pi pi-file-pdf"></i> Recreate invoice</button>
+      <button type="button" class="btn ghost" (click)="reprint()" [disabled]="!detail?.arCredits?.length"
+              title="Download the member credit invoice that already exists"><i class="pi pi-print"></i> Reprint</button>
     </div>
 
     <ng-container *ngIf="detail">
@@ -75,9 +79,9 @@
         <tbody><tr *ngFor="let a of detail.arCredits"><td class="mono">{{ a.invoiceNumber }}</td><td class="mono">{{ a.vinvno }}</td>
           <td class="mono">{{ a.postedAt | date:'MM/dd/yy' }}</td><td class="money">{{ a.amount | currency }}</td></tr></tbody>
       </table>
-      <div class="sub" *ngIf="!detail.arCredits.length">Not in AR yet.
-        <span *ngIf="claim.bucket === 'SENT'">AR usually shows a credit within two days of the nightly send. After that, if it is still missing, the credit may not have reached Computyme; resend it.</span>
-        <span *ngIf="claim.bucket === 'HELD'">This claim is marked as not to send (ComputymeProcessed = 0), so the nightly run skips it. Resend queues it.</span></div>
+      <div class="sub" *ngIf="!detail.arCredits.length">AR shows no credit for this claim, so there is no member invoice to build or print yet.
+        <span *ngIf="claim.bucket === 'SENT' || claim.bucket === 'NOT_IN_AR'">A credit usually shows in AR within two days of posting. If it is still missing after that, it did not post: re-post it.</span>
+        <span *ngIf="claim.bucket === 'HELD'">This claim is on hold, so the nightly run skips it. Re-post releases it.</span></div>
 
       <h3 class="sub" style="margin: 14px 0 6px">Lines</h3>
       <table class="grid">
@@ -88,10 +92,10 @@
 
       <h3 class="sub" style="margin: 14px 0 6px">Decision</h3>
       <div class="facts" *ngFor="let d of detail.decisions | slice:0:1">
-        <div><span>Status</span><b>{{ d.status === 1 ? 'Approved' : d.status === 2 ? 'Declined' : 'In process' }}</b></div>
+        <div><span>Status</span><b>{{ d.status === 1 ? 'Approved' : d.status === 2 ? 'Declined' : d.status === 3 ? 'Needs support' : 'Not decided' }}</b></div>
         <div><span>By</span><b>{{ d.decidedBy }}</b></div>
         <div><span>Decided</span><b>{{ d.decidedAt | date:'MM/dd/yy h:mm a' }}</b></div>
-        <div><span>Sent to Computyme</span><b>{{ d.computymeProcessed === 1 ? 'Yes' : 'No' }}</b></div>
+        <div><span>Posted to GL</span><b>{{ d.computymeProcessed === 1 ? 'Yes' : d.status === 1 && d.computymeProcessed === 0 ? 'On hold' : 'No' }}</b></div>
         <div class="wide" *ngIf="d.rejectReason"><span>Reason</span><b>{{ d.rejectReason }}</b></div>
       </div>
 
@@ -173,6 +177,7 @@
 
   <section class="card">
     <div class="card-head"><h2>Debit memos</h2><span class="grow"></span>
+      <app-rebate-window [(months)]="memoMonths" (monthsChange)="loadMemos()"></app-rebate-window>
       <button type="button" class="btn ghost" (click)="exportMemos()" [disabled]="!memos.length"><i class="pi pi-file-excel"></i> Excel</button></div>
     <table class="grid">
       <thead><tr><th>DM</th><th>Vendor</th><th class="num">Claims</th><th class="num">Total</th><th>Emailed</th><th>Created</th><th></th></tr></thead>

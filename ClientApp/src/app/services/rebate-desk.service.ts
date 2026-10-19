@@ -137,8 +137,8 @@ export class RebateDeskService {
   setStacks(id: number, stackModelIds: number[], reason: string): Observable<any> { return this.api.put(`${this.base}/products/${id}/stacks`, { stackModelIds, reason }); }
 
   /* ---- vendors and liability ---- */
-  liability(rail: Rail, vendorId?: number | null, from?: string, to?: string): Observable<{ vendors: any[]; products: any[]; openClaims: any[] }> {
-    return this.api.get(`${this.base}/liability${this.q({ rail, vendorId, from, to })}`);
+  liability(rail: Rail, vendorId?: number | null, from?: string, to?: string, months?: number): Observable<{ vendors: any[]; products: any[]; openClaims: any[] }> {
+    return this.api.get(`${this.base}/liability${this.q({ rail, vendorId, from, to, months })}`);
   }
 
   /* ---- claims (accounting) ---- */
@@ -148,6 +148,10 @@ export class RebateDeskService {
   }
   resendCredit(rail: Rail, orderId: number, reason: string): Observable<any> {
     return this.api.post(`${this.base}/claims/${rail}/${orderId}/resend`, { reason });
+  }
+  /* Needs support (status 3) back into the approval queue. */
+  resubmit(rail: Rail, orderId: number, reason: string): Observable<any> {
+    return this.api.post(`${this.base}/claims/${rail}/${orderId}/resubmit`, { reason });
   }
   recreateInvoice(rail: Rail, orderId: number, reason: string): Observable<{ invoiceNumber: string; fileId: number; sharePath?: string; total: number }> {
     return this.api.post(`${this.base}/claims/${rail}/${orderId}/invoice`, { reason });
@@ -159,7 +163,7 @@ export class RebateDeskService {
   createDebitMemo(form: FormData): Observable<{ debitMemoId: number; claims: number; total: number; emailed: boolean; emailError?: string }> {
     return this.api.postMultipartJson(`${this.base}/debitmemos`, form);
   }
-  debitMemos(rail: Rail, q?: string): Observable<any[]> { return this.api.get(`${this.base}/debitmemos${this.q({ rail, q })}`); }
+  debitMemos(rail: Rail, q?: string, months?: number): Observable<any[]> { return this.api.get(`${this.base}/debitmemos${this.q({ rail, q, months })}`); }
   debitMemoCsv(id: number): Observable<Blob> { return this.api.getBlob(`${this.base}/debitmemos/${id}/csv`); }
 
   /* ---- history ---- */

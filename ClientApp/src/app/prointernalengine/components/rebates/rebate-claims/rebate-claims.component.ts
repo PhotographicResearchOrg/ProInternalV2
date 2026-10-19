@@ -2,13 +2,16 @@ import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage, saveBlob } from 'src/app/services/rebate-desk.service';
 import { CLAIM_COLS, col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
+import { DEFAULT_MONTHS } from '../shared/rebate-window.component';
 
-type Pending = { kind: 'resend' | 'invoice' } | null;
+type Pending = { kind: 'resend' | 'invoice' | 'resubmit' } | null;
 
 /*
  * Claims (accounting) on one rail.
- *   Claims       find a claim; resend its credit to Computyme (refused when AR
- *                already shows it), recreate or reprint the credit invoice
+ *   Claims       find a claim (by member, product, vendor, state; last 12 months,
+ *                2 years or all history); re-post its credit to the GL (refused
+ *                when AR already shows it); recreate or reprint the member's
+ *                credit invoice; send a claim that needs support back to the queue
  *   Debit memos  bill approved claims back to the vendor: choose vendors and
  *                dates, tick claims, enter the DM number, email the letter
  *                with the CSV and any support files
@@ -27,7 +30,9 @@ export class RebateClaimsComponent implements OnChanges {
   vendors: any[] = [];
 
   /* ---- claims ---- */
-  filter = { q: '', vendorId: null as number | null, state: 'APPROVED', from: '', to: '' };
+  filter = { q: '', vendorId: null as number | null, state: 'APPROVED', from: '', to: '',
+             months: DEFAULT_MONTHS, memberId: null as number | null, modelId: null as number | null };
+  modelLabel = '';
   page = 1;
   pageSize = 50;
   total = 0;
@@ -45,6 +50,7 @@ export class RebateClaimsComponent implements OnChanges {
   memo = { dm: '', emailTo: '', ref1: '', ref2: '', sendEmail: true };
   supportFiles: File[] = [];
   memos: any[] = [];
+  memoMonths = DEFAULT_MONTHS;
 
   pending: Pending = null;
   loading = false;
@@ -61,11 +67,22 @@ export class RebateClaimsComponent implements OnChanges {
 
   exporting = false;
 
+  /* The states a claim can be in (and the filters). Credits post to the GL through the accounting system. */
   readonly stateChips = [
-    { value: 'SUBMITTED', label: 'Not decided' }, { value: 'APPROVED', label: 'Approved, not sent' },
-    { value: 'SENT', label: 'Credited' }, { value: 'NOT_INVOICED', label: 'Credited, no invoice' },
-    { value: 'NO_DM', label: 'Not billed to vendor' }, { value: 'DECLINED', label: 'Declined' }, { value: '', label: 'All' }
+    { value: 'SUBMITTED', label: 'Not decided' }, { value: 'SUPPORT', label: 'Needs support' },
+    { value: 'APPROVED', label: 'Approved, not posted' }, { value: 'HELD', label: 'On hold' },
+    { value: 'SENT', label: 'Posted to GL' }, { value: 'NOT_INVOICED', label: 'Posted, no member invoice' },
+    { value: 'NOT_IN_AR', label: 'Posted, not in AR' }, { value: 'NO_DM', label: 'No debit memo' },
+    { value: 'DECLINED', label: 'Declined' }, { value: '', label: 'All' }
   ];
+
+  pickModel(m: any): void {
+    this.filter.modelId = m?.modelId ?? null;
+    this.modelLabel = m ? (m.description ?? m.modelNumber ?? '#' + m.modelId) : '';
+    this.go(1);
+  }
+
+  clearModel(): void { this.pickModel(null); }
 
   /* Every claim matching the filters, not just this page. */
   async exportClaims(): Promise<void> {
@@ -126,34 +143,40 @@ export class RebateClaimsComponent implements OnChanges {
   }
 
   bucketLabel(b: string): string {
-    return ({ SUBMITTED: 'Not decided', APPROVED: 'Approved, not sent', HELD: 'Approved, held', SENT: 'Sent to Computyme', DECLINED: 'Declined' } as any)[b] ?? b;
+    return ({ SUBMITTED: 'Not decided', SUPPORT: 'Needs support', APPROVED: 'Approved, not posted', HELD: 'On hold',
+              SENT: 'Posted to GL', NOT_IN_AR: 'Posted, not in AR', DECLINED: 'Declined' } as any)[b] ?? b;
   }
 
   get pendingTitle(): string {
     if (!this.pending || !this.claim) return '';
-    return this.pending.kind === 'resend' ? `Resend credit for claim ${this.claim.orderId}` : `Recreate invoice for claim ${this.claim.orderId}`;
+    const id = this.claim.orderId;
+    return this.pending.kind === 'resend' ? `Re-post credit for claim ${id}`
+      : this.pending.kind === 'resubmit' ? `Send claim ${id} back to the queue` : `Recreate member invoice for claim ${id}`;
   }
 
   get pendingDetail(): string {
     if (!this.pending) return '';
-    return this.pending.kind === 'resend'
-      ? 'The next nightly run sends this credit to Computyme again. Refused if AR already shows it, if it was sent in the last two days, or if it was resent in the last three.'
-      : 'Builds the credit invoice PDF from AR now and replaces the one members see.';
+    if (this.pending.kind === 'resend')
+      return 'The next nightly run posts this credit to the GL again. Refused if AR already shows it, if it was posted in the last two days, or if it was re-posted in the last three.';
+    if (this.pending.kind === 'resubmit')
+      return 'The member has added the support asked for: the claim goes back into the approval queue (same as Resubmit on the BRM dashboard).';
+    return 'Builds the member credit invoice PDF from the AR credit now and replaces the one the member sees.';
   }
 
   confirm(reason: string): void {
     if (!this.pending || !this.claim) return;
     this.busy = true;
     this.error = '';
-    const call = this.pending.kind === 'resend'
-      ? this.desk.resendCredit(this.rail, this.claim.orderId, reason)
+    const call = this.pending.kind === 'resend' ? this.desk.resendCredit(this.rail, this.claim.orderId, reason)
+      : this.pending.kind === 'resubmit' ? this.desk.resubmit(this.rail, this.claim.orderId, reason)
       : this.desk.recreateInvoice(this.rail, this.claim.orderId, reason);
     const kind = this.pending.kind;
     call.pipe(finalize(() => (this.busy = false))).subscribe({
       next: (r: any) => {
         this.pending = null;
-        this.notice = kind === 'resend' ? 'Queued: the credit goes to Computyme on the next nightly run.'
-          : `Invoice ${r.invoiceNumber} built${r.sharePath ? ' and published for the member' : ''}.`;
+        this.notice = kind === 'resend' ? 'Queued: the credit posts to the GL on the next nightly run.'
+          : kind === 'resubmit' ? `Claim ${this.claim.orderId} is back in the approval queue.`
+          : `Member invoice ${r.invoiceNumber} built${r.sharePath ? ' and published for the member' : ''}.`;
         this.open(this.claim);
         this.go(this.page);
       },
@@ -166,7 +189,7 @@ export class RebateClaimsComponent implements OnChanges {
     this.error = '';
     this.desk.reprint(this.rail, this.claim.orderId).subscribe({
       next: blob => saveBlob(blob, `claim-${this.claim.orderId}.pdf`),
-      error: () => (this.error = 'There is no invoice PDF for this claim yet. Use Recreate invoice.')
+      error: () => (this.error = 'There is no member invoice PDF for this claim yet. Use Recreate invoice.')
     });
   }
 
@@ -278,7 +301,7 @@ export class RebateClaimsComponent implements OnChanges {
   }
 
   loadMemos(): void {
-    this.desk.debitMemos(this.rail).subscribe({ next: m => (this.memos = m), error: () => (this.memos = []) });
+    this.desk.debitMemos(this.rail, undefined, this.memoMonths).subscribe({ next: m => (this.memos = m), error: () => (this.memos = []) });
   }
 
   downloadMemo(m: any): void {

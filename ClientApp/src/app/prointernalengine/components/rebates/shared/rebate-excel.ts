@@ -103,9 +103,15 @@ export const UPLOAD_ROW_COLS: XCol[] = [
 export const CLAIM_COLS: XCol[] = [
   col('Claim', 'orderId', 'number'), col('Member', 'memberId', 'number'), col('Vendor', 'vendorName'),
   col('Submitted', 'claimDate', 'date'), col('Lines', 'lines', 'number'), col('Units', 'units', 'number'),
-  col('Amount', 'amount', 'money'), col('State', 'bucket'), col('Decided', 'decidedAt', 'datetime'), col('Decided by', 'decidedBy'),
-  col('Debit memo', 'debitMemo'), col('Invoice built', 'invoiced'), col('Memo', 'memo')
+  col('Amount', 'amount', 'money'), col('State', r => CLAIM_STATES[r.bucket] ?? r.bucket), col('Decided', 'decidedAt', 'datetime'), col('Decided by', 'decidedBy'),
+  col('Debit memo', 'debitMemo'), col('Member invoice', 'invoiced'), col('Memo', 'memo')
 ];
+
+/* What each claim state is called on screen and in exports. Credits post to the GL through the accounting system. */
+export const CLAIM_STATES: { [bucket: string]: string } = {
+  SUBMITTED: 'Not decided', SUPPORT: 'Needs support', APPROVED: 'Approved, not posted', HELD: 'On hold',
+  SENT: 'Posted to GL', NOT_IN_AR: 'Posted, not in AR', DECLINED: 'Declined'
+};
 
 export function problemsText(p: any): string {
   if (!p) return '';

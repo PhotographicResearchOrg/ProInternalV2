@@ -9,15 +9,16 @@
   </div>
 
   <div class="stats" [style.grid-template-columns]="'repeat(' + (rail === 'IR' ? 5 : 4) + ', minmax(0, 1fr))'" style="margin: 0 0 12px">
-    <div class="stat"><b class="warn">{{ totals.liability | currency:'USD':'symbol':'1.0-0' }}</b><span>liability: approved, not billed to the vendor (no debit memo)</span></div>
-    <div class="stat"><b>{{ totals.pendingAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>submitted, awaiting a decision</span></div>
-    <div class="stat"><b class="ok">{{ totals.creditedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>credited to members in period</span></div>
-    <div class="stat"><b class="ok">{{ totals.reimbursedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>billed to vendors (debit memo) in period · paid: to come</span></div>
+    <div class="stat"><b class="warn">{{ totals.liability | currency:'USD':'symbol':'1.0-0' }}</b><span>liability: approved, no debit memo</span></div>
+    <div class="stat"><b>{{ totals.pendingAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>awaiting a decision · {{ totals.supportAmount | currency:'USD':'symbol':'1.0-0' }} needs support</span></div>
+    <div class="stat"><b class="ok">{{ totals.creditedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>credits posted to the GL in period</span></div>
+    <div class="stat"><b class="ok">{{ totals.reimbursedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>on debit memos in period · paid: to come</span></div>
     <div class="stat" *ngIf="rail === 'IR'"><b>{{ totals.proPadAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>PRO pad in period (PRO's cost)</span></div>
   </div>
 
   <div class="filters">
     <input class="in" placeholder="Vendor or parent company" [(ngModel)]="q" />
+    <app-rebate-window [months]="months" (monthsChange)="setWindow($event)"></app-rebate-window>
     <label class="sub" style="display:flex; align-items:center; gap:6px">Period
       <input class="in" type="date" style="max-width: 150px" [(ngModel)]="from" (change)="refresh()" />
       <input class="in" type="date" style="max-width: 150px" [(ngModel)]="to" (change)="refresh()" />
@@ -30,7 +31,7 @@
     <button type="button" [class.on]="chip === ''" (click)="chip = ''">All<b>{{ chipCount('') }}</b></button>
     <button type="button" [class.on]="chip === 'LIABILITY'" (click)="chip = chip === 'LIABILITY' ? '' : 'LIABILITY'">Has liability<b>{{ chipCount('LIABILITY') }}</b></button>
     <button type="button" [class.on]="chip === 'PENDING'" (click)="chip = chip === 'PENDING' ? '' : 'PENDING'">Awaiting decision<b>{{ chipCount('PENDING') }}</b></button>
-    <button type="button" [class.on]="chip === 'OLD60'" (click)="chip = chip === 'OLD60' ? '' : 'OLD60'">Not billed &gt; 60 days<b>{{ chipCount('OLD60') }}</b></button>
+    <button type="button" [class.on]="chip === 'OLD60'" (click)="chip = chip === 'OLD60' ? '' : 'OLD60'">No debit memo &gt; 60 days<b>{{ chipCount('OLD60') }}</b></button>
     <button type="button" [class.on]="chip === 'OLD90'" (click)="chip = chip === 'OLD90' ? '' : 'OLD90'">&gt; 90 days<b>{{ chipCount('OLD90') }}</b></button>
     <button type="button" [class.on]="chip === 'LIVE'" (click)="chip = chip === 'LIVE' ? '' : 'LIVE'">Live programs<b>{{ chipCount('LIVE') }}</b></button>
   </div>
@@ -40,7 +41,7 @@
       <tr>
         <th>Vendor</th><th class="num">Products</th><th class="num">Live programs</th>
         <th class="num">Liability</th><th class="num">Awaiting decision</th>
-        <th class="num">Credited</th><th class="num">Billed (DM)</th><th class="num" *ngIf="rail === 'IR'">PRO pad</th><th>Oldest not billed</th>
+        <th class="num">Posted to GL</th><th class="num">Debit memo</th><th class="num" *ngIf="rail === 'IR'">PRO pad</th><th>Oldest, no debit memo</th>
       </tr>
     </thead>
     <tbody>
@@ -51,7 +52,7 @@
         <td class="num">{{ v.productsActive }}</td>
         <td class="num">{{ v.programsLive }}<span class="sub" *ngIf="v.programsUpcoming"> (+{{ v.programsUpcoming }} later)</span></td>
         <td class="money"><b [class.warn]="v.liability > 0">{{ v.liability | currency }}</b><div class="sub">{{ v.liabilityClaims }} claims</div></td>
-        <td class="money">{{ v.pendingAmount | currency }}<div class="sub">{{ v.pendingClaims }} claims</div></td>
+        <td class="money">{{ v.pendingAmount | currency }}<div class="sub">{{ v.pendingClaims }} claims<span *ngIf="v.supportClaims"> · {{ v.supportClaims }} need support</span></div></td>
         <td class="money">{{ v.creditedAmount | currency }}</td>
         <td class="money">{{ v.reimbursedAmount | currency }}</td>
         <td class="money" *ngIf="rail === 'IR'">{{ v.proPadAmount | currency }}</td>
@@ -98,7 +99,7 @@
     </div>
     <table class="grid">
       <thead><tr><th>Product</th><th class="num">Live</th><th>Last program</th><th class="num">Current amount</th>
-        <th class="num">Units not reimbursed</th><th class="num">Liability</th><th class="num">Awaiting decision</th><th class="num">Credited</th></tr></thead>
+        <th class="num">Units not reimbursed</th><th class="num">Liability</th><th class="num">Awaiting decision</th><th class="num">Posted to GL</th></tr></thead>
       <tbody>
         <tr *ngFor="let p of products" class="click" (click)="showPrograms.emit({ modelId: p.modelId })" [class.off]="!p.isActive">
           <td><div class="rec">{{ p.description }}</div><div class="sub mono">#{{ p.modelId }} · PRO {{ p.proCodeText }}</div></td>
@@ -125,12 +126,12 @@
           <td class="mono">{{ c.orderId }}</td>
           <td class="mono">{{ c.memberId }}</td>
           <td class="mono">{{ c.claimDate | date:'MM/dd/yy' }}<span class="sub" *ngIf="daysOld(c.claimDate) as d"> · {{ d }} d</span></td>
-          <td><span class="status" [class.warn]="c.bucket === 'SUBMITTED'" [class.info]="c.bucket === 'APPROVED'" [class.bad]="c.bucket === 'SENT'">
-            {{ c.bucket === 'SUBMITTED' ? 'Awaiting decision' : c.bucket === 'APPROVED' ? 'Approved, not sent' : 'Credited, not billed' }}</span></td>
+          <td><span class="status" [class.warn]="c.bucket === 'SUBMITTED' || c.bucket === 'SUPPORT'" [class.info]="c.bucket === 'APPROVED'" [class.bad]="c.bucket === 'SENT'">
+            {{ bucketLabel(c.bucket) }}</span></td>
           <td>{{ c.products }}</td>
           <td class="num">{{ c.units }}</td>
           <td class="money">{{ c.amount | currency }}</td>
-          <td class="money">{{ c.bucket === 'SUBMITTED' ? '—' : (c.vendorAmount | currency) }}</td>
+          <td class="money">{{ c.bucket === 'SUBMITTED' || c.bucket === 'SUPPORT' ? '—' : (c.vendorAmount | currency) }}</td>
         </tr>
         <tr *ngIf="!openClaims.length && !detailLoading"><td colspan="8" class="empty">Nothing outstanding.</td></tr>
         <tr *ngIf="detailLoading"><td colspan="8" class="empty"><i class="pi pi-spin pi-spinner"></i> Loading claims…</td></tr>

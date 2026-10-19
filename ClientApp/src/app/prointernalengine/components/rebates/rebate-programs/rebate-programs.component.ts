@@ -2,6 +2,7 @@ import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/cor
 import { finalize } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage, isoDate } from 'src/app/services/rebate-desk.service';
 import { IR_PROGRAM_COLS, PP_PROGRAM_COLS, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
+import { DEFAULT_MONTHS } from '../shared/rebate-window.component';
 
 type Pending =
   | { kind: 'active'; program: any; active: boolean }
@@ -32,7 +33,7 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
   vendors: any[] = [];
   types: any[] = [];
 
-  filter = { vendorId: null as number | null, state: 'ON', when: '', q: '', from: '', to: '' };
+  filter = { vendorId: null as number | null, state: 'ON', when: '', q: '', from: '', to: '', months: DEFAULT_MONTHS };
   page = 1;
   pageSize = 50;
   total = 0;
@@ -81,7 +82,7 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
   refresh(): void {
     this.loading = true;
     const f: any = {
-      vendorId: this.filter.vendorId, modelId: this.modelId, state: this.filter.state, q: this.filter.q,
+      vendorId: this.filter.vendorId, modelId: this.modelId, state: this.filter.state, q: this.filter.q, months: this.modelId ? 0 : this.filter.months,
       page: this.page, pageSize: this.pageSize
     };
     if (this.rail === 'IR') { f.when = this.filter.when; f.batchId = this.batchId; }
@@ -223,7 +224,7 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
 
   private refreshKeep(programId?: number): void {
     this.loading = true;
-    const f: any = { vendorId: this.filter.vendorId, modelId: this.modelId, state: this.filter.state, q: this.filter.q, page: this.page, pageSize: this.pageSize };
+    const f: any = { vendorId: this.filter.vendorId, modelId: this.modelId, state: this.filter.state, q: this.filter.q, months: this.modelId ? 0 : this.filter.months, page: this.page, pageSize: this.pageSize };
     if (this.rail === 'IR') { f.when = this.filter.when; f.batchId = this.batchId; }
     this.desk.programs(this.rail, f).pipe(finalize(() => (this.loading = false))).subscribe(r => {
       this.rows = r.rows;

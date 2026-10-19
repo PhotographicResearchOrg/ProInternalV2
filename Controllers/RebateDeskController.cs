@@ -253,14 +253,15 @@ namespace ProInternal.Controllers
 
         [HttpGet("batches")]
         public Task<IActionResult> Batches([FromQuery] string? q, [FromQuery] int? vendorId, [FromQuery] string? state,
-                                           [FromQuery] int page = 1, [FromQuery] int pageSize = 50) =>
+                                           [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12) =>
             Read(async () => Paged(await _data.QueryAsync("piv2.Rebate_Batches", new
             {
                 Q = string.IsNullOrWhiteSpace(q) ? null : q.Trim(),
                 VendorId = vendorId,
                 State = string.IsNullOrWhiteSpace(state) ? null : state,
                 Page = page,
-                PageSize = pageSize
+                PageSize = pageSize,
+                Months = months
             })));
 
         [HttpGet("batches/{batchId:int}/programs")]
@@ -291,7 +292,7 @@ namespace ProInternal.Controllers
         [HttpGet("programs")]
         public Task<IActionResult> Programs([FromQuery] int? vendorId, [FromQuery] int? modelId, [FromQuery] int? batchId,
                                             [FromQuery] string? state, [FromQuery] string? when, [FromQuery] string? q,
-                                            [FromQuery] int page = 1, [FromQuery] int pageSize = 50) =>
+                                            [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12) =>
             Read(async () => Paged(await _data.QueryAsync("piv2.Rebate_Programs", new
             {
                 VendorId = vendorId,
@@ -301,7 +302,8 @@ namespace ProInternal.Controllers
                 When = string.IsNullOrWhiteSpace(when) ? null : when,
                 Q = q,
                 Page = page,
-                PageSize = pageSize
+                PageSize = pageSize,
+                Months = months
             })));
 
         [HttpPost("programs")]
@@ -438,7 +440,7 @@ namespace ProInternal.Controllers
         [HttpGet("pp/programs")]
         public Task<IActionResult> PriceProtectionPrograms([FromQuery] int? vendorId, [FromQuery] int? modelId, [FromQuery] string? state,
                                                            [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? q,
-                                                           [FromQuery] int page = 1, [FromQuery] int pageSize = 50) =>
+                                                           [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12) =>
             Read(async () => Paged(await _data.QueryAsync("piv2.PP_Programs", new
             {
                 VendorId = vendorId,
@@ -448,7 +450,8 @@ namespace ProInternal.Controllers
                 To = to?.Date,
                 Q = q,
                 Page = page,
-                PageSize = pageSize
+                PageSize = pageSize,
+                Months = months
             })));
 
         [HttpPost("pp/programs")]
@@ -490,7 +493,7 @@ namespace ProInternal.Controllers
 
         [HttpGet("liability")]
         public Task<IActionResult> Liability([FromQuery] string? rail, [FromQuery] int? vendorId,
-                                             [FromQuery] DateTime? from, [FromQuery] DateTime? to) =>
+                                             [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int months = 12) =>
             Read(async () =>
             {
                 var sets = await _data.QuerySetsAsync("piv2.Rebate_VendorLiability", new
@@ -498,7 +501,8 @@ namespace ProInternal.Controllers
                     Rail = Rail(rail),
                     VendorId = vendorId,
                     From = from?.Date,
-                    To = to?.Date
+                    To = to?.Date,
+                    Months = months
                 });
                 return new
                 {
@@ -512,7 +516,8 @@ namespace ProInternal.Controllers
 
         [HttpGet("claims")]
         public Task<IActionResult> Claims([FromQuery] string? rail, [FromQuery] string? q, [FromQuery] int? vendorId, [FromQuery] string? state,
-                                          [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 50) =>
+                                          [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 50,
+                                          [FromQuery] int months = 12, [FromQuery] int? memberId = null, [FromQuery] int? modelId = null) =>
             Read(async () => Paged(await _data.QueryAsync("piv2.Claim_Search", new
             {
                 Rail = Rail(rail),
@@ -522,7 +527,10 @@ namespace ProInternal.Controllers
                 From = from?.Date,
                 To = to?.Date,
                 Page = page,
-                PageSize = pageSize
+                PageSize = pageSize,
+                Months = months,
+                MemberId = memberId,
+                ModelId = modelId
             })));
 
         [HttpGet("claims/{rail}/{orderId:int}")]
@@ -545,6 +553,12 @@ namespace ProInternal.Controllers
         [RequirePermission(AccountingPermission)]
         public Task<IActionResult> ResendCredit(string rail, int orderId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Claim_ResendCredit", new { Rail = Rail(rail), OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
+
+        /* Status 3 (needs support) back into the approval queue, the same way the BRM dashboard does it. */
+        [HttpPost("claims/{rail}/{orderId:int}/resubmit")]
+        [RequirePermission(AccountingPermission)]
+        public Task<IActionResult> Resubmit(string rail, int orderId, [FromBody] RebateReasonRequest body) =>
+            Act(() => _data.ExecuteAsync("piv2.Claim_Resubmit", new { OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
 
         [HttpPost("claims/{rail}/{orderId:int}/invoice")]
         [RequirePermission(AccountingPermission)]
@@ -586,8 +600,8 @@ namespace ProInternal.Controllers
             Read(() => _claims.CreateDebitMemoAsync(body, Request.HasFormContentType ? Request.Form.Files : null, Actor, cancellationToken));
 
         [HttpGet("debitmemos")]
-        public Task<IActionResult> DebitMemos([FromQuery] string? rail, [FromQuery] string? q) =>
-            Read(() => _data.QueryAsync("piv2.Claim_DebitMemos", new { Rail = Rail(rail), Q = q, Take = 200 }));
+        public Task<IActionResult> DebitMemos([FromQuery] string? rail, [FromQuery] string? q, [FromQuery] int months = 12) =>
+            Read(() => _data.QueryAsync("piv2.Claim_DebitMemos", new { Rail = Rail(rail), Q = q, Take = 200, Months = months }));
 
         [HttpGet("debitmemos/{debitMemoId:int}/csv")]
         public async Task<IActionResult> DebitMemoCsv(int debitMemoId)

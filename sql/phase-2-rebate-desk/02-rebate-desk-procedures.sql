@@ -1379,7 +1379,8 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Batches
     @VendorId int = NULL,
     @State    varchar(10) = NULL,      -- LIVE, OFF, MIXED, or NULL for all
     @Page     int = 1,
-    @PageSize int = 50
+    @PageSize int = 50,
+    @Months   int = 12                 -- batches running in the last @Months months (or live); 0 = all history
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1387,6 +1388,8 @@ BEGIN
 
     SET @Page = CASE WHEN @Page < 1 THEN 1 ELSE @Page END;
     SET @PageSize = CASE WHEN @PageSize NOT BETWEEN 1 AND 200 THEN 50 ELSE @PageSize END;
+    DECLARE @since date = CASE WHEN @Months > 0 THEN DATEADD(month, -@Months, CAST(GETDATE() AS date)) ELSE '19000101' END;
+    IF TRY_CAST(@Q AS int) IS NOT NULL SET @since = '19000101';   -- a batch number is found however old
 
     ;WITH b AS
     (
@@ -1408,6 +1411,7 @@ BEGIN
           LEFT JOIN dbo.RebateType t ON t.ID = p.IRType
          WHERE p.BatchID IS NOT NULL
          GROUP BY p.BatchID
+        HAVING MAX(p.ProgramEndWeek) >= @since OR SUM(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END) > 0
     )
     SELECT b.*,
            CASE WHEN b.LivePrograms = b.Programs THEN 'LIVE' WHEN b.LivePrograms = 0 THEN 'OFF' ELSE 'MIXED' END AS State,

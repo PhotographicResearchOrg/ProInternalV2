@@ -43,8 +43,10 @@ GO
 
 /* ---------------------------------------------------------------
    Claims for a rail, newest first.
-   @State: SUBMITTED, APPROVED (not sent), SENT, DECLINED,
-           NO_DM (approved, not billed to the vendor), NOT_INVOICED (sent, no invoice)
+   @State: SUBMITTED (no decision), SUPPORT (status 3, needs support), APPROVED (not posted, incl. on hold),
+           HELD (on hold), SENT (posted to the GL), DECLINED, NO_DM (approved, no debit memo),
+           NOT_INVOICED (posted, AR shows the credit, no member invoice), NOT_IN_AR (marked posted, AR has no credit)
+   Only claims from the last @Months months (12 by default; 0 = all history).
    --------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE piv2.Claim_Search
     @Rail     char(2) = 'IR',
@@ -54,7 +56,10 @@ CREATE OR ALTER PROCEDURE piv2.Claim_Search
     @From     date = NULL,               -- claim date
     @To       date = NULL,
     @Page     int = 1,
-    @PageSize int = 50
+    @PageSize int = 50,
+    @Months   int = 12,                  -- window in months (12 default, 24 = two years); 0 = all history
+    @MemberId int = NULL,                -- every claim of one member
+    @ModelId  int = NULL                 -- claims with a line for this rebate product
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -65,6 +70,8 @@ BEGIN
     SET @Q = NULLIF(LTRIM(RTRIM(@Q)), N'');
     DECLARE @qInt int = TRY_CAST(@Q AS int);
     DECLARE @toEx datetime = DATEADD(day, 1, CAST(@To AS datetime));
+    DECLARE @since date = CASE WHEN @Months > 0 THEN DATEADD(month, -@Months, CAST(GETDATE() AS date)) ELSE '19000101' END;
+    IF @From IS NULL OR @From < @since SET @From = @since;
 
     /* A debit memo number searches the decisions first; anything else is a claim or member number. */
     CREATE TABLE #dm (OrderId int NOT NULL PRIMARY KEY);
@@ -95,6 +102,8 @@ BEGIN
            AND (@From IS NULL OR r.Date >= @From)
            AND (@To IS NULL OR r.Date < @toEx)
            AND (@Q IS NULL OR r.ORDERID = @qInt OR r.MemberID = @qInt OR r.ORDERID IN (SELECT OrderId FROM #dm))
+           AND (@MemberId IS NULL OR r.MemberID = @MemberId)
+           AND (@ModelId IS NULL OR r.ORDERID IN (SELECT x.ORDERID FROM dbo.PriceProtectionRedeem x WHERE x.ModelID = @ModelId))
          GROUP BY r.ORDERID
         OPTION (RECOMPILE);
     ELSE
@@ -109,6 +118,8 @@ BEGIN
            AND (@From IS NULL OR r.Date >= @From)
            AND (@To IS NULL OR r.Date < @toEx)
            AND (@Q IS NULL OR r.ORDERID = @qInt OR r.MemberID = @qInt OR r.ORDERID IN (SELECT OrderId FROM #dm))
+           AND (@MemberId IS NULL OR r.MemberID = @MemberId)
+           AND (@ModelId IS NULL OR r.ORDERID IN (SELECT x.ORDERID FROM dbo.RebateRedeem x WHERE x.ModelID = @ModelId))
          GROUP BY r.ORDERID
         OPTION (RECOMPILE);
 
@@ -126,11 +137,13 @@ BEGIN
         OrderId int NOT NULL PRIMARY KEY, MemberId int NULL, VendorId int NULL, VendorName nvarchar(200) NULL,
         ClaimDate datetime NULL, Lines int NOT NULL, Units int NULL, Amount decimal(19,2) NOT NULL,
         Status int NULL, DecidedAt datetime NULL, DecidedBy nvarchar(100) NULL, Locked int NULL,
-        DebitMemo varchar(100) NULL, ComputymeProcessed int NULL, Invoiced bit NOT NULL, Memo nvarchar(100) NULL
+        DebitMemo varchar(100) NULL, ComputymeProcessed int NULL, Invoiced bit NOT NULL, Memo nvarchar(100) NULL,
+        HasAr bit NULL
     );
 
     IF @Rail = 'PP'
-        INSERT #c
+        INSERT #c (OrderId, MemberId, VendorId, VendorName, ClaimDate, Lines, Units, Amount, Status, DecidedAt, DecidedBy, Locked,
+                   DebitMemo, ComputymeProcessed, Invoiced, Memo)
         SELECT r.OrderId, r.MemberId, r.VendorId, r.VendorName, r.ClaimDate, r.Lines, r.Units, r.Amount,
                p.Status, p.timeEnd, p.[User], p.Locked, NULLIF(LTRIM(RTRIM(p.DM)), ''), p.ComputymeProcessed,
                CAST(CASE WHEN p.InvoiceGenerated = 1 THEN 1 ELSE 0 END AS bit), r.Memo
@@ -138,7 +151,8 @@ BEGIN
           OUTER APPLY (SELECT TOP (1) x.Status, x.timeEnd, x.[User], x.Locked, x.DM, x.ComputymeProcessed, x.InvoiceGenerated
                          FROM dbo.PriceProtectionProcess x WHERE x.OrderID = r.OrderId ORDER BY x.ID DESC) p;
     ELSE
-        INSERT #c
+        INSERT #c (OrderId, MemberId, VendorId, VendorName, ClaimDate, Lines, Units, Amount, Status, DecidedAt, DecidedBy, Locked,
+                   DebitMemo, ComputymeProcessed, Invoiced, Memo)
         SELECT r.OrderId, r.MemberId, r.VendorId, r.VendorName, r.ClaimDate, r.Lines, r.Units, r.Amount,
                p.Status, p.timeEnd, p.[User], p.Locked, NULLIF(LTRIM(RTRIM(p.DM)), ''), p.ComputymeProcessed,
                CAST(CASE WHEN i.OrderId IS NULL THEN 0 ELSE 1 END AS bit), r.Memo
@@ -147,8 +161,15 @@ BEGIN
                          FROM dbo.RebateProcess x WHERE x.OrderID = r.OrderId ORDER BY x.ID DESC) p
           LEFT JOIN #inv i ON i.OrderId = r.OrderId;
 
+    /* Posted claims with no member invoice: does AR show the credit? (Few claims; the AR lookup runs only for these.) */
+    UPDATE c SET HasAr = CASE WHEN EXISTS (SELECT 1 FROM piv2.Rebate_ArCredit(c.MemberId, c.OrderId)) THEN 1 ELSE 0 END
+      FROM #c c
+     WHERE c.Status = 1 AND c.ComputymeProcessed = 1 AND c.Invoiced = 0;
+
     SELECT c.*,
            CASE WHEN c.Status = 2 THEN 'DECLINED'
+                WHEN c.Status = 3 THEN 'SUPPORT'
+                WHEN c.Status = 1 AND c.ComputymeProcessed = 1 AND c.HasAr = 0 THEN 'NOT_IN_AR'
                 WHEN c.Status = 1 AND c.ComputymeProcessed = 1 THEN 'SENT'
                 WHEN c.Status = 1 AND c.ComputymeProcessed IS NULL THEN 'APPROVED'
                 WHEN c.Status = 1 THEN 'HELD'
@@ -156,12 +177,15 @@ BEGIN
            COUNT(*) OVER () AS TotalRows
       FROM #c c
      WHERE @State IS NULL
-        OR (@State = 'SUBMITTED' AND COALESCE(c.Status, 0) NOT IN (1, 2))
+        OR (@State = 'SUBMITTED' AND COALESCE(c.Status, 0) NOT IN (1, 2, 3))
+        OR (@State = 'SUPPORT' AND c.Status = 3)
         OR (@State = 'APPROVED' AND c.Status = 1 AND COALESCE(c.ComputymeProcessed, 0) <> 1)
+        OR (@State = 'HELD' AND c.Status = 1 AND COALESCE(c.ComputymeProcessed, 1) <> 1)
         OR (@State = 'SENT' AND c.Status = 1 AND c.ComputymeProcessed = 1)
         OR (@State = 'DECLINED' AND c.Status = 2)
         OR (@State = 'NO_DM' AND c.Status = 1 AND c.DebitMemo IS NULL)
-        OR (@State = 'NOT_INVOICED' AND c.Status = 1 AND c.ComputymeProcessed = 1 AND c.Invoiced = 0)
+        OR (@State = 'NOT_INVOICED' AND c.Status = 1 AND c.ComputymeProcessed = 1 AND c.Invoiced = 0 AND c.HasAr = 1)
+        OR (@State = 'NOT_IN_AR' AND c.Status = 1 AND c.ComputymeProcessed = 1 AND c.HasAr = 0)
      ORDER BY c.ClaimDate DESC, c.OrderId DESC
      OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
     OPTION (RECOMPILE);
@@ -295,6 +319,35 @@ BEGIN
             (SELECT @processId AS processId, @sent AS computymeProcessedWas FOR JSON PATH, WITHOUT_ARRAY_WRAPPER));
 
     COMMIT;
+END
+GO
+
+/* Status 3 (needs support): back into the approval queue once the member has added support.
+   Uses the same legacy procedure as the BRM dashboard (dbo.ResubmitRebateOrder), then records who and why. IR only. */
+CREATE OR ALTER PROCEDURE piv2.Claim_Resubmit
+    @OrderId int,
+    @Actor   nvarchar(100),
+    @Reason  nvarchar(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
+        THROW 50702, 'A reason is required.', 1;
+    IF OBJECT_ID(N'dbo.ResubmitRebateOrder', N'P') IS NULL
+        THROW 50766, 'dbo.ResubmitRebateOrder is not on this database.', 1;
+
+    DECLARE @status int = (SELECT TOP (1) Status FROM dbo.RebateProcess WHERE OrderID = @OrderId ORDER BY ID DESC);
+    IF @status IS NULL OR @status <> 3
+        THROW 50767, 'Only claims that need support (status 3) go back to the queue.', 1;
+
+    EXEC dbo.ResubmitRebateOrder @orderId = @OrderId;
+
+    INSERT piv2.RebateEvent (Rail, EventType, ClaimId, Actor, Reason, Detail)
+    VALUES ('IR', 'CLAIM_RESUBMITTED', @OrderId, @Actor, @Reason,
+            (SELECT @status AS statusWas, (SELECT TOP (1) Status FROM dbo.RebateProcess WHERE OrderID = @OrderId ORDER BY ID DESC) AS statusNow
+               FOR JSON PATH, WITHOUT_ARRAY_WRAPPER));
 END
 GO
 
@@ -572,17 +625,20 @@ GO
 
 CREATE OR ALTER PROCEDURE piv2.Claim_DebitMemos
     @Rail char(2) = 'IR',
-    @Q    nvarchar(100) = NULL,
-    @Take int = 100
+    @Q      nvarchar(100) = NULL,
+    @Take   int = 100,
+    @Months int = 12                -- window in months (12 default, 24 = two years); 0 = all history
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
     SET @Q = NULLIF(LTRIM(RTRIM(@Q)), N'');
+    DECLARE @since date = CASE WHEN @Months > 0 THEN DATEADD(month, -@Months, CAST(GETDATE() AS date)) ELSE '19000101' END;
     SELECT TOP (CASE WHEN @Take BETWEEN 1 AND 500 THEN @Take ELSE 100 END)
            DebitMemoId, Rail, DM AS DebitMemo, VendorIds, VendorName, Claims, Total, EmailTo, Ref1, Ref2, FileId, EmailedAt, EmailError, CreatedBy, CreatedAt
       FROM piv2.RebateDebitMemo
-     WHERE Rail = @Rail AND (@Q IS NULL OR DM LIKE '%' + @Q + '%' OR VendorName LIKE N'%' + @Q + N'%')
+     WHERE Rail = @Rail AND CreatedAt >= @since
+       AND (@Q IS NULL OR DM LIKE '%' + @Q + '%' OR VendorName LIKE N'%' + @Q + N'%')
      ORDER BY DebitMemoId DESC;
 END
 GO
