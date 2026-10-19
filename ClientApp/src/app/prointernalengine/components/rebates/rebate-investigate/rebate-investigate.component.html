@@ -108,7 +108,7 @@
     <div class="card-head"><h2>Timeline</h2><span class="sub">{{ timelineShown.length }} events, oldest first</span></div>
     <div class="chips">
       <span class="lbl">Show</span>
-      <button type="button" *ngFor="let k of ['BOUGHT', 'CLAIMED', 'APPROVED', 'NEEDS_SUPPORT', 'DECLINED', 'POSTED', 'DEBIT_MEMO', 'DESK']"
+      <button type="button" *ngFor="let k of ['BOUGHT', 'CLAIMED', 'APPROVED', 'NEEDS_SUPPORT', 'DECLINED', 'POSTED', 'DESK']"
               [class.on]="timelineKinds[k] !== false" (click)="timelineKinds[k] = timelineKinds[k] === false">{{ kindLabels[k] }}</button>
     </div>
     <table class="grid">
@@ -118,7 +118,8 @@
           <td class="mono">{{ e.kind === 'BOUGHT' ? (e.at | date:'MMM yyyy':'UTC') : (e.at | date:'MM/dd/yy') }}</td>
           <td><span class="status" [class.ok]="e.kind === 'APPROVED' || e.kind === 'POSTED'" [class.bad]="e.kind === 'DECLINED'"
                     [class.warn]="e.kind === 'NEEDS_SUPPORT'" [class.info]="e.kind === 'BOUGHT'">{{ kindLabels[e.kind] || e.kind }}</span></td>
-          <td class="mono">{{ e.orderId }}</td>
+          <td><span class="mono">{{ e.orderId }}</span>
+            <div *ngIf="e.kind === 'CLAIMED' && debitMemoFor(e.orderId) as dm"><span class="chip" title="Billed to the vendor on this debit memo">DM {{ dm }}</span></div></td>
           <td>{{ productName(e.modelId) }}</td>
           <td>{{ e.text }}<div class="sub" *ngIf="e.detail" [style.color]="e.kind === 'CLAIMED' ? '#b42318' : null">{{ e.detail }}</div></td>
           <td class="money">{{ e.amount != null ? (e.amount | currency) : '' }}</td>

@@ -155,8 +155,20 @@ export class RebateInvestigateComponent implements OnChanges {
     return t.unitsBought > 0 ? Math.round((t.unitsClaimed * 1000) / t.unitsBought) / 10 : null;
   }
 
+  /* Debit memos show as a chip on the claim's lines, not as rows of their own. */
   get timelineShown(): any[] {
-    return (this.member?.timeline ?? []).filter(e => this.timelineKinds[e.kind] !== false);
+    return (this.member?.timeline ?? []).filter(e => e.kind !== 'DEBIT_MEMO' && this.timelineKinds[e.kind] !== false);
+  }
+
+  private dmCache: { src: any; map: Map<number, string> } | null = null;
+  debitMemoFor(orderId: number | null): string | null {
+    if (!orderId || !this.member) return null;
+    if (!this.dmCache || this.dmCache.src !== this.member.timeline) {
+      const map = new Map<number, string>();
+      for (const e of this.member.timeline) if (e.kind === 'DEBIT_MEMO' && e.orderId) map.set(+e.orderId, String(e.text || '').replace(/^On debit memo\s*/, ''));
+      this.dmCache = { src: this.member.timeline, map };
+    }
+    return this.dmCache.map.get(+orderId) ?? null;
   }
 
   productName(modelId: number | null): string {
@@ -189,8 +201,9 @@ export class RebateInvestigateComponent implements OnChanges {
         col('Repeated serials', 'repeatedSerials', 'number')] },
       { name: 'Months', rows: this.member.months, cols: [
         col('Month', 'monthStart', 'date'), col('Units bought', 'unitsBought', 'number'), col('Units claimed', 'unitsClaimed', 'number')] },
-      { name: 'Timeline', rows: this.member.timeline, cols: [
+      { name: 'Timeline', rows: this.member.timeline.filter(e => e.kind !== 'DEBIT_MEMO'), cols: [
         col('When', 'at', 'datetime'), col('What', r => this.kindLabels[r.kind] ?? r.kind), col('Claim', 'orderId', 'number'),
+        col('Debit memo', r => this.debitMemoFor(r.orderId)),
         col('Product', r => this.productName(r.modelId), 'text', 40), col('Detail', 'text', 'text', 50), col('Qty', 'quantity', 'number'),
         col('Amount', 'amount', 'money'), col('Note', 'detail', 'text', 50)] }
     ]);
