@@ -41,7 +41,7 @@ export class RebateInvestigateComponent implements OnChanges {
   member: { products: any[]; months: any[]; claims: any[]; purchases: any[]; about: any; linked: any[]; pads: any[] } | null = null;
   focusLabel = '';
   claimantsOf: { modelId?: number; vendorId?: number; label: string } | null = null;
-  claimants: { members: any[]; about: any } | null = null;
+  claimants: { members: any[]; about: any; codes?: any[] } | null = null;
 
   /* One chip at a time, like the rest of the desk. */
   claimChip = '';
@@ -394,9 +394,11 @@ export class RebateInvestigateComponent implements OnChanges {
     if (!this.claimants) return;
     downloadXlsx(`Investigate ${this.claimantsOf?.label ?? ''}`.trim(), [{ name: 'Members', rows: this.claimants.members, cols: [
       col('Member', 'memberId', 'number'), col('Name', 'memberName', 'text', 30), col('Claims', 'claims', 'number'),
-      col('Units claimed', 'unitsClaimed', 'number'), col('Units bought', 'unitsBought', 'number'), col('Stock padding', 'unitsPadded', 'number'), col('Claim rate %', 'claimRatePct', 'number'),
+      col('Units bought', 'unitsBought', 'number'), col('Of which via linked models', 'unitsBoughtLinked', 'number'), col('Stock padding', 'unitsPadded', 'number'),
+      col('Padding reasons', 'padReasons', 'text', 40), col('Available', 'unitsAvailable', 'number'), col('Units claimed', 'unitsClaimed', 'number'),
+      col('Net available', 'netAvailable', 'number'), col('Claim rate %', 'claimRatePct', 'number'),
       col('Claimed $', 'amountClaimed', 'money'), col('Bought $', 'amountBought', 'money'),
       col('First claim', 'firstClaim', 'date'), col('Last claim', 'lastClaim', 'date'),
-      col('No PRO purchase on record', 'noPurchaseOnRecord'), col('Claimed more than bought', 'claimedMoreThanBought')] }]);
+      col('No PRO purchase on record', 'noPurchaseOnRecord'), col('Claimed more than available', 'claimedMoreThanBought')] }]);
   }
 }

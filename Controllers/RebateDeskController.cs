@@ -607,7 +607,8 @@ namespace ProInternal.Controllers
                 return new
                 {
                     members = sets.ElementAtOrDefault(0) ?? new List<RebateRow>(),
-                    about = (sets.ElementAtOrDefault(1) ?? new List<RebateRow>()).FirstOrDefault()
+                    about = (sets.ElementAtOrDefault(1) ?? new List<RebateRow>()).FirstOrDefault(),
+                    codes = sets.ElementAtOrDefault(2) ?? new List<RebateRow>()
                 };
             });
 

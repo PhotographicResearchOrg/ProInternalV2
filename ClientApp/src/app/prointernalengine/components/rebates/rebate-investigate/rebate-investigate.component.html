@@ -24,24 +24,35 @@
 <section class="card" *ngIf="claimants && claimantsOf">
   <div class="card-head"><h2>Who claimed {{ claimantsOf.label }}</h2><span class="sub">{{ claimants.members.length }} members</span><span class="grow"></span>
     <button type="button" class="btn ghost" (click)="exportClaimants()" [disabled]="!claimants.members.length"><i class="pi pi-file-excel"></i> Excel</button></div>
-  <div class="sub" style="margin: 0 0 8px">Claims and purchases from {{ claimants.about?.windowFrom | date:'MM/dd/yy' }}. Declined claims are not counted against purchases.
+  <div class="sub" style="margin: 0 0 8px">Claims and purchases from {{ claimants.about?.windowFrom | date:'MM/dd/yy' }}. Bought includes linked models (successors / predecessors); available adds stock padding. Declined claims are not counted.
     Sales as of {{ (claimants.about?.salesAsOf | date:'MM/dd/yy h:mm a') || 'never: the nightly sales summary has not run yet' }}.</div>
+  <div class="chips" *ngIf="claimants.codes?.length">
+    <span class="lbl">PRO codes counted</span>
+    <span class="chip" *ngFor="let k of claimants.codes" [class.info]="k.isLinked" [title]="k.productName">
+      {{ k.proCode }}{{ k.isLinked ? ' · linked via ' + k.linkedFrom : '' }}{{ k.productName ? ' · ' + k.productName : '' }}</span>
+  </div>
   <table class="grid">
-    <thead><tr><th>Member</th><th class="num">Claims</th><th class="num">Units claimed</th><th class="num">Units bought</th><th class="num">Claim rate</th>
-      <th class="num">Claimed</th><th>First / last claim</th><th></th></tr></thead>
+    <thead><tr><th>Member</th><th class="num">Claims</th><th class="num">Bought</th><th class="num">Stock padding</th>
+      <th class="num" title="Bought + stock padding">Available</th><th class="num">Claimed</th>
+      <th class="num" title="Available − claimed: negative means more claimed than available">Net available</th><th class="num">Claim rate</th>
+      <th class="num">Claimed $</th><th>First / last claim</th><th></th></tr></thead>
     <tbody>
       <tr *ngFor="let m of claimants.members" class="click" (click)="drill(m)">
         <td><div class="mono">{{ m.memberId }}</div><div class="sub">{{ m.memberName }}</div></td>
         <td class="num">{{ m.claims }}</td>
+        <td class="num">{{ m.unitsBought | number:'1.0-0' }}<div class="sub" *ngIf="m.unitsBoughtLinked">{{ m.unitsBoughtLinked | number:'1.0-0' }} via linked</div></td>
+        <td class="num"><span *ngIf="m.unitsPadded" class="padded" [class.neg]="m.unitsPadded < 0" [title]="(m.unitsPadded < 0 ? 'Takes units off. ' : '') + (m.padReasons || '')">{{ m.unitsPadded | number:'1.0-0' }} <i class="pi pi-info-circle"></i></span>
+          <span *ngIf="!m.unitsPadded" class="sub">—</span></td>
+        <td class="num"><b [style.color]="m.unitsAvailable < 0 ? '#b42318' : null">{{ m.unitsAvailable | number:'1.0-0' }}</b></td>
         <td class="num">{{ m.unitsClaimed }}</td>
-        <td class="num">{{ m.unitsBought | number:'1.0-0' }}</td>
+        <td class="num"><b [style.color]="m.netAvailable < 0 ? '#b42318' : '#1f7a4d'">{{ m.netAvailable | number:'1.0-0' }}</b></td>
         <td class="num">{{ m.claimRatePct != null ? (m.claimRatePct | number:'1.0-1') + '%' : '—' }}</td>
         <td class="money">{{ m.amountClaimed | currency }}</td>
         <td class="mono">{{ m.firstClaim | date:'MM/dd/yy' }} – {{ m.lastClaim | date:'MM/dd/yy' }}</td>
         <td><span class="status bad" *ngIf="m.noPurchaseOnRecord" title="No purchase of these PRO codes from PRO in the member's whole AR history">no PRO purchase on record</span>
-          <span class="status bad" *ngIf="m.claimedMoreThanBought && !m.noPurchaseOnRecord">claimed more than bought</span></td>
+          <span class="status bad" *ngIf="m.claimedMoreThanBought && !m.noPurchaseOnRecord">claimed more than available</span></td>
       </tr>
-      <tr *ngIf="!claimants.members.length"><td colspan="8" class="empty">Nobody claimed it in this window.</td></tr>
+      <tr *ngIf="!claimants.members.length"><td colspan="11" class="empty">Nobody claimed it in this window.</td></tr>
     </tbody>
   </table>
 </section>

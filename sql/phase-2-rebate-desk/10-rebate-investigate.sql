@@ -361,6 +361,16 @@ BEGIN
          WHERE s.MonthStart >= @buyFrom AND s.MemberId IN (SELECT MemberId FROM cl)
          GROUP BY s.MemberId
     ),
+    bl AS
+    (
+        /* The part of bought that came through linked models (codes that are not the products' own). */
+        SELECT s.MemberId, SUM(s.Units) AS UnitsLinked
+          FROM piv2.MemberSalesMonth s
+          JOIN (SELECT DISTINCT ProCode FROM #link WHERE IsLinked = 1
+                 AND ProCode NOT IN (SELECT ProCode FROM #link WHERE IsLinked = 0)) k ON k.ProCode = s.ProCode
+         WHERE s.MonthStart >= @buyFrom AND s.MemberId IN (SELECT MemberId FROM cl)
+         GROUP BY s.MemberId
+    ),
     pd AS
     (
         SELECT o.Member AS MemberId, SUM(o.Quantity) AS UnitsPadded
@@ -373,12 +383,18 @@ BEGIN
            CAST(CASE WHEN COALESCE(pd.UnitsPadded, 0) > 0
                        OR EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
                                    WHERE s.MemberId = cl.MemberId AND s.Units > 0) THEN 0 ELSE 1 END AS bit) AS NoPurchaseOnRecord, cl.Claims, cl.UnitsClaimed, cl.AmountClaimed, cl.FirstClaim, cl.LastClaim,
-           COALESCE(bo.UnitsBought, 0) AS UnitsBought, COALESCE(pd.UnitsPadded, 0) AS UnitsPadded, COALESCE(bo.AmountBought, 0) AS AmountBought,
+           COALESCE(bo.UnitsBought, 0) AS UnitsBought, COALESCE(bl.UnitsLinked, 0) AS UnitsBoughtLinked, COALESCE(pd.UnitsPadded, 0) AS UnitsPadded,
+           COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0) AS UnitsAvailable,
+           COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0) - cl.UnitsClaimed AS NetAvailable, pr.PadReasons, COALESCE(bo.AmountBought, 0) AS AmountBought,
            CAST(CASE WHEN COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0) > 0 THEN cl.UnitsClaimed * 100.0 / (COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0)) END AS decimal(9,1)) AS ClaimRatePct,
            CAST(CASE WHEN cl.UnitsClaimed > COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0) THEN 1 ELSE 0 END AS bit) AS ClaimedMoreThanBought
       FROM cl
       LEFT JOIN bo ON bo.MemberId = cl.MemberId
+      LEFT JOIN bl ON bl.MemberId = cl.MemberId
       LEFT JOIN pd ON pd.MemberId = cl.MemberId
+     OUTER APPLY (SELECT STRING_AGG(CAST(CONCAT(o.Quantity, N' × ', o.ModelNumber, N': ', COALESCE(o.Reason, N'no reason recorded')) AS nvarchar(max)), N'; ') AS PadReasons
+                    FROM [EDA].dbo.RebateOverride o JOIN #code c ON c.ProCode = o.ModelNumber
+                   WHERE o.Member = cl.MemberId AND o.RemovedAt IS NULL) pr
       LEFT JOIN piv2.MemberName n ON n.MemberId = cl.MemberId
      ORDER BY CASE WHEN COALESCE(pd.UnitsPadded, 0) <= 0
                     AND NOT EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
@@ -389,6 +405,14 @@ BEGIN
 
     SELECT (SELECT MAX(FinishedAt) FROM piv2.SalesRefreshLog WHERE Error IS NULL AND FinishedAt IS NOT NULL) AS SalesAsOf,
            @since AS WindowFrom, @buyFrom AS PurchasesFrom;
+
+    /* The PRO codes counted: the products' own and their linked models. */
+    SELECT k.ProCode, CAST(MIN(CAST(k.IsLinked AS int)) AS bit) AS IsLinked, MIN(k.LinkedFrom) AS LinkedFrom, MAX(pr.Name) AS ProductName
+      FROM #link k
+     OUTER APPLY (SELECT TOP (1) LEFT(LTRIM(RTRIM(p.ModelName)), 200) AS Name FROM [PRO].dbo.Product p
+                   WHERE CAST(p.ProductCode AS nvarchar(20)) = CAST(k.ProCode AS nvarchar(20))) pr
+     GROUP BY k.ProCode
+     ORDER BY MIN(CAST(k.IsLinked AS int)), k.ProCode;
 END
 GO
 
