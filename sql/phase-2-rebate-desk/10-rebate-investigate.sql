@@ -332,17 +332,27 @@ BEGIN
     CREATE TABLE #code (ProCode int NOT NULL PRIMARY KEY);
     INSERT #code SELECT DISTINCT ProCode FROM #link;
 
+    /* The claim lines, then each claim's latest decision once (not once per line). */
+    CREATE TABLE #cl (OrderId int NOT NULL, MemberId int NULL, Quantity int NULL, Net decimal(19,2) NOT NULL, ClaimDate datetime NULL);
+    INSERT #cl
+    SELECT r.ORDERID, r.MemberID, r.Quantity, CAST(COALESCE(r.Net, 0) AS decimal(19,2)), r.Date
+      FROM dbo.RebateRedeem r JOIN #m m ON m.ModelId = r.ModelID
+     WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL AND r.Date >= @since;
+    CREATE TABLE #st (OrderId int NOT NULL PRIMARY KEY, Status int NULL);
+    INSERT #st
+    SELECT o.OrderId, p.Status
+      FROM (SELECT DISTINCT OrderId FROM #cl) o
+     OUTER APPLY (SELECT TOP (1) x.Status FROM dbo.RebateProcess x WHERE x.OrderID = o.OrderId ORDER BY x.ID DESC) p;
+
     ;WITH cl AS
     (
         /* Declined claims are listed but not counted against purchases (same rule as the member view). */
-        SELECT r.MemberID AS MemberId, COUNT(DISTINCT r.ORDERID) AS Claims,
-               SUM(CASE WHEN COALESCE(p.Status, 0) <> 2 THEN COALESCE(r.Quantity, 0) ELSE 0 END) AS UnitsClaimed,
-               SUM(CASE WHEN COALESCE(p.Status, 0) <> 2 THEN CAST(COALESCE(r.Net, 0) AS decimal(19,2)) ELSE 0 END) AS AmountClaimed,
-               MIN(r.Date) AS FirstClaim, MAX(r.Date) AS LastClaim
-          FROM dbo.RebateRedeem r JOIN #m m ON m.ModelId = r.ModelID
-         OUTER APPLY (SELECT TOP (1) x.Status FROM dbo.RebateProcess x WHERE x.OrderID = r.ORDERID ORDER BY x.ID DESC) p
-         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL AND r.Date >= @since
-         GROUP BY r.MemberID
+        SELECT c.MemberId, COUNT(DISTINCT c.OrderId) AS Claims,
+               SUM(CASE WHEN COALESCE(t.Status, 0) <> 2 THEN COALESCE(c.Quantity, 0) ELSE 0 END) AS UnitsClaimed,
+               SUM(CASE WHEN COALESCE(t.Status, 0) <> 2 THEN c.Net ELSE 0 END) AS AmountClaimed,
+               MIN(c.ClaimDate) AS FirstClaim, MAX(c.ClaimDate) AS LastClaim
+          FROM #cl c LEFT JOIN #st t ON t.OrderId = c.OrderId
+         GROUP BY c.MemberId
     ),
     bo AS
     (
@@ -456,14 +466,24 @@ BEGIN
      WHERE s.MemberId = @MemberId AND s.MonthStart >= @buyFrom
      GROUP BY c.ModelId, s.MonthStart;
 
-    /* Serial numbers on these lines that appear on another claim (any member). */
+    /* Serial numbers on these lines that appear on another claim (any member). One pass over the claim
+       lines (hash join on the member's serials), not one search per line. */
+    CREATE TABLE #ser (Serial nvarchar(200) NOT NULL PRIMARY KEY);
+    INSERT #ser SELECT DISTINCT SerialNumber FROM #l WHERE SerialNumber IS NOT NULL AND LEN(SerialNumber) >= 4;
+    CREATE TABLE #seen (Serial nvarchar(200) NOT NULL, OrderId int NOT NULL, MemberId int NULL);
+    IF EXISTS (SELECT 1 FROM #ser)
+        INSERT #seen
+        SELECT s.Serial, o.ORDERID, o.MemberID
+          FROM dbo.RebateRedeem o
+          JOIN #ser s ON s.Serial = LTRIM(RTRIM(CAST(o.SerialNumber AS nvarchar(200))))
+         WHERE COALESCE(o.Saved, 0) = 0 AND o.ORDERID IS NOT NULL AND o.SerialNumber IS NOT NULL
+        OPTION (HASH JOIN);
+
     CREATE TABLE #dup (LineId int NOT NULL PRIMARY KEY, Others nvarchar(max) NULL);
     INSERT #dup
     SELECT x.LineId, LEFT(STRING_AGG(CAST(CONCAT(N'claim ', x.OrderId, N' (member ', x.MemberId, N')') AS nvarchar(max)), N', '), 400)
-      FROM (SELECT DISTINCT l.LineId, o.ORDERID AS OrderId, o.MemberID AS MemberId
-              FROM #l l
-              JOIN dbo.RebateRedeem o ON CAST(o.SerialNumber AS nvarchar(200)) = l.SerialNumber AND o.ORDERID <> l.OrderId AND COALESCE(o.Saved, 0) = 0
-             WHERE l.SerialNumber IS NOT NULL AND LEN(l.SerialNumber) >= 4) x
+      FROM (SELECT DISTINCT l.LineId, z.OrderId, z.MemberId
+              FROM #l l JOIN #seen z ON z.Serial = l.SerialNumber AND z.OrderId <> l.OrderId) x
      GROUP BY x.LineId;
 
     /* ---- 1: products ---- */
@@ -556,7 +576,21 @@ BEGIN
     SELECT d.OrderId, a.InvoiceNumber, a.PostedAt, a.Amount
       FROM #d d
      CROSS APPLY (SELECT TOP (1) c.InvoiceNumber, c.PostedAt, c.Amount FROM piv2.Rebate_ArCredit(@MemberId, d.OrderId) c ORDER BY c.PostedAt DESC) a
-     WHERE d.Posted = 1 AND d.OrderId NOT IN (SELECT OrderId FROM #ar);
+     /* The live AR look-up is slow; only claims decided in the last few days can be missing from the nightly copy. */
+     WHERE d.Posted = 1 AND d.OrderId NOT IN (SELECT OrderId FROM #ar) AND d.DecidedAt >= DATEADD(day, -5, GETDATE());
+
+    /* Proof files per claim, once (not per claim line). */
+    CREATE TABLE #pf (OrderId int NOT NULL PRIMARY KEY, ProofFiles nvarchar(max) NULL);
+    INSERT #pf
+    SELECT f.OrderId, STRING_AGG(CAST(f.FileName AS nvarchar(max)), N'|')
+      FROM (SELECT x.ORDERID AS OrderId, LTRIM(RTRIM(CAST(x.MasterFileLoc AS nvarchar(400)))) AS FileName
+              FROM dbo.RebateRedeem x JOIN #d o ON o.OrderId = x.ORDERID
+             WHERE COALESCE(x.Saved, 0) = 0
+            UNION
+            SELECT a.orderID, LTRIM(RTRIM(CAST(a.filename AS nvarchar(400))))
+              FROM dbo.RebateRedeemAdditionalFiles a JOIN #d o ON o.OrderId = a.orderID) f
+     WHERE NULLIF(f.FileName, N'') IS NOT NULL AND f.FileName <> N'Additional Files'
+     GROUP BY f.OrderId;
 
     /* ---- 3: claims, one row per claim (only these products' lines), newest first ---- */
     SELECT o.OrderId,
@@ -590,12 +624,7 @@ BEGIN
                                 AND s.MonthStart <= DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1))
                               THEN 1 ELSE 0 END AS NoBuy) nb
       LEFT JOIN #ar ar ON ar.OrderId = o.OrderId
-     OUTER APPLY (SELECT STRING_AGG(CAST(f.FileName AS nvarchar(max)), N'|') AS ProofFiles
-                    FROM (SELECT LTRIM(RTRIM(CAST(x.MasterFileLoc AS nvarchar(400)))) AS FileName
-                            FROM dbo.RebateRedeem x WHERE x.ORDERID = o.OrderId AND COALESCE(x.Saved, 0) = 0
-                          UNION
-                          SELECT LTRIM(RTRIM(CAST(a.filename AS nvarchar(400)))) FROM dbo.RebateRedeemAdditionalFiles a WHERE a.orderID = o.OrderId) f
-                   WHERE NULLIF(f.FileName, N'') IS NOT NULL AND f.FileName <> N'Additional Files') pf
+      LEFT JOIN #pf pf ON pf.OrderId = o.OrderId
      GROUP BY o.OrderId
      ORDER BY MIN(l.ClaimDate) DESC, o.OrderId DESC;
 

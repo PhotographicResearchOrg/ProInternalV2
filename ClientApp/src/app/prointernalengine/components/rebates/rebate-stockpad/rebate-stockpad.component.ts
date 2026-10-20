@@ -38,6 +38,12 @@ export class RebateStockpadComponent implements OnChanges {
   /* History filter: by member and/or PRO code; empty shows the latest entries. */
   filter = { memberId: null as number | null, proCode: null as number | null, showRemoved: true };
   rows: any[] = [];
+
+  /* History filters: member and product search as you type, and free text over the loaded rows. */
+  fMemberQ = ''; fMemberHits: any[] = []; fMemberLabel = '';
+  fProQ = ''; fProHits: any[] = []; fProLabel = '';
+  textQ = '';
+  private filter$ = new Subject<{ kind: 'M' | 'P'; q: string }>();
   loading = false;
   busy = false;
   error = '';
@@ -69,7 +75,44 @@ export class RebateStockpadComponent implements OnChanges {
         hits.unshift({ kind: 'MEMBER', memberId: n, label: `Member ${n}` });
       this.memberHits = hits;
     });
+    this.filter$.pipe(
+      debounceTime(300),
+      switchMap(f => {
+        const q = (f.q || '').trim();
+        if (q.length < 2) return of({ kind: f.kind, q, hits: [] as any[] });
+        const call = f.kind === 'M' ? this.desk.investigateFind(q) : this.desk.proCodes(q);
+        return call.pipe(catchError(() => of([])), switchMap((h: any) => of({ kind: f.kind, q, hits: h ?? [] })));
+      })
+    ).subscribe(r => {
+      if (r.kind === 'M') {
+        const hits = r.hits.filter((x: any) => x.kind === 'MEMBER').slice(0, 12);
+        const n = parseInt(r.q, 10);
+        if (n > 0 && String(n) === r.q && !hits.some((x: any) => +x.memberId === n)) hits.unshift({ kind: 'MEMBER', memberId: n, label: `Member ${n}` });
+        this.fMemberHits = hits;
+      } else {
+        this.fProHits = r.hits.slice(0, 12);
+      }
+    });
     this.load();
+  }
+
+  searchFilter(kind: 'M' | 'P', q: string): void {
+    if (!q.trim()) {
+      /* Emptying a box clears that filter. */
+      if (kind === 'M' && this.filter.memberId) { this.filter.memberId = null; this.fMemberLabel = ''; this.load(); }
+      if (kind === 'P' && this.filter.proCode) { this.filter.proCode = null; this.fProLabel = ''; this.load(); }
+      kind === 'M' ? (this.fMemberHits = []) : (this.fProHits = []);
+      return;
+    }
+    this.filter$.next({ kind, q });
+  }
+
+  filterMember(h: any): void {
+    this.filter.memberId = +h.memberId; this.fMemberLabel = h.label; this.fMemberQ = ''; this.fMemberHits = []; this.load();
+  }
+
+  filterPro(h: any): void {
+    this.filter.proCode = +h.productCode; this.fProLabel = `${h.productCode} · ${h.modelName ?? ''}`; this.fProQ = ''; this.fProHits = []; this.load();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -77,6 +120,7 @@ export class RebateStockpadComponent implements OnChanges {
       this.form.memberId = this.memberId;
       this.memberLabel = `Member ${this.memberId}`;
       this.filter.memberId = this.memberId;
+      this.fMemberLabel = `Member ${this.memberId}`;
       this.load();
     }
   }
@@ -90,6 +134,7 @@ export class RebateStockpadComponent implements OnChanges {
     this.memberQ = '';
     this.memberHits = [];
     this.filter.memberId = this.form.memberId;
+    this.fMemberLabel = h.label;
     this.load();
   }
 
@@ -98,7 +143,7 @@ export class RebateStockpadComponent implements OnChanges {
     this.productLabel = `${h.productCode} · ${h.modelName ?? ''}`;
     this.proQ = '';
     this.proHits = [];
-    if (!this.filter.proCode) { this.filter.proCode = this.form.proCode; this.load(); }
+    if (!this.filter.proCode) { this.filter.proCode = this.form.proCode; this.fProLabel = this.productLabel; this.load(); }
   }
 
   get canSave(): boolean {
@@ -133,9 +178,23 @@ export class RebateStockpadComponent implements OnChanges {
       .subscribe({ next: r => (this.rows = r ?? []), error: e => (this.error = apiMessage(e)) });
   }
 
-  clearFilter(): void { this.filter = { memberId: null, proCode: null, showRemoved: this.filter.showRemoved }; this.load(); }
+  clearFilter(): void {
+    this.filter = { memberId: null, proCode: null, showRemoved: this.filter.showRemoved };
+    this.fMemberLabel = ''; this.fProLabel = ''; this.fMemberQ = ''; this.fProQ = ''; this.textQ = '';
+    this.load();
+  }
 
-  get shown(): any[] { return this.filter.showRemoved ? this.rows : this.rows.filter(r => !r.removedAt); }
+  private shownCache: { rows: any[]; removed: boolean; q: string; out: any[] } | null = null;
+  get shown(): any[] {
+    const q = this.textQ.trim().toLowerCase();
+    const c = this.shownCache;
+    if (c && c.rows === this.rows && c.removed === this.filter.showRemoved && c.q === q) return c.out;
+    let out = this.filter.showRemoved ? this.rows : this.rows.filter(r => !r.removedAt);
+    if (q) out = out.filter(r => [r.memberId, r.memberName, r.proCode, r.productName, r.reason, r.createdBy, r.removedReason]
+      .some(v => v != null && String(v).toLowerCase().includes(q)));
+    this.shownCache = { rows: this.rows, removed: this.filter.showRemoved, q, out };
+    return out;
+  }
 
   /* Active units per member and code in the list. */
   get activeTotal(): number { return this.rows.filter(r => !r.removedAt).reduce((s, r) => s + (+r.quantity || 0), 0); }

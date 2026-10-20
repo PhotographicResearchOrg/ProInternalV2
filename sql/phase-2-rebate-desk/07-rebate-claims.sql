@@ -219,9 +219,10 @@ BEGIN
       FROM #c c
      WHERE c.Status = 1 AND c.ComputymeProcessed = 1 AND c.Invoiced = 0;
 
+    /* The live look-up is slow: only claims decided in the last few days can be missing from the nightly copy. */
     UPDATE c SET HasAr = 1
       FROM #c c
-     WHERE c.HasAr = 0
+     WHERE c.HasAr = 0 AND c.DecidedAt >= DATEADD(day, -5, GETDATE())
        AND EXISTS (SELECT 1 FROM piv2.Rebate_ArCredit(c.MemberId, c.OrderId));
 
     SELECT c.*,

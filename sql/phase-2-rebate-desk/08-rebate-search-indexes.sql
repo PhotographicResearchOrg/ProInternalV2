@@ -30,6 +30,9 @@ INSERT @ix (TableName, LeadColumn, IndexName, Ddl) VALUES
    N'CREATE INDEX IX_piv2_RebDet_Parent ON dbo.RebateCameraModelsDetails (ParentModelID) INCLUDE (ProCode);'),
   (N'dbo.RebateCameraModelsDetails', N'ProCode', N'IX_piv2_RebDet_ProCode',
    N'CREATE INDEX IX_piv2_RebDet_ProCode ON dbo.RebateCameraModelsDetails (ProCode) INCLUDE (ParentModelID);'),
+  /* Proof files per claim (claims, Investigate, debit memo proof). */
+  (N'dbo.RebateRedeemAdditionalFiles', N'orderID', N'IX_piv2_RebAddFiles_Order',
+   N'CREATE INDEX IX_piv2_RebAddFiles_Order ON dbo.RebateRedeemAdditionalFiles (orderID);'),
   (N'dbo.RebateQualifiers', N'PROQualifierID', N'IX_piv2_RebQual_Model',
    N'CREATE INDEX IX_piv2_RebQual_Model ON dbo.RebateQualifiers (PROQualifierID);'),
   /* Price-protection programs per product. */
