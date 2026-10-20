@@ -5,8 +5,15 @@
   <div class="card-head"><h2>Add stock padding</h2>
     <span class="sub">units a member bought elsewhere (often direct from the vendor) before stocking through PRO; Investigate counts them as available</span></div>
   <div class="padform">
-    <label>Member #
-      <input class="in mono" type="number" [(ngModel)]="form.memberId" placeholder="e.g. 1747" /></label>
+    <label>Member
+      <div class="typeahead">
+        <input class="in" [(ngModel)]="memberQ" (ngModelChange)="searchMember($event)" [placeholder]="memberLabel || 'Member # or store name'" />
+        <div class="options" *ngIf="memberHits.length || (memberSearching && memberQ)">
+          <div class="opt sub" *ngIf="memberSearching">Searching…</div>
+          <div class="opt" *ngFor="let h of memberHits" (mousedown)="pickMember(h)">{{ h.label }}</div>
+        </div>
+      </div>
+      <span class="sub" *ngIf="memberLabel">{{ memberLabel }}</span></label>
     <label>PRO product
       <div class="typeahead">
         <input class="in" [(ngModel)]="proQ" (ngModelChange)="searchPro($event)" [placeholder]="productLabel || 'PRO code, catalog #, UPC or name'" />

@@ -184,7 +184,7 @@ export class RebateInvestigateComponent implements OnChanges {
   productTake = 25;
   readonly productChips = [
     { key: '', label: 'All' }, { key: 'FLAGGED', label: 'Flagged' }, { key: 'NONE', label: 'No PRO purchase on record' },
-    { key: 'MORE', label: 'Claimed more than bought' },
+    { key: 'MORE', label: 'Claimed more than available' },
     { key: 'NOBUY', label: 'Claims before any purchase' }, { key: 'SERIAL', label: 'Repeated serial' }
   ];
 
@@ -285,7 +285,7 @@ export class RebateInvestigateComponent implements OnChanges {
     for (const p of m.products) {
       p._avail = this.available(p);
       p._over = this.over(p);
-      p._bA = Math.min(100, (p._avail / max) * 100);
+      p._bA = Math.max(0, Math.min(100, (p._avail / max) * 100));
       p._bC = Math.min(100, ((+p.unitsClaimed || 0) / max) * 100);
     }
     for (const c of m.claims) {

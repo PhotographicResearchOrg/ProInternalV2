@@ -22,6 +22,13 @@ export class RebateStockpadComponent implements OnChanges {
   form = { memberId: null as number | null, proCode: null as number | null, quantity: null as number | null, reason: '' };
   productLabel = '';
 
+  /* Member search (number or store name). */
+  memberQ = '';
+  memberHits: any[] = [];
+  memberSearching = false;
+  memberLabel = '';
+  private memberQ$ = new Subject<string>();
+
   /* PRO product search for the code. */
   proQ = '';
   proHits: any[] = [];
@@ -47,18 +54,44 @@ export class RebateStockpadComponent implements OnChanges {
         return this.desk.proCodes(q.trim()).pipe(catchError(() => of([])), finalize(() => (this.proSearching = false)));
       })
     ).subscribe(h => (this.proHits = (h ?? []).slice(0, 12)));
+    this.memberQ$.pipe(
+      debounceTime(300), distinctUntilChanged(),
+      switchMap(q => {
+        if ((q || '').trim().length < 2) { this.memberSearching = false; return of([]); }
+        this.memberSearching = true;
+        return this.desk.investigateFind(q.trim()).pipe(catchError(() => of([])), finalize(() => (this.memberSearching = false)));
+      })
+    ).subscribe(h => {
+      const hits = (h ?? []).filter((x: any) => x.kind === 'MEMBER').slice(0, 12);
+      /* A member number not in the name list yet (the nightly copy) can still be used as typed. */
+      const n = parseInt((this.memberQ || '').trim(), 10);
+      if (n > 0 && String(n) === this.memberQ.trim() && !hits.some((x: any) => +x.memberId === n))
+        hits.unshift({ kind: 'MEMBER', memberId: n, label: `Member ${n}` });
+      this.memberHits = hits;
+    });
     this.load();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['memberId'] && this.memberId) {
       this.form.memberId = this.memberId;
+      this.memberLabel = `Member ${this.memberId}`;
       this.filter.memberId = this.memberId;
       this.load();
     }
   }
 
   searchPro(q: string): void { this.proQ$.next(q); }
+  searchMember(q: string): void { this.memberQ$.next(q); }
+
+  pickMember(h: any): void {
+    this.form.memberId = +h.memberId;
+    this.memberLabel = h.label;
+    this.memberQ = '';
+    this.memberHits = [];
+    this.filter.memberId = this.form.memberId;
+    this.load();
+  }
 
   pickPro(h: any): void {
     this.form.proCode = +h.productCode;
