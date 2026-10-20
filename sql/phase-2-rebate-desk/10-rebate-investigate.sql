@@ -160,6 +160,110 @@ GO
 /* piv2.Rebate_ArCredit (a claim's credit, by member account) is defined in 07, with these two tables. */
 
 /* =================================================================
+   Linked models and stock padding
+   ================================================================= */
+
+/* Grows the caller's #link (ModelId, ProCode, IsLinked, LinkedFrom) with each code's predecessors and
+   successors from [PRO].dbo.Product.ReplacementCode (A replaced by B), up to five steps either way. */
+CREATE OR ALTER PROCEDURE piv2.Rebate_LinkModels
+AS
+BEGIN
+    SET NOCOUNT ON;
+    CREATE TABLE #rep (Code int NOT NULL, Repl int NOT NULL, PRIMARY KEY (Code, Repl));
+    INSERT #rep
+    SELECT DISTINCT TRY_CAST(CAST(p.ProductCode AS nvarchar(20)) AS int), TRY_CAST(LTRIM(RTRIM(CAST(p.ReplacementCode AS nvarchar(20)))) AS int)
+      FROM [PRO].dbo.Product p
+     WHERE TRY_CAST(LTRIM(RTRIM(CAST(p.ReplacementCode AS nvarchar(20)))) AS int) > 0
+       AND TRY_CAST(CAST(p.ProductCode AS nvarchar(20)) AS int) IS NOT NULL
+       AND TRY_CAST(CAST(p.ProductCode AS nvarchar(20)) AS int) <> TRY_CAST(LTRIM(RTRIM(CAST(p.ReplacementCode AS nvarchar(20)))) AS int);
+
+    /* Walk each direction on its own (successors forward, predecessors back), so two products that share a
+       successor are not linked to each other. */
+    CREATE TABLE #w (ModelId int NOT NULL, ProCode int NOT NULL, Dir char(1) NOT NULL, LinkedFrom int NULL, PRIMARY KEY (ModelId, ProCode, Dir));
+    INSERT #w SELECT ModelId, ProCode, 'S', NULL FROM #link WHERE IsLinked = 0
+    UNION ALL SELECT ModelId, ProCode, 'P', NULL FROM #link WHERE IsLinked = 0;
+
+    DECLARE @step int = 0;
+    WHILE @step < 5
+    BEGIN
+        INSERT #w (ModelId, ProCode, Dir, LinkedFrom)
+        SELECT x.ModelId, x.ProCode, x.Dir, MIN(x.LinkedFrom)
+          FROM (SELECT w.ModelId, r.Repl AS ProCode, 'S' AS Dir, w.ProCode AS LinkedFrom FROM #w w JOIN #rep r ON r.Code = w.ProCode WHERE w.Dir = 'S'
+                UNION ALL
+                SELECT w.ModelId, r.Code, 'P', w.ProCode FROM #w w JOIN #rep r ON r.Repl = w.ProCode WHERE w.Dir = 'P') x
+         WHERE NOT EXISTS (SELECT 1 FROM #w e WHERE e.ModelId = x.ModelId AND e.ProCode = x.ProCode AND e.Dir = x.Dir)
+         GROUP BY x.ModelId, x.ProCode, x.Dir;
+        IF @@ROWCOUNT = 0 BREAK;
+        SET @step += 1;
+    END
+
+    INSERT #link (ModelId, ProCode, IsLinked, LinkedFrom)
+    SELECT w.ModelId, w.ProCode, 1, MIN(w.LinkedFrom) FROM #w w
+     WHERE NOT EXISTS (SELECT 1 FROM #link e WHERE e.ModelId = w.ModelId AND e.ProCode = w.ProCode)
+     GROUP BY w.ModelId, w.ProCode;
+END
+GO
+
+/* Stock padding for a member (and PRO code), newest first; removed entries are kept and shown. */
+CREATE OR ALTER PROCEDURE piv2.StockPad_List
+    @MemberId int = NULL,
+    @ProCode  int = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP (500) o.ID AS PadId, o.Member AS MemberId, n.Name AS MemberName, o.ModelNumber AS ProCode,
+           pr.Name AS ProductName, o.Quantity, o.Reason, o.CreatedBy, o.CreatedAt, o.RemovedBy, o.RemovedAt, o.RemovedReason
+      FROM [EDA].dbo.RebateOverride o
+      LEFT JOIN piv2.MemberName n ON n.MemberId = o.Member
+     OUTER APPLY (SELECT TOP (1) LEFT(LTRIM(RTRIM(p.ModelName)), 200) AS Name FROM [PRO].dbo.Product p
+                   WHERE CAST(p.ProductCode AS nvarchar(20)) = CAST(o.ModelNumber AS nvarchar(20))) pr
+     WHERE (@MemberId IS NULL OR o.Member = @MemberId) AND (@ProCode IS NULL OR o.ModelNumber = @ProCode)
+     ORDER BY CASE WHEN o.RemovedAt IS NULL THEN 0 ELSE 1 END, o.ID DESC;
+END
+GO
+
+/* Adds padded units for a member and PRO code, with the reason. A change is a new entry; nothing is edited in place. */
+CREATE OR ALTER PROCEDURE piv2.StockPad_Add
+    @MemberId int,
+    @ProCode  int,
+    @Quantity int,
+    @Reason   nvarchar(500),
+    @Actor    nvarchar(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL THROW 50702, 'A reason is required.', 1;
+    IF @MemberId IS NULL OR @MemberId <= 0 THROW 50770, 'Enter the member number.', 1;
+    IF @Quantity IS NULL OR @Quantity = 0 THROW 50771, 'Enter the units to pad (a negative number takes units off).', 1;
+    IF NOT EXISTS (SELECT 1 FROM [PRO].dbo.Product p WHERE CAST(p.ProductCode AS nvarchar(20)) = CAST(@ProCode AS nvarchar(20)))
+        THROW 50772, 'That PRO code is not a PRO product.', 1;
+
+    INSERT [EDA].dbo.RebateOverride (Member, ModelNumber, Quantity, Reason, CreatedBy, CreatedAt)
+    VALUES (@MemberId, @ProCode, @Quantity, LTRIM(RTRIM(@Reason)), @Actor, SYSDATETIME());
+
+    SELECT CAST(SCOPE_IDENTITY() AS int) AS PadId;
+END
+GO
+
+/* Takes a padding entry out of use, with the reason; the row stays for the audit. */
+CREATE OR ALTER PROCEDURE piv2.StockPad_Remove
+    @PadId  int,
+    @Reason nvarchar(500),
+    @Actor  nvarchar(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL THROW 50702, 'A reason is required.', 1;
+    UPDATE [EDA].dbo.RebateOverride
+       SET RemovedBy = @Actor, RemovedAt = SYSDATETIME(), RemovedReason = LTRIM(RTRIM(@Reason))
+     WHERE ID = @PadId AND RemovedAt IS NULL;
+    IF @@ROWCOUNT = 0 THROW 50773, 'That padding entry does not exist or is already removed.', 1;
+END
+GO
+
+/* =================================================================
    Investigate
    ================================================================= */
 
@@ -219,8 +323,12 @@ BEGIN
     INSERT #m SELECT ModelID FROM dbo.RebateCameraModels
      WHERE IsPriceProtection = 0 AND ((@ModelId IS NOT NULL AND ModelID = @ModelId) OR (@ModelId IS NULL AND VendorID = @VendorId));
 
+    /* The products' PRO codes, plus linked models (predecessors and successors). */
+    CREATE TABLE #link (ModelId int NOT NULL, ProCode int NOT NULL, IsLinked bit NOT NULL, LinkedFrom int NULL, PRIMARY KEY (ModelId, ProCode));
+    INSERT #link SELECT DISTINCT d.ParentModelID, d.ProCode, 0, NULL FROM dbo.RebateCameraModelsDetails d JOIN #m m ON m.ModelId = d.ParentModelID WHERE d.ProCode IS NOT NULL;
+    EXEC piv2.Rebate_LinkModels;
     CREATE TABLE #code (ProCode int NOT NULL PRIMARY KEY);
-    INSERT #code SELECT DISTINCT d.ProCode FROM dbo.RebateCameraModelsDetails d JOIN #m m ON m.ModelId = d.ParentModelID WHERE d.ProCode IS NOT NULL;
+    INSERT #code SELECT DISTINCT ProCode FROM #link;
 
     ;WITH cl AS
     (
@@ -240,21 +348,31 @@ BEGIN
           FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
          WHERE s.MonthStart >= @buyFrom AND s.MemberId IN (SELECT MemberId FROM cl)
          GROUP BY s.MemberId
+    ),
+    pd AS
+    (
+        SELECT o.Member AS MemberId, SUM(o.Quantity) AS UnitsPadded
+          FROM [EDA].dbo.RebateOverride o JOIN #code c ON c.ProCode = o.ModelNumber
+         WHERE o.RemovedAt IS NULL AND o.Member IN (SELECT MemberId FROM cl)
+         GROUP BY o.Member
     )
     /* Members with no purchase of these PRO codes in their whole AR history. */
     SELECT TOP (500) cl.MemberId, n.Name AS MemberName,
-           CAST(CASE WHEN EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
+           CAST(CASE WHEN COALESCE(pd.UnitsPadded, 0) > 0
+                       OR EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
                                    WHERE s.MemberId = cl.MemberId AND s.Units > 0) THEN 0 ELSE 1 END AS bit) AS NoPurchaseOnRecord, cl.Claims, cl.UnitsClaimed, cl.AmountClaimed, cl.FirstClaim, cl.LastClaim,
-           COALESCE(bo.UnitsBought, 0) AS UnitsBought, COALESCE(bo.AmountBought, 0) AS AmountBought,
-           CAST(CASE WHEN COALESCE(bo.UnitsBought, 0) > 0 THEN cl.UnitsClaimed * 100.0 / bo.UnitsBought END AS decimal(9,1)) AS ClaimRatePct,
-           CAST(CASE WHEN cl.UnitsClaimed > COALESCE(bo.UnitsBought, 0) THEN 1 ELSE 0 END AS bit) AS ClaimedMoreThanBought
+           COALESCE(bo.UnitsBought, 0) AS UnitsBought, COALESCE(pd.UnitsPadded, 0) AS UnitsPadded, COALESCE(bo.AmountBought, 0) AS AmountBought,
+           CAST(CASE WHEN COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0) > 0 THEN cl.UnitsClaimed * 100.0 / (COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0)) END AS decimal(9,1)) AS ClaimRatePct,
+           CAST(CASE WHEN cl.UnitsClaimed > COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0) THEN 1 ELSE 0 END AS bit) AS ClaimedMoreThanBought
       FROM cl
       LEFT JOIN bo ON bo.MemberId = cl.MemberId
+      LEFT JOIN pd ON pd.MemberId = cl.MemberId
       LEFT JOIN piv2.MemberName n ON n.MemberId = cl.MemberId
-     ORDER BY CASE WHEN NOT EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
+     ORDER BY CASE WHEN COALESCE(pd.UnitsPadded, 0) <= 0
+                    AND NOT EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
                                      WHERE s.MemberId = cl.MemberId AND s.Units > 0) THEN 0 ELSE 1 END,
-              CASE WHEN cl.UnitsClaimed > COALESCE(bo.UnitsBought, 0) THEN 0 ELSE 1 END,
-              CASE WHEN COALESCE(bo.UnitsBought, 0) > 0 THEN cl.UnitsClaimed * 1.0 / bo.UnitsBought ELSE 999 END DESC,
+              CASE WHEN cl.UnitsClaimed > COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0) THEN 0 ELSE 1 END,
+              CASE WHEN COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0) > 0 THEN cl.UnitsClaimed * 1.0 / (COALESCE(bo.UnitsBought, 0) + COALESCE(pd.UnitsPadded, 0)) ELSE 999 END DESC,
               cl.UnitsClaimed DESC;
 
     SELECT (SELECT MAX(FinishedAt) FROM piv2.SalesRefreshLog WHERE Error IS NULL AND FinishedAt IS NOT NULL) AS SalesAsOf,
@@ -301,6 +419,23 @@ BEGIN
     CREATE TABLE #code (ModelId int NOT NULL, ProCode int NOT NULL, PRIMARY KEY (ModelId, ProCode));
     INSERT #code SELECT DISTINCT d.ParentModelID, d.ProCode FROM dbo.RebateCameraModelsDetails d JOIN #m m ON m.ModelId = d.ParentModelID WHERE d.ProCode IS NOT NULL;
 
+    /* Linked models: a discontinued product and its successor (Product.ReplacementCode), both ways, a few steps deep.
+       Their purchases and stock padding count for the product, shown apart. */
+    CREATE TABLE #link (ModelId int NOT NULL, ProCode int NOT NULL, IsLinked bit NOT NULL, LinkedFrom int NULL, PRIMARY KEY (ModelId, ProCode));
+    INSERT #link SELECT ModelId, ProCode, 0, NULL FROM #code;
+    EXEC piv2.Rebate_LinkModels;
+
+    /* Stock padding (EDA.RebateOverride): units a member bought elsewhere before stocking through PRO. */
+    CREATE TABLE #pad (ModelId int NOT NULL PRIMARY KEY, Units int NOT NULL, Reasons nvarchar(max) NULL);
+    INSERT #pad
+    SELECT c.ModelId, SUM(COALESCE(o.Quantity, 0)),
+           STRING_AGG(CAST(CONCAT(o.Quantity, N' × ', o.ModelNumber, N': ', COALESCE(o.Reason, N'no reason recorded'),
+                                  CASE WHEN o.CreatedBy IS NOT NULL THEN N' (' + o.CreatedBy + N')' ELSE N'' END) AS nvarchar(max)), N'; ')
+      FROM [EDA].dbo.RebateOverride o
+      JOIN #link c ON c.ProCode = o.ModelNumber
+     WHERE o.Member = @MemberId AND o.RemovedAt IS NULL
+     GROUP BY c.ModelId;
+
     /* Latest decision per claim. */
     CREATE TABLE #d (OrderId int NOT NULL PRIMARY KEY, Status int NULL, DecidedAt datetime NULL, DecidedBy nvarchar(100) NULL,
                      Posted int NULL, DebitMemo varchar(100) NULL, RejectReason nvarchar(1000) NULL);
@@ -315,7 +450,7 @@ BEGIN
                      PRIMARY KEY (ModelId, MonthStart));
     INSERT #s
     SELECT c.ModelId, s.MonthStart, SUM(s.Units), SUM(s.Amount)
-      FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
+      FROM piv2.MemberSalesMonth s JOIN #link c ON c.ProCode = s.ProCode
      WHERE s.MemberId = @MemberId AND s.MonthStart >= @buyFrom
      GROUP BY c.ModelId, s.MonthStart;
 
@@ -332,23 +467,31 @@ BEGIN
     /* ---- 1: products ---- */
     SELECT m.ModelId, rm.ModelNumber AS Description, rm.ModelName AS ProCodeText, v.VendorName,
            COALESCE(b.UnitsBought, 0) AS UnitsBought, COALESCE(b.AmountBought, 0) AS AmountBought,
+           COALESCE(bl.UnitsLinked, 0) AS UnitsBoughtLinked,
+           COALESCE(pd.Units, 0) AS UnitsPadded, pd.Reasons AS PadReasons,
            /* Units claimed = not declined (what is compared with purchases); declined apart. */
            COALESCE(c.UnitsCounted, 0) AS UnitsClaimed, COALESCE(c.UnitsClaimed, 0) - COALESCE(c.UnitsCounted, 0) AS UnitsDeclined,
            COALESCE(c.Claims, 0) AS Claims,
            COALESCE(c.Approved, 0) AS ApprovedAmount, COALESCE(c.Declined, 0) AS DeclinedAmount,
            COALESCE(c.Support, 0) AS SupportAmount, COALESCE(c.Pending, 0) AS PendingAmount,
            c.FirstClaim, c.LastClaim,
-           CAST(CASE WHEN COALESCE(c.UnitsCounted, 0) > COALESCE(b.UnitsBought, 0) THEN 1 ELSE 0 END AS bit) AS ClaimedMoreThanBought,
+           /* Available = bought (incl. linked models) + stock padding. */
+           CAST(CASE WHEN COALESCE(c.UnitsCounted, 0) > COALESCE(b.UnitsBought, 0) + COALESCE(pd.Units, 0) THEN 1 ELSE 0 END AS bit) AS ClaimedMoreThanBought,
            COALESCE(f.NoPurchaseBefore, 0) AS ClaimsWithNoPurchaseBefore,
            COALESCE(f.RepeatedSerials, 0) AS RepeatedSerials,
            /* No purchase of any of the product's PRO codes in the member's whole AR history (not just the window). */
-           CAST(CASE WHEN EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code c ON c.ProCode = s.ProCode
+           CAST(CASE WHEN COALESCE(pd.Units, 0) > 0
+                       OR EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #link c ON c.ProCode = s.ProCode
                                    WHERE s.MemberId = @MemberId AND c.ModelId = m.ModelId AND s.Units > 0)
                      THEN 0 ELSE 1 END AS bit) AS NoPurchaseOnRecord
       FROM #m m
       JOIN dbo.RebateCameraModels rm ON rm.ModelID = m.ModelId
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = rm.VendorID
       OUTER APPLY (SELECT SUM(Units) AS UnitsBought, SUM(Amount) AS AmountBought FROM #s WHERE ModelId = m.ModelId) b
+      /* The part of bought that came through a linked model. */
+      OUTER APPLY (SELECT SUM(s.Units) AS UnitsLinked FROM piv2.MemberSalesMonth s JOIN #link k ON k.ProCode = s.ProCode
+                    WHERE s.MemberId = @MemberId AND k.ModelId = m.ModelId AND k.IsLinked = 1 AND s.MonthStart >= @buyFrom) bl
+      LEFT JOIN #pad pd ON pd.ModelId = m.ModelId
       OUTER APPLY (SELECT SUM(COALESCE(l.Quantity, 0)) AS UnitsClaimed, COUNT(DISTINCT l.OrderId) AS Claims,
                           SUM(CASE WHEN COALESCE(d.Status, 0) <> 2 THEN COALESCE(l.Quantity, 0) END) AS UnitsCounted,
                           SUM(CASE WHEN d.Status = 1 THEN l.Net END) AS Approved, SUM(CASE WHEN d.Status = 2 THEN l.Net END) AS Declined,
@@ -359,34 +502,45 @@ BEGIN
       OUTER APPLY (SELECT SUM(nb.NoBuy) AS NoPurchaseBefore,
                           SUM(CASE WHEN dp.LineId IS NOT NULL THEN 1 ELSE 0 END) AS RepeatedSerials
                      FROM #l l LEFT JOIN #dup dp ON dp.LineId = l.LineId
-                    CROSS APPLY (SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code cc ON cc.ProCode = s.ProCode
+                    CROSS APPLY (SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM #pad pp WHERE pp.ModelId = l.ModelId AND pp.Units > 0)
+                              AND NOT EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #link cc ON cc.ProCode = s.ProCode
                                                          WHERE s.MemberId = @MemberId AND cc.ModelId = l.ModelId AND s.Units > 0
                                                 AND s.MonthStart <= DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1))
                                              THEN 1 ELSE 0 END AS NoBuy) nb
                     WHERE l.ModelId = m.ModelId) f
-     ORDER BY CASE WHEN COALESCE(c.UnitsCounted, 0) > COALESCE(b.UnitsBought, 0) THEN 0 ELSE 1 END, COALESCE(c.UnitsClaimed, 0) DESC;
+     ORDER BY CASE WHEN COALESCE(c.UnitsCounted, 0) > COALESCE(b.UnitsBought, 0) + COALESCE(pd.Units, 0) THEN 0 ELSE 1 END, COALESCE(c.UnitsClaimed, 0) DESC;
 
     /* ---- 2: months (all chosen products together) ---- */
     /* Purchases once per PRO code: two chosen products can share one (an IR and its trade-in). */
     CREATE TABLE #sm (MonthStart date NOT NULL PRIMARY KEY, Units decimal(19,2) NOT NULL, Amount decimal(19,2) NOT NULL);
     INSERT #sm
     SELECT s.MonthStart, SUM(s.Units), SUM(s.Amount)
-      FROM piv2.MemberSalesMonth s JOIN (SELECT DISTINCT ProCode FROM #code) c ON c.ProCode = s.ProCode
+      FROM piv2.MemberSalesMonth s JOIN (SELECT DISTINCT ProCode FROM #link) c ON c.ProCode = s.ProCode
      WHERE s.MemberId = @MemberId AND s.MonthStart >= @buyFrom
      GROUP BY s.MonthStart;
 
     ;WITH mo AS
     (
-        SELECT MonthStart, Units AS UnitsBought, CAST(0 AS decimal(19,2)) AS UnitsClaimed, CAST(0 AS decimal(19,2)) AS UnitsDeclined FROM #sm
+        SELECT MonthStart, Units AS UnitsBought, CAST(0 AS decimal(19,2)) AS UnitsClaimed, CAST(0 AS decimal(19,2)) AS UnitsDeclined,
+               CAST(0 AS decimal(19,2)) AS UnitsPadded FROM #sm
+        UNION ALL
+        /* Stock padding, in the month it was entered (older or undated: the first month shown). */
+        SELECT CASE WHEN o.CreatedAt >= @since THEN DATEFROMPARTS(YEAR(o.CreatedAt), MONTH(o.CreatedAt), 1)
+                    ELSE DATEFROMPARTS(YEAR(COALESCE(NULLIF(@since, '19000101'), x.FirstMonth)), MONTH(COALESCE(NULLIF(@since, '19000101'), x.FirstMonth)), 1) END,
+               0, 0, 0, o.Quantity
+          FROM [EDA].dbo.RebateOverride o
+         CROSS APPLY (SELECT COALESCE((SELECT MIN(MonthStart) FROM #sm), (SELECT MIN(ClaimDate) FROM #l), CAST(GETDATE() AS date)) AS FirstMonth) x
+         WHERE o.Member = @MemberId AND o.RemovedAt IS NULL AND o.ModelNumber IN (SELECT DISTINCT ProCode FROM #link)
         UNION ALL
         SELECT DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1), 0,
                SUM(CASE WHEN COALESCE(d.Status, 0) <> 2 THEN COALESCE(l.Quantity, 0) ELSE 0 END),
-               SUM(CASE WHEN d.Status = 2 THEN COALESCE(l.Quantity, 0) ELSE 0 END)
+               SUM(CASE WHEN d.Status = 2 THEN COALESCE(l.Quantity, 0) ELSE 0 END), 0
           FROM #l l LEFT JOIN #d d ON d.OrderId = l.OrderId
          WHERE l.ClaimDate IS NOT NULL
          GROUP BY DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1)
     )
-    SELECT MonthStart, SUM(UnitsBought) AS UnitsBought, SUM(UnitsClaimed) AS UnitsClaimed, SUM(UnitsDeclined) AS UnitsDeclined
+    SELECT MonthStart, SUM(UnitsBought) AS UnitsBought, SUM(UnitsClaimed) AS UnitsClaimed, SUM(UnitsDeclined) AS UnitsDeclined,
+           SUM(UnitsPadded) AS UnitsPadded
       FROM mo GROUP BY MonthStart ORDER BY MonthStart;
 
     /* AR credits for these claims: the nightly copy, then the live view only for posted claims it does not have yet. */
@@ -428,7 +582,8 @@ BEGIN
       JOIN dbo.RebateCameraModels rm ON rm.ModelID = l.ModelId
       LEFT JOIN #d d ON d.OrderId = o.OrderId
       LEFT JOIN #dup dp ON dp.LineId = l.LineId
-     CROSS APPLY (SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #code cc ON cc.ProCode = s.ProCode
+     CROSS APPLY (SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM #pad pp WHERE pp.ModelId = l.ModelId AND pp.Units > 0)
+                              AND NOT EXISTS (SELECT 1 FROM piv2.MemberSalesMonth s JOIN #link cc ON cc.ProCode = s.ProCode
                                                          WHERE s.MemberId = @MemberId AND cc.ModelId = l.ModelId AND s.Units > 0
                                 AND s.MonthStart <= DATEFROMPARTS(YEAR(l.ClaimDate), MONTH(l.ClaimDate), 1))
                               THEN 1 ELSE 0 END AS NoBuy) nb
@@ -449,6 +604,27 @@ BEGIN
     SELECT @MemberId AS MemberId, (SELECT Name FROM piv2.MemberName WHERE MemberId = @MemberId) AS MemberName,
            @since AS WindowFrom, @buyFrom AS PurchasesFrom,
            (SELECT MAX(FinishedAt) FROM piv2.SalesRefreshLog WHERE Error IS NULL AND FinishedAt IS NOT NULL) AS SalesAsOf;
+
+    /* ---- 6: linked models: each product's own PRO codes and its predecessors / successors, with what was bought ---- */
+    SELECT k.ModelId, k.ProCode, k.IsLinked, k.LinkedFrom, pr.Name AS ProductName, pr.CatNo, pr.Discontinued,
+           COALESCE(sb.Units, 0) AS UnitsBought, COALESCE(op.Units, 0) AS UnitsPadded
+      FROM #link k
+     OUTER APPLY (SELECT TOP (1) LEFT(LTRIM(RTRIM(p.ModelName)), 200) AS Name, LEFT(LTRIM(RTRIM(p.CAT_NO)), 60) AS CatNo,
+                         CAST(CASE WHEN COALESCE(p.IsDiscontinued, 0) = 1 THEN 1 ELSE 0 END AS bit) AS Discontinued
+                    FROM [PRO].dbo.Product p WHERE CAST(p.ProductCode AS nvarchar(20)) = CAST(k.ProCode AS nvarchar(20))
+                   ORDER BY CASE WHEN COALESCE(p.IsActive, 0) = 1 THEN 0 ELSE 1 END) pr
+     OUTER APPLY (SELECT SUM(s.Units) AS Units FROM piv2.MemberSalesMonth s
+                   WHERE s.MemberId = @MemberId AND s.ProCode = k.ProCode AND s.MonthStart >= @buyFrom) sb
+     OUTER APPLY (SELECT SUM(o.Quantity) AS Units FROM [EDA].dbo.RebateOverride o
+                   WHERE o.Member = @MemberId AND o.ModelNumber = k.ProCode AND o.RemovedAt IS NULL) op
+     ORDER BY k.ModelId, k.IsLinked, k.ProCode;
+
+    /* ---- 7: stock padding entries for this member on these codes (removed ones too, for the audit) ---- */
+    SELECT o.ID AS PadId, o.Member AS MemberId, o.ModelNumber AS ProCode, o.Quantity, o.Reason, o.CreatedBy, o.CreatedAt,
+           o.RemovedBy, o.RemovedAt, o.RemovedReason
+      FROM [EDA].dbo.RebateOverride o
+     WHERE o.Member = @MemberId AND o.ModelNumber IN (SELECT DISTINCT ProCode FROM #link)
+     ORDER BY CASE WHEN o.RemovedAt IS NULL THEN 0 ELSE 1 END, o.ID DESC;
 END
 GO
 

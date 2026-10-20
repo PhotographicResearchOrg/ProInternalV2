@@ -36,7 +36,7 @@ export class RebateInvestigateComponent implements OnChanges {
   /* What is open: a member, or the claimants of a product or vendor. */
   memberId: number | null = null;
   modelIds: number[] = [];
-  member: { products: any[]; months: any[]; claims: any[]; purchases: any[]; about: any } | null = null;
+  member: { products: any[]; months: any[]; claims: any[]; purchases: any[]; about: any; linked: any[]; pads: any[] } | null = null;
   focusLabel = '';
   claimantsOf: { modelId?: number; vendorId?: number; label: string } | null = null;
   claimants: { members: any[]; about: any } | null = null;
@@ -183,7 +183,9 @@ export class RebateInvestigateComponent implements OnChanges {
     { key: 'NOBUY', label: 'Claims before any purchase' }, { key: 'SERIAL', label: 'Repeated serial' }
   ];
 
-  over(p: any): number { return Math.round((+p.unitsClaimed || 0) - (+p.unitsBought || 0)); }
+  /* Available = bought (incl. linked models) + stock padding. */
+  available(p: any): number { return (+p.unitsBought || 0) + (+p.unitsPadded || 0); }
+  over(p: any): number { return Math.round((+p.unitsClaimed || 0) - this.available(p)); }
 
   private productIs(p: any, key: string): boolean {
     switch (key) {
@@ -206,8 +208,58 @@ export class RebateInvestigateComponent implements OnChanges {
 
   /* Bars on one scale: the largest bought or claimed figure among the products. */
   barPct(v: any): number {
-    const max = Math.max(1, ...(this.member?.products ?? []).map(p => Math.max(+p.unitsBought || 0, +p.unitsClaimed || 0)));
+    const max = Math.max(1, ...(this.member?.products ?? []).map(p => Math.max(this.available(p), +p.unitsClaimed || 0)));
     return Math.max(0, Math.min(100, ((+v || 0) / max) * 100));
+  }
+
+  /* ---- linked models (Product.ReplacementCode) ---- */
+  linkedFor(modelId: number): any[] { return (this.member?.linked ?? []).filter(k => k.modelId === modelId); }
+  get hasLinked(): boolean { return (this.member?.linked ?? []).some(k => k.isLinked); }
+  get linkedRows(): any[] {
+    const names = new Map((this.member?.products ?? []).map(p => [p.modelId, p.description]));
+    return (this.member?.linked ?? []).filter(k => this.linkedFor(k.modelId).some(x => x.isLinked))
+      .map(k => ({ ...k, product: names.get(k.modelId) ?? '#' + k.modelId }));
+  }
+
+  /* ---- stock padding (EDA.RebateOverride): add with a reason, remove with a reason, both kept ---- */
+  padForm: { proCode: number | null; quantity: number | null; reason: string } | null = null;
+  padBusy = false;
+  padError = '';
+  removing: any = null;
+  removeReason = '';
+
+  /* The PRO codes padding can go on: the products' own codes and their linked models. */
+  get padCodes(): any[] {
+    const seen = new Set<number>();
+    return (this.member?.linked ?? []).filter(k => !seen.has(k.proCode) && seen.add(k.proCode))
+      .map(k => ({ code: k.proCode, label: `${k.proCode} · ${k.productName ?? ''}${k.isLinked ? ' (linked model)' : ''}` }));
+  }
+
+  get activePads(): any[] { return (this.member?.pads ?? []).filter(p => !p.removedAt); }
+
+  startPad(p?: any): void {
+    const codes = p ? this.linkedFor(p.modelId).filter(k => !k.isLinked) : [];
+    this.padForm = { proCode: codes[0]?.proCode ?? this.padCodes[0]?.code ?? null, quantity: null, reason: '' };
+    this.padError = '';
+  }
+
+  savePad(): void {
+    const f = this.padForm;
+    if (!f || !this.memberId || !f.proCode || !f.quantity || !f.reason.trim()) return;
+    this.padBusy = true;
+    this.padError = '';
+    this.desk.addStockPad({ memberId: this.memberId, proCode: +f.proCode, quantity: +f.quantity, reason: f.reason.trim() })
+      .pipe(finalize(() => (this.padBusy = false)))
+      .subscribe({ next: () => { this.padForm = null; this.loadMember(); }, error: e => (this.padError = apiMessage(e)) });
+  }
+
+  confirmRemove(): void {
+    if (!this.removing || !this.removeReason.trim()) return;
+    this.padBusy = true;
+    this.padError = '';
+    this.desk.removeStockPad(this.removing.padId, this.removeReason.trim())
+      .pipe(finalize(() => (this.padBusy = false)))
+      .subscribe({ next: () => { this.removing = null; this.removeReason = ''; this.loadMember(); }, error: e => (this.padError = apiMessage(e)) });
   }
 
   get flagged(): any[] {
@@ -215,14 +267,15 @@ export class RebateInvestigateComponent implements OnChanges {
   }
 
   get totals(): any {
-    const t = { unitsBought: 0, unitsClaimed: 0, unitsDeclined: 0, approvedAmount: 0, declinedAmount: 0, supportAmount: 0, pendingAmount: 0 };
+    const t = { unitsBought: 0, unitsBoughtLinked: 0, unitsPadded: 0, unitsClaimed: 0, unitsDeclined: 0, approvedAmount: 0, declinedAmount: 0, supportAmount: 0, pendingAmount: 0 };
     for (const p of this.member?.products ?? []) for (const k of Object.keys(t)) (t as any)[k] += +p[k] || 0;
     return t;
   }
 
   get claimRate(): number | null {
     const t = this.totals;
-    return t.unitsBought > 0 ? Math.round((t.unitsClaimed * 1000) / t.unitsBought) / 10 : null;
+    const avail = t.unitsBought + t.unitsPadded;
+    return avail > 0 ? Math.round((t.unitsClaimed * 1000) / avail) / 10 : null;
   }
 
   /* Debit memos show as a chip on the claim's lines, not as rows of their own. */
@@ -238,6 +291,7 @@ export class RebateInvestigateComponent implements OnChanges {
       labels: rows.map(r => new Date(r.monthStart).toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' })),
       datasets: [
         { label: 'Units bought from PRO', data: rows.map(r => +r.unitsBought || 0), backgroundColor: '#1d4f91', stack: 'bought' },
+        { label: 'Stock padding (when entered)', data: rows.map(r => +r.unitsPadded || 0), backgroundColor: '#7fb2e5', stack: 'bought' },
         { label: 'Units claimed', data: rows.map(r => +r.unitsClaimed || 0), backgroundColor: '#d9822b', stack: 'claimed' },
         { label: 'Units declined', data: rows.map(r => +r.unitsDeclined || 0), backgroundColor: '#c0392b', stack: 'claimed' }
       ]
@@ -250,7 +304,8 @@ export class RebateInvestigateComponent implements OnChanges {
     downloadXlsx(name, [
       { name: 'Products', rows: this.member.products, cols: [
         col('Product #', 'modelId', 'number'), col('Product', 'description', 'text', 40), col('PRO code', 'proCodeText'), col('Vendor', 'vendorName'),
-        col('Units bought', 'unitsBought', 'number'), col('Bought $', 'amountBought', 'money'), col('Units claimed (not declined)', 'unitsClaimed', 'number'),
+        col('Units bought', 'unitsBought', 'number'), col('Of which via linked models', 'unitsBoughtLinked', 'number'), col('Bought $', 'amountBought', 'money'),
+        col('Stock padding', 'unitsPadded', 'number'), col('Padding reasons', 'padReasons', 'text', 50), col('Units claimed (not declined)', 'unitsClaimed', 'number'),
         col('Units declined', 'unitsDeclined', 'number'),
         col('Claims', 'claims', 'number'), col('Approved', 'approvedAmount', 'money'), col('Declined', 'declinedAmount', 'money'),
         col('Needs support', 'supportAmount', 'money'), col('Not decided', 'pendingAmount', 'money'),
@@ -276,7 +331,7 @@ export class RebateInvestigateComponent implements OnChanges {
     if (!this.claimants) return;
     downloadXlsx(`Investigate ${this.claimantsOf?.label ?? ''}`.trim(), [{ name: 'Members', rows: this.claimants.members, cols: [
       col('Member', 'memberId', 'number'), col('Name', 'memberName', 'text', 30), col('Claims', 'claims', 'number'),
-      col('Units claimed', 'unitsClaimed', 'number'), col('Units bought', 'unitsBought', 'number'), col('Claim rate %', 'claimRatePct', 'number'),
+      col('Units claimed', 'unitsClaimed', 'number'), col('Units bought', 'unitsBought', 'number'), col('Stock padding', 'unitsPadded', 'number'), col('Claim rate %', 'claimRatePct', 'number'),
       col('Claimed $', 'amountClaimed', 'money'), col('Bought $', 'amountBought', 'money'),
       col('First claim', 'firstClaim', 'date'), col('Last claim', 'lastClaim', 'date'),
       col('No PRO purchase on record', 'noPurchaseOnRecord'), col('Claimed more than bought', 'claimedMoreThanBought')] }]);

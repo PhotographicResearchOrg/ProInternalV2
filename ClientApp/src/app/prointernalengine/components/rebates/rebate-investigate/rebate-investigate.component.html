@@ -59,10 +59,11 @@
     </div>
 
     <div class="stats" style="grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0 0 12px">
-      <div class="stat"><b>{{ totals.unitsBought | number:'1.0-0' }}</b><span>units bought from PRO</span></div>
+      <div class="stat"><b>{{ totals.unitsBought + totals.unitsPadded | number:'1.0-0' }}</b>
+        <span>units available: {{ totals.unitsBought | number:'1.0-0' }} bought from PRO{{ totals.unitsBoughtLinked ? ' (' + (totals.unitsBoughtLinked | number:'1.0-0') + ' via linked models)' : '' }}{{ totals.unitsPadded ? ' + ' + (totals.unitsPadded | number:'1.0-0') + ' stock padding' : '' }}</span></div>
       <div class="stat"><b [class.warn]="totals.unitsClaimed > totals.unitsBought">{{ totals.unitsClaimed | number:'1.0-0' }}</b>
         <span>units claimed{{ totals.unitsDeclined ? ' · ' + (totals.unitsDeclined | number:'1.0-0') + ' more declined' : '' }}</span></div>
-      <div class="stat"><b [class.warn]="(claimRate ?? 0) > 100">{{ claimRate != null ? claimRate + '%' : '—' }}</b><span>claimed ÷ bought</span></div>
+      <div class="stat"><b [class.warn]="(claimRate ?? 0) > 100">{{ claimRate != null ? claimRate + '%' : '—' }}</b><span>claimed ÷ available</span></div>
       <div class="stat"><b class="ok">{{ totals.approvedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>approved</span></div>
       <div class="stat"><b>{{ totals.declinedAmount | currency:'USD':'symbol':'1.0-0' }}</b>
         <span>declined · {{ totals.supportAmount | currency:'USD':'symbol':'1.0-0' }} needs support · {{ totals.pendingAmount | currency:'USD':'symbol':'1.0-0' }} not decided</span></div>
@@ -94,17 +95,19 @@
       <button type="button" *ngFor="let c of productChips" [class.on]="productChip === c.key" (click)="productChip = c.key; productTake = 25">{{ c.label }}<b>{{ flagCount(c.key) }}</b></button>
     </div>
     <table class="grid">
-      <thead><tr><th>Product</th><th class="num">Bought</th><th class="num">Claimed</th><th class="num">Over</th><th style="width: 160px">Claimed against bought</th>
+      <thead><tr><th>Product</th><th class="num">Bought</th><th class="num">Padded</th><th class="num">Claimed</th><th class="num">Over</th><th style="width: 160px">Claimed against available</th>
         <th class="num">Approved</th><th class="num">Declined</th><th>Flags</th><th></th></tr></thead>
       <tbody>
         <tr *ngFor="let p of productsShown | slice:0:productTake">
           <td><div>{{ p.description }}</div><div class="sub mono">PRO {{ p.proCodeText }} · {{ p.vendorName }}</div></td>
-          <td class="num">{{ p.unitsBought | number:'1.0-0' }}</td>
+          <td class="num">{{ p.unitsBought | number:'1.0-0' }}<div class="sub" *ngIf="p.unitsBoughtLinked">{{ p.unitsBoughtLinked | number:'1.0-0' }} via linked</div></td>
+          <td class="num"><span *ngIf="p.unitsPadded" class="padded" [title]="p.padReasons">{{ p.unitsPadded | number:'1.0-0' }} <i class="pi pi-info-circle"></i></span>
+            <span *ngIf="!p.unitsPadded" class="sub">—</span></td>
           <td class="num">{{ p.unitsClaimed }}</td>
           <td class="num"><b [style.color]="over(p) > 0 ? '#b42318' : null">{{ over(p) > 0 ? '+' + over(p) : '—' }}</b></td>
           <td>
-            <div class="vs" [title]="'Bought ' + (+p.unitsBought || 0) + ', claimed ' + p.unitsClaimed">
-              <div class="vs-bought" [style.width.%]="barPct(p.unitsBought)"></div>
+            <div class="vs" [title]="'Available ' + available(p) + ' (bought ' + (+p.unitsBought || 0) + ', padded ' + (+p.unitsPadded || 0) + '), claimed ' + p.unitsClaimed">
+              <div class="vs-bought" [style.width.%]="barPct(available(p))"></div>
               <div class="vs-claimed" [class.over]="over(p) > 0" [style.width.%]="barPct(p.unitsClaimed)"></div>
             </div>
           </td>
@@ -115,14 +118,79 @@
             <span class="status warn" *ngIf="p.claimsWithNoPurchaseBefore && !p.noPurchaseOnRecord" title="Claim lines with no purchase of this product in or before the claim month">no purchase before · {{ p.claimsWithNoPurchaseBefore }}</span>
             <span class="status bad" *ngIf="p.repeatedSerials" title="Serial numbers also on another claim">serial · {{ p.repeatedSerials }}</span>
           </td>
-          <td><button type="button" class="btn ghost" *ngIf="modelIds.length !== 1 || modelIds[0] !== p.modelId" (click)="onlyProduct(p.modelId)">Only this</button></td>
+          <td style="white-space: nowrap"><button type="button" class="btn ghost" *ngIf="modelIds.length !== 1 || modelIds[0] !== p.modelId" (click)="onlyProduct(p.modelId)">Only this</button>
+            <button type="button" class="btn ghost" (click)="startPad(p)" title="Add stock padding for this member and product, with the reason">Pad stock</button></td>
         </tr>
-        <tr *ngIf="!productsShown.length"><td colspan="9" class="empty">No products here.</td></tr>
+        <tr *ngIf="!productsShown.length"><td colspan="10" class="empty">No products here.</td></tr>
       </tbody>
     </table>
     <div class="pager" *ngIf="productsShown.length > productTake">
       <button type="button" class="btn ghost" (click)="productTake = productTake + 25">Show more ({{ productsShown.length - productTake }})</button>
     </div>
+  </section>
+
+  <!-- ============ linked models ============ -->
+  <section class="card" *ngIf="hasLinked">
+    <div class="card-head"><h2>Linked models</h2><span class="sub">discontinued products and their successors (Product.ReplacementCode); their purchases count as bought</span></div>
+    <table class="grid">
+      <thead><tr><th>Rebate product</th><th>PRO code</th><th>Product</th><th></th><th class="num">Bought</th><th class="num">Padded</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let k of linkedRows" [class.off]="k.discontinued">
+          <td class="sub">{{ k.product }}</td>
+          <td class="mono">{{ k.proCode }}</td>
+          <td>{{ k.productName }}<div class="sub mono" *ngIf="k.catNo">{{ k.catNo }}</div></td>
+          <td><span class="chip" *ngIf="!k.isLinked">its own code</span>
+            <span class="chip info" *ngIf="k.isLinked">linked via {{ k.linkedFrom }}</span>
+            <span class="chip" *ngIf="k.discontinued">discontinued</span></td>
+          <td class="num">{{ k.unitsBought | number:'1.0-0' }}</td>
+          <td class="num">{{ k.unitsPadded ? (k.unitsPadded | number:'1.0-0') : '—' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ stock padding ============ -->
+  <section class="card">
+    <div class="card-head"><h2>Stock padding</h2>
+      <span class="sub">units this member bought elsewhere before stocking through PRO; counted as available</span><span class="grow"></span>
+      <button type="button" class="btn" (click)="startPad()"><i class="pi pi-plus"></i> Add padding</button></div>
+    <div class="error" *ngIf="padError" style="margin: 0 0 8px"><i class="pi pi-exclamation-circle"></i> {{ padError }}</div>
+
+    <div class="padform" *ngIf="padForm">
+      <label>PRO code
+        <input class="in mono" type="number" list="padCodeList" [(ngModel)]="padForm.proCode" placeholder="PRO code" />
+        <datalist id="padCodeList"><option *ngFor="let c of padCodes" [value]="c.code">{{ c.label }}</option></datalist></label>
+      <label>Units <input class="in" type="number" [(ngModel)]="padForm.quantity" placeholder="e.g. 6 (negative takes off)" /></label>
+      <label class="wide">Reason (required) <input class="in" [(ngModel)]="padForm.reason" placeholder="e.g. Bought 6 direct from Panasonic in March before opening a PRO account" /></label>
+      <div class="actions">
+        <button type="button" class="btn primary" (click)="savePad()" [disabled]="padBusy || !padForm.proCode || !padForm.quantity || !padForm.reason.trim()">{{ padBusy ? 'Saving…' : 'Add padding' }}</button>
+        <button type="button" class="btn ghost" (click)="padForm = null">Cancel</button>
+      </div>
+    </div>
+
+    <table class="grid" *ngIf="member.pads.length">
+      <thead><tr><th>PRO code</th><th class="num">Units</th><th>Reason</th><th>Added</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let d of member.pads" [class.off]="d.removedAt">
+          <td class="mono">{{ d.proCode }}</td>
+          <td class="num">{{ d.quantity }}</td>
+          <td>{{ d.reason || 'No reason recorded (entered on the old screen)' }}
+            <div class="sub" *ngIf="d.removedAt">Removed {{ d.removedAt | date:'MM/dd/yy' }} by {{ d.removedBy }}: {{ d.removedReason }}</div></td>
+          <td class="sub">{{ d.createdAt ? (d.createdAt | date:'MM/dd/yy') : 'old screen' }}{{ d.createdBy ? ' · ' + d.createdBy : '' }}</td>
+          <td>
+            <ng-container *ngIf="!d.removedAt">
+              <button type="button" class="btn ghost" *ngIf="removing?.padId !== d.padId" (click)="removing = d; removeReason = ''">Remove</button>
+              <span *ngIf="removing?.padId === d.padId" class="inline-confirm">
+                <input class="in" [(ngModel)]="removeReason" placeholder="Why remove it?" />
+                <button type="button" class="btn" (click)="confirmRemove()" [disabled]="padBusy || !removeReason.trim()">Remove</button>
+                <button type="button" class="btn ghost" (click)="removing = null">Keep</button>
+              </span>
+            </ng-container>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="empty" *ngIf="!member.pads.length && !padForm">No stock padding for this member on these products.</div>
   </section>
 
   <section class="card">

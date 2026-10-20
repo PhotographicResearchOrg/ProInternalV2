@@ -144,6 +144,15 @@ namespace ProInternal.Models.Rebates
     }
 
     /* Several upload rows at once (bulk skip, load anyway). */
+    /* Stock padding: units for a member and PRO code, with the reason. */
+    public sealed class StockPadRequest
+    {
+        public int MemberId { get; set; }
+        public int ProCode { get; set; }
+        public int Quantity { get; set; }
+        public string? Reason { get; set; }
+    }
+
     public sealed class RebateRowsRequest
     {
         public List<long> RowIds { get; set; } = new();

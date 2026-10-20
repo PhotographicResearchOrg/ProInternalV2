@@ -175,9 +175,18 @@ export class RebateDeskService {
     return this.api.get(`${this.base}/investigate/claimants${this.q(f)}`);
   }
   investigateMember(memberId: number, modelIds: number[] | null, months: number):
-    Observable<{ products: any[]; months: any[]; claims: any[]; purchases: any[]; about: any }> {
+    Observable<{ products: any[]; months: any[]; claims: any[]; purchases: any[]; about: any; linked: any[]; pads: any[] }> {
     return this.api.get(`${this.base}/investigate/member/${memberId}${this.q({ modelIds: modelIds?.length ? modelIds.join(',') : null, months })}`);
   }
+
+  /* ---- stock padding ---- */
+  stockPads(memberId?: number | null, proCode?: number | null): Observable<any[]> {
+    return this.api.get(`${this.base}/stockpad${this.q({ memberId, proCode })}`);
+  }
+  addStockPad(body: { memberId: number; proCode: number; quantity: number; reason: string }): Observable<any> {
+    return this.api.post(`${this.base}/stockpad`, body);
+  }
+  removeStockPad(padId: number, reason: string): Observable<any> { return this.api.post(`${this.base}/stockpad/${padId}/remove`, { reason }); }
 
   /* ---- history ---- */
   history(f: any): Observable<any[]> { return this.api.get(`${this.base}/history${this.q(f)}`); }

@@ -631,9 +631,31 @@ namespace ProInternal.Controllers
                     months = sets.ElementAtOrDefault(1) ?? new List<RebateRow>(),
                     claims,
                     purchases = sets.ElementAtOrDefault(3) ?? new List<RebateRow>(),
-                    about = (sets.ElementAtOrDefault(4) ?? new List<RebateRow>()).FirstOrDefault()
+                    about = (sets.ElementAtOrDefault(4) ?? new List<RebateRow>()).FirstOrDefault(),
+                    linked = sets.ElementAtOrDefault(5) ?? new List<RebateRow>(),
+                    pads = sets.ElementAtOrDefault(6) ?? new List<RebateRow>()
                 };
             });
+
+        /* ================= stock padding (EDA.RebateOverride) ================= */
+
+        /* Units a member bought elsewhere before stocking through PRO, counted with PRO purchases when claims are checked. */
+        [HttpGet("stockpad")]
+        public Task<IActionResult> StockPads([FromQuery] int? memberId, [FromQuery] int? proCode) =>
+            Read(() => _data.QueryAsync("piv2.StockPad_List", new { MemberId = memberId, ProCode = proCode }));
+
+        [HttpPost("stockpad")]
+        [RequirePermission(AccountingPermission)]
+        public Task<IActionResult> AddStockPad([FromBody] StockPadRequest body) =>
+            Read(async () => (await _data.QueryAsync("piv2.StockPad_Add", new
+            {
+                body.MemberId, body.ProCode, body.Quantity, Reason = body.Reason ?? "", Actor
+            })).FirstOrDefault());
+
+        [HttpPost("stockpad/{padId:int}/remove")]
+        [RequirePermission(AccountingPermission)]
+        public Task<IActionResult> RemoveStockPad(int padId, [FromBody] RebateReasonRequest body) =>
+            Act(() => _data.ExecuteAsync("piv2.StockPad_Remove", new { PadId = padId, Reason = body?.Reason ?? "", Actor }));
 
         [HttpGet("debitmemos/candidates")]
         public Task<IActionResult> DebitMemoCandidates([FromQuery] string? rail, [FromQuery] string vendorIds, [FromQuery] DateTime from, [FromQuery] DateTime to) =>
