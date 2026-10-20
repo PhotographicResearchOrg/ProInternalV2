@@ -136,7 +136,7 @@ export class RebateInvestigateComponent implements OnChanges {
     this.loading = true;
     this.error = '';
     this.desk.investigateMember(this.memberId, this.modelIds, this.months).pipe(finalize(() => (this.loading = false))).subscribe({
-      next: r => { this.member = r; this.productChip = ''; this.productTake = 25; this.claimChip = ''; this.buildChart(); },
+      next: r => { this.member = r; this.productChip = ''; this.productTake = 25; this.claimChip = ''; this.claimTake = 100; this.prepare(); this.buildChart(); },
       error: e => (this.error = apiMessage(e))
     });
   }
@@ -167,6 +167,9 @@ export class RebateInvestigateComponent implements OnChanges {
     const back = this.claimantsOf;
     this.openMember(m.memberId, back?.modelId ? [back.modelId] : [], back?.label ?? '');
   }
+
+  /* The product search on a member: that member and the picked rebate product (claimed or not). */
+  pickProduct(p: any): void { if (p?.modelId) this.onlyProduct(+p.modelId); }
 
   /* Narrow the member view to one product, or back to all. */
   onlyProduct(modelId: number | null): void {
@@ -261,6 +264,62 @@ export class RebateInvestigateComponent implements OnChanges {
       .pipe(finalize(() => (this.padBusy = false)))
       .subscribe({ next: () => { this.removing = null; this.removeReason = ''; this.loadMember(); }, error: e => (this.padError = apiMessage(e)) });
   }
+
+  /* ---- everything the page shows, worked out once per load or chip click (not on every screen refresh:
+         recomputing lists and bars on each refresh redrew whole tables and could lock the browser) ---- */
+  v: {
+    totals: any; claimRate: number | null; flagCounts: { [k: string]: number }; chipCounts: { [k: string]: number };
+    products: any[]; claims: any[]; linked: any[]; padCodes: any[]; hasLinked: boolean; flagged: number;
+  } = { totals: {}, claimRate: null, flagCounts: {}, chipCounts: {}, products: [], claims: [], linked: [], padCodes: [], hasLinked: false, flagged: 0 };
+  claimTake = 100;
+
+  /* Per-row values that never change for a load. */
+  private prepare(): void {
+    const m = this.member;
+    if (!m) return;
+    const max = Math.max(1, ...m.products.map(p => Math.max(this.available(p), +p.unitsClaimed || 0)));
+    for (const p of m.products) {
+      p._avail = this.available(p);
+      p._over = this.over(p);
+      p._bA = Math.min(100, (p._avail / max) * 100);
+      p._bC = Math.min(100, ((+p.unitsClaimed || 0) / max) * 100);
+    }
+    for (const c of m.claims) {
+      c._refs = this.claimRefs(c.reason);
+      c._state = this.claimState(c);
+      c._label = this.stateLabel(c);
+    }
+    const t = this.totals;
+    const avail = t.unitsBought + t.unitsPadded;
+    const names = new Map(m.products.map(p => [p.modelId, p.description]));
+    const withLinks = new Set(m.linked.filter(k => k.isLinked).map(k => k.modelId));
+    const seen = new Set<number>();
+    this.v = {
+      totals: t,
+      claimRate: avail > 0 ? Math.round((t.unitsClaimed * 1000) / avail) / 10 : null,
+      flagCounts: Object.fromEntries(this.productChips.map(c => [c.key, this.flagCount(c.key)])),
+      chipCounts: Object.fromEntries(this.claimChips.map(c => [c.key, this.chipCount(c.key)])),
+      flagged: this.flagged.length,
+      hasLinked: withLinks.size > 0,
+      linked: m.linked.filter(k => withLinks.has(k.modelId)).map(k => ({ ...k, product: names.get(k.modelId) ?? '#' + k.modelId })),
+      padCodes: m.linked.filter(k => !seen.has(k.proCode) && seen.add(k.proCode))
+        .map(k => ({ code: k.proCode, label: `${k.proCode} · ${k.productName ?? ''}${k.isLinked ? ' (linked model)' : ''}` })),
+      products: [],
+      claims: []
+    };
+    this.recompute();
+  }
+
+  /* The filtered lists: after a chip click. */
+  recompute(): void {
+    if (!this.member) return;
+    this.v.products = this.productsShown;
+    this.v.claims = this.claimsShown;
+  }
+
+  trackModel = (_: number, p: any) => p.modelId;
+  trackOrder = (_: number, c: any) => c.orderId;
+  trackPad = (_: number, d: any) => d.padId;
 
   get flagged(): any[] {
     return (this.member?.products ?? []).filter(p => p.noPurchaseOnRecord || p.claimedMoreThanBought || p.claimsWithNoPurchaseBefore > 0 || p.repeatedSerials > 0);
