@@ -11,7 +11,7 @@
       <button type="button" class="btn primary" (click)="startNew()"><i class="pi pi-plus"></i> New product</button>
     </div>
     <div class="filters">
-      <input class="in" placeholder="Description, PRO code or product #" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
+      <input class="in" placeholder="Description or PRO code" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
       <select class="in" style="max-width: 220px" [(ngModel)]="filter.vendorId" (ngModelChange)="go(1)">
         <option [ngValue]="null">All vendors</option>
         <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
@@ -32,7 +32,7 @@
       <thead><tr><th>Product</th><th>Vendor</th><th>PRO codes</th><th class="num">Live</th><th>Last program</th><th class="num">Stacks</th></tr></thead>
       <tbody>
         <tr *ngFor="let p of rows" class="click" (click)="open(p.modelId)" [class.sel]="detail?.product.modelId === p.modelId" [class.off]="!p.isActive">
-          <td><div class="rec">{{ p.description }}</div><div class="sub mono">#{{ p.modelId }}<span class="chip bad" *ngIf="!p.isActive" style="margin-left:6px">retired</span></div></td>
+          <td><div class="rec">{{ p.description }}</div><div class="sub" *ngIf="!p.isActive"><span class="chip bad">retired</span></div></td>
           <td>{{ p.vendorName }}</td>
           <td class="mono">{{ p.proCodes || p.proCodeText }}</td>
           <td class="num">{{ p.programsLive }}</td>
@@ -53,7 +53,7 @@
   <section class="card" *ngIf="form">
     <div class="drawer-head">
       <div class="grow">
-        <div class="sub mono" *ngIf="detail">Product #{{ detail.product.modelId }} · {{ rail === 'PP' ? 'price protection' : 'instant rebate' }}</div>
+        <div class="sub" *ngIf="detail">{{ rail === 'PP' ? 'price protection' : 'instant rebate' }}</div>
         <h2>{{ creating ? 'New product' : detail?.product.description }}</h2>
       </div>
       <span class="chip bad" *ngIf="detail && !detail.product.isActive">retired</span>
@@ -106,7 +106,7 @@
     <ng-container *ngIf="detail">
       <h3 class="sub" style="margin: 14px 0 6px">Stacks: this product qualifies with</h3>
       <div>
-        <span class="chip info" *ngFor="let s of stackEdit">{{ s.description }} (#{{ s.modelId }})
+        <span class="chip info" *ngFor="let s of stackEdit">{{ s.description }}
           <button type="button" (click)="removeStack(s.modelId)" title="Remove">✕</button></span>
         <span class="sub" *ngIf="!stackEdit.length">None.</span>
       </div>

@@ -223,7 +223,7 @@ export class RebateInvestigateComponent implements OnChanges {
   get linkedRows(): any[] {
     const names = new Map((this.member?.products ?? []).map(p => [p.modelId, p.description]));
     return (this.member?.linked ?? []).filter(k => this.linkedFor(k.modelId).some(x => x.isLinked))
-      .map(k => ({ ...k, product: names.get(k.modelId) ?? '#' + k.modelId }));
+      .map(k => ({ ...k, product: names.get(k.modelId) ?? '' }));
   }
 
   /* ---- stock padding (EDA.RebateOverride): add with a reason, remove with a reason, both kept ---- */
@@ -305,7 +305,7 @@ export class RebateInvestigateComponent implements OnChanges {
       chipCounts: Object.fromEntries(this.claimChips.map(c => [c.key, this.chipCount(c.key)])),
       flagged: this.flagged.length,
       hasLinked: withLinks.size > 0,
-      linked: m.linked.filter(k => withLinks.has(k.modelId)).map(k => ({ ...k, product: names.get(k.modelId) ?? '#' + k.modelId })),
+      linked: m.linked.filter(k => withLinks.has(k.modelId)).map(k => ({ ...k, product: names.get(k.modelId) ?? '' })),
       padCodes: m.linked.filter(k => !seen.has(k.proCode) && seen.add(k.proCode))
         .map(k => ({ code: k.proCode, label: `${k.proCode} · ${k.productName ?? ''}${k.isLinked ? ' (linked model)' : ''}` })),
       products: [],
@@ -344,7 +344,7 @@ export class RebateInvestigateComponent implements OnChanges {
   /* Debit memos show as a chip on the claim's lines, not as rows of their own. */
   productName(modelId: number | null): string {
     if (!modelId) return '';
-    return this.member?.products.find(p => p.modelId === modelId)?.description ?? '#' + modelId;
+    return this.member?.products.find(p => p.modelId === modelId)?.description ?? '';
   }
 
   private buildChart(): void {
@@ -366,7 +366,7 @@ export class RebateInvestigateComponent implements OnChanges {
     const name = `Investigate member ${this.memberId}`;
     downloadXlsx(name, [
       { name: 'Products', rows: this.member.products, cols: [
-        col('Product #', 'modelId', 'number'), col('Product', 'description', 'text', 40), col('PRO code', 'proCodeText'), col('Vendor', 'vendorName'),
+        col('Product', 'description', 'text', 40), col('PRO code', 'proCodeText'), col('Vendor', 'vendorName'),
         col('Units bought', 'unitsBought', 'number'), col('Of which via linked models', 'unitsBoughtLinked', 'number'), col('Bought $', 'amountBought', 'money'),
         col('Stock padding', 'unitsPadded', 'number'), col('Padding reasons', 'padReasons', 'text', 50), col('Units claimed (not declined)', 'unitsClaimed', 'number'),
         col('Units declined', 'unitsDeclined', 'number'),

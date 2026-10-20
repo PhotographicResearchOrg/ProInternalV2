@@ -187,7 +187,7 @@
                   <td><div class="mono">{{ r.vendorSku || r.upc || r.proCode }}</div>
                     <div class="sub" *ngIf="r.productCode"><span class="mono">{{ r.productCode }}</span> {{ r.productName }}</div>
                     <div class="sub" *ngIf="!r.productCode">{{ r.description }}</div></td>
-                  <td><ng-container *ngIf="r.modelId"><div>{{ r.modelDescription }}</div><div class="sub mono">#{{ r.modelId }}<span *ngIf="r.modelChosenBy"> · picked by {{ r.modelChosenBy }}</span></div></ng-container>
+                  <td><ng-container *ngIf="r.modelId"><div>{{ r.modelDescription }}</div><div class="sub" *ngIf="r.modelChosenBy">picked by {{ r.modelChosenBy }}</div></ng-container>
                     <div class="sub" *ngIf="!r.modelId && r.proposedName">to create: <i>{{ r.proposedName }}</i></div>
                     <ul class="problems"><li *ngFor="let p of r.problems">{{ p.message }} <app-rebate-help [code]="p.code"></app-rebate-help></li></ul>
                     <div class="sub" *ngIf="r.overlapAllowed">Overlap allowed: {{ r.overlapReason }}</div>
@@ -330,7 +330,7 @@
                 <app-rebate-help code="DISPOSITION" label="How this is chosen"></app-rebate-help></div>
               <div class="sub" *ngIf="!step1Done">After the PRO product is known.</div>
               <ng-container *ngIf="step1Done">
-                <div class="sub" style="margin-bottom: 6px" *ngIf="row.modelId">In use: <b>#{{ row.modelId }} {{ row.modelDescription }}</b>
+                <div class="sub" style="margin-bottom: 6px" *ngIf="row.modelId">In use: <b>{{ row.modelDescription }}</b>
                   <span class="chip lock" *ngIf="row.modelChosenBy">picked by {{ row.modelChosenBy }} <button type="button" (click)="pickModel(null)" title="Back to automatic">↺</button></span></div>
                 <label class="rchoice" style="gap: 10px">Rebate type
                   <select class="in" style="max-width: 220px" [(ngModel)]="s2Type">
@@ -343,7 +343,7 @@
                   <input type="radio" name="s2" [checked]="s2Choice === c.modelId" (change)="s2Choice = c.modelId" />
                   <span>{{ c.name }}</span>
                   <span class="chip info" *ngIf="c.kind">{{ c.kind }}</span>
-                  <span class="sub mono">#{{ c.modelId }}<span *ngIf="c.vendor"> · {{ c.vendor }}</span></span>
+                  <span class="sub" *ngIf="c.vendor">{{ c.vendor }}</span>
                   <span class="chip ok" *ngIf="c.modelId === row.modelId">in use</span>
                   <span class="chip bad" *ngIf="c.active === false">retired</span>
                 </label>

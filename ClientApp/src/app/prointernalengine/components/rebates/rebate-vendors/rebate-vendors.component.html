@@ -102,7 +102,7 @@
         <th class="num">Units not reimbursed</th><th class="num">Liability</th><th class="num">Awaiting decision</th><th class="num">Posted to GL</th></tr></thead>
       <tbody>
         <tr *ngFor="let p of products" class="click" (click)="showPrograms.emit({ modelId: p.modelId })" [class.off]="!p.isActive">
-          <td><div class="rec">{{ p.description }}</div><div class="sub mono">#{{ p.modelId }} · PRO {{ p.proCodeText }}</div></td>
+          <td><div class="rec">{{ p.description }}</div><div class="sub mono">PRO {{ p.proCodeText }}</div></td>
           <td class="num">{{ p.programsLive }}</td>
           <td class="mono">{{ p.lastProgramDate | date:'MM/dd/yy' }}</td>
           <td class="money">{{ p.liveAmount | currency }}</td>

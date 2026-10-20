@@ -291,8 +291,10 @@ BEGIN
         SELECT p.* FROM
         (
             SELECT TOP (15) 'PRODUCT' AS Kind, CAST(m.ModelID AS nvarchar(20)) AS [Key], CAST(NULL AS int) AS MemberId, m.ModelID AS ModelId, m.VendorID AS VendorId,
-                   CONCAT(CAST(m.ModelNumber AS nvarchar(300)), N' · PRO ', CAST(m.ModelName AS nvarchar(100)), N' · #', m.ModelID) AS Label, 3 AS Ord
+                   CONCAT(CAST(m.ModelNumber AS nvarchar(300)), N' · PRO ', CAST(m.ModelName AS nvarchar(100)),
+                          COALESCE(N' · ' + v.VendorName, N''), CASE WHEN COALESCE(m.Active, 0) = 0 THEN N' · retired' ELSE N'' END) AS Label, 3 AS Ord
               FROM dbo.RebateCameraModels m
+              LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
              WHERE m.IsPriceProtection = 0
                AND (m.ModelNumber LIKE N'%' + @Q + N'%' OR m.ModelName LIKE N'%' + @Q + N'%'
                     OR (@n IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.RebateCameraModelsDetails d WHERE d.ParentModelID = m.ModelID AND d.ProCode = @n)))

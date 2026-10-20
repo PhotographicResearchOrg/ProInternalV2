@@ -165,7 +165,7 @@ export class RebateVendorsComponent implements OnChanges {
     const sheets: any[] = [{ name: 'Vendors', cols, rows: this.shown }];
     if (this.selected) {
       sheets.push({ name: 'Products', rows: this.products, cols: [
-        col('Product #', 'modelId', 'number'), col('Product', 'description', 'text', 45), col('PRO code', 'proCodeText'),
+        col('Product', 'description', 'text', 45), col('PRO code', 'proCodeText'),
         col('Live programs', 'programsLive', 'number'), col('Last program', 'lastProgramDate', 'date'), col('Current amount', 'liveAmount', 'money'),
         col('Units not reimbursed', 'liabilityUnits', 'number'), col('Liability', 'liability', 'money'),
         col('Awaiting decision', 'pendingAmount', 'money'), col('Posted to GL in period', 'creditedAmount', 'money')] });

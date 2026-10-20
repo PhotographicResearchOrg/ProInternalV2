@@ -3,7 +3,7 @@ import { Subject, Subscription, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.service';
 
-/* Finds a rebate product (dbo.RebateCameraModels, the rebate setup) by description, PRO code or product #, on one rail. Not the PRO catalog. */
+/* Finds a rebate product (dbo.RebateCameraModels, the rebate setup) by description or PRO code, on one rail. Not the PRO catalog. */
 @Component({
   selector: 'app-rebate-product-picker',
   template: `
@@ -15,7 +15,7 @@ import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-des
         <div class="opt sub" *ngIf="!error && !options.length">No rebate products match "{{ text }}".</div>
         <div class="opt" *ngFor="let p of options" (mousedown)="choose(p)">
           <b>{{ p.description }}</b>
-          <span class="sub"> · #{{ p.modelId }} · PRO {{ p.proCodes || p.proCodeText }} · {{ p.vendorName }}</span>
+          <span class="sub"> · PRO {{ p.proCodes || p.proCodeText }} · {{ p.vendorName }}</span>
           <span class="chip bad" *ngIf="!p.isActive">retired</span>
         </div>
       </div>
@@ -25,7 +25,7 @@ import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-des
 export class RebateProductPickerComponent implements OnDestroy {
   @Input() rail: Rail = 'IR';
   @Input() vendorId: number | null = null;
-  @Input() placeholder = 'Search rebate products: description, PRO code or product #';
+  @Input() placeholder = 'Search rebate products: description or PRO code';
   @Input() set initial(v: string | null | undefined) {
     if (v) { this.text = v; this.search$.next(v); }
   }

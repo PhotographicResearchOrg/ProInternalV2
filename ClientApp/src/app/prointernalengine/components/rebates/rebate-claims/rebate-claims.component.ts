@@ -88,7 +88,7 @@ export class RebateClaimsComponent implements OnChanges {
 
   pickModel(m: any): void {
     this.filter.modelId = m?.modelId ?? null;
-    this.modelLabel = m ? (m.description ?? m.modelNumber ?? '#' + m.modelId) : '';
+    this.modelLabel = m ? (m.description ?? m.modelNumber ?? '') : '';
     this.go(1);
   }
 

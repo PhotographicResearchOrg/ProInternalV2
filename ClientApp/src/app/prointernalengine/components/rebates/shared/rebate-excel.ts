@@ -72,8 +72,7 @@ export async function fetchAllPages(load: (page: number, pageSize: number) => Ob
 /* ---- the column lists, shared by every screen that shows the same rows ---- */
 
 export const IR_PROGRAM_COLS: XCol[] = [
-  col('Program #', 'programId', 'number'), col('Batch', 'batchId', 'number'), col('Product #', 'modelId', 'number'),
-  col('Product', 'description', 'text', 40), col('PRO code', r => r.proCodeText ?? r.proCode), col('Vendor', 'vendorName'),
+  col('Program #', 'programId', 'number'), col('Batch', 'batchId', 'number'), col('Product', 'description', 'text', 40), col('PRO code', r => r.proCodeText ?? r.proCode), col('Vendor', 'vendorName'),
   col('Type', 'irTypeName'), col('Start', 'startDate', 'date'), col('End', 'endDate', 'date'), col('Claims until', 'expireOn', 'date'),
   col('Instant rebate', 'instantRebate', 'money'), col('Member amount', 'reimbursement', 'money'),
   col('Vendor share', r => r.vendorShare ?? r.reimbursement, 'money'), col('PRO pad', r => r.proPad ?? 0, 'money'),
@@ -81,7 +80,7 @@ export const IR_PROGRAM_COLS: XCol[] = [
 ];
 
 export const PP_PROGRAM_COLS: XCol[] = [
-  col('Program #', 'programId', 'number'), col('Product #', 'modelId', 'number'), col('Product', 'description', 'text', 40),
+  col('Program #', 'programId', 'number'), col('Product', 'description', 'text', 40),
   col('PRO code', 'proCodeText'), col('Vendor', 'vendorName'), col('Program date', 'programDate', 'date'),
   col('Credit', 'amount', 'money'), col('New invoice cost', 'newInvoiceCost', 'money'), col('New MAP', 'mapPrice', 'money'),
   col('EZPay', 'ezPay', 'money'), col('State', r => (r.isLive ? 'ON' : 'OFF'))

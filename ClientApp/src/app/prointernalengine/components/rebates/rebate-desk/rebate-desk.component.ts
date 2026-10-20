@@ -41,8 +41,7 @@ type Pending =
  */
 const HISTORY_COLS = [
   col('When', 'at', 'datetime'), col('Who', 'actor'), col('What', 'eventType'), col('Batch', 'batchId', 'number'),
-  col('Program', 'programId', 'number'), col('Upload', 'uploadId', 'number'), col('Product #', 'modelId', 'number'),
-  col('Product', 'modelDescription', 'text', 40), col('Claim', 'claimId', 'number'), col('Reason', 'reason', 'text', 40),
+  col('Program', 'programId', 'number'), col('Upload', 'uploadId', 'number'), col('Product', 'modelDescription', 'text', 40), col('Claim', 'claimId', 'number'), col('Reason', 'reason', 'text', 40),
   col('Detail', (h: any) => h.detailText ?? (typeof h.detail === 'string' ? h.detail : JSON.stringify(h.detail ?? '')), 'text', 80)
 ];
 
@@ -624,7 +623,7 @@ export class RebateDeskComponent implements OnInit {
     this.error = '';
     this.desk.pickModel(this.row.rowId, p ? p.modelId : null).pipe(finalize(() => (this.busy = false))).subscribe({
       next: r => {
-        this.notice = p ? `Row set to product #${p.modelId}${r?.status === 'READY' ? '; ready to load.' : '.'}` : 'Row handed back to automatic matching.';
+        this.notice = p ? `Row set to ${p.description ?? 'the rebate product'}${r?.status === 'READY' ? '; ready to load.' : '.'}` : 'Row handed back to automatic matching.';
         this.afterRowChange();
       },
       error: err => (this.error = apiMessage(err))
@@ -644,7 +643,7 @@ export class RebateDeskComponent implements OnInit {
     this.desk.addProduct({ ...this.newProduct, forRowId: this.row.rowId }).pipe(finalize(() => (this.busy = false))).subscribe({
       next: r => {
         this.newProduct = null;
-        this.notice = `Product #${r.modelId} added and set on this row.` + (r.unknownProCodes ? ` Not found in PRO products: ${r.unknownProCodes}.` : '');
+        this.notice = `Rebate product added and set on this row.` + (r.unknownProCodes ? ` Not found in PRO products: ${r.unknownProCodes}.` : '');
         this.afterRowChange();
       },
       error: err => (this.error = apiMessage(err))
@@ -708,7 +707,7 @@ export class RebateDeskComponent implements OnInit {
       finalize(() => (this.busy = false))
     ).subscribe({
       next: () => {
-        this.notice = choice === 'CREATE' ? `Created "${this.s2Name}" and set it on row ${r.sourceRow}.` : `Row ${r.sourceRow} mapped to rebate product #${choice}.`;
+        this.notice = choice === 'CREATE' ? `Created "${this.s2Name}" and set it on row ${r.sourceRow}.` : `Row ${r.sourceRow} mapped to ${(this.s2List.find((x: any) => x.modelId === choice)?.name) ?? 'the chosen rebate product'}.`;
         this.loadOverview();
         this.afterRowChange();
       },

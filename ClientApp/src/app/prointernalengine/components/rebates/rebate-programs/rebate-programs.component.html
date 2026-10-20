@@ -158,8 +158,8 @@
     </div>
     <div class="field-grid">
       <label class="wide">{{ rail === 'PP' ? 'Price-protection product' : 'Rebate product' }} (from the rebate setup, not the PRO catalog)
-        <app-rebate-product-picker [rail]="rail" placeholder="Search rebate products: description, PRO code or product #" (picked)="addProduct = $event"></app-rebate-product-picker>
-        <span class="sub" *ngIf="addProduct">#{{ addProduct.modelId }} · PRO {{ addProduct.proCodes || addProduct.proCodeText }} · {{ addProduct.vendorName }}</span>
+        <app-rebate-product-picker [rail]="rail" placeholder="Search rebate products: description or PRO code" (picked)="addProduct = $event"></app-rebate-product-picker>
+        <span class="sub" *ngIf="addProduct">PRO {{ addProduct.proCodes || addProduct.proCodeText }} · {{ addProduct.vendorName }}</span>
       </label>
       <ng-container *ngIf="rail === 'IR'">
         <label>Rebate type
