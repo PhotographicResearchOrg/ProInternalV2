@@ -23,6 +23,8 @@ export class RebateInvestigateComponent implements OnChanges {
   @Input() preset: { memberId: number; modelIds?: number[] } | null = null;
   /* Open a claim on the Claims screen. */
   @Output() openClaim = new EventEmitter<number>();
+  /* Manage this member's stock padding (the Stock padding view). */
+  @Output() openStockPad = new EventEmitter<number>();
 
   q = '';
   hits: any[] = [];
@@ -225,7 +227,8 @@ export class RebateInvestigateComponent implements OnChanges {
   }
 
   /* ---- stock padding (EDA.RebateOverride): add with a reason, remove with a reason, both kept ---- */
-  padForm: { proCode: number | null; quantity: number | null; reason: string } | null = null;
+  /* modelId: the product row the form opened under (null: in the Stock padding card). */
+  padForm: { proCode: number | null; quantity: number | null; reason: string; modelId: number | null; label: string } | null = null;
   padBusy = false;
   padError = '';
   removing: any = null;
@@ -242,7 +245,8 @@ export class RebateInvestigateComponent implements OnChanges {
 
   startPad(p?: any): void {
     const codes = p ? this.linkedFor(p.modelId).filter(k => !k.isLinked) : [];
-    this.padForm = { proCode: codes[0]?.proCode ?? this.padCodes[0]?.code ?? null, quantity: null, reason: '' };
+    this.padForm = { proCode: codes[0]?.proCode ?? this.v.padCodes[0]?.code ?? null, quantity: null, reason: '',
+                     modelId: p ? p.modelId : null, label: p ? p.description : '' };
     this.padError = '';
   }
 
@@ -350,7 +354,7 @@ export class RebateInvestigateComponent implements OnChanges {
       labels: rows.map(r => new Date(r.monthStart).toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' })),
       datasets: [
         { label: 'Units bought from PRO', data: rows.map(r => +r.unitsBought || 0), backgroundColor: '#1d4f91', stack: 'bought' },
-        { label: 'Stock padding (when entered)', data: rows.map(r => +r.unitsPadded || 0), backgroundColor: '#7fb2e5', stack: 'bought' },
+        { label: 'Stock padding (month entered)', data: rows.map(r => +r.unitsPadded || 0), backgroundColor: '#7fb2e5', stack: 'bought' },
         { label: 'Units claimed', data: rows.map(r => +r.unitsClaimed || 0), backgroundColor: '#d9822b', stack: 'claimed' },
         { label: 'Units declined', data: rows.map(r => +r.unitsDeclined || 0), backgroundColor: '#c0392b', stack: 'claimed' }
       ]

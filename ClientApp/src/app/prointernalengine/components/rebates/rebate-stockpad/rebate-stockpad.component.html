@@ -1,0 +1,66 @@
+<div class="notice" style="margin: 0 0 12px" *ngIf="notice" (click)="notice = ''"><i class="pi pi-check"></i> {{ notice }}</div>
+<div class="error" style="margin: 0 0 12px" *ngIf="error"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+
+<section class="card">
+  <div class="card-head"><h2>Add stock padding</h2>
+    <span class="sub">units a member bought elsewhere (often direct from the vendor) before stocking through PRO; Investigate counts them as available</span></div>
+  <div class="padform">
+    <label>Member #
+      <input class="in mono" type="number" [(ngModel)]="form.memberId" placeholder="e.g. 1747" /></label>
+    <label>PRO product
+      <div class="typeahead">
+        <input class="in" [(ngModel)]="proQ" (ngModelChange)="searchPro($event)" [placeholder]="productLabel || 'PRO code, catalog #, UPC or name'" />
+        <div class="options" *ngIf="proHits.length || (proSearching && proQ)">
+          <div class="opt sub" *ngIf="proSearching">Searching…</div>
+          <div class="opt" *ngFor="let h of proHits" (mousedown)="pickPro(h)">
+            <b class="mono">{{ h.productCode }}</b> {{ h.modelName }}<span class="sub" *ngIf="h.isDiscontinued"> · discontinued</span>
+          </div>
+        </div>
+      </div>
+      <span class="sub" *ngIf="productLabel">{{ productLabel }}</span></label>
+    <label>Units <input class="in" type="number" [(ngModel)]="form.quantity" placeholder="e.g. 6 (negative takes off)" /></label>
+    <label class="wide" style="grid-column: 1 / -1">Reason (required)
+      <input class="in" [(ngModel)]="form.reason" placeholder="e.g. Bought 6 direct from Panasonic in March 2026 before opening a PRO account" /></label>
+    <div class="actions">
+      <button type="button" class="btn primary" (click)="save()" [disabled]="!canSave">{{ busy ? 'Saving…' : 'Add stock padding' }}</button>
+      <span class="sub">Added by you, today. A change is a new entry; nothing is edited or deleted.</span>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>History</h2>
+    <span class="sub">{{ shown.length }} entries{{ filter.memberId || filter.proCode ? ' · ' + activeTotal + ' units in use' : ' (latest)' }}</span><span class="grow"></span>
+    <button type="button" class="btn ghost" (click)="exportRows()" [disabled]="!shown.length"><i class="pi pi-file-excel"></i> Excel</button></div>
+  <div class="filters">
+    <input class="in mono" type="number" style="max-width: 140px" placeholder="Member #" [(ngModel)]="filter.memberId" (keyup.enter)="load()" (change)="load()" />
+    <input class="in mono" type="number" style="max-width: 140px" placeholder="PRO code" [(ngModel)]="filter.proCode" (keyup.enter)="load()" (change)="load()" />
+    <label class="sub" style="display: flex; align-items: center; gap: 6px"><input type="checkbox" [(ngModel)]="filter.showRemoved" /> Show removed</label>
+    <button type="button" class="btn ghost" (click)="clearFilter()" *ngIf="filter.memberId || filter.proCode">Clear</button>
+  </div>
+  <table class="grid">
+    <thead><tr><th>Member</th><th>PRO product</th><th class="num">Units</th><th>Reason</th><th>Added</th><th></th></tr></thead>
+    <tbody>
+      <tr *ngFor="let d of shown; trackBy: trackPad" [class.off]="d.removedAt">
+        <td><span class="mono">{{ d.memberId }}</span><div class="sub">{{ d.memberName }}</div></td>
+        <td><span class="mono">{{ d.proCode }}</span><div class="sub">{{ d.productName }}</div></td>
+        <td class="num">{{ d.quantity }}</td>
+        <td>{{ d.reason || 'No reason recorded (entered on the old screen)' }}
+          <div class="sub" *ngIf="d.removedAt">Removed {{ d.removedAt | date:'MM/dd/yy' }} by {{ d.removedBy }}: {{ d.removedReason }}</div></td>
+        <td class="sub">{{ d.createdAt ? (d.createdAt | date:'MM/dd/yy') : 'old screen' }}{{ d.createdBy ? ' · ' + d.createdBy : '' }}</td>
+        <td>
+          <ng-container *ngIf="!d.removedAt">
+            <button type="button" class="btn ghost" *ngIf="removing?.padId !== d.padId" (click)="removing = d; removeReason = ''">Remove</button>
+            <span *ngIf="removing?.padId === d.padId" class="inline-confirm">
+              <input class="in" [(ngModel)]="removeReason" placeholder="Why remove it?" />
+              <button type="button" class="btn" (click)="confirmRemove()" [disabled]="busy || !removeReason.trim()">Remove</button>
+              <button type="button" class="btn ghost" (click)="removing = null">Keep</button>
+            </span>
+          </ng-container>
+        </td>
+      </tr>
+      <tr *ngIf="!shown.length && !loading"><td colspan="6" class="empty">No stock padding here.</td></tr>
+      <tr *ngIf="loading"><td colspan="6" class="empty">Loading…</td></tr>
+    </tbody>
+  </table>
+</section>

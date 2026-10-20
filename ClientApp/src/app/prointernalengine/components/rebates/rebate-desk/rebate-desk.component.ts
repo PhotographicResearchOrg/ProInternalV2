@@ -9,7 +9,7 @@ import { DEFAULT_MONTHS, windowStart } from '../shared/rebate-window.component';
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
-  | 'templates' | 'claims' | 'debitmemos' | 'declines' | 'investigate' | 'history'
+  | 'templates' | 'claims' | 'debitmemos' | 'declines' | 'investigate' | 'stockpad' | 'history'
   | 'pp-programs' | 'pp-products' | 'pp-vendors' | 'pp-claims' | 'pp-debitmemos' | 'pp-history';
 
 interface RailView { key: ViewKey; label: string; icon: string; group: 'IR' | 'PP'; count?: () => number; hot?: boolean; }
@@ -68,6 +68,7 @@ export class RebateDeskComponent implements OnInit {
     { key: 'debitmemos', label: 'Debit memos', icon: 'pi pi-send', group: 'IR' },
     { key: 'declines', label: 'Needs support / declined', icon: 'pi pi-ban', group: 'IR' },
     { key: 'investigate', label: 'Investigate', icon: 'pi pi-search', group: 'IR' },
+    { key: 'stockpad', label: 'Stock padding', icon: 'pi pi-plus-circle', group: 'IR' },
     { key: 'history', label: 'History', icon: 'pi pi-history', group: 'IR' },
     { key: 'pp-programs', label: 'Programs', icon: 'pi pi-list', group: 'PP', count: () => this.overview.priceProtectionLive || 0 },
     { key: 'pp-products', label: 'Products', icon: 'pi pi-tags', group: 'PP' },
@@ -214,7 +215,7 @@ export class RebateDeskComponent implements OnInit {
     this.error = '';
     this.row = null;
     this.newProduct = null;
-    if (!keepFilters) { this.programModelId = null; this.programBatchId = null; this.programOpenId = null; this.memoPreset = null; this.investigatePreset = null; this.claimsOpenId = null; }
+    if (!keepFilters) { this.programModelId = null; this.programBatchId = null; this.programOpenId = null; this.memoPreset = null; this.investigatePreset = null; this.claimsOpenId = null; this.stockPadMember = null; }
     if (key !== 'uploads') this.upload = null;
     if (key !== 'upload') this.remapUploadId = null;
     this.router.navigate([], { queryParams: { view: key }, replaceUrl: true });
@@ -237,6 +238,12 @@ export class RebateDeskComponent implements OnInit {
   /* Investigate a claim's member and products (from the claim, or a needs-support / declined row). */
   investigatePreset: { memberId: number; modelIds?: number[] } | null = null;
   claimsOpenId: number | null = null;
+  stockPadMember: number | null = null;
+  openStockPad(memberId: number): void {
+    if (!this.leaveOk()) return;
+    this.stockPadMember = memberId;
+    this.pick('stockpad', true);
+  }
   openClaim(orderId: number): void {
     if (!this.leaveOk()) return;
     this.claimsOpenId = orderId;

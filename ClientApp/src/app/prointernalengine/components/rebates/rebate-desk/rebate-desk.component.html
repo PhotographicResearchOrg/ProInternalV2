@@ -440,7 +440,8 @@
 
       <!-- ============ Claims and debit memos (accounting) ============ -->
       <app-rebate-claims *ngIf="view === 'claims'" rail="IR" tab="claims" [openClaimId]="claimsOpenId" (investigate)="investigate($event)"></app-rebate-claims>
-      <app-rebate-investigate *ngIf="view === 'investigate'" [preset]="investigatePreset" (openClaim)="openClaim($event)"></app-rebate-investigate>
+      <app-rebate-investigate *ngIf="view === 'investigate'" [preset]="investigatePreset" (openClaim)="openClaim($event)" (openStockPad)="openStockPad($event)"></app-rebate-investigate>
+      <app-rebate-stockpad *ngIf="view === 'stockpad'" [memberId]="stockPadMember"></app-rebate-stockpad>
       <app-rebate-claims *ngIf="view === 'debitmemos'" rail="IR" tab="memos" [preset]="memoPreset"></app-rebate-claims>
       <app-rebate-claims *ngIf="view === 'pp-claims'" rail="PP" tab="claims"></app-rebate-claims>
       <app-rebate-claims *ngIf="view === 'pp-debitmemos'" rail="PP" tab="memos" [preset]="memoPreset"></app-rebate-claims>
