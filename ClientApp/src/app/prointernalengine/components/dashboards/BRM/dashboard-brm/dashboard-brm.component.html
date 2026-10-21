@@ -36,7 +36,6 @@
         </div>
         <div [hidden]="isShippingCardCollapsed">
           <app-shippingerrorbrm (errorCountChanged)="brmShippingErrorCount = $event"></app-shippingerrorbrm>
-          <div class="empty" *ngIf="brmShippingErrorCount === 0">No shipping errors to process.</div>
         </div>
       </section>
 

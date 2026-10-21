@@ -1,0 +1,14 @@
+/* Product cards inside an opened shipping error (Rebate Desk look). */
+.se-panel { padding: 4px 4px 8px; }
+.se-product {
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; background: var(--card);
+  &.done { opacity: .7; }
+}
+.se-product-head { display: flex; align-items: flex-start; gap: 8px; }
+.se-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 14px; margin-top: 8px; }
+.se-label { display: block; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .4px; color: var(--faint); margin-bottom: 3px; }
+.se-msg { background: #f6f8fb; border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; font-size: 13px; }
+.se-msg.reply { background: var(--amberSoft); }
+.se-ra { background: var(--blueSoft); border-left: 3px solid var(--blue); border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+a.btn { text-decoration: none; }
+@media (max-width: 900px) { .se-grid { grid-template-columns: 1fr; } }

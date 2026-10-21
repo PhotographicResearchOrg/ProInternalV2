@@ -1,1 +1,155 @@
-<p>shippingerrorbrm works!</p>
+<p-toast></p-toast>
+
+<!-- BRM shipping errors, in the Rebate Desk look. Same data and actions as before (the warehouse page keeps its own view). -->
+<div class="filters">
+  <input class="in" placeholder="Claim #, ship #, company or account" [(ngModel)]="q" (ngModelChange)="take = 50" />
+  <button type="button" class="btn ghost" (click)="exportErrors()" [disabled]="!shown.length || isExporting">
+    <i class="pi" [class.pi-file-excel]="!isExporting" [class.pi-spin]="isExporting" [class.pi-spinner]="isExporting"></i>
+    {{ isExporting ? 'Exporting…' : 'Excel' }}</button>
+</div>
+<div class="chips">
+  <span class="lbl">Show</span>
+  <button type="button" *ngFor="let c of chips" [class.on]="chip === c.key" (click)="chip = c.key; take = 50; expandedErrorId = null">
+    {{ c.label }}<b>{{ count(c.key) }}</b></button>
+</div>
+
+<div class="tablewrap">
+<table class="grid">
+  <thead><tr>
+    <th rdSort="id" [rdSortBy]="sorts['errors']">Claim</th>
+    <th rdSort="shipnumber" [rdSortBy]="sorts['errors']">Ship #</th>
+    <th rdSort="companyName" [rdSortBy]="sorts['errors']">Company</th>
+    <th rdSort="account" [rdSortBy]="sorts['errors']">Account</th>
+    <th [rdSort]="sortSubmitted" [rdSortBy]="sorts['errors']">Submitted</th>
+    <th rdSort="status" [rdSortBy]="sorts['errors']">Status</th>
+  </tr></thead>
+  <tbody>
+    <ng-container *ngFor="let error of shown | rdSort:sorts['errors'] | slice:0:take; trackBy: trackError">
+      <tr class="click" (click)="toggleRow(error)" [class.sel]="expandedErrorId === error.id">
+        <td class="mono"><i class="pi" [class.pi-chevron-right]="expandedErrorId !== error.id" [class.pi-chevron-down]="expandedErrorId === error.id"></i> {{ error.id }}</td>
+        <td class="mono">{{ error.shipnumber }}</td>
+        <td>{{ error.companyName }}</td>
+        <td class="mono">{{ error.account }}</td>
+        <td class="mono">{{ error.dateSubmitted }}</td>
+        <td><span class="status" [class.warn]="error.status === 'Open' || error.status === 'BRM'" [class.ok]="error.status === 'Complete' || error.status === 'Processed'">{{ error.status }}</span>
+          <span class="chip info" *ngIf="hasBRMProduct(error)" style="margin-left: 6px">BRM</span></td>
+      </tr>
+
+      <tr class="expand" *ngIf="expandedErrorId === error.id">
+        <td colspan="6">
+          <div class="se-panel">
+            <div class="actions" style="margin: 0 0 10px">
+              <button type="button" class="btn ghost" (click)="viewPackingSlip(error.id)"><i class="pi pi-eye"></i> Packing slip</button>
+              <a *ngIf="hasDamaged(error)" class="btn ghost" [href]="'https://piv2.promaster.com/ShippingErrors/' + error.id + '/'" target="_blank" rel="noopener">
+                <i class="pi pi-images"></i> Damage images</a>
+              <button type="button" class="btn ghost" *ngIf="shouldShowPrintRA(error)" (click)="printRA(error)"><i class="pi pi-print"></i> Print RA</button>
+            </div>
+
+            <div class="facts">
+              <div><span>Submitted</span><b>{{ error.dateSubmitted }}</b></div>
+              <div><span>Shipped</span><b>{{ error.shipDate | date:'MM/dd/yy' }}</b></div>
+              <div><span>Ship #</span><b class="mono">{{ error.shipnumber }}</b></div>
+              <div><span>Status</span><b>{{ error.status }}</b></div>
+              <div><span>RMA</span><b>{{ error.rmaStatus || '—' }}</b></div>
+              <div><span>Account</span><b>{{ error.account }} · {{ error.companyName }}</b></div>
+              <div><span>Contact</span><b>{{ error.contactName || '—' }}</b></div>
+              <div><span>Email</span><b>{{ error.contactEmail || '—' }}</b></div>
+              <div><span>Phone</span><b>{{ error.contactPhone || '—' }}</b></div>
+            </div>
+
+            <h3 class="sub" style="margin: 14px 0 6px">Products</h3>
+            <div class="sub" *ngIf="isLoading(error.id)"><i class="pi pi-spin pi-spinner"></i> Loading product details…</div>
+            <div class="sub" *ngIf="!isLoading(error.id) && !error.products?.length">No product details found.</div>
+
+            <div class="se-product" *ngFor="let product of productsOf(error)" [class.done]="product.closed">
+              <div class="se-product-head">
+                <div class="grow">
+                  <div><b class="mono">{{ product.productCode }}</b> {{ product.productDescription }}</div>
+                  <div class="sub">Qty {{ product.quantity }} · {{ product.cost | currency }} · {{ product.errorType }}<span *ngIf="product.serial"> · SN {{ product.serial }}</span></div>
+                </div>
+                <span class="status ok" *ngIf="product.closed">Completed</span>
+                <span class="chip info" *ngIf="product.isBRMProduct && !product.closed">Yours</span>
+              </div>
+
+              <div class="notice warn-notice" *ngIf="product.errorType === 'Forward' || product.errorType === 'Call Me'" style="margin: 8px 0">
+                <i class="pi pi-exclamation-triangle"></i>
+                <div><b>{{ product.errorType === 'Forward' ? 'Confirm the order was forwarded' : 'Complete the requested call' }}</b>
+                  <div>{{ product.errorType === 'Forward'
+                    ? 'The retailer said they would forward this order. Follow up and make sure it was done, and that the end customer knows.'
+                    : 'The customer asked for a call. Make the call, resolve the question, and make sure the customer knows the outcome.' }}
+                    Don't close it until the follow-up is done.</div></div>
+              </div>
+
+              <div class="se-grid">
+                <div>
+                  <div class="se-label">Disposition</div>
+                  <div *ngIf="isWaitingForReturn(product)" class="se-ra">
+                    <b>Return authorization issued</b> {{ product.raIssuedDate | date:'MM/dd/yy h:mm a' }}
+                    <div class="sub">The customer was told to send the merchandise back. Waiting for the return.</div>
+                    <button type="button" class="btn" style="margin-top: 6px" (click)="productReceived(error.id, product)"><i class="pi pi-box"></i> Product received</button>
+                  </div>
+                  <div *ngIf="!isWaitingForReturn(product)">{{ dispositionLabel(product) }}</div>
+                </div>
+                <div>
+                  <div class="se-msg" *ngIf="product.customMessage"><span class="se-label">Warehouse asked</span>{{ product.customMessage }}</div>
+                  <div class="se-msg reply" *ngIf="product.returnMessage"><span class="se-label">BRM answered</span>{{ product.returnMessage }}</div>
+                  <label class="se-label" style="display: block; margin-top: 6px">Your reply to the warehouse</label>
+                  <input class="in" style="width: 100%" [(ngModel)]="product.brmMessage" placeholder="Reply to the warehouse…"
+                         (input)="product.validationError = null" [disabled]="product.closed" />
+                  <div class="err" *ngIf="product.validationError === 'brm'">A message is needed to send it back.</div>
+                  <div class="actions" style="margin-top: 8px">
+                    <button type="button" class="btn primary" [disabled]="product.closed || !product.isBRMProduct"
+                            (click)="markProductComplete(error.id, $any(product.productCode))"><i class="pi pi-check"></i> Complete</button>
+                    <button type="button" class="btn" *ngIf="product.isBRMProduct" [disabled]="product.closed || !product.brmMessage?.trim()"
+                            (click)="sendBackToWarehouse(error.id, product)"><i class="pi pi-replay"></i> Send back to warehouse</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </ng-container>
+    <tr *ngIf="!shown.length"><td colspan="6" class="empty">{{ shippingErrors.length ? 'Nothing here.' : 'Loading…' }}</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="pager" *ngIf="shown.length > take">
+  <button type="button" class="btn ghost" (click)="take = take + 50">Show more ({{ shown.length - take }})</button>
+</div>
+
+<!-- Packing slip (unchanged) -->
+<p-sidebar [(visible)]="showPackingSlip" position="right" [modal]="true" [dismissible]="true" [baseZIndex]="10000"
+           [style]="{ width: '90vw', maxWidth: '600px' }" [closeOnEscape]="true" [showCloseIcon]="true">
+  <div class="card-head"><h2>Packing slip</h2><span class="grow"></span>
+    <button type="button" class="btn ghost" (click)="printPackingSlip()"><i class="pi pi-print"></i> Print</button></div>
+  <div id="packing-slip-content">
+    <ng-container *ngIf="packingSlipHeader; else loadingSlip">
+      <table class="packing-slip-summary mb-3">
+        <thead><tr><th>Ship Date</th><th>PRO Order #</th><th>PO #</th><th>Checked By</th><th>Shipping #</th><th>Pro Member</th></tr></thead>
+        <tbody><tr>
+          <td>{{ packingSlipHeader.orderDate | date:'yyyy-MM-dd' }}</td><td>{{ packingSlipHeader.proOrderNumber }}</td><td>{{ packingSlipHeader.po }}</td>
+          <td>{{ packingSlipHeader.checkedBy }}</td><td>{{ packingSlipHeader.shippingNumber }}</td><td>{{ packingSlipHeader.proMember }}</td>
+        </tr></tbody>
+      </table>
+      <table class="packing-slip-products">
+        <thead><tr><th>Product Code</th><th>QTY Ordered</th><th>QTY Shipped</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let product of packingSlipProducts" [ngClass]="{ 'reconciled-row': isInErrorList(product.productCode) }">
+            <td>{{ product.productCode }}</td><td>{{ product.quantityOrdered }}</td><td>{{ product.quantityShipped }}</td><td>{{ product.description }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <h4 class="mt-4 mb-2">Error Products</h4>
+      <table class="packing-slip-products">
+        <thead><tr><th>Product Code</th><th>Desc</th><th style="width: 90px;">Quan</th><th>Error</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let product of selectedErrorDetails">
+            <td>{{ product.productCode }}</td><td>{{ product.productDescription }}</td><td>{{ product.quantity }}</td><td>{{ product.errorType }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </ng-container>
+  </div>
+  <ng-template #loadingSlip><p>Loading packing slip…</p></ng-template>
+</p-sidebar>
