@@ -3,6 +3,7 @@ import { Subject, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, finalize, switchMap } from 'rxjs/operators';
 import { RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.service';
 import { col, downloadXlsx } from '../shared/rebate-excel';
+import { rdSorts } from '../shared/rebate-sort';
 
 /*
  * Stock padding (EDA.RebateOverride): units a member bought somewhere else (often direct from the
@@ -16,6 +17,7 @@ import { col, downloadXlsx } from '../shared/rebate-excel';
   styleUrls: ['../shared/rebate-desk.shared.scss']
 })
 export class RebateStockpadComponent implements OnChanges {
+  readonly sorts = rdSorts();
   /* Opened from Investigate: that member is filled in. */
   @Input() memberId: number | null = null;
 

@@ -109,7 +109,9 @@ CREATE OR ALTER PROCEDURE piv2.Claim_Search
     @PageSize int = 50,
     @Months   int = 12,                  -- window in months (12 default, 24 = two years); 0 = all history
     @MemberId int = NULL,                -- every claim of one member
-    @ModelId  int = NULL                 -- claims with a line for this rebate product
+    @ModelId  int = NULL,                -- claims with a line for this rebate product
+    @Sort     varchar(30) = NULL,        -- column clicked on the desk (NULL = newest first)
+    @Desc     bit = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -225,15 +227,23 @@ BEGIN
      WHERE c.HasAr = 0 AND c.DecidedAt >= DATEADD(day, -5, GETDATE())
        AND EXISTS (SELECT 1 FROM piv2.Rebate_ArCredit(c.MemberId, c.OrderId));
 
-    SELECT c.*,
-           CASE WHEN c.Status = 2 THEN 'DECLINED'
-                WHEN c.Status = 3 THEN 'SUPPORT'
-                WHEN c.Status = 1 AND c.ComputymeProcessed = 1 AND c.HasAr = 0 THEN 'NOT_IN_AR'
-                WHEN c.Status = 1 AND c.ComputymeProcessed = 1 THEN 'SENT'
-                WHEN c.Status = 1 THEN 'APPROVED'
-                ELSE 'SUBMITTED' END AS Bucket,
+    SELECT c.*, bk.Bucket,
            COUNT(*) OVER () AS TotalRows
       FROM #c c
+     CROSS APPLY (SELECT CASE WHEN c.Status = 2 THEN 'DECLINED'
+                              WHEN c.Status = 3 THEN 'SUPPORT'
+                              WHEN c.Status = 1 AND c.ComputymeProcessed = 1 AND c.HasAr = 0 THEN 'NOT_IN_AR'
+                              WHEN c.Status = 1 AND c.ComputymeProcessed = 1 THEN 'SENT'
+                              WHEN c.Status = 1 THEN 'APPROVED'
+                              ELSE 'SUBMITTED' END AS Bucket) bk
+     CROSS APPLY (SELECT CASE @Sort WHEN 'orderId'    THEN CAST(c.OrderId AS sql_variant)
+                                    WHEN 'memberId'   THEN CAST(c.MemberId AS sql_variant)
+                                    WHEN 'vendorName' THEN CAST(c.VendorName AS sql_variant)
+                                    WHEN 'claimDate'  THEN CAST(c.ClaimDate AS sql_variant)
+                                    WHEN 'amount'     THEN CAST(c.Amount AS sql_variant)
+                                    WHEN 'bucket'     THEN CAST(bk.Bucket AS sql_variant)
+                                    WHEN 'debitMemo'  THEN CAST(c.DebitMemo AS sql_variant)
+                                    WHEN 'invoiced'   THEN CAST(c.Invoiced AS sql_variant) END AS K) s
      WHERE @State IS NULL
         OR (@State = 'SUBMITTED' AND COALESCE(c.Status, 0) NOT IN (1, 2, 3))
         OR (@State = 'SUPPORT' AND c.Status = 3)
@@ -243,7 +253,9 @@ BEGIN
         OR (@State = 'NO_DM' AND c.Status = 1 AND c.DebitMemo IS NULL)
         OR (@State = 'NOT_INVOICED' AND c.Status = 1 AND c.ComputymeProcessed = 1 AND c.Invoiced = 0 AND c.HasAr = 1)
         OR (@State = 'NOT_IN_AR' AND c.Status = 1 AND c.ComputymeProcessed = 1 AND c.HasAr = 0)
-     ORDER BY c.ClaimDate DESC, c.OrderId DESC
+     ORDER BY CASE WHEN @Sort IS NOT NULL AND s.K IS NULL THEN 1 ELSE 0 END,   -- blanks last
+              CASE WHEN @Desc = 0 THEN s.K END ASC, CASE WHEN @Desc = 1 THEN s.K END DESC,
+              c.ClaimDate DESC, c.OrderId DESC
      OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
     OPTION (RECOMPILE);
 END

@@ -57,9 +57,9 @@
     <button type="button" class="btn ghost" (click)="clearFilter()" *ngIf="filter.memberId || filter.proCode || textQ">Clear</button>
   </div>
   <table class="grid">
-    <thead><tr><th>Member</th><th>PRO product</th><th class="num">Units</th><th>Reason</th><th>Added</th><th></th></tr></thead>
+    <thead><tr><th rdSort="memberId" [rdSortBy]="sorts['pads']">Member</th><th rdSort="proCode" [rdSortBy]="sorts['pads']">PRO product</th><th class="num" rdSort="quantity" [rdSortBy]="sorts['pads']">Units</th><th rdSort="reason" [rdSortBy]="sorts['pads']">Reason</th><th rdSort="createdAt" [rdSortBy]="sorts['pads']">Added</th><th></th></tr></thead>
     <tbody>
-      <tr *ngFor="let d of shown; trackBy: trackPad" [class.off]="d.removedAt">
+      <tr *ngFor="let d of shown | rdSort:sorts['pads']; trackBy: trackPad" [class.off]="d.removedAt">
         <td><span class="mono">{{ d.memberId }}</span><div class="sub">{{ d.memberName }}</div></td>
         <td><span class="mono">{{ d.proCode }}</span><div class="sub">{{ d.productName }}</div></td>
         <td class="num">{{ d.quantity }}</td>

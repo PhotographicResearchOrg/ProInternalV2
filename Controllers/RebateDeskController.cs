@@ -254,18 +254,25 @@ namespace ProInternal.Controllers
         public Task<IActionResult> RetireTemplate(int templateId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_RetireTemplate", new { TemplateId = templateId, Actor, Reason = body?.Reason ?? "" }));
 
+        /* A column name clicked on the desk; anything but plain letters is ignored. */
+        private static string? SortKey(string? sort) =>
+            !string.IsNullOrWhiteSpace(sort) && sort.Length <= 30 && sort.All(char.IsLetter) ? sort : null;
+
         /* ================= batches ================= */
 
         [HttpGet("batches")]
         public Task<IActionResult> Batches([FromQuery] string? q, [FromQuery] int? vendorId, [FromQuery] string? state,
                                            [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12) =>
-            Read(async () => Paged(await _data.QueryAsync("piv2.Rebate_Batches", new
+            Read(async (,
+                                            [FromQuery] string? sort = null, [FromQuery] bool desc = false) => Paged(await _data.QueryAsync("piv2.Rebate_Batches", new
             {
                 Q = string.IsNullOrWhiteSpace(q) ? null : q.Trim(),
                 VendorId = vendorId,
                 State = string.IsNullOrWhiteSpace(state) ? null : state,
                 Page = page,
                 PageSize = pageSize,
+                Sort = SortKey(sort),
+                Desc = desc,
                 Months = months
             })));
 
@@ -298,7 +305,8 @@ namespace ProInternal.Controllers
         public Task<IActionResult> Programs([FromQuery] int? vendorId, [FromQuery] int? modelId, [FromQuery] int? batchId,
                                             [FromQuery] string? state, [FromQuery] string? when, [FromQuery] string? q,
                                             [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12) =>
-            Read(async () => Paged(await _data.QueryAsync("piv2.Rebate_Programs", new
+            Read(async (,
+                                            [FromQuery] string? sort = null, [FromQuery] bool desc = false) => Paged(await _data.QueryAsync("piv2.Rebate_Programs", new
             {
                 VendorId = vendorId,
                 ModelId = modelId,
@@ -308,6 +316,8 @@ namespace ProInternal.Controllers
                 Q = q,
                 Page = page,
                 PageSize = pageSize,
+                Sort = SortKey(sort),
+                Desc = desc,
                 Months = months
             })));
 
@@ -369,14 +379,17 @@ namespace ProInternal.Controllers
         [HttpGet("products")]
         public Task<IActionResult> Products([FromQuery] string? rail, [FromQuery] int? vendorId, [FromQuery] string? q,
                                             [FromQuery] bool? active, [FromQuery] int page = 1, [FromQuery] int pageSize = 50) =>
-            Read(async () => Paged(await _data.QueryAsync("piv2.Rebate_Products", new
+            Read(async (,
+                                            [FromQuery] string? sort = null, [FromQuery] bool desc = false) => Paged(await _data.QueryAsync("piv2.Rebate_Products", new
             {
                 Rail = Rail(rail),
                 VendorId = vendorId,
                 Q = q,
                 Active = active,
                 Page = page,
-                PageSize = pageSize
+                PageSize = pageSize,
+                Sort = SortKey(sort),
+                Desc = desc
             })));
 
         [HttpGet("products/{modelId:int}")]
@@ -446,7 +459,8 @@ namespace ProInternal.Controllers
         public Task<IActionResult> PriceProtectionPrograms([FromQuery] int? vendorId, [FromQuery] int? modelId, [FromQuery] string? state,
                                                            [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? q,
                                                            [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12) =>
-            Read(async () => Paged(await _data.QueryAsync("piv2.PP_Programs", new
+            Read(async (,
+                                            [FromQuery] string? sort = null, [FromQuery] bool desc = false) => Paged(await _data.QueryAsync("piv2.PP_Programs", new
             {
                 VendorId = vendorId,
                 ModelId = modelId,
@@ -456,6 +470,8 @@ namespace ProInternal.Controllers
                 Q = q,
                 Page = page,
                 PageSize = pageSize,
+                Sort = SortKey(sort),
+                Desc = desc,
                 Months = months
             })));
 
@@ -523,7 +539,8 @@ namespace ProInternal.Controllers
         public Task<IActionResult> Claims([FromQuery] string? rail, [FromQuery] string? q, [FromQuery] int? vendorId, [FromQuery] string? state,
                                           [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 50,
                                           [FromQuery] int months = 12, [FromQuery] int? memberId = null, [FromQuery] int? modelId = null) =>
-            Read(async () => Paged(await _data.QueryAsync("piv2.Claim_Search", new
+            Read(async (,
+                                            [FromQuery] string? sort = null, [FromQuery] bool desc = false) => Paged(await _data.QueryAsync("piv2.Claim_Search", new
             {
                 Rail = Rail(rail),
                 Q = q,
@@ -533,6 +550,8 @@ namespace ProInternal.Controllers
                 To = to?.Date,
                 Page = page,
                 PageSize = pageSize,
+                Sort = SortKey(sort),
+                Desc = desc,
                 Months = months,
                 MemberId = memberId,
                 ModelId = modelId
@@ -568,6 +587,50 @@ namespace ProInternal.Controllers
         [RequirePermission(AccountingPermission)]
         public Task<IActionResult> Resubmit(string rail, int orderId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Claim_Resubmit", new { OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
+
+        /* Second strike: a claim that needed support is declined for good (IR Maintenance "Confirm decline"). */
+        [HttpPost("claims/IR/{orderId:int}/confirm-decline")]
+        [RequirePermission(AccountingPermission)]
+        public Task<IActionResult> ConfirmDecline(int orderId, [FromBody] RebateReasonRequest body) =>
+            Act(() => _data.ExecuteAsync("piv2.Claim_ConfirmDecline", new { OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
+
+        /* Support files on an instant-rebate claim (what IR Maintenance did). */
+        [HttpPost("claims/IR/{orderId:int}/files")]
+        [RequirePermission(AccountingPermission)]
+        [RequestSizeLimit(40 * 1024 * 1024)]
+        public Task<IActionResult> AddClaimFiles(int orderId, CancellationToken cancellationToken) =>
+            Read(async () => await _claims.AddClaimFilesAsync(orderId, (await Request.ReadFormAsync(cancellationToken)).Files, Actor, cancellationToken));
+
+        [HttpPost("claims/IR/{orderId:int}/files/remove")]
+        [RequirePermission(AccountingPermission)]
+        public Task<IActionResult> RemoveClaimFile(int orderId, [FromBody] RebateClaimFileRequest body) =>
+            Act(() => _claims.RemoveClaimFileAsync(orderId, body?.FileName ?? "", Actor, body?.Reason));
+
+        /* Every step on a claim, and who has it now. */
+        [HttpGet("claims/IR/{orderId:int}/timeline")]
+        public Task<IActionResult> Timeline(int orderId) =>
+            Read(async () =>
+            {
+                var sets = await _data.QuerySetsAsync("piv2.Claim_Timeline", new { OrderId = orderId });
+                return new { steps = sets.ElementAtOrDefault(0) ?? new List<RebateRow>(), now = sets.ElementAtOrDefault(1)?.FirstOrDefault() };
+            });
+
+        /* Claims needing support or declined, one row per claim, with their files. */
+        [HttpGet("declines")]
+        public Task<IActionResult> Declines([FromQuery] int months = 12) =>
+            Read(async () =>
+            {
+                var rows = await _data.QueryAsync("piv2.Claim_Declines", new { Months = months });
+                foreach (var r in rows)
+                {
+                    var id = Convert.ToInt32(r["orderID"]);
+                    var master = r["masterFileLoc"] as string;
+                    var list = string.Join('|', new[] { master == "Additional Files" ? null : master, r["additionalFiles"] as string }
+                        .Where(s => !string.IsNullOrWhiteSpace(s)));
+                    r["proof"] = _claims.ProofLinks(id, list);
+                }
+                return rows;
+            });
 
         [HttpPost("claims/{rail}/{orderId:int}/invoice")]
         [RequirePermission(AccountingPermission)]

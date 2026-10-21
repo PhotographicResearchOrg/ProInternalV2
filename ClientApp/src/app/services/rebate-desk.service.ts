@@ -151,6 +151,19 @@ export class RebateDeskService {
     return this.api.post(`${this.base}/claims/${rail}/${orderId}/resend`, { reason });
   }
   /* Needs support (status 3) back into the approval queue. */
+  /* ---- one instant-rebate claim: the back-and-forth, files, second strike ---- */
+  claimTimeline(orderId: number): Observable<{ steps: any[]; now: any }> { return this.api.get(`${this.base}/claims/IR/${orderId}/timeline`); }
+  declines(months: number): Observable<any[]> { return this.api.get(`${this.base}/declines${this.q({ months })}`); }
+  confirmDecline(orderId: number, reason: string): Observable<any> {
+    return this.api.post(`${this.base}/claims/IR/${orderId}/confirm-decline`, { reason });
+  }
+  addClaimFiles(orderId: number, form: FormData): Observable<{ files: { name: string; url: string }[] }> {
+    return this.api.postMultipartJson(`${this.base}/claims/IR/${orderId}/files`, form);
+  }
+  removeClaimFile(orderId: number, fileName: string, reason: string): Observable<any> {
+    return this.api.post(`${this.base}/claims/IR/${orderId}/files/remove`, { fileName, reason });
+  }
+
   resubmit(rail: Rail, orderId: number, reason: string): Observable<any> {
     return this.api.post(`${this.base}/claims/${rail}/${orderId}/resubmit`, { reason });
   }

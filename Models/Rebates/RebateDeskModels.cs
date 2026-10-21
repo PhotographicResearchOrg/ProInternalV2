@@ -143,6 +143,12 @@ namespace ProInternal.Models.Rebates
         public string? Reason { get; set; }
     }
 
+    public sealed class RebateClaimFileRequest
+    {
+        public string? FileName { get; set; }
+        public string? Reason { get; set; }
+    }
+
     /* Several upload rows at once (bulk skip, load anyway). */
     /* Stock padding: units for a member and PRO code, with the reason. */
     public sealed class StockPadRequest

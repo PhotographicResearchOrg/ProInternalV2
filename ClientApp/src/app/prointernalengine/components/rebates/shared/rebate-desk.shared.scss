@@ -213,6 +213,12 @@ table.grid {
     text-align: left; font-size: 11px; font-weight: 650; color: var(--faint);
     text-transform: uppercase; letter-spacing: .4px; padding: 6px 8px; border-bottom: 1px solid var(--border);
   }
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { color: var(--ink, #1f2937); }
+  th.sortable::after { content: '\2195'; margin-left: 4px; opacity: .35; font-size: 10px; }
+  th.sortable.asc, th.sortable.desc { color: var(--teal, #0f766e); }
+  th.sortable.asc::after { content: '\25B2'; opacity: 1; }
+  th.sortable.desc::after { content: '\25BC'; opacity: 1; }
   td { padding: 8px; border-bottom: 1px solid var(--borderSoft); vertical-align: top; }
   tr.click { cursor: pointer; }
   tr.click:hover td { background: #f6f8fb; }
@@ -468,3 +474,92 @@ td.flags .status { display: inline-block; margin: 0 4px 3px 0; white-space: nowr
 tr.padrow > td { background: #f6f9fd; padding: 10px 12px; }
 
 .padded.neg { color: #b42318; }
+
+/* ---- claim timeline (who has the ball) ---- */
+.tl { display: flex; flex-direction: column; gap: 8px; }
+.tl-now .grow { min-width: 200px; }
+table.grid td .btn { white-space: nowrap; }
+.tl-now {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; padding: 8px 10px;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--card);
+  .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--faint); }
+  &.b-dealer { background: var(--amberSoft); border-color: var(--amber); }
+  &.b-pro, &.b-pro_billing, &.b-accounting { background: var(--blueSoft); border-color: var(--blue); }
+  &.b-closed { background: var(--redSoft); border-color: var(--red); }
+  &.b-done, &.b-vendor { background: var(--greenSoft); border-color: var(--green); }
+}
+.tl-steps {
+  list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--border);
+  li { position: relative; display: grid; grid-template-columns: 130px 1fr; gap: 10px; padding: 6px 0; font-size: 13px; }
+  li::before {
+    content: ''; position: absolute; left: -20px; top: 11px; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--card); border: 2px solid var(--faint);
+  }
+  li.k-ok::before { border-color: var(--green); background: var(--greenSoft); }
+  li.k-bad::before { border-color: var(--red); background: var(--redSoft); }
+  li.k-warn::before { border-color: var(--amber); background: var(--amberSoft); }
+  li.k-file::before { border-color: var(--blue); background: var(--blueSoft); }
+  .tl-when { color: var(--sub); font-size: 12px; padding-top: 1px; }
+}
+.tl-note { font-style: italic; }
+@media (max-width: 720px) {
+  .tl-steps li { grid-template-columns: 1fr; gap: 2px; }
+}
+
+/* ---- declines: one claim opened in place ---- */
+tr.expand > td { background: #fafbfd; padding: 12px; }
+.decl-panel {
+  display: grid; grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.4fr); gap: 16px;
+  h3 { margin: 0 0 6px; font-size: 13px; }
+  .files { display: flex; flex-direction: column; gap: 4px; }
+  .file { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .file a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+  .drop { border: 1px dashed var(--border); border-radius: 8px; padding: 10px; text-align: center; color: var(--sub); font-size: 12px; }
+  .drop.over { border-color: var(--teal); background: var(--tealSoft); }
+  .actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+}
+@media (max-width: 900px) { .decl-panel { grid-template-columns: 1fr; } }
+
+/* ---- phones and small tablets: look things up comfortably ----
+   The view list becomes one strip you swipe sideways; wide tables scroll sideways inside
+   their card instead of pushing the page; panels stack; filters take the full width. */
+@media (max-width: 900px) {
+  .app { border-radius: 0; border-left: none; border-right: none; min-height: 0; }
+  .rail {
+    flex-direction: row; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: 8px; gap: 4px; align-items: center; scrollbar-width: thin;
+  }
+  .rail .brandmark, .rail .rail-foot { display: none; }
+  .rail .rail-group { padding: 0 4px 0 8px; white-space: nowrap; }
+  .rail .rail-btn { width: auto; flex: 0 0 auto; white-space: nowrap; padding: 7px 10px; }
+  .vhead { padding: 12px 14px 10px; }
+  .vhead-top { flex-wrap: wrap; gap: 10px; }
+  .logo { width: 40px; height: 40px; font-size: 16px; }
+  .vtitle h1 { font-size: 18px; }
+  .head-actions { flex-wrap: wrap; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .body { padding: 10px; gap: 10px; }
+  .card { padding: 12px; border-radius: 10px; }
+  .card-head { flex-wrap: wrap; row-gap: 6px; }
+  .notice, .error { margin: 10px 10px 0; }
+  .drawer { position: static; width: auto; border-left: none; border-top: 1px solid var(--border); box-shadow: none; max-height: none; }
+  .filters > *, .filters .in, .filters select { flex: 1 1 100%; max-width: none !important; min-width: 0; }
+  .field-grid { grid-template-columns: 1fr; }
+  table.grid, table.mapgrid { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.grid th { white-space: nowrap; }
+  table.grid td { padding: 7px 6px; }
+  .savebar { flex-wrap: wrap; }
+  .pager { flex-wrap: wrap; }
+  /* An opened claim stays on screen while its table scrolls sideways. */
+  tr.expand > td { padding: 10px 0; }
+  .decl-panel { position: sticky; left: 0; width: calc(100vw - 46px); max-width: 860px; padding: 0 8px; box-sizing: border-box; }
+  .decl-panel .file a { max-width: 60vw; }
+  .tl-now { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 600px) {
+  .stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .stat b { font-size: 17px; }
+  .chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .chips button { flex: 0 0 auto; white-space: nowrap; }
+  .btn { padding: 8px 11px; }
+}

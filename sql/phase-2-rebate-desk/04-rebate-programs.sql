@@ -33,7 +33,9 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Programs
     @Q        nvarchar(100) = NULL,
     @Page     int = 1,
     @PageSize int = 50,
-    @Months   int = 12      -- programs running in the last @Months months (or live); 0 = all history
+    @Months   int = 12      -- programs running in the last @Months months (or live); 0 = all history,
+    @Sort     varchar(30) = NULL,      -- column clicked on the desk (NULL = the usual order)
+    @Desc     bit = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -60,6 +62,15 @@ BEGIN
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
       LEFT JOIN dbo.RebateType t ON t.ID = p.IRType
       LEFT JOIN piv2.RebateProgramTerms pt ON pt.ProgramId = p.ProgramID AND pt.MemberAmount = ROUND(p.Reimbursement, 2)
+     CROSS APPLY (SELECT CASE @Sort WHEN 'description'   THEN CAST(m.ModelNumber AS sql_variant)
+                                    WHEN 'vendorName'    THEN CAST(v.VendorName AS sql_variant)
+                                    WHEN 'irTypeName'    THEN CAST(t.Name AS sql_variant)
+                                    WHEN 'startDate'     THEN CAST(p.ProgramStartWeek AS sql_variant)
+                                    WHEN 'reimbursement' THEN CAST(CAST(p.Reimbursement AS decimal(19,4)) AS sql_variant)
+                                    WHEN 'instantRebate' THEN CAST(CAST(p.InstantRebate AS decimal(19,4)) AS sql_variant)
+                                    WHEN 'mapPrice'      THEN CAST(CAST(p.MAPDrop AS decimal(19,4)) AS sql_variant)
+                                    WHEN 'batchId'       THEN CAST(p.BatchID AS sql_variant)
+                                    WHEN 'isLive'        THEN CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS sql_variant) END AS K) s
      WHERE (p.ProgramEndWeek >= @since OR p.Expired = 0 OR @BatchId IS NOT NULL)
        AND (@VendorId IS NULL OR m.VendorID = @VendorId)
        AND (@ModelId IS NULL OR p.ModelID = @ModelId)
@@ -76,7 +87,9 @@ BEGIN
             OR v.VendorName LIKE N'%' + @Q + N'%'
             OR CAST(p.ProgramID AS nvarchar(20)) = @Q
             OR CAST(p.BatchID AS nvarchar(20)) = @Q)
-     ORDER BY p.ProgramStartWeek DESC, m.ModelNumber
+     ORDER BY CASE WHEN @Sort IS NOT NULL AND s.K IS NULL THEN 1 ELSE 0 END,   -- blanks last
+              CASE WHEN @Desc = 0 THEN s.K END ASC, CASE WHEN @Desc = 1 THEN s.K END DESC,
+              p.ProgramStartWeek DESC, m.ModelNumber
      OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
     OPTION (RECOMPILE);
 END
@@ -243,7 +256,9 @@ CREATE OR ALTER PROCEDURE piv2.PP_Programs
     @Q        nvarchar(100) = NULL,
     @Page     int = 1,
     @PageSize int = 50,
-    @Months   int = 12      -- programs dated in the last @Months months (or live); 0 = all history
+    @Months   int = 12      -- programs dated in the last @Months months (or live); 0 = all history,
+    @Sort     varchar(30) = NULL,      -- column clicked on the desk (NULL = the usual order)
+    @Desc     bit = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -263,6 +278,13 @@ BEGIN
       FROM dbo.PriceProtectionDetail p
       JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
+     CROSS APPLY (SELECT CASE @Sort WHEN 'description'    THEN CAST(m.ModelNumber AS sql_variant)
+                                    WHEN 'vendorName'     THEN CAST(v.VendorName AS sql_variant)
+                                    WHEN 'programDate'    THEN CAST(p.ProgramDate AS sql_variant)
+                                    WHEN 'amount'         THEN CAST(CAST(p.Amount AS decimal(19,4)) AS sql_variant)
+                                    WHEN 'newInvoiceCost' THEN CAST(CAST(p.NewInvoiceCost AS decimal(19,4)) AS sql_variant)
+                                    WHEN 'mapPrice'       THEN CAST(CAST(p.NewMap AS decimal(19,4)) AS sql_variant)
+                                    WHEN 'isLive'         THEN CAST(CASE WHEN p.Expired = 0 THEN 1 ELSE 0 END AS sql_variant) END AS K) s
      WHERE (p.ProgramDate >= @since OR p.Expired = 0)
        AND (@VendorId IS NULL OR m.VendorID = @VendorId)
        AND (@ModelId IS NULL OR p.ModelID = @ModelId)
@@ -274,7 +296,9 @@ BEGIN
             OR m.ModelName LIKE N'%' + @Q + N'%'
             OR v.VendorName LIKE N'%' + @Q + N'%'
             OR CAST(p.ProgramID AS nvarchar(20)) = @Q)
-     ORDER BY p.ProgramDate DESC, m.ModelNumber
+     ORDER BY CASE WHEN @Sort IS NOT NULL AND s.K IS NULL THEN 1 ELSE 0 END,   -- blanks last
+              CASE WHEN @Desc = 0 THEN s.K END ASC, CASE WHEN @Desc = 1 THEN s.K END DESC,
+              p.ProgramDate DESC, m.ModelNumber
      OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
     OPTION (RECOMPILE);
 END

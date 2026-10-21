@@ -6,6 +6,7 @@ import { DataService } from 'src/app/services/data.service';
 import { Rail, RebateDeskService, apiMessage, isoDate } from 'src/app/services/rebate-desk.service';
 import { IR_PROGRAM_COLS, UPLOAD_ROW_COLS, col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
 import { DEFAULT_MONTHS, windowStart } from '../shared/rebate-window.component';
+import { rdSortParams, rdSorts } from '../shared/rebate-sort';
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
@@ -26,6 +27,8 @@ type Pending =
   | { kind: 'bp-dates' }
   | { kind: 'bp-active'; program: any; active: boolean }
   | { kind: 'resubmit-claim'; claim: any }
+  | { kind: 'confirm-decline'; claim: any }
+  | { kind: 'remove-claim-file'; claim: any; fileName: string }
   | null;
 
 /*
@@ -51,6 +54,14 @@ const HISTORY_COLS = [
   styleUrls: ['../shared/rebate-desk.shared.scss']
 })
 export class RebateDeskComponent implements OnInit {
+  /* Column sorting: one state per table; computed columns sort by these. */
+  readonly sorts = rdSorts();
+  readonly sortSku = (r: any) => r.vendorSku || r.upc || r.proCode || r.productCode;
+  readonly sortModel = (r: any) => r.modelDescription || r.proposedName;
+  readonly sortProblem = (r: any) => (r.problems && r.problems.length ? r.problems[0].message : null);
+  readonly sortEmail = (d: any) => d.email || d.eMail;
+  readonly sortOn = (h: any) => h.batchId ?? h.programId ?? h.uploadId ?? h.modelId;
+
   overview: any = {};
 
   readonly views: RailView[] = [
@@ -150,6 +161,43 @@ export class RebateDeskComponent implements OnInit {
   /* Needs support: the member added what was asked for, so it goes back into the approval queue. */
   resubmitDecline(d: any): void { this.pending = { kind: 'resubmit-claim', claim: d }; }
 
+  /* One claim opened in place: its files, the second strike, and its timeline (what IR Maintenance did). */
+  declineOpen: any = null;
+  dropOver = false;
+  uploadingFor: number | null = null;
+  timelineVersion = 0;
+  trackDecline = (_: number, d: any) => d.orderID;
+  toggleDecline(d: any): void { this.declineOpen = this.declineOpen?.orderID === d.orderID ? null : d; }
+
+  loadDeclines(): void {
+    this.desk.declines(this.declineMonths).subscribe({
+      next: d => {
+        this.declines = d || [];
+        if (this.declineOpen) this.declineOpen = this.declines.find(x => x.orderID === this.declineOpen.orderID) ?? null;
+      },
+      error: e => (this.error = apiMessage(e))
+    });
+  }
+
+  addDeclineFiles(d: any, list: FileList | null | undefined): void {
+    if (!list || !list.length || this.uploadingFor) return;
+    const form = new FormData();
+    Array.from(list).forEach(f => form.append('files', f, f.name));
+    this.uploadingFor = d.orderID;
+    this.error = '';
+    this.desk.addClaimFiles(+d.orderID, form).pipe(finalize(() => (this.uploadingFor = null))).subscribe({
+      next: r => {
+        const have = new Set((d.proof || []).map((f: any) => String(f.name).toLowerCase()));
+        d.proof = [...(d.proof || []), ...(r.files || []).filter(f => !have.has(f.name.toLowerCase()))];
+        this.notice = `${(r.files || []).length} file(s) added to claim ${d.orderID}.`;
+        this.timelineVersion++;
+      },
+      error: e => (this.error = apiMessage(e))
+    });
+  }
+
+  removeDeclineFile(d: any, fileName: string): void { this.pending = { kind: 'remove-claim-file', claim: d, fileName }; }
+
   readonly declineCols = [
     { header: 'Order_ID', field: 'orderID' }, { header: 'Decline_Date', field: 'processDate' },
     { header: 'IR_Total', field: 'total' }, { header: 'Reject_Reason', field: 'rejectReason' },
@@ -225,7 +273,7 @@ export class RebateDeskComponent implements OnInit {
       case 'purgatory': this.loadPurgatory(); break;
       case 'batches': this.loadBatches(1); break;
       case 'templates': this.desk.templates().subscribe(t => (this.templates = t)); break;
-      case 'declines': this.data.GetDeclinedInstantRebates().subscribe(d => (this.declines = d as any[])); break;
+      case 'declines': this.loadDeclines(); break;
       case 'history': case 'pp-history': this.loadHistory(); break;
     }
   }
@@ -334,7 +382,7 @@ export class RebateDeskComponent implements OnInit {
   async exportBatches(): Promise<void> {
     this.exporting = true;
     try {
-      const rows = await fetchAllPages((page, pageSize) => this.desk.batches({ ...this.batchFilter, page, pageSize }));
+      const rows = await fetchAllPages((page, pageSize) => this.desk.batches({ ...this.batchFilter, ...rdSortParams(this.sorts['batches']), page, pageSize }));
       downloadXlsx('Batches', [{ name: 'Batches', rows, cols: [
         col('Batch', 'batchId', 'number'), col('Vendor', 'vendorName'), col('Type', 'irTypeName'), col('State', 'state'),
         col('Programs', 'programs', 'number'), col('On', 'livePrograms', 'number'), col('Start', 'programStart', 'date'),
@@ -798,7 +846,7 @@ export class RebateDeskComponent implements OnInit {
   loadBatches(page: number): void {
     this.batchPage = Math.max(1, page);
     this.loading = true;
-    this.desk.batches({ ...this.batchFilter, page: this.batchPage, pageSize: 50 }).pipe(finalize(() => (this.loading = false)))
+    this.desk.batches({ ...this.batchFilter, ...rdSortParams(this.sorts['batches']), page: this.batchPage, pageSize: 50 }).pipe(finalize(() => (this.loading = false)))
       .subscribe({ next: r => { this.batches = r.rows; this.batchTotal = r.total; }, error: e => (this.error = apiMessage(e)) });
   }
 
@@ -898,6 +946,8 @@ export class RebateDeskComponent implements OnInit {
       case 'bp-dates': return `Change dates on program ${this.bProg?.programId}`;
       case 'bp-active': return `${p.active ? 'Turn on' : 'Turn off'} program ${p.program.programId}`;
       case 'resubmit-claim': return `Send claim ${p.claim.orderID} back to the approval queue`;
+      case 'confirm-decline': return `Confirm the decline of claim ${p.claim.orderID}`;
+      case 'remove-claim-file': return `Take ${p.fileName} off claim ${p.claim.orderID}`;
     }
   }
 
@@ -916,12 +966,14 @@ export class RebateDeskComponent implements OnInit {
       case 'bp-dates': return `Only this program moves. Members will see it apart from the rest of batch ${this.batch?.batchId}; to move the whole batch, use the batch dates above.`;
       case 'bp-active': return p.active ? 'Members see this program again.' : 'Members stop seeing this program. Submitted claims are not affected.';
       case 'resubmit-claim': return 'The member has added the support asked for. The claim goes back into the approval queue (the same as Resubmit on the BRM dashboard).';
+      case 'confirm-decline': return 'Second strike: the claim is declined for good (status 2) and its BRM notice closed, the same as Confirm Decline on IR Maintenance. No email is sent.';
+      case 'remove-claim-file': return 'The file is taken off the claim and deleted from the proof share.';
     }
   }
 
   get pendingDanger(): boolean {
     const p = this.pending;
-    return !!p && (p.kind === 'skip' || p.kind === 'cancel-upload' || p.kind === 'retire-template' || (p.kind === 'batch-active' && !p.active) || (p.kind === 'bp-active' && !p.active) || p.kind === 'bulk-skip' || p.kind === 'bulk-overlap');
+    return !!p && (p.kind === 'skip' || p.kind === 'cancel-upload' || p.kind === 'retire-template' || (p.kind === 'batch-active' && !p.active) || (p.kind === 'bp-active' && !p.active) || p.kind === 'bulk-skip' || p.kind === 'bulk-overlap' || p.kind === 'confirm-decline' || p.kind === 'remove-claim-file');
   }
 
   confirm(reason: string): void {
@@ -944,6 +996,8 @@ export class RebateDeskComponent implements OnInit {
         startDate: this.bEdit.startDate, endDate: this.bEdit.endDate, expireOn: this.bEdit.expireOn || null, reason }); break;
       case 'bp-active': call = this.desk.setProgramActive('IR', p.program.programId, p.active, reason); break;
       case 'resubmit-claim': call = this.desk.resubmit('IR', p.claim.orderID, reason); break;
+      case 'confirm-decline': call = this.desk.confirmDecline(+p.claim.orderID, reason); break;
+      case 'remove-claim-file': call = this.desk.removeClaimFile(+p.claim.orderID, p.fileName, reason); break;
     }
     call.pipe(finalize(() => (this.busy = false))).subscribe({
       next: () => {
@@ -968,7 +1022,19 @@ export class RebateDeskComponent implements OnInit {
           case 'bp-active': this.reloadBatch(p.program.programId); break;
           case 'resubmit-claim':
             this.declines = this.declines.filter(x => x !== p.claim);
+            if (this.declineOpen === p.claim) this.declineOpen = null;
             this.notice = `Claim ${p.claim.orderID} is back in the approval queue.`;
+            break;
+          case 'confirm-decline':
+            p.claim.status = 2;
+            this.declines = [...this.declines];
+            if (this.declineOpen === p.claim) this.declineOpen = null;
+            this.notice = `Claim ${p.claim.orderID} is declined for good.`;
+            break;
+          case 'remove-claim-file':
+            p.claim.proof = (p.claim.proof || []).filter((f: any) => f.name !== p.fileName);
+            this.timelineVersion++;
+            this.notice = `${p.fileName} taken off claim ${p.claim.orderID}.`;
             break;
         }
       },

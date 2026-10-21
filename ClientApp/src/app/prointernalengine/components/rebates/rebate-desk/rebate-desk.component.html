@@ -106,9 +106,9 @@
             </select>
           </div>
           <table class="grid">
-            <thead><tr><th>#</th><th>Vendor</th><th>File</th><th>Mapping</th><th>Status</th><th class="num">Rows</th><th class="num">Purgatory</th><th>Batch</th><th>Uploaded</th></tr></thead>
+            <thead><tr><th rdSort="uploadId" [rdSortBy]="sorts['uploads']">#</th><th rdSort="vendorName" [rdSortBy]="sorts['uploads']">Vendor</th><th rdSort="fileName" [rdSortBy]="sorts['uploads']">File</th><th rdSort="mappingSource" [rdSortBy]="sorts['uploads']">Mapping</th><th rdSort="status" [rdSortBy]="sorts['uploads']">Status</th><th class="num" rdSort="rowsTotal" [rdSortBy]="sorts['uploads']">Rows</th><th class="num" rdSort="rowsPurgatory" [rdSortBy]="sorts['uploads']">Purgatory</th><th rdSort="batchId" [rdSortBy]="sorts['uploads']">Batch</th><th rdSort="createdAt" [rdSortBy]="sorts['uploads']">Uploaded</th></tr></thead>
             <tbody>
-              <tr *ngFor="let u of uploads" class="click" (click)="openUpload(u.uploadId)">
+              <tr *ngFor="let u of uploads | rdSort:sorts['uploads']" class="click" (click)="openUpload(u.uploadId)">
                 <td class="mono">{{ u.uploadId }}</td>
                 <td>{{ u.vendorName }}</td>
                 <td>{{ u.fileName }}</td>
@@ -178,9 +178,9 @@
           </div>
           <div class="split" [style.grid-template-columns]="row ? 'minmax(0, 1.4fr) minmax(0, 1fr)' : '1fr'">
             <table class="grid">
-              <thead><tr><th style="width: 26px"><input type="checkbox" [checked]="allTicked" (change)="tickAll($any($event.target).checked)" title="Tick every row shown" /></th><th>Row</th><th>Vendor SKU / PRO product</th><th>Rebate product (disposition)</th><th>Dates</th><th class="num">Vendor share</th><th class="num">Member</th><th>Status</th></tr></thead>
+              <thead><tr><th style="width: 26px"><input type="checkbox" [checked]="allTicked" (change)="tickAll($any($event.target).checked)" title="Tick every row shown" /></th><th rdSort="sourceRow" [rdSortBy]="sorts['urows']">Row</th><th [rdSort]="sortSku" [rdSortBy]="sorts['urows']">Vendor SKU / PRO product</th><th [rdSort]="sortModel" [rdSortBy]="sorts['urows']">Rebate product (disposition)</th><th rdSort="startDate" [rdSortBy]="sorts['urows']">Dates</th><th class="num" rdSort="reimbursement" [rdSortBy]="sorts['urows']">Vendor share</th><th class="num" rdSort="memberAmount" [rdSortBy]="sorts['urows']">Member</th><th rdSort="status" [rdSortBy]="sorts['urows']">Status</th></tr></thead>
               <tbody>
-                <tr *ngFor="let r of filteredRows" class="click" (click)="openRow(r, upload.vendorId)" [class.sel]="row?.rowId === r.rowId">
+                <tr *ngFor="let r of filteredRows | rdSort:sorts['urows']" class="click" (click)="openRow(r, upload.vendorId)" [class.sel]="row?.rowId === r.rowId">
                   <td (click)="$event.stopPropagation()"><input type="checkbox" *ngIf="r.status === 'PURGATORY' || r.status === 'READY'"
                       [checked]="picked.has(r.rowId)" (change)="tickRow(r, $any($event.target).checked)" /></td>
                   <td class="mono">{{ r.sourceRow }}</td>
@@ -232,9 +232,9 @@
           </div>
           <div class="split" [style.grid-template-columns]="row ? 'minmax(0, 1.4fr) minmax(0, 1fr)' : '1fr'">
             <table class="grid">
-              <thead><tr><th style="width: 26px"><input type="checkbox" [checked]="allTicked" (change)="tickAll($any($event.target).checked)" title="Tick every row shown" /></th><th>Upload</th><th>Row</th><th>Vendor SKU / PRO product</th><th>Problems</th><th class="num">Vendor share</th></tr></thead>
+              <thead><tr><th style="width: 26px"><input type="checkbox" [checked]="allTicked" (change)="tickAll($any($event.target).checked)" title="Tick every row shown" /></th><th rdSort="vendorName" [rdSortBy]="sorts['purg']">Upload</th><th rdSort="sourceRow" [rdSortBy]="sorts['purg']">Row</th><th [rdSort]="sortSku" [rdSortBy]="sorts['purg']">Vendor SKU / PRO product</th><th [rdSort]="sortProblem" [rdSortBy]="sorts['purg']">Problems</th><th class="num" rdSort="reimbursement" [rdSortBy]="sorts['purg']">Vendor share</th></tr></thead>
               <tbody>
-                <tr *ngFor="let r of purgatoryShown" class="click" (click)="openRow(r, r.vendorId)" [class.sel]="row?.rowId === r.rowId">
+                <tr *ngFor="let r of purgatoryShown | rdSort:sorts['purg']" class="click" (click)="openRow(r, r.vendorId)" [class.sel]="row?.rowId === r.rowId">
                   <td (click)="$event.stopPropagation()"><input type="checkbox" [checked]="picked.has(r.rowId)" (change)="tickRow(r, $any($event.target).checked)" /></td>
                   <td><div>{{ r.vendorName }}</div><div class="sub mono">#{{ r.uploadId }} · {{ r.fileName }}</div></td>
                   <td class="mono">{{ r.sourceRow }}</td>
@@ -304,9 +304,9 @@
                   <div class="sub" style="margin-top: 6px" *ngIf="proSearched && !proSearching && !proErr && !proHits.length">
                     No PRO product matches "{{ proQ }}". Try part of the name, the catalog # or the UPC. If PRO does not carry it yet, it has to be added to the catalog first; skip the row for now.</div>
                   <table class="grid" style="margin-top: 8px" *ngIf="proHits.length">
-                    <thead><tr><th></th><th>PRO code</th><th>Name</th><th>Catalog #</th><th>Rebate products</th></tr></thead>
+                    <thead><tr><th></th><th rdSort="productCode" [rdSortBy]="sorts['prohits']">PRO code</th><th rdSort="modelName" [rdSortBy]="sorts['prohits']">Name</th><th rdSort="catalogNumber" [rdSortBy]="sorts['prohits']">Catalog #</th><th rdSort="usedBy" [rdSortBy]="sorts['prohits']">Rebate products</th></tr></thead>
                     <tbody>
-                      <tr *ngFor="let h of proHits" [class.off]="h.isDiscontinued" class="click" (click)="tick('' + h.productCode, true)">
+                      <tr *ngFor="let h of proHits | rdSort:sorts['prohits']" [class.off]="h.isDiscontinued" class="click" (click)="tick('' + h.productCode, true)">
                         <td><input type="radio" name="proHit" [checked]="ticked.includes('' + h.productCode)" /></td>
                         <td class="mono">{{ h.productCode }}</td>
                         <td>{{ h.modelName }}<div class="sub" *ngIf="h.isDiscontinued">discontinued</div></td>
@@ -464,7 +464,7 @@
               </select>
             </div>
             <table class="grid">
-              <thead><tr><th>Batch</th><th>Vendor</th><th>Type</th><th>Dates</th><th class="num">Programs</th><th>State</th></tr></thead>
+              <thead><tr><th rdSort="batchId" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">Batch</th><th rdSort="vendorName" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">Vendor</th><th rdSort="irTypeName" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">Type</th><th rdSort="programStart" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">Dates</th><th class="num" rdSort="programs" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">Programs</th><th rdSort="state" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">State</th></tr></thead>
               <tbody>
                 <tr *ngFor="let b of batches" class="click" (click)="openBatch(b)" [class.sel]="batch?.batchId === b.batchId" [class.off]="b.state === 'OFF'">
                   <td class="mono">{{ b.batchId }}</td>
@@ -507,9 +507,9 @@
               <button type="button" class="btn primary" (click)="pending = { kind: 'batch-dates' }">Save dates</button>
             </div>
             <table class="grid" style="margin-top: 12px">
-              <thead><tr><th>Product</th><th class="num">Member</th><th class="num">IR</th><th class="num">MAP</th><th>Dates</th><th>State</th><th></th></tr></thead>
+              <thead><tr><th rdSort="description" [rdSortBy]="sorts['bprogs']">Product</th><th class="num" rdSort="reimbursement" [rdSortBy]="sorts['bprogs']">Member</th><th class="num" rdSort="instantRebate" [rdSortBy]="sorts['bprogs']">IR</th><th class="num" rdSort="mapPrice" [rdSortBy]="sorts['bprogs']">MAP</th><th rdSort="startDate" [rdSortBy]="sorts['bprogs']">Dates</th><th rdSort="isLive" [rdSortBy]="sorts['bprogs']">State</th><th></th></tr></thead>
               <tbody>
-                <ng-container *ngFor="let p of batchPrograms">
+                <ng-container *ngFor="let p of batchPrograms | rdSort:sorts['bprogs']">
                   <tr class="click" [class.off]="!p.isLive" [class.sel]="bProg?.programId === p.programId" (click)="editBatchProgram(p)" title="Change this program">
                     <td><div>{{ p.description }}</div><div class="sub mono">#{{ p.programId }} · PRO {{ p.proCode }}</div></td>
                     <td class="money">{{ p.reimbursement | currency }}<div class="sub" *ngIf="p.proPad">incl. {{ p.proPad | currency }} PRO</div></td>
@@ -568,9 +568,9 @@
         <div class="card-head"><h2>Saved vendor layouts</h2><span class="sub">A confirmed mapping is reused automatically the next time the same headers arrive.</span><span class="grow"></span>
           <button type="button" class="btn ghost" (click)="exportTemplates()" [disabled]="!templates.length"><i class="pi pi-file-excel"></i> Excel</button></div>
         <table class="grid">
-          <thead><tr><th>Vendor</th><th>Sheet</th><th>Columns</th><th>Source</th><th class="num">Used</th><th>Last used</th><th></th></tr></thead>
+          <thead><tr><th rdSort="vendorName" [rdSortBy]="sorts['templates']">Vendor</th><th rdSort="sheetName" [rdSortBy]="sorts['templates']">Sheet</th><th>Columns</th><th rdSort="source" [rdSortBy]="sorts['templates']">Source</th><th class="num" rdSort="timesUsed" [rdSortBy]="sorts['templates']">Used</th><th rdSort="lastUsedAt" [rdSortBy]="sorts['templates']">Last used</th><th></th></tr></thead>
           <tbody>
-            <tr *ngFor="let t of templates">
+            <tr *ngFor="let t of templates | rdSort:sorts['templates']">
               <td>{{ t.vendorName }}</td>
               <td>{{ t.sheetName }} · row {{ t.headerRow }}</td>
               <td class="sub">{{ mappingText(t.mapping, t.headers) }}</td>
@@ -590,7 +590,7 @@
           <button type="button" class="btn ghost" (click)="exportDeclines()" [disabled]="!declinesShown.length"><i class="pi pi-file-excel"></i> Excel</button></div>
         <div class="filters">
           <input class="in" placeholder="Claim #, member #, product, reason or email" [(ngModel)]="declineQ" (ngModelChange)="declineTake = 100" />
-          <app-rebate-window [(months)]="declineMonths" (monthsChange)="declineTake = 100"></app-rebate-window>
+          <app-rebate-window [(months)]="declineMonths" (monthsChange)="declineTake = 100; loadDeclines()"></app-rebate-window>
         </div>
         <div class="chips">
           <span class="lbl">Show</span>
@@ -598,23 +598,57 @@
           <button type="button" [class.on]="declineStatus === 2" (click)="declineStatus = 2; declineTake = 100">Declined<b>{{ declineCount(2) }}</b></button>
         </div>
         <div class="sub" style="margin: 0 0 8px">{{ declineStatus === 3
-          ? 'Waiting on the member for more information or support. Once it is added, send the claim back to the approval queue.'
-          : 'Declined for good; shown for reference.' }}</div>
+          ? 'Waiting on the member for more information or support. Click a claim to see its files and timeline, add the support, then send it back to the approval queue or confirm the decline.'
+          : 'Declined for good. Click a claim to see its files and timeline.' }}</div>
         <table class="grid">
-          <thead><tr><th>Claim</th><th>{{ declineStatus === 3 ? 'Asked' : 'Declined' }}</th><th>Member</th><th>Product</th><th class="num">Qty</th><th class="num">Amount</th><th>Reason</th><th>Email</th><th *ngIf="declineStatus === 3"></th><th></th></tr></thead>
+          <thead><tr><th rdSort="orderID" [rdSortBy]="sorts['declines']">Claim</th><th rdSort="processDate" [rdSortBy]="sorts['declines']">{{ declineStatus === 3 ? 'Asked' : 'Declined' }}</th><th rdSort="memberID" [rdSortBy]="sorts['declines']">Member</th><th rdSort="model" [rdSortBy]="sorts['declines']">Product</th><th class="num" rdSort="quantity" [rdSortBy]="sorts['declines']">Qty</th><th class="num" rdSort="total" [rdSortBy]="sorts['declines']">Amount</th><th rdSort="rejectReason" [rdSortBy]="sorts['declines']">Reason</th><th [rdSort]="sortEmail" [rdSortBy]="sorts['declines']">Email</th><th *ngIf="declineStatus === 3"></th><th></th></tr></thead>
           <tbody>
-            <tr *ngFor="let d of declinesShown | slice:0:declineTake">
-              <td class="mono">{{ d.orderID }}</td>
+            <ng-container *ngFor="let d of declinesShown | rdSort:sorts['declines'] | slice:0:declineTake; trackBy: trackDecline">
+            <tr class="click" (click)="toggleDecline(d)" [class.sel]="declineOpen?.orderID === d.orderID">
+              <td class="mono"><i class="pi" [class.pi-chevron-right]="declineOpen?.orderID !== d.orderID" [class.pi-chevron-down]="declineOpen?.orderID === d.orderID"></i> {{ d.orderID }}</td>
               <td class="mono">{{ d.processDate | date:'MM/dd/yy' }}</td>
-              <td class="mono">{{ d.memberID }}</td>
+              <td class="mono">{{ d.memberID }}<div class="sub" *ngIf="d.memberName">{{ d.memberName }}</div></td>
               <td><div>{{ d.model }}</div><div class="sub" *ngIf="d.vendorName">{{ d.vendorName }}</div></td>
               <td class="num">{{ d.quantity }}</td>
               <td class="money">{{ d.total | currency }}</td>
               <td>{{ d.rejectReason }}</td>
               <td class="sub">{{ d.email || d.eMail }}</td>
-              <td *ngIf="declineStatus === 3"><button type="button" class="btn" (click)="resubmitDecline(d)" title="Support received: back into the approval queue"><i class="pi pi-undo"></i> Back to queue</button></td>
-              <td><button type="button" class="icon-btn" (click)="investigate({ memberId: +d.memberID })" title="Investigate this member: bought against claimed"><i class="pi pi-search"></i></button></td>
+              <td *ngIf="declineStatus === 3" (click)="$event.stopPropagation()"><button type="button" class="btn" (click)="resubmitDecline(d)" title="Support received: back into the approval queue"><i class="pi pi-undo"></i> Back to queue</button></td>
+              <td (click)="$event.stopPropagation()"><button type="button" class="icon-btn" (click)="investigate({ memberId: +d.memberID })" title="Investigate this member: bought against claimed"><i class="pi pi-search"></i></button></td>
             </tr>
+            <tr class="expand" *ngIf="declineOpen?.orderID === d.orderID">
+              <td [attr.colspan]="declineStatus === 3 ? 10 : 9">
+                <div class="decl-panel">
+                  <div>
+                    <h3>Support files</h3>
+                    <div class="files">
+                      <div class="file" *ngFor="let f of d.proof || []">
+                        <i class="pi pi-paperclip"></i><a [href]="f.url" target="_blank" rel="noopener" [title]="f.name">{{ f.name }}</a>
+                        <button type="button" class="icon-btn" (click)="removeDeclineFile(d, f.name)" title="Take this file off the claim"><i class="pi pi-times"></i></button>
+                      </div>
+                      <div class="sub" *ngIf="!(d.proof || []).length">No files on this claim.</div>
+                    </div>
+                    <label class="drop" style="display: block; margin-top: 8px; cursor: pointer" [class.over]="dropOver"
+                           (dragover)="$event.preventDefault(); dropOver = true" (dragleave)="dropOver = false"
+                           (drop)="$event.preventDefault(); dropOver = false; addDeclineFiles(d, $any($event).dataTransfer?.files)">
+                      <input type="file" multiple style="display: none" (change)="addDeclineFiles(d, $any($event.target).files); $any($event.target).value = ''" />
+                      <i class="pi pi-upload"></i> {{ uploadingFor === d.orderID ? 'Adding…' : 'Drop the dealer\'s support here, or click to choose files' }}
+                    </label>
+                    <div class="actions">
+                      <button type="button" class="btn primary" *ngIf="d.status === 3" (click)="resubmitDecline(d)"><i class="pi pi-undo"></i> Back to queue</button>
+                      <button type="button" class="btn danger" *ngIf="d.status === 3" (click)="pending = { kind: 'confirm-decline', claim: d }"
+                              title="Second strike: decline for good (no email is sent, as on IR Maintenance)"><i class="pi pi-ban"></i> Confirm decline</button>
+                      <button type="button" class="btn ghost" (click)="openClaim(+d.orderID)"><i class="pi pi-external-link"></i> Open in Claims</button>
+                    </div>
+                  </div>
+                  <div>
+                    <h3>Timeline</h3>
+                    <app-claim-timeline [orderId]="+d.orderID" [version]="timelineVersion"></app-claim-timeline>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            </ng-container>
             <tr *ngIf="!declinesShown.length"><td [attr.colspan]="declineStatus === 3 ? 10 : 9" class="empty">{{ declines.length ? 'Nothing here in this window.' : 'Loading…' }}</td></tr>
           </tbody>
         </table>
@@ -628,9 +662,9 @@
         <div class="card-head"><h2>History: {{ rail === 'PP' ? 'price protection' : 'instant rebates' }}</h2><span class="sub">Latest 300 changes</span><span class="grow"></span>
           <button type="button" class="btn ghost" (click)="exportHistory()" [disabled]="!history.length"><i class="pi pi-file-excel"></i> Excel</button></div>
         <table class="grid">
-          <thead><tr><th>When</th><th>Who</th><th>What</th><th>On</th><th>Reason</th><th>Detail</th></tr></thead>
+          <thead><tr><th rdSort="at" [rdSortBy]="sorts['history']">When</th><th rdSort="actor" [rdSortBy]="sorts['history']">Who</th><th rdSort="eventType" [rdSortBy]="sorts['history']">What</th><th [rdSort]="sortOn" [rdSortBy]="sorts['history']">On</th><th rdSort="reason" [rdSortBy]="sorts['history']">Reason</th><th>Detail</th></tr></thead>
           <tbody>
-            <tr *ngFor="let h of history">
+            <tr *ngFor="let h of history | rdSort:sorts['history']">
               <td class="sub">{{ h.at | date:'MM/dd/yy h:mm a' }}</td>
               <td>{{ h.actor }}</td>
               <td><span class="chip">{{ h.eventType }}</span></td>

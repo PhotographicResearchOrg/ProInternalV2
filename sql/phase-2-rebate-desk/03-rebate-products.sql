@@ -38,7 +38,9 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Products
     @Q        nvarchar(100) = NULL,      -- description, PRO code or model id
     @Active   bit = NULL,
     @Page     int = 1,
-    @PageSize int = 50
+    @PageSize int = 50,
+    @Sort     varchar(30) = NULL,      -- column clicked on the desk (NULL = live products first, by name)
+    @Desc     bit = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -56,9 +58,25 @@ BEGIN
     INSERT #pg (ModelId, Seq, TotalRows)
     SELECT x.ModelID, x.Seq, x.TotalRows
       FROM (SELECT m.ModelID,
-                   ROW_NUMBER() OVER (ORDER BY COALESCE(m.Active, 0) DESC, m.ModelNumber, m.ModelID) AS Seq,
+                   ROW_NUMBER() OVER (ORDER BY CASE WHEN @Sort IS NOT NULL AND s.K IS NULL THEN 1 ELSE 0 END,
+                                               CASE WHEN @Desc = 0 THEN s.K END ASC, CASE WHEN @Desc = 1 THEN s.K END DESC,
+                                               COALESCE(m.Active, 0) DESC, m.ModelNumber, m.ModelID) AS Seq,
                    COUNT(*) OVER () AS TotalRows
               FROM dbo.RebateCameraModels m
+              LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
+             OUTER APPLY (SELECT SUM(CASE WHEN x.Expired = 0 THEN 1 ELSE 0 END) AS Live, MAX(x.D) AS LastDate
+                            FROM (SELECT pd.Expired, CAST(pd.ProgramStartWeek AS date) AS D FROM dbo.RebateProgramDetail pd
+                                   WHERE @pp = 0 AND pd.ModelID = m.ModelID AND @Sort IN ('programsLive', 'lastProgramDate')
+                                  UNION ALL
+                                  SELECT pp.Expired, CAST(pp.ProgramDate AS date) FROM dbo.PriceProtectionDetail pp
+                                   WHERE @pp = 1 AND pp.ModelID = m.ModelID AND @Sort IN ('programsLive', 'lastProgramDate')) x) pr
+             CROSS APPLY (SELECT CASE @Sort WHEN 'description'     THEN CAST(m.ModelNumber AS sql_variant)
+                                            WHEN 'vendorName'      THEN CAST(v.VendorName AS sql_variant)
+                                            WHEN 'proCodes'        THEN CAST(m.ModelName AS sql_variant)
+                                            WHEN 'programsLive'    THEN CAST(COALESCE(pr.Live, 0) AS sql_variant)
+                                            WHEN 'lastProgramDate' THEN CAST(pr.LastDate AS sql_variant)
+                                            WHEN 'stacks'          THEN CAST((SELECT COUNT(*) FROM dbo.RebateQualifiers q
+                                                                               WHERE q.PROQualifierID = m.ModelID) AS sql_variant) END AS K) s
              WHERE m.IsPriceProtection = @pp
                AND (@VendorId IS NULL OR m.VendorID = @VendorId)
                AND (@Active IS NULL OR COALESCE(m.Active, 0) = @Active)

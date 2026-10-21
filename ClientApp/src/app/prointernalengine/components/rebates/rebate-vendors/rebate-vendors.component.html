@@ -39,13 +39,13 @@
   <table class="grid">
     <thead>
       <tr>
-        <th>Vendor</th><th class="num">Products</th><th class="num">Live programs</th>
-        <th class="num">Liability</th><th class="num">Awaiting decision</th>
-        <th class="num">Posted to GL</th><th class="num">Debit memo</th><th class="num" *ngIf="rail === 'IR'">PRO pad</th><th>Oldest, no debit memo</th>
+        <th rdSort="vendorName" [rdSortBy]="sorts['vendors']">Vendor</th><th class="num" rdSort="productsActive" [rdSortBy]="sorts['vendors']">Products</th><th class="num" rdSort="programsLive" [rdSortBy]="sorts['vendors']">Live programs</th>
+        <th class="num" rdSort="liability" [rdSortBy]="sorts['vendors']">Liability</th><th class="num" rdSort="pendingAmount" [rdSortBy]="sorts['vendors']">Awaiting decision</th>
+        <th class="num" rdSort="creditedAmount" [rdSortBy]="sorts['vendors']">Posted to GL</th><th class="num" rdSort="reimbursedAmount" [rdSortBy]="sorts['vendors']">Debit memo</th><th class="num" *ngIf="rail === 'IR'" rdSort="proPadAmount" [rdSortBy]="sorts['vendors']">PRO pad</th><th rdSort="oldestUnreimbursed" [rdSortBy]="sorts['vendors']">Oldest, no debit memo</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let v of shown" class="click" (click)="open(v)" [class.sel]="selected?.vendorId === v.vendorId && !v.isGroup" [class.off]="v.isActive === false">
+      <tr *ngFor="let v of shown | rdSort:sorts['vendors']" class="click" (click)="open(v)" [class.sel]="selected?.vendorId === v.vendorId && !v.isGroup" [class.off]="v.isActive === false">
         <td><div class="rec">{{ v.vendorName }}</div>
           <div class="sub" *ngIf="v.parentCompany">{{ v.parentCompany }}</div>
           <div class="sub" *ngIf="v.isGroup">{{ v.members.join(', ') }}</div></td>
@@ -98,10 +98,10 @@
       <button type="button" class="icon-btn" (click)="selected = null" title="Close"><i class="pi pi-times"></i></button>
     </div>
     <table class="grid">
-      <thead><tr><th>Product</th><th class="num">Live</th><th>Last program</th><th class="num">Current amount</th>
-        <th class="num">Units not reimbursed</th><th class="num">Liability</th><th class="num">Awaiting decision</th><th class="num">Posted to GL</th></tr></thead>
+      <thead><tr><th rdSort="description" [rdSortBy]="sorts['vprods']">Product</th><th class="num" rdSort="programsLive" [rdSortBy]="sorts['vprods']">Live</th><th rdSort="lastProgramDate" [rdSortBy]="sorts['vprods']">Last program</th><th class="num" rdSort="liveAmount" [rdSortBy]="sorts['vprods']">Current amount</th>
+        <th class="num" rdSort="liabilityUnits" [rdSortBy]="sorts['vprods']">Units not reimbursed</th><th class="num" rdSort="liability" [rdSortBy]="sorts['vprods']">Liability</th><th class="num" rdSort="pendingAmount" [rdSortBy]="sorts['vprods']">Awaiting decision</th><th class="num" rdSort="creditedAmount" [rdSortBy]="sorts['vprods']">Posted to GL</th></tr></thead>
       <tbody>
-        <tr *ngFor="let p of products" class="click" (click)="showPrograms.emit({ modelId: p.modelId })" [class.off]="!p.isActive">
+        <tr *ngFor="let p of products | rdSort:sorts['vprods']" class="click" (click)="showPrograms.emit({ modelId: p.modelId })" [class.off]="!p.isActive">
           <td><div class="rec">{{ p.description }}</div><div class="sub mono">PRO {{ p.proCodeText }}</div></td>
           <td class="num">{{ p.programsLive }}</td>
           <td class="mono">{{ p.lastProgramDate | date:'MM/dd/yy' }}</td>
@@ -120,9 +120,9 @@
   <section class="card">
     <div class="card-head"><h2>Claims not reimbursed</h2><span class="sub">{{ openClaims.length }} approved with no debit memo, or awaiting a decision</span></div>
     <table class="grid">
-      <thead><tr><th>Claim</th><th>Member</th><th>Submitted</th><th>State</th><th>Products</th><th class="num">Units</th><th class="num">Member amount</th><th class="num">Vendor owes</th></tr></thead>
+      <thead><tr><th rdSort="orderId" [rdSortBy]="sorts['vclaims']">Claim</th><th rdSort="memberId" [rdSortBy]="sorts['vclaims']">Member</th><th rdSort="claimDate" [rdSortBy]="sorts['vclaims']">Submitted</th><th rdSort="bucket" [rdSortBy]="sorts['vclaims']">State</th><th rdSort="products" [rdSortBy]="sorts['vclaims']">Products</th><th class="num" rdSort="units" [rdSortBy]="sorts['vclaims']">Units</th><th class="num" rdSort="amount" [rdSortBy]="sorts['vclaims']">Member amount</th><th class="num" rdSort="vendorAmount" [rdSortBy]="sorts['vclaims']">Vendor owes</th></tr></thead>
       <tbody>
-        <tr *ngFor="let c of openClaims">
+        <tr *ngFor="let c of openClaims | rdSort:sorts['vclaims']">
           <td class="mono">{{ c.orderId }}</td>
           <td class="mono">{{ c.memberId }}</td>
           <td class="mono">{{ c.claimDate | date:'MM/dd/yy' }}<span class="sub" *ngIf="daysOld(c.claimDate) as d"> · {{ d }} d</span></td>

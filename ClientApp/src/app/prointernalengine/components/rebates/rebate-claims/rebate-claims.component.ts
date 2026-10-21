@@ -3,6 +3,7 @@ import { finalize } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage, saveBlob } from 'src/app/services/rebate-desk.service';
 import { CLAIM_COLS, col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
 import { DEFAULT_MONTHS } from '../shared/rebate-window.component';
+import { rdSortParams, rdSorts } from '../shared/rebate-sort';
 
 type Pending = { kind: 'resend' | 'invoice' | 'resubmit' } | null;
 
@@ -22,6 +23,9 @@ type Pending = { kind: 'resend' | 'invoice' | 'resubmit' } | null;
   styleUrls: ['../shared/rebate-desk.shared.scss']
 })
 export class RebateClaimsComponent implements OnChanges {
+  readonly sorts = rdSorts();
+  /* Bumped after an action so the claim's timeline reloads. */
+  timelineVersion = 0;
   @Input() rail: Rail = 'IR';
   @Input() tab: 'claims' | 'memos' = 'claims';
   /* Came from a vendor's "Bill vendor": that vendor and dates are filled in and its claims found. */
@@ -98,7 +102,7 @@ export class RebateClaimsComponent implements OnChanges {
   async exportClaims(): Promise<void> {
     this.exporting = true;
     try {
-      const rows = await fetchAllPages((page, pageSize) => this.desk.claims(this.rail, { ...this.filter, page, pageSize }));
+      const rows = await fetchAllPages((page, pageSize) => this.desk.claims(this.rail, { ...this.filter, ...rdSortParams(this.sorts['claims']), page, pageSize }));
       downloadXlsx(this.rail === 'PP' ? 'Price-protection claims' : 'Instant-rebate claims', [{ name: 'Claims', cols: CLAIM_COLS, rows }]);
     } catch (e) { this.error = apiMessage(e); } finally { this.exporting = false; }
   }
@@ -152,7 +156,7 @@ export class RebateClaimsComponent implements OnChanges {
   go(p: number): void {
     this.page = Math.min(Math.max(1, p), this.pages);
     this.loading = true;
-    this.desk.claims(this.rail, { ...this.filter, page: this.page, pageSize: this.pageSize })
+    this.desk.claims(this.rail, { ...this.filter, ...rdSortParams(this.sorts['claims']), page: this.page, pageSize: this.pageSize })
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({ next: r => { this.rows = r.rows; this.total = r.total; }, error: e => (this.error = apiMessage(e)) });
   }
@@ -200,6 +204,7 @@ export class RebateClaimsComponent implements OnChanges {
           : kind === 'resubmit' ? `Claim ${this.claim.orderId} is back in the approval queue.`
           : `Member invoice ${r.invoiceNumber} built${r.sharePath ? ' and published for the member' : ''}.`;
         this.open(this.claim);
+        this.timelineVersion++;
         this.go(this.page);
       },
       error: e => (this.error = apiMessage(e))

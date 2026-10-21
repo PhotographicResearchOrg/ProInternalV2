@@ -46,12 +46,12 @@
     <table class="grid">
       <thead>
         <tr *ngIf="rail === 'IR'">
-          <th>Product</th><th>Vendor</th><th>Type</th><th>Dates</th>
-          <th class="num">Member</th><th class="num">IR</th><th class="num">MAP</th><th>Batch</th><th>State</th>
+          <th rdSort="description" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Product</th><th rdSort="vendorName" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Vendor</th><th rdSort="irTypeName" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Type</th><th rdSort="startDate" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Dates</th>
+          <th class="num" rdSort="reimbursement" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Member</th><th class="num" rdSort="instantRebate" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">IR</th><th class="num" rdSort="mapPrice" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">MAP</th><th rdSort="batchId" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Batch</th><th rdSort="isLive" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">State</th>
         </tr>
         <tr *ngIf="rail === 'PP'">
-          <th>Product</th><th>Vendor</th><th>Date</th>
-          <th class="num">Credit</th><th class="num">New cost</th><th class="num">New MAP</th><th>State</th>
+          <th rdSort="description" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Product</th><th rdSort="vendorName" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Vendor</th><th rdSort="programDate" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Date</th>
+          <th class="num" rdSort="amount" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Credit</th><th class="num" rdSort="newInvoiceCost" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">New cost</th><th class="num" rdSort="mapPrice" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">New MAP</th><th rdSort="isLive" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">State</th>
         </tr>
       </thead>
       <tbody>

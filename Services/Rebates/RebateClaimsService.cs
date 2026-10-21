@@ -76,6 +76,53 @@ namespace ProInternal.Services.Rebates
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Select(f => (object)new { name = f, url = ProofUrl(orderId, f) }).ToList();
 
+        /* Where proof files live (the IR site serves them as ProofBaseUrl + <claim #>_<name>). Same share
+           the IR Maintenance screen wrote to. */
+        private string ProofShare =>
+            _config["RebateDesk:ProofSharePath"] is { Length: > 0 } p ? p : @"\\10.0.0.13\Temp\uploads\Master";
+
+        private static readonly HashSet<string> ProofTypes = new(StringComparer.OrdinalIgnoreCase)
+            { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".tif", ".tiff", ".heic", ".webp", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt", ".msg", ".eml", ".zip" };
+
+        /* Support files added to an instant-rebate claim from the desk: saved to the proof share, listed on the
+           claim (dbo.InsertRebateAdditionalFile + dbo.MarkAsHasAdditionalFiles, as IR Maintenance did), and logged. */
+        public async Task<object> AddClaimFilesAsync(int orderId, IFormFileCollection files, string actor, CancellationToken ct)
+        {
+            if (files == null || files.Count == 0) throw new RebateFileException("Choose at least one file.");
+            var saved = new List<object>();
+            foreach (var f in files)
+            {
+                if (f.Length == 0) continue;
+                var name = Path.GetFileName(f.FileName ?? "").Trim();
+                if (name.Length == 0 || name.Length > 200) throw new RebateFileException("Each file needs a name under 200 characters.");
+                if (!ProofTypes.Contains(Path.GetExtension(name)))
+                    throw new RebateFileException($"{name}: that kind of file cannot be added as proof.");
+                foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+
+                var path = Path.Combine(ProofShare, $"{orderId}_{name}");
+                await using (var stream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                    await f.CopyToAsync(stream, ct);
+
+                await _data.ExecuteAsync("dbo.InsertRebateAdditionalFile", new { OrderId = orderId, FileName = name });
+                await _data.ExecuteAsync("dbo.MarkAsHasAdditionalFiles", new { OrderId = orderId });
+                await _data.ExecuteAsync("piv2.Claim_FileEvent", new { OrderId = orderId, Added = true, FileName = name, Actor = actor });
+                saved.Add(new { name, url = ProofUrl(orderId, name) });
+            }
+            return new { files = saved };
+        }
+
+        /* Takes a support file off a claim (dbo.DeleteRebateProofFile, as IR Maintenance did) and deletes it from the share. */
+        public async Task RemoveClaimFileAsync(int orderId, string fileName, string actor, string? reason)
+        {
+            var name = Path.GetFileName(fileName ?? "").Trim();
+            if (name.Length == 0) throw new RebateFileException("Which file?");
+            await _data.ExecuteAsync("dbo.DeleteRebateProofFile", new { OrderId = orderId, FileName = name });
+            var path = Path.Combine(ProofShare, $"{orderId}_{name}");
+            try { if (File.Exists(path)) File.Delete(path); }
+            catch (IOException) { /* the claim no longer lists it; a locked file on the share is left */ }
+            await _data.ExecuteAsync("piv2.Claim_FileEvent", new { OrderId = orderId, Added = false, FileName = name, Actor = actor, Reason = reason });
+        }
+
         private static string Rail(string? rail) => string.Equals(rail, "PP", StringComparison.OrdinalIgnoreCase) ? "PP" : "IR";
 
         private string InvoiceFolder =>

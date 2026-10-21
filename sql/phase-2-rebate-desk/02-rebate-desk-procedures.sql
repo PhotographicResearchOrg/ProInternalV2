@@ -1463,7 +1463,9 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Batches
     @State    varchar(10) = NULL,      -- LIVE, OFF, MIXED, or NULL for all
     @Page     int = 1,
     @PageSize int = 50,
-    @Months   int = 12                 -- batches running in the last @Months months (or live); 0 = all history
+    @Months   int = 12                 -- batches running in the last @Months months (or live); 0 = all history,
+    @Sort     varchar(30) = NULL,      -- column clicked on the desk (NULL = the usual order)
+    @Desc     bit = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1502,13 +1504,21 @@ BEGIN
            COUNT(*) OVER () AS TotalRows
       FROM b
       LEFT JOIN piv2.RebateUpload u ON u.BatchId = b.BatchId
+     CROSS APPLY (SELECT CASE @Sort WHEN 'batchId'      THEN CAST(b.BatchId AS sql_variant)
+                                    WHEN 'vendorName'   THEN CAST(b.VendorName AS sql_variant)
+                                    WHEN 'irTypeName'   THEN CAST(CASE WHEN b.MixedTypes = 1 THEN N'Mixed' ELSE b.IrTypeName END AS sql_variant)
+                                    WHEN 'programStart' THEN CAST(b.ProgramStart AS sql_variant)
+                                    WHEN 'programs'     THEN CAST(b.LivePrograms AS sql_variant)
+                                    WHEN 'state'        THEN CAST(CASE WHEN b.LivePrograms = b.Programs THEN 1 WHEN b.LivePrograms = 0 THEN 3 ELSE 2 END AS sql_variant) END AS K) s
      WHERE (@VendorId IS NULL OR b.VendorId = @VendorId)
        AND (@Q IS NULL OR CAST(b.BatchId AS nvarchar(20)) = @Q OR b.VendorName LIKE N'%' + @Q + N'%')
        AND (@State IS NULL
             OR (@State = 'LIVE'  AND b.LivePrograms = b.Programs)
             OR (@State = 'OFF'   AND b.LivePrograms = 0)
             OR (@State = 'MIXED' AND b.LivePrograms > 0 AND b.LivePrograms < b.Programs))
-     ORDER BY b.ProgramStart DESC, b.BatchId DESC
+     ORDER BY CASE WHEN @Sort IS NOT NULL AND s.K IS NULL THEN 1 ELSE 0 END,   -- blanks last
+              CASE WHEN @Desc = 0 THEN s.K END ASC, CASE WHEN @Desc = 1 THEN s.K END DESC,
+              b.ProgramStart DESC, b.BatchId DESC
      OFFSET (@Page - 1) * @PageSize ROWS FETCH NEXT @PageSize ROWS ONLY
     OPTION (RECOMPILE);
 END

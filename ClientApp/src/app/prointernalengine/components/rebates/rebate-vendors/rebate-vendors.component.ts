@@ -3,6 +3,7 @@ import { finalize } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.service';
 import { col, downloadXlsx } from '../shared/rebate-excel';
 import { DEFAULT_MONTHS, windowStart } from '../shared/rebate-window.component';
+import { rdSorts } from '../shared/rebate-sort';
 
 /*
  * Vendors on one rail: products and programs rolled up from product to
@@ -22,6 +23,7 @@ const SUMMED = ['productsActive', 'programsLive', 'programsCurrent', 'programsUp
   styleUrls: ['../shared/rebate-desk.shared.scss']
 })
 export class RebateVendorsComponent implements OnChanges {
+  readonly sorts = rdSorts();
   @Input() rail: Rail = 'IR';
   @Output() showPrograms = new EventEmitter<{ vendorId?: number; modelId?: number }>();
   /* Bill this vendor: opens Debit memos with the vendor and dates filled in. */

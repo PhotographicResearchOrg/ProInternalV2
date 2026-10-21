@@ -4,6 +4,7 @@ import { catchError, debounceTime, distinctUntilChanged, finalize, switchMap } f
 import { RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.service';
 import { col, downloadXlsx } from '../shared/rebate-excel';
 import { DEFAULT_MONTHS } from '../shared/rebate-window.component';
+import { rdSorts } from '../shared/rebate-sort';
 
 /*
  * Investigate (instant rebates): does what a member claimed match what they bought from PRO?
@@ -19,6 +20,13 @@ import { DEFAULT_MONTHS } from '../shared/rebate-window.component';
   styleUrls: ['../shared/rebate-desk.shared.scss']
 })
 export class RebateInvestigateComponent implements OnChanges {
+  /* Column sorting: one state per table; computed columns sort by these. */
+  readonly sorts = rdSorts();
+  readonly sortNet = (p: any) => -p._over;
+  readonly sortWhoFlag = (m: any) => (m.noPurchaseOnRecord ? 2 : m.claimedMoreThanBought ? 1 : 0) || null;
+  readonly sortProductFlag = (p: any) => (p.noPurchaseOnRecord ? 2 : p._over > 0 ? 1 : 0) || null;
+  readonly sortProofCount = (c: any) => (c.proof ? c.proof.length : 0);
+  readonly sortClaimFlag = (c: any) => ((c.serialAlsoOn ? 2 : 0) + (c.linesWithNoPurchaseBefore > 0 ? 1 : 0)) || null;
   /* Opened from a claim: that member and the claim's products. */
   @Input() preset: { memberId: number; modelIds?: number[] } | null = null;
   /* Open a claim on the Claims screen. */

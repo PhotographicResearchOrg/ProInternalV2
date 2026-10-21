@@ -125,12 +125,11 @@ export class AppMenuComponent implements OnInit {
         ]
     });
 
-    (can('/rebatesupport') || can('/rebatedesk')) && rawModel.push({
+    can('/rebatedesk') && rawModel.push({
       label: 'Rebate Management',
       icon: 'pi pi-wrench',
       items: [
-        can('/rebatedesk') && { label: 'Rebate Desk', icon: 'pi pi-percentage', routerLink: ['/rebatedesk'] },
-        can('/rebatesupport') && { label: '(IR) Maintenance', icon: 'pi pi-dollar', routerLink: ['/rebatesupport'] }
+        can('/rebatedesk') && { label: 'Rebate Desk', icon: 'pi pi-percentage', routerLink: ['/rebatedesk'] }
       ]
     });
 
