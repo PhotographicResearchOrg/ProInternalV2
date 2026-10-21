@@ -90,6 +90,7 @@ import { RebateInvestigateComponent } from './prointernalengine/components/rebat
 import { RebateStockpadComponent } from './prointernalengine/components/rebates/rebate-stockpad/rebate-stockpad.component';
 import { RebateSortHeaderDirective, RebateSortPipe } from './prointernalengine/components/rebates/shared/rebate-sort';
 import { ClaimTimelineComponent } from './prointernalengine/components/rebates/shared/claim-timeline.component';
+import { RebateDeclinesComponent } from './prointernalengine/components/rebates/shared/rebate-declines.component';
 import { PanelModule } from 'primeng/panel';
 import { BrowserModule } from '@angular/platform-browser';             // <-- add
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; // <-- add
@@ -144,6 +145,7 @@ import { AccessRulesComponent } from './prointernalengine/components/MemberManag
     RebateSortHeaderDirective,
     RebateSortPipe,
     ClaimTimelineComponent,
+    RebateDeclinesComponent,
     ReceivablesComponent,
     AffiliateGridComponent,
     ClientGridComponent,

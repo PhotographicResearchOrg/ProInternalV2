@@ -583,50 +583,6 @@ namespace ProInternal.Controllers
         public Task<IActionResult> Resubmit(string rail, int orderId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Claim_Resubmit", new { OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
 
-        /* Second strike: a claim that needed support is declined for good (IR Maintenance "Confirm decline"). */
-        [HttpPost("claims/IR/{orderId:int}/confirm-decline")]
-        [RequirePermission(AccountingPermission)]
-        public Task<IActionResult> ConfirmDecline(int orderId, [FromBody] RebateReasonRequest body) =>
-            Act(() => _data.ExecuteAsync("piv2.Claim_ConfirmDecline", new { OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
-
-        /* Support files on an instant-rebate claim (what IR Maintenance did). */
-        [HttpPost("claims/IR/{orderId:int}/files")]
-        [RequirePermission(AccountingPermission)]
-        [RequestSizeLimit(40 * 1024 * 1024)]
-        public Task<IActionResult> AddClaimFiles(int orderId, CancellationToken cancellationToken) =>
-            Read(async () => await _claims.AddClaimFilesAsync(orderId, (await Request.ReadFormAsync(cancellationToken)).Files, Actor, cancellationToken));
-
-        [HttpPost("claims/IR/{orderId:int}/files/remove")]
-        [RequirePermission(AccountingPermission)]
-        public Task<IActionResult> RemoveClaimFile(int orderId, [FromBody] RebateClaimFileRequest body) =>
-            Act(() => _claims.RemoveClaimFileAsync(orderId, body?.FileName ?? "", Actor, body?.Reason));
-
-        /* Every step on a claim, and who has it now. */
-        [HttpGet("claims/IR/{orderId:int}/timeline")]
-        public Task<IActionResult> Timeline(int orderId) =>
-            Read(async () =>
-            {
-                var sets = await _data.QuerySetsAsync("piv2.Claim_Timeline", new { OrderId = orderId });
-                return new { steps = sets.ElementAtOrDefault(0) ?? new List<RebateRow>(), now = sets.ElementAtOrDefault(1)?.FirstOrDefault() };
-            });
-
-        /* Claims needing support or declined, one row per claim, with their files. */
-        [HttpGet("declines")]
-        public Task<IActionResult> Declines([FromQuery] int months = 12) =>
-            Read(async () =>
-            {
-                var rows = await _data.QueryAsync("piv2.Claim_Declines", new { Months = months });
-                foreach (var r in rows)
-                {
-                    var id = Convert.ToInt32(r["orderID"]);
-                    var master = r["masterFileLoc"] as string;
-                    var list = string.Join('|', new[] { master == "Additional Files" ? null : master, r["additionalFiles"] as string }
-                        .Where(s => !string.IsNullOrWhiteSpace(s)));
-                    r["proof"] = _claims.ProofLinks(id, list);
-                }
-                return rows;
-            });
-
         [HttpPost("claims/{rail}/{orderId:int}/invoice")]
         [RequirePermission(AccountingPermission)]
         public Task<IActionResult> RecreateInvoice(string rail, int orderId, [FromBody] RebateReasonRequest? body) =>

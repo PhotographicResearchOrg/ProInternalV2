@@ -1,0 +1,96 @@
+<section class="card">
+  <div class="notice" *ngIf="notice" (click)="notice = ''"><i class="pi pi-check"></i> {{ notice }}</div>
+  <div class="error" *ngIf="error && !pending"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+  <div class="card-head"><h2>{{ title }}</h2><span class="sub">{{ declinesShown.length }} shown</span><span class="grow"></span>
+    <button type="button" class="btn ghost" (click)="exportDeclines()" [disabled]="!declinesShown.length"><i class="pi pi-file-excel"></i> Excel</button></div>
+  <div class="filters">
+    <input class="in" placeholder="Claim #, member #, product, reason or email" [(ngModel)]="declineQ" (ngModelChange)="declineTake = 100" />
+    <app-rebate-window [(months)]="declineMonths" (monthsChange)="declineTake = 100; loadDeclines()"></app-rebate-window>
+  </div>
+  <div class="chips">
+    <span class="lbl">Show</span>
+    <button type="button" [class.on]="declineStatus === 3" (click)="declineStatus = 3; declineTake = 100">Needs support<b>{{ declineCount(3) }}</b></button>
+    <button type="button" [class.on]="declineStatus === 2" (click)="declineStatus = 2; declineTake = 100">Declined<b>{{ declineCount(2) }}</b></button>
+  </div>
+  <div class="sub" style="margin: 0 0 8px">{{ declineStatus === 3
+    ? 'Waiting on the member for more information or support. Click a claim to see its files and timeline, add the support, then send it back to the approval queue or confirm the decline.'
+    : 'Declined for good. Click a claim to see its files and timeline.' }}</div>
+  <table class="grid">
+    <thead><tr><th rdSort="orderID" [rdSortBy]="sorts['declines']">Claim</th><th rdSort="processDate" [rdSortBy]="sorts['declines']">{{ declineStatus === 3 ? 'Asked' : 'Declined' }}</th><th rdSort="memberID" [rdSortBy]="sorts['declines']">Member</th><th rdSort="model" [rdSortBy]="sorts['declines']">Product</th><th class="num" rdSort="quantity" [rdSortBy]="sorts['declines']">Qty</th><th class="num" rdSort="total" [rdSortBy]="sorts['declines']">Amount</th><th rdSort="rejectReason" [rdSortBy]="sorts['declines']">Reason</th><th [rdSort]="sortEmail" [rdSortBy]="sorts['declines']">Email</th><th *ngIf="declineStatus === 3"></th><th></th></tr></thead>
+    <tbody>
+      <ng-container *ngFor="let d of declinesShown | rdSort:sorts['declines'] | slice:0:declineTake; trackBy: trackDecline">
+      <tr class="click" (click)="toggleDecline(d)" [class.sel]="declineOpen?.orderID === d.orderID">
+        <td class="mono"><i class="pi" [class.pi-chevron-right]="declineOpen?.orderID !== d.orderID" [class.pi-chevron-down]="declineOpen?.orderID === d.orderID"></i> {{ d.orderID }}</td>
+        <td class="mono">{{ d.processDate | date:'MM/dd/yy' }}</td>
+        <td class="mono">{{ d.memberID }}<div class="sub" *ngIf="d.memberName">{{ d.memberName }}</div></td>
+        <td><div>{{ d.model }}</div><div class="sub" *ngIf="d.vendorName">{{ d.vendorName }}</div></td>
+        <td class="num">{{ d.quantity }}</td>
+        <td class="money">{{ d.total | currency }}</td>
+        <td>{{ d.rejectReason }}</td>
+        <td class="sub">{{ d.email || d.eMail }}</td>
+        <td *ngIf="declineStatus === 3" (click)="$event.stopPropagation()"><button type="button" class="btn" (click)="pending = { kind: 'resubmit', claim: d }" title="Support received: back into the approval queue"><i class="pi pi-undo"></i> Back to queue</button></td>
+        <td (click)="$event.stopPropagation()"><button type="button" class="icon-btn" *ngIf="canInvestigate" (click)="investigate.emit({ memberId: +d.memberID })" title="Investigate this member: bought against claimed"><i class="pi pi-search"></i></button></td>
+      </tr>
+      <tr class="expand" *ngIf="declineOpen?.orderID === d.orderID">
+        <td [attr.colspan]="declineStatus === 3 ? 10 : 9">
+          <div class="decl-lines">
+            <h3 class="sub" style="margin: 0 0 6px">Claim lines</h3>
+            <table class="grid">
+              <thead><tr><th>Product</th><th>PRO code</th><th>Serial #</th><th>Program week</th><th class="num">Qty</th><th class="num">Each</th><th class="num">Net</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let l of declineLines">
+                  <td>{{ l.description || l.model }}</td>
+                  <td class="mono">{{ l.proCode }}</td>
+                  <td class="mono">{{ l.serialNumber || '—' }}</td>
+                  <td class="sub">{{ l.programWeek }}</td>
+                  <td class="num">{{ l.quantity }}</td>
+                  <td class="money">{{ l.reimbursementAmount | currency }}</td>
+                  <td class="money">{{ l.net | currency }}</td>
+                </tr>
+                <tr class="tot" *ngIf="declineLines.length > 1"><td colspan="4">{{ declineLines.length }} lines</td>
+                  <td class="num">{{ declineUnitsTotal }}</td><td></td><td class="money">{{ declineLinesTotal | currency }}</td></tr>
+                <tr *ngIf="!declineLines.length"><td colspan="7" class="empty">Loading the claim lines…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="decl-panel">
+            <div>
+              <h3>Support files</h3>
+              <div class="files">
+                <div class="file" *ngFor="let f of d.proof || []">
+                  <i class="pi pi-paperclip"></i><a [href]="f.url" target="_blank" rel="noopener" [title]="f.name">{{ f.name }}</a>
+                  <button type="button" class="icon-btn" (click)="pending = { kind: 'remove-file', claim: d, fileName: f.name }" title="Take this file off the claim"><i class="pi pi-times"></i></button>
+                </div>
+                <div class="sub" *ngIf="!(d.proof || []).length">No files on this claim.</div>
+              </div>
+              <label class="drop" style="display: block; margin-top: 8px; cursor: pointer" [class.over]="dropOver"
+                     (dragover)="$event.preventDefault(); dropOver = true" (dragleave)="dropOver = false"
+                     (drop)="$event.preventDefault(); dropOver = false; addDeclineFiles(d, $any($event).dataTransfer?.files)">
+                <input type="file" multiple style="display: none" (change)="addDeclineFiles(d, $any($event.target).files); $any($event.target).value = ''" />
+                <i class="pi pi-upload"></i> {{ uploadingFor === d.orderID ? 'Adding…' : 'Drop the dealer\'s support here, or click to choose files' }}
+              </label>
+              <div class="actions">
+                <button type="button" class="btn primary" *ngIf="d.status === 3" (click)="pending = { kind: 'resubmit', claim: d }"><i class="pi pi-undo"></i> Back to queue</button>
+                <button type="button" class="btn danger" *ngIf="d.status === 3" (click)="pending = { kind: 'confirm', claim: d }"
+                        title="Second strike: decline for good (no email is sent, as on IR Maintenance)"><i class="pi pi-ban"></i> Confirm decline</button>
+                <button type="button" class="btn ghost" *ngIf="canOpenClaim" (click)="openClaim.emit(+d.orderID)"><i class="pi pi-external-link"></i> Open in Claims</button>
+              </div>
+            </div>
+            <div>
+              <h3>Timeline</h3>
+              <app-claim-timeline [orderId]="+d.orderID" [version]="timelineVersion"></app-claim-timeline>
+            </div>
+          </div>
+        </td>
+      </tr>
+      </ng-container>
+      <tr *ngIf="!declinesShown.length"><td [attr.colspan]="declineStatus === 3 ? 10 : 9" class="empty">{{ declines.length ? 'Nothing here in this window.' : 'Loading…' }}</td></tr>
+    </tbody>
+  </table>
+  <div class="pager" *ngIf="declinesShown.length > declineTake">
+    <button type="button" class="btn ghost" (click)="declineTake = declineTake + 100">Show more</button>
+  </div>
+</section>
+
+<app-rebate-reason-dialog [open]="!!pending" [title]="pendingTitle" [detail]="pendingDetail" [busy]="busy" [error]="error"
+  [danger]="pending?.kind !== 'resubmit'" (confirmed)="confirm($event)" (closed)="pending = null"></app-rebate-reason-dialog>

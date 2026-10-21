@@ -1,99 +1,68 @@
-<div class="grid">
-
-
-
-  <div class="col-12">
-    <!-- Toggle Button -->
-    <div style="margin-bottom: 1.0rem;">
-      <button pButton
-              type="button"
-              icon="{{ isShippingCardCollapsed ? 'pi pi-chevron-down' : 'pi pi-chevron-up' }}"
-              class="p-button-text"
-              (click)="isShippingCardCollapsed = !isShippingCardCollapsed">
-        {{ isShippingCardCollapsed ? 'Show' : 'Hide' }} BRM Shipping Errors
-      </button>
-    </div>
-
-
-    <p-card *ngIf="!isShippingCardCollapsed" header="BRM Shipping Errors" class="mt-2">
-      <app-shippingerrorbrm (errorCountChanged)="brmShippingErrorCount = $event"></app-shippingerrorbrm>
-
-      <p *ngIf="brmShippingErrorCount === 0" class="mt-3 text-center text-500">
-        No shipping errors to process.
-      </p>
-    </p-card>
-
-
-  </div>
-
-
-
-  <div class="col-12">
-    <!-- Toggle button with spacing above -->
-    <div style="margin-bottom: 1.0rem;">
-      <button pButton
-              type="button"
-              icon="{{ isHubspotCardCollapsed ? 'pi pi-chevron-down' : 'pi pi-chevron-up' }}"
-              class="p-button-text"
-              (click)="isHubspotCardCollapsed = !isHubspotCardCollapsed">
-        {{ isHubspotCardCollapsed ? 'Show' : 'Hide' }} Company Management
-      </button>
-    </div>
-
-    <!-- Collapsible card -->
-    <p-card *ngIf="!isHubspotCardCollapsed" header="HubSpot Company Management" class="mt-2">
-      <app-hubspot-company (filterByAccountNumbers)="onAccountFilter($event)"></app-hubspot-company>
-    </p-card>
-  </div>
-
-
-  <!-- Instant Rebate Declines Card (Full Width) -->
-  <div class="col-12">
-    <p-card>
-      <ng-template pTemplate="header">
-        <div class="text-900 text-xl font-semibold">
-          Instant Rebate Declines (Support Needed)
+<div class="app brm">
+  <div class="col">
+    <header class="vhead">
+      <div class="vhead-top">
+        <div class="logo"><i class="pi pi-user"></i></div>
+        <div class="grow">
+          <div class="vtitle">
+            <h1>BRM dashboard</h1>
+            <span class="pill" [class.bad]="brmShippingErrorCount > 0" [class.ok]="!brmShippingErrorCount">
+              {{ brmShippingErrorCount > 0 ? brmShippingErrorCount + ' shipping errors to process' : 'No shipping errors' }}</span>
+          </div>
+          <div class="vmeta">Shipping errors, your companies, and instant-rebate claims waiting on support.</div>
         </div>
-        <div class="mt-3">
-          <button pButton
-                  label="Toggle Status"
-                  icon="pi pi-sync"
-                  class="p-button-sm p-button-text"
-                  (click)="toggleStatusFilter()">
-          </button>
-          <p-tag [value]="statusFilter === 3 ? 'Actionable' : 'Information'"
-                 [severity]="statusFilter === 3 ? 'warning' : 'info'"
-                 class="ml-2">
-          </p-tag>
+        <div class="head-actions">
+          <button type="button" class="btn ghost" (click)="refreshNotifications()"><i class="pi pi-refresh"></i> Refresh</button>
         </div>
-      </ng-template>
-
-      <div class="flex align-items-center mb-3" style="max-width: 100%;">
-        <div class="p-input-icon-left" style="flex: 1; max-width: 400px;">
-          <i class="pi pi-search"></i>
-          <input pInputText
-                 type="text"
-                 (input)="onSearch($event)"
-                 placeholder="Search..."
-                 class="w-full"
-                 style="border-radius: 2rem" />
-        </div>
-        <!--<button pButton
-                pRipple
-                icon="pi pi-cloud-download"
-                class="p-button-rounded ml-3"
-                (click)="exportData()">
-        </button>-->
       </div>
+      <div class="stats">
+        <button type="button" class="stat" (click)="show('shipping')"><b [class.bad]="brmShippingErrorCount">{{ brmShippingErrorCount }}</b><span>shipping errors</span></button>
+        <button type="button" class="stat" (click)="show('companies')"><b>{{ SelectedAccountNumbers.length || 'All' }}</b><span>{{ SelectedAccountNumbers.length ? 'accounts selected' : 'accounts' }}</span></button>
+        <button type="button" class="stat" (click)="decl.declineStatus = 3; show('declines')"><b [class.warn]="decl.declineCount(3)">{{ decl.declineCount(3) }}</b><span>IR claims needing support</span></button>
+        <button type="button" class="stat" (click)="decl.declineStatus = 2; show('declines')"><b>{{ decl.declineCount(2) }}</b><span>IR claims declined</span></button>
+      </div>
+    </header>
 
-      <app-ir-declines-table #declinesTable
-                             [declines]="declinedIRs"
-                             [columns]="IRDeclinecols"
-                             [globalFilterFields]="['orderID','processDate','rejectReason','memberID','model', 'total']"
-                             [accountNumberFilter]="hubspotAccountNumbers"
-                             (actionCompleted)="refreshNotifications()">
-      </app-ir-declines-table>
+    <div class="body">
+      <!-- Shipping errors -->
+      <section class="card" id="brm-shipping">
+        <div class="card-head">
+          <h2>Shipping errors</h2>
+          <span class="sub">{{ brmShippingErrorCount }} to process</span>
+          <span class="grow"></span>
+          <button type="button" class="icon-btn" (click)="isShippingCardCollapsed = !isShippingCardCollapsed"
+                  [title]="isShippingCardCollapsed ? 'Show' : 'Hide'">
+            <i class="pi" [class.pi-chevron-down]="isShippingCardCollapsed" [class.pi-chevron-up]="!isShippingCardCollapsed"></i></button>
+        </div>
+        <div [hidden]="isShippingCardCollapsed">
+          <app-shippingerrorbrm (errorCountChanged)="brmShippingErrorCount = $event"></app-shippingerrorbrm>
+          <div class="empty" *ngIf="brmShippingErrorCount === 0">No shipping errors to process.</div>
+        </div>
+      </section>
 
-    </p-card>
+      <!-- Companies (HubSpot): picking accounts filters the claims below -->
+      <section class="card" id="brm-companies">
+        <div class="card-head">
+          <h2>Company management</h2>
+          <span class="sub">HubSpot · pick accounts to filter the claims below</span>
+          <span class="grow"></span>
+          <span class="chip info" *ngIf="SelectedAccountNumbers.length">{{ SelectedAccountNumbers.length }} accounts
+            <a href="" (click)="$event.preventDefault(); onAccountFilter([])" style="margin-left: 6px">clear</a></span>
+          <button type="button" class="icon-btn" (click)="isHubspotCardCollapsed = !isHubspotCardCollapsed"
+                  [title]="isHubspotCardCollapsed ? 'Show' : 'Hide'">
+            <i class="pi" [class.pi-chevron-down]="isHubspotCardCollapsed" [class.pi-chevron-up]="!isHubspotCardCollapsed"></i></button>
+        </div>
+        <div [hidden]="isHubspotCardCollapsed">
+          <app-hubspot-company (filterByAccountNumbers)="onAccountFilter($event)"></app-hubspot-company>
+        </div>
+      </section>
+
+      <!-- Instant-rebate claims: the same panel as the Rebate Desk -->
+      <div id="brm-declines">
+        <app-rebate-declines #decl title="Instant rebates: support needed"
+                             [accountFilter]="SelectedAccountNumbers"
+                             (changed)="refreshNotifications()"></app-rebate-declines>
+      </div>
+    </div>
   </div>
 </div>

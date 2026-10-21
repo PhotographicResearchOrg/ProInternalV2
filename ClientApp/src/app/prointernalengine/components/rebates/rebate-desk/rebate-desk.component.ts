@@ -26,9 +26,6 @@ type Pending =
   | { kind: 'bp-amounts' }
   | { kind: 'bp-dates' }
   | { kind: 'bp-active'; program: any; active: boolean }
-  | { kind: 'resubmit-claim'; claim: any }
-  | { kind: 'confirm-decline'; claim: any }
-  | { kind: 'remove-claim-file'; claim: any; fileName: string }
   | null;
 
 /*
@@ -59,7 +56,6 @@ export class RebateDeskComponent implements OnInit {
   readonly sortSku = (r: any) => r.vendorSku || r.upc || r.proCode || r.productCode;
   readonly sortModel = (r: any) => r.modelDescription || r.proposedName;
   readonly sortProblem = (r: any) => (r.problems && r.problems.length ? r.problems[0].message : null);
-  readonly sortEmail = (d: any) => d.email || d.eMail;
   readonly sortOn = (h: any) => h.batchId ?? h.programId ?? h.uploadId ?? h.modelId;
 
   overview: any = {};
@@ -129,94 +125,6 @@ export class RebateDeskComponent implements OnInit {
 
   /* ---- templates, declines, history ---- */
   templates: any[] = [];
-  declines: any[] = [];
-  declineQ = '';
-  declineTake = 100;
-  /* 3 = needs support from the member (actionable: back to the queue once added), 2 = declined (final). */
-  declineStatus: 2 | 3 = 3;
-  declineMonths = DEFAULT_MONTHS;
-
-  private declineCache: { src: any[]; key: string; out: any[] } | null = null;
-
-  /* In the window, newest first, filtered by status and the search box; worked out again only when one of those changes. */
-  get declinesInWindow(): any[] {
-    const start = windowStart(this.declineMonths);
-    return start ? this.declines.filter(d => String(d.processDate ?? '').substring(0, 10) >= start) : this.declines;
-  }
-
-  declineCount(status: number): number { return this.declinesInWindow.filter(d => d.status === status).length; }
-
-  get declinesShown(): any[] {
-    const q = this.declineQ.trim().toLowerCase();
-    const key = `${q}|${this.declineStatus}|${this.declineMonths}`;
-    if (this.declineCache && this.declineCache.src === this.declines && this.declineCache.key === key) return this.declineCache.out;
-    let out = this.declinesInWindow.filter(d => d.status === this.declineStatus)
-      .sort((a, b) => String(b.processDate ?? '').localeCompare(String(a.processDate ?? '')));
-    if (q) out = out.filter(d => [d.orderID, d.memberID, d.model, d.rejectReason, d.email, d.eMail, d.vendorName]
-      .some(v => v != null && String(v).toLowerCase().includes(q)));
-    this.declineCache = { src: this.declines, key, out };
-    return out;
-  }
-
-  /* Needs support: the member added what was asked for, so it goes back into the approval queue. */
-  resubmitDecline(d: any): void { this.pending = { kind: 'resubmit-claim', claim: d }; }
-
-  /* One claim opened in place: its files, the second strike, and its timeline (what IR Maintenance did). */
-  declineOpen: any = null;
-  dropOver = false;
-  uploadingFor: number | null = null;
-  timelineVersion = 0;
-  trackDecline = (_: number, d: any) => d.orderID;
-  declineLines: any[] = [];
-  declineLinesFor: number | null = null;
-  toggleDecline(d: any): void {
-    this.declineOpen = this.declineOpen?.orderID === d.orderID ? null : d;
-    if (!this.declineOpen || this.declineLinesFor === +d.orderID) return;
-    this.declineLines = [];
-    this.declineLinesFor = +d.orderID;
-    this.desk.claim('IR', +d.orderID).subscribe({
-      next: r => { if (this.declineLinesFor === +d.orderID) this.declineLines = r.lines || []; },
-      error: e => (this.error = apiMessage(e))
-    });
-  }
-  get declineLinesTotal(): number { return this.declineLines.reduce((s, l) => s + (+l.net || 0), 0); }
-  get declineUnitsTotal(): number { return this.declineLines.reduce((s, l) => s + (+l.quantity || 0), 0); }
-
-  loadDeclines(): void {
-    this.desk.declines(this.declineMonths).subscribe({
-      next: d => {
-        this.declines = d || [];
-        if (this.declineOpen) this.declineOpen = this.declines.find(x => x.orderID === this.declineOpen.orderID) ?? null;
-      },
-      error: e => (this.error = apiMessage(e))
-    });
-  }
-
-  addDeclineFiles(d: any, list: FileList | null | undefined): void {
-    if (!list || !list.length || this.uploadingFor) return;
-    const form = new FormData();
-    Array.from(list).forEach(f => form.append('files', f, f.name));
-    this.uploadingFor = d.orderID;
-    this.error = '';
-    this.desk.addClaimFiles(+d.orderID, form).pipe(finalize(() => (this.uploadingFor = null))).subscribe({
-      next: r => {
-        const have = new Set((d.proof || []).map((f: any) => String(f.name).toLowerCase()));
-        d.proof = [...(d.proof || []), ...(r.files || []).filter(f => !have.has(f.name.toLowerCase()))];
-        this.notice = `${(r.files || []).length} file(s) added to claim ${d.orderID}.`;
-        this.timelineVersion++;
-      },
-      error: e => (this.error = apiMessage(e))
-    });
-  }
-
-  removeDeclineFile(d: any, fileName: string): void { this.pending = { kind: 'remove-claim-file', claim: d, fileName }; }
-
-  readonly declineCols = [
-    { header: 'Order_ID', field: 'orderID' }, { header: 'Decline_Date', field: 'processDate' },
-    { header: 'IR_Total', field: 'total' }, { header: 'Reject_Reason', field: 'rejectReason' },
-    { header: 'Member', field: 'memberID' }, { header: 'Model', field: 'model' },
-    { header: 'Quantity', field: 'quantity' }, { header: 'EMail', field: 'eMail' }
-  ];
   history: any[] = [];
 
   pending: Pending = null;
@@ -286,7 +194,6 @@ export class RebateDeskComponent implements OnInit {
       case 'purgatory': this.loadPurgatory(); break;
       case 'batches': this.loadBatches(1); break;
       case 'templates': this.desk.templates().subscribe(t => (this.templates = t)); break;
-      case 'declines': this.loadDeclines(); break;
       case 'history': case 'pp-history': this.loadHistory(); break;
     }
   }
@@ -410,13 +317,6 @@ export class RebateDeskComponent implements OnInit {
       { name: 'Programs', cols: IR_PROGRAM_COLS, rows: this.batchPrograms },
       { name: 'History', cols: HISTORY_COLS, rows: this.batchHistory }
     ]);
-  }
-
-  exportDeclines(): void {
-    downloadXlsx(this.declineStatus === 3 ? 'Claims needing support' : 'Declined claims', [{ name: this.declineStatus === 3 ? 'Needs support' : 'Declined', rows: this.declinesShown, cols: [
-      col('Claim', 'orderID', 'number'), col('Declined', 'processDate', 'date'), col('Member', 'memberID', 'number'),
-      col('Vendor', 'vendorName'), col('Product', 'model', 'text', 40), col('Qty', 'quantity', 'number'), col('Amount', 'total', 'money'),
-      col('Reason', 'rejectReason', 'text', 50), col('Email', r => r.email ?? r.eMail)] }]);
   }
 
   exportTemplates(): void {
@@ -958,9 +858,6 @@ export class RebateDeskComponent implements OnInit {
       case 'bp-amounts': return `Change amounts on program ${this.bProg?.programId}`;
       case 'bp-dates': return `Change dates on program ${this.bProg?.programId}`;
       case 'bp-active': return `${p.active ? 'Turn on' : 'Turn off'} program ${p.program.programId}`;
-      case 'resubmit-claim': return `Send claim ${p.claim.orderID} back to the approval queue`;
-      case 'confirm-decline': return `Confirm the decline of claim ${p.claim.orderID}`;
-      case 'remove-claim-file': return `Take ${p.fileName} off claim ${p.claim.orderID}`;
     }
   }
 
@@ -978,15 +875,12 @@ export class RebateDeskComponent implements OnInit {
       case 'bp-amounts': return 'Only this program changes. Claims already submitted keep the amount they were submitted with.';
       case 'bp-dates': return `Only this program moves. Members will see it apart from the rest of batch ${this.batch?.batchId}; to move the whole batch, use the batch dates above.`;
       case 'bp-active': return p.active ? 'Members see this program again.' : 'Members stop seeing this program. Submitted claims are not affected.';
-      case 'resubmit-claim': return 'The member has added the support asked for. The claim goes back into the approval queue (the same as Resubmit on the BRM dashboard).';
-      case 'confirm-decline': return 'Second strike: the claim is declined for good (status 2) and its BRM notice closed, the same as Confirm Decline on IR Maintenance. No email is sent.';
-      case 'remove-claim-file': return 'The file is taken off the claim and deleted from the proof share.';
     }
   }
 
   get pendingDanger(): boolean {
     const p = this.pending;
-    return !!p && (p.kind === 'skip' || p.kind === 'cancel-upload' || p.kind === 'retire-template' || (p.kind === 'batch-active' && !p.active) || (p.kind === 'bp-active' && !p.active) || p.kind === 'bulk-skip' || p.kind === 'bulk-overlap' || p.kind === 'confirm-decline' || p.kind === 'remove-claim-file');
+    return !!p && (p.kind === 'skip' || p.kind === 'cancel-upload' || p.kind === 'retire-template' || (p.kind === 'batch-active' && !p.active) || (p.kind === 'bp-active' && !p.active) || p.kind === 'bulk-skip' || p.kind === 'bulk-overlap');
   }
 
   confirm(reason: string): void {
@@ -1008,9 +902,6 @@ export class RebateDeskComponent implements OnInit {
       case 'bp-dates': call = this.desk.changeProgramDates(this.bProg.programId, {
         startDate: this.bEdit.startDate, endDate: this.bEdit.endDate, expireOn: this.bEdit.expireOn || null, reason }); break;
       case 'bp-active': call = this.desk.setProgramActive('IR', p.program.programId, p.active, reason); break;
-      case 'resubmit-claim': call = this.desk.resubmit('IR', p.claim.orderID, reason); break;
-      case 'confirm-decline': call = this.desk.confirmDecline(+p.claim.orderID, reason); break;
-      case 'remove-claim-file': call = this.desk.removeClaimFile(+p.claim.orderID, p.fileName, reason); break;
     }
     call.pipe(finalize(() => (this.busy = false))).subscribe({
       next: () => {
@@ -1033,22 +924,6 @@ export class RebateDeskComponent implements OnInit {
           case 'bulk-skip': case 'bulk-overlap': this.picked = new Set(); this.afterRowChange(); break;
           case 'bp-amounts': case 'bp-dates': this.reloadBatch(this.bProg?.programId); break;
           case 'bp-active': this.reloadBatch(p.program.programId); break;
-          case 'resubmit-claim':
-            this.declines = this.declines.filter(x => x !== p.claim);
-            if (this.declineOpen === p.claim) this.declineOpen = null;
-            this.notice = `Claim ${p.claim.orderID} is back in the approval queue.`;
-            break;
-          case 'confirm-decline':
-            p.claim.status = 2;
-            this.declines = [...this.declines];
-            if (this.declineOpen === p.claim) this.declineOpen = null;
-            this.notice = `Claim ${p.claim.orderID} is declined for good.`;
-            break;
-          case 'remove-claim-file':
-            p.claim.proof = (p.claim.proof || []).filter((f: any) => f.name !== p.fileName);
-            this.timelineVersion++;
-            this.notice = `${p.fileName} taken off claim ${p.claim.orderID}.`;
-            break;
         }
       },
       error: e => (this.error = apiMessage(e))
