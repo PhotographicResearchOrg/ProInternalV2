@@ -17,6 +17,7 @@
     piv2.ProductSheetLog       every change: product, column, before, after, who, when.
     piv2.ProductSheetUserView  each person's chosen groups and fields.
 
+    piv2.ProductSheet_TextExpr how a column is shown as text (dates ISO, money 4 decimals, floats in full)
     piv2.ProductSheet_Get      @ProductId, @SqlIsMaster: one row per column with value and lock
     piv2.ProductSheet_Save     @ProductId, @Changes (JSON [{"column":"P65","value":"..."}]), @User, @SqlIsMaster
     piv2.ProductSheet_ViewGet / _ViewSet   the person's layout
@@ -141,6 +142,25 @@ WHEN NOT MATCHED THEN
     INSERT (ColumnName, Label, GroupName, SortOrder, Lock, Note) VALUES (s.ColumnName, s.Label, s.GroupName, s.SortOrder, s.Lock, s.Note);
 GO
 
+/* ---------------------------------------------------------------- a column as text
+   The same text for showing a value and for logging it: dates ISO 8601 (style 126), money with 4 decimals
+   (style 2), floats as plain decimals when they fit, else full precision (style 3). */
+CREATE OR ALTER FUNCTION piv2.ProductSheet_TextExpr (@col nvarchar(300), @type sysname)
+RETURNS nvarchar(800)
+AS
+BEGIN
+    RETURN CASE
+        WHEN @type IN (N'float', N'real')
+            THEN N'COALESCE(CONVERT(nvarchar(max), TRY_CAST(' + @col + N' AS decimal(38,6))), CONVERT(nvarchar(max), ' + @col + N', 3))'
+        WHEN @type IN (N'money', N'smallmoney')
+            THEN N'CONVERT(nvarchar(max), ' + @col + N', 2)'
+        WHEN @type IN (N'date', N'datetime', N'datetime2', N'smalldatetime', N'datetimeoffset', N'time')
+            THEN N'CONVERT(nvarchar(max), ' + @col + N', 126)'
+        ELSE N'CONVERT(nvarchar(max), ' + @col + N')'
+    END;
+END
+GO
+
 /* ---------------------------------------------------------------- read */
 CREATE OR ALTER PROCEDURE piv2.ProductSheet_Get
     @ProductId   int,
@@ -155,39 +175,40 @@ BEGIN
         RETURN;
     END
 
-    /* the columns: ProductData's, then the dbo.Product view's that ProductData doesn't have (Computyme's) */
+    /* the columns: ProductData's, then the dbo.Product view's that ProductData doesn't have (Computyme's).
+       Types are the base (system) types, so alias types behave like what they are. */
     CREATE TABLE #col (Source varchar(12), ColumnName sysname COLLATE DATABASE_DEFAULT, DataType sysname, MaxLength smallint,
                        Prec tinyint, Scale tinyint, IsNullable bit, IsReadOnlyType bit, ColumnId int);
 
     INSERT #col
-    SELECT 'ProductData', c.name, TYPE_NAME(c.user_type_id), c.max_length, c.precision, c.scale, c.is_nullable,
-           CAST(CASE WHEN c.is_identity = 1 OR c.is_computed = 1 OR TYPE_NAME(c.user_type_id) IN (N'timestamp', N'rowversion') THEN 1 ELSE 0 END AS bit),
+    SELECT 'ProductData', c.name, TYPE_NAME(c.system_type_id), c.max_length, c.precision, c.scale, c.is_nullable,
+           CAST(CASE WHEN c.is_identity = 1 OR c.is_computed = 1 THEN 1 ELSE 0 END AS bit),
            c.column_id
     FROM sys.columns c
     WHERE c.object_id = OBJECT_ID(N'dbo.ProductData')
-      AND TYPE_NAME(c.user_type_id) NOT IN (N'image', N'varbinary', N'binary', N'xml', N'geography', N'geometry', N'hierarchyid', N'sql_variant');
+      AND TYPE_NAME(c.user_type_id) NOT IN (N'geography', N'geometry', N'hierarchyid')
+      AND TYPE_NAME(c.system_type_id) NOT IN (N'image', N'varbinary', N'binary', N'xml', N'sql_variant', N'timestamp');
 
-    /* dbo.Product is a synonym (to the product cache) or a view: read the columns of what it points at */
-    DECLARE @productObj int = OBJECT_ID(N'dbo.Product');
-    IF EXISTS (SELECT 1 FROM sys.synonyms WHERE object_id = @productObj)
-        SELECT @productObj = OBJECT_ID(base_object_name) FROM sys.synonyms WHERE object_id = @productObj;
-
-    IF @productObj IS NOT NULL
+    /* dbo.Product is a synonym (to the product cache, possibly in another database) or a view:
+       describe what SELECT * returns, which works for all of them */
+    BEGIN TRY
         INSERT #col
-        SELECT 'Computyme', c.name, TYPE_NAME(c.user_type_id), c.max_length, c.precision, c.scale, c.is_nullable, 1, 1000 + c.column_id
-        FROM sys.columns c
-        WHERE c.object_id = @productObj
-          AND TYPE_NAME(c.user_type_id) NOT IN (N'image', N'varbinary', N'binary', N'xml', N'geography', N'geometry', N'hierarchyid', N'sql_variant')
-          AND NOT EXISTS (SELECT 1 FROM #col x WHERE x.ColumnName = c.name COLLATE DATABASE_DEFAULT);
+        SELECT 'Computyme', d.name, TYPE_NAME(d.system_type_id), d.max_length, d.precision, d.scale, d.is_nullable, 1, 1000 + d.column_ordinal
+        FROM sys.dm_exec_describe_first_result_set(N'SELECT * FROM dbo.Product', NULL, 0) d
+        WHERE d.is_hidden = 0 AND d.name IS NOT NULL
+          AND TYPE_NAME(d.system_type_id) NOT IN (N'image', N'varbinary', N'binary', N'xml', N'sql_variant', N'timestamp')
+          AND d.system_type_id <> 240                     -- CLR types (geography, geometry, hierarchyid)
+          AND NOT EXISTS (SELECT 1 FROM #col x WHERE x.ColumnName = d.name COLLATE DATABASE_DEFAULT);
+    END TRY
+    BEGIN CATCH
+        SET @ProductId = @ProductId;                      -- dbo.Product can't be described: Computyme's columns are left out
+    END CATCH
 
-    /* the values, unpivoted as text (dates as ISO 8601, so the page can show and send them back unchanged) */
+    /* each column as text: dates ISO 8601, money with 4 decimals, floats without scientific notation */
     CREATE TABLE #val (Source varchar(12), ColumnName sysname COLLATE DATABASE_DEFAULT, Value nvarchar(max));
     DECLARE @list nvarchar(max), @sql nvarchar(max);
 
-    SELECT @list = STRING_AGG(CAST(N'(N' + QUOTENAME(ColumnName, '''') + N', CONVERT(nvarchar(max), '
-                   + CASE WHEN DataType IN (N'float', N'real') THEN N'CAST(' + QUOTENAME(ColumnName) + N' AS decimal(38,6))' ELSE QUOTENAME(ColumnName) END
-                   + CASE WHEN DataType IN (N'date', N'datetime', N'datetime2', N'smalldatetime', N'datetimeoffset', N'time') THEN N', 126' ELSE N'' END
-                   + N'))' AS nvarchar(max)), N', ')
+    SELECT @list = STRING_AGG(CAST(N'(N' + QUOTENAME(ColumnName, '''') + N', ' + piv2.ProductSheet_TextExpr(QUOTENAME(ColumnName), DataType) + N')' AS nvarchar(max)), N', ')
     FROM #col WHERE Source = 'ProductData';
     IF @list IS NOT NULL
     BEGIN
@@ -196,15 +217,12 @@ BEGIN
     END
 
     SET @list = NULL;
-    SELECT @list = STRING_AGG(CAST(N'(N' + QUOTENAME(ColumnName, '''') + N', CONVERT(nvarchar(max), '
-                   + CASE WHEN DataType IN (N'float', N'real') THEN N'CAST(' + QUOTENAME(ColumnName) + N' AS decimal(38,6))' ELSE QUOTENAME(ColumnName) END
-                   + CASE WHEN DataType IN (N'date', N'datetime', N'datetime2', N'smalldatetime', N'datetimeoffset', N'time') THEN N', 126' ELSE N'' END
-                   + N'))' AS nvarchar(max)), N', ')
+    SELECT @list = STRING_AGG(CAST(N'(N' + QUOTENAME(ColumnName, '''') + N', ' + piv2.ProductSheet_TextExpr(QUOTENAME(ColumnName), DataType) + N')' AS nvarchar(max)), N', ')
     FROM #col WHERE Source = 'Computyme';
     IF @list IS NOT NULL
     BEGIN
     BEGIN TRY
-        SET @sql = N'SELECT TOP (1) ''Computyme'', v.c, v.v FROM dbo.Product p CROSS APPLY (VALUES ' + @list + N') v (c, v) WHERE p.Id = @id';
+        SET @sql = N'SELECT ''Computyme'', v.c, v.v FROM (SELECT TOP (1) * FROM dbo.Product WHERE Id = @id) p CROSS APPLY (VALUES ' + @list + N') v (c, v)';
         INSERT #val EXEC sp_executesql @sql, N'@id int', @id = @ProductId;
     END TRY
     BEGIN CATCH
@@ -248,15 +266,16 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM dbo.ProductData WHERE Id = @ProductId)
         THROW 50460, N'That product doesn''t exist.', 1;
-    IF ISJSON(@Changes) <> 1
+    IF ISNULL(ISJSON(@Changes), 0) <> 1
         THROW 50461, N'The changes aren''t valid JSON.', 1;
 
     CREATE TABLE #chg (ColumnName sysname COLLATE DATABASE_DEFAULT, Value nvarchar(max), IsNull bit,
-                       TypeSql nvarchar(200), DataType sysname, MaxChars int, IsNullable bit, Lock varchar(12));
+                       TypeSql nvarchar(200), DataType sysname NULL, MaxChars int, IsNullable bit, Lock varchar(12));
 
+    /* strict: a value that is an object or an array is refused instead of becoming NULL */
     INSERT #chg (ColumnName, Value, IsNull)
     SELECT j.[column], j.[value], CASE WHEN j.[value] IS NULL THEN 1 ELSE 0 END
-    FROM OPENJSON(@Changes) WITH ([column] sysname '$.column', [value] nvarchar(max) '$.value') j
+    FROM OPENJSON(@Changes) WITH ([column] sysname '$.column', [value] nvarchar(max) 'strict $.value') j
     WHERE j.[column] IS NOT NULL;
 
     DECLARE @msg nvarchar(400);
@@ -265,24 +284,28 @@ BEGIN
     FROM #chg GROUP BY ColumnName HAVING COUNT(*) > 1;
     IF @msg IS NOT NULL THROW 50462, @msg, 1;
 
+    /* the column as stored (exact name, base type); types the sheet doesn't edit stay unknown and are refused */
     UPDATE x SET
-        DataType   = TYPE_NAME(c.user_type_id),
+        ColumnName = ISNULL(c.name, x.ColumnName),
+        DataType   = CASE WHEN TYPE_NAME(c.user_type_id) IN (N'geography', N'geometry', N'hierarchyid')
+                            OR TYPE_NAME(c.system_type_id) IN (N'image', N'varbinary', N'binary', N'xml', N'sql_variant', N'timestamp')
+                          THEN NULL ELSE TYPE_NAME(c.system_type_id) END,
         IsNullable = c.is_nullable,
-        MaxChars   = CASE WHEN TYPE_NAME(c.user_type_id) IN (N'nvarchar', N'nchar') AND c.max_length > 0 THEN c.max_length / 2
-                          WHEN TYPE_NAME(c.user_type_id) IN (N'varchar', N'char') AND c.max_length > 0 THEN c.max_length
+        MaxChars   = CASE WHEN TYPE_NAME(c.system_type_id) IN (N'nvarchar', N'nchar') AND c.max_length > 0 THEN c.max_length / 2
+                          WHEN TYPE_NAME(c.system_type_id) IN (N'varchar', N'char') AND c.max_length > 0 THEN c.max_length
                           ELSE NULL END,
-        TypeSql    = TYPE_NAME(c.user_type_id)
-                     + CASE WHEN TYPE_NAME(c.user_type_id) IN (N'varchar', N'char', N'varbinary', N'binary')
+        TypeSql    = TYPE_NAME(c.system_type_id)
+                     + CASE WHEN TYPE_NAME(c.system_type_id) IN (N'varchar', N'char')
                                  THEN N'(' + CASE WHEN c.max_length = -1 THEN N'max' ELSE CAST(c.max_length AS nvarchar(6)) END + N')'
-                            WHEN TYPE_NAME(c.user_type_id) IN (N'nvarchar', N'nchar')
+                            WHEN TYPE_NAME(c.system_type_id) IN (N'nvarchar', N'nchar')
                                  THEN N'(' + CASE WHEN c.max_length = -1 THEN N'max' ELSE CAST(c.max_length / 2 AS nvarchar(6)) END + N')'
-                            WHEN TYPE_NAME(c.user_type_id) IN (N'decimal', N'numeric')
+                            WHEN TYPE_NAME(c.system_type_id) IN (N'decimal', N'numeric')
                                  THEN N'(' + CAST(c.precision AS nvarchar(3)) + N',' + CAST(c.scale AS nvarchar(3)) + N')'
-                            WHEN TYPE_NAME(c.user_type_id) IN (N'datetime2', N'time', N'datetimeoffset')
+                            WHEN TYPE_NAME(c.system_type_id) IN (N'datetime2', N'time', N'datetimeoffset')
                                  THEN N'(' + CAST(c.scale AS nvarchar(3)) + N')'
                             ELSE N'' END,
         Lock       = CASE
-                         WHEN c.is_identity = 1 OR c.is_computed = 1 OR TYPE_NAME(c.user_type_id) IN (N'timestamp', N'rowversion') THEN 'SYSTEM'
+                         WHEN c.is_identity = 1 OR c.is_computed = 1 THEN 'SYSTEM'
                          WHEN f.Lock = 'COMPUTYME' AND @SqlIsMaster = 1 THEN NULL
                          ELSE f.Lock
                      END
@@ -292,6 +315,11 @@ BEGIN
 
     SELECT TOP (1) @msg = CONCAT(x.ColumnName, N' isn''t a product field that can be changed here.') FROM #chg x WHERE x.DataType IS NULL;
     IF @msg IS NOT NULL THROW 50463, @msg, 1;
+
+    /* a blank number, date or yes/no means "no value", not 0 or 1900-01-01 */
+    UPDATE #chg SET IsNull = 1
+    WHERE IsNull = 0 AND LTRIM(RTRIM(Value)) = N''
+      AND DataType NOT IN (N'varchar', N'nvarchar', N'char', N'nchar', N'text', N'ntext');
 
     SELECT TOP (1) @msg = CONCAT(x.ColumnName, N' is locked (',
                                  CASE x.Lock WHEN 'COMPUTYME' THEN N'set in Computyme until product data moves to SQL'
@@ -306,11 +334,11 @@ BEGIN
     IF @msg IS NOT NULL THROW 50465, @msg, 1;
 
     SELECT TOP (1) @msg = CONCAT(x.ColumnName, N' is too long (', LEN(x.Value), N' characters; the most is ', x.MaxChars, N').')
-    FROM #chg x WHERE x.MaxChars IS NOT NULL AND LEN(x.Value) > x.MaxChars;
+    FROM #chg x WHERE x.IsNull = 0 AND x.MaxChars IS NOT NULL AND LEN(x.Value) > x.MaxChars;
     IF @msg IS NOT NULL THROW 50466, @msg, 1;
 
     /* every value must convert to its column's type */
-    DECLARE @col sysname, @val nvarchar(max), @type nvarchar(200), @ok bit, @sql nvarchar(max);
+    DECLARE @col sysname, @val nvarchar(max), @type nvarchar(200), @dtype sysname, @ok bit, @sql nvarchar(max);
     DECLARE chk CURSOR LOCAL FAST_FORWARD FOR SELECT ColumnName, Value, TypeSql FROM #chg WHERE IsNull = 0 AND DataType NOT IN (N'varchar', N'nvarchar', N'char', N'nchar', N'text', N'ntext');
     OPEN chk;
     FETCH NEXT FROM chk INTO @col, @val, @type;
@@ -328,26 +356,33 @@ BEGIN
     END
     CLOSE chk; DEALLOCATE chk;
 
-    /* write and log, all or nothing */
-    DECLARE @old nvarchar(max), @isNull bit;
+    /* write and log, all or nothing; values logged the same way the sheet shows them */
+    DECLARE @old nvarchar(max), @new nvarchar(max), @isNull bit;
+    DECLARE @stamp bit = CASE WHEN COL_LENGTH(N'dbo.ProductData', N'LastUpdated') IS NOT NULL THEN 1 ELSE 0 END;
     BEGIN TRAN;
-        DECLARE w CURSOR LOCAL FAST_FORWARD FOR SELECT ColumnName, Value, TypeSql, IsNull FROM #chg;
+        DECLARE w CURSOR LOCAL FAST_FORWARD FOR SELECT ColumnName, Value, TypeSql, DataType, IsNull FROM #chg;
         OPEN w;
-        FETCH NEXT FROM w INTO @col, @val, @type, @isNull;
+        FETCH NEXT FROM w INTO @col, @val, @type, @dtype, @isNull;
         WHILE @@FETCH_STATUS = 0
         BEGIN
-            SET @sql = N'SELECT @old = CONVERT(nvarchar(max), ' + QUOTENAME(@col) + N') FROM dbo.ProductData WITH (UPDLOCK) WHERE Id = @id;
+            SET @sql = N'SELECT @old = ' + piv2.ProductSheet_TextExpr(QUOTENAME(@col), @dtype) + N' FROM dbo.ProductData WITH (UPDLOCK) WHERE Id = @id;
                          UPDATE dbo.ProductData SET ' + QUOTENAME(@col) + N' = '
                        + CASE WHEN @isNull = 1 THEN N'NULL' ELSE N'CONVERT(' + @type + N', @v)' END
-                       + N' WHERE Id = @id;';
-            EXEC sp_executesql @sql, N'@id int, @v nvarchar(max), @old nvarchar(max) OUTPUT', @id = @ProductId, @v = @val, @old = @old OUTPUT;
+                       + N' WHERE Id = @id;
+                         SELECT @new = ' + piv2.ProductSheet_TextExpr(QUOTENAME(@col), @dtype) + N' FROM dbo.ProductData WHERE Id = @id;';
+            EXEC sp_executesql @sql, N'@id int, @v nvarchar(max), @old nvarchar(max) OUTPUT, @new nvarchar(max) OUTPUT',
+                 @id = @ProductId, @v = @val, @old = @old OUTPUT, @new = @new OUTPUT;
 
             INSERT piv2.ProductSheetLog (ProductId, ColumnName, OldValue, NewValue, ChangedBy)
-            VALUES (@ProductId, @col, @old, CASE WHEN @isNull = 1 THEN NULL ELSE @val END, @User);
+            VALUES (@ProductId, @col, @old, @new, @User);
 
-            FETCH NEXT FROM w INTO @col, @val, @type, @isNull;
+            FETCH NEXT FROM w INTO @col, @val, @type, @dtype, @isNull;
         END
         CLOSE w; DEALLOCATE w;
+
+        /* so anything that looks for recently changed products sees it */
+        IF @stamp = 1
+            EXEC sp_executesql N'UPDATE dbo.ProductData SET LastUpdated = GETDATE() WHERE Id = @id;', N'@id int', @id = @ProductId;
     COMMIT;
 
     SELECT COUNT(*) AS Saved FROM #chg;
@@ -384,7 +419,7 @@ CREATE OR ALTER PROCEDURE piv2.ProductSheet_ViewSet
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF ISJSON(@ViewJson) <> 1 THROW 50468, N'The layout isn''t valid JSON.', 1;
+    IF ISNULL(ISJSON(@ViewJson), 0) <> 1 THROW 50468, N'The layout isn''t valid JSON.', 1;
     MERGE piv2.ProductSheetUserView AS t
     USING (SELECT @UserName AS UserName) AS s ON t.UserName = s.UserName
     WHEN MATCHED THEN UPDATE SET ViewJson = @ViewJson, UpdatedAt = SYSUTCDATETIME()
