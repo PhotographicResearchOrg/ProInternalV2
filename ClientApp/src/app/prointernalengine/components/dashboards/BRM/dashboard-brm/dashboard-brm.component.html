@@ -1,4 +1,5 @@
 <div class="app brm">
+  <div class="busybar" *ngIf="net.busy"></div>
   <div class="col">
     <header class="vhead">
       <div class="vhead-top">
@@ -6,6 +7,7 @@
         <div class="grow">
           <div class="vtitle">
             <h1>BRM dashboard</h1>
+            <span class="working" *ngIf="net.busy"><i class="pi pi-spin pi-spinner"></i> Working…</span>
             <span class="pill" [class.bad]="brmShippingErrorCount > 0" [class.ok]="!brmShippingErrorCount">
               {{ brmShippingErrorCount > 0 ? brmShippingErrorCount + ' shipping errors to process' : 'No shipping errors' }}</span>
           </div>

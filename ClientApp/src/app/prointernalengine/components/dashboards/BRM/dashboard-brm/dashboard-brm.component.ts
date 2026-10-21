@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
 import { collapseMainMenu } from '../../../rebates/shared/desk-frame';
 import { NotificationService } from 'src/app/services/notification.service';
+import { BusyService } from 'src/app/services/busy.service';
 
 /* The BRM's page: shipping errors, their HubSpot companies, and the instant-rebate claims that need
    support (the same panel as the Rebate Desk). Picking companies filters the claims to those accounts.
@@ -18,7 +19,7 @@ export class DashboardBrmComponent implements OnInit, OnDestroy {
   public isShippingCardCollapsed = false;
   public brmShippingErrorCount = 0;
 
-  constructor(private notificationService: NotificationService, private layout: LayoutService) {}
+  constructor(private notificationService: NotificationService, private layout: LayoutService, public net: BusyService) {}
 
   ngOnInit(): void { this.restoreMenu = collapseMainMenu(this.layout); }
   ngOnDestroy(): void { this.restoreMenu(); }

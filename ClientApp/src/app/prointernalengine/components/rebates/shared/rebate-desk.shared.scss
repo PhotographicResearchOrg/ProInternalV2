@@ -213,6 +213,13 @@
 /* Wide tables scroll sideways inside their card instead of running off the page. */
 .tablewrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
 .tablewrap + .tablewrap { margin-top: 12px; }
+/* On a computer a long table stops at the bottom of the screen and scrolls inside, with its header
+   pinned, so the sideways scrollbar is always in view (no scrolling down to find it, then back up). */
+@media (min-width: 901px) {
+  .tablewrap { max-height: calc(100vh - 7rem); overflow: auto; }
+  .tablewrap > table.grid > thead > tr > th { position: sticky; top: 0; z-index: 2; background: var(--card); }
+  .tablewrap .tablewrap { max-height: none; overflow-y: visible; }
+}
 
 /* PrimeFlex also defines .grid (a flex row); keep these real tables. */
 table.grid {
@@ -574,4 +581,19 @@ tr.expand > td { background: #fafbfd; padding: 12px; }
   .chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
   .chips button { flex: 0 0 auto; white-space: nowrap; }
   .btn { padding: 8px 11px; }
+}
+
+/* ---- working: a server call is in flight ---- */
+.busybar {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px; z-index: 50; overflow: hidden; pointer-events: none;
+  background: var(--tealSoft);
+  &::after {
+    content: ''; position: absolute; top: 0; bottom: 0; width: 35%; background: var(--teal);
+    animation: rd-busy 1.1s ease-in-out infinite;
+  }
+}
+@keyframes rd-busy { 0% { left: -35%; } 100% { left: 100%; } }
+.working {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+  color: var(--teal); background: var(--tealSoft); padding: 3px 10px; border-radius: 20px;
 }

@@ -1,4 +1,5 @@
 <div class="app">
+  <div class="busybar" *ngIf="net.busy"></div>
   <!-- Rail: two rails, each view with its count -->
   <nav class="rail">
     <div class="brandmark">
@@ -33,6 +34,7 @@
         <div class="grow">
           <div class="vtitle">
             <h1>Rebate desk</h1>
+            <span class="working" *ngIf="net.busy"><i class="pi pi-spin pi-spinner"></i> Working…</span>
             <span class="pill" [class.bad]="overview.purgatoryRows > 0" [class.ok]="!overview.purgatoryRows">
               {{ overview.purgatoryRows > 0 ? overview.purgatoryRows + ' rows in purgatory' : 'Purgatory is empty' }}
             </span>

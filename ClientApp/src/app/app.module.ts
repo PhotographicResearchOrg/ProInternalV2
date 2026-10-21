@@ -20,6 +20,7 @@ import { TagModule } from 'primeng/tag';
 import { FileUploadModule } from 'primeng/fileupload';
 import { DataService } from "./services/data.service";
 import { AuthInterceptor } from './services/auth.interceptor';
+import { BusyInterceptor } from './services/busy.service';
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { DashboardAccountingComponent } from './prointernalengine/components/dashboards/accounting/dashboardaccounting.component';
@@ -234,6 +235,7 @@ import { AccessRulesComponent } from './prointernalengine/components/MemberManag
   providers:
     [
       { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi:true },
+      { provide: HTTP_INTERCEPTORS, useClass: BusyInterceptor, multi: true },
       FileAppService,
       DataService,
       MessageService,

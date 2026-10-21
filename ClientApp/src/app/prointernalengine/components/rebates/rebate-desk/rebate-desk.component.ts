@@ -9,6 +9,7 @@ import { DEFAULT_MONTHS, windowStart } from '../shared/rebate-window.component';
 import { rdSortParams, rdSorts } from '../shared/rebate-sort';
 import { collapseMainMenu } from '../shared/desk-frame';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
+import { BusyService } from 'src/app/services/busy.service';
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
@@ -148,7 +149,8 @@ export class RebateDeskComponent implements OnInit, OnDestroy {
     private data: DataService,
     private route: ActivatedRoute,
     private router: Router,
-    private layout: LayoutService) {}
+    private layout: LayoutService,
+    public net: BusyService) {}
 
   ngOnDestroy(): void { this.restoreMenu(); }
 
