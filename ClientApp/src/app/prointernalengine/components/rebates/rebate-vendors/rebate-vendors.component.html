@@ -1,0 +1,140 @@
+<div class="error" style="margin: 0 0 12px" *ngIf="error"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+
+<section class="card">
+  <div class="card-head">
+    <h2>{{ rail === 'PP' ? 'Price-protection vendors' : 'Rebate vendors' }} and liability</h2>
+    <span class="grow"></span>
+    <button type="button" class="btn ghost" (click)="exportVendors()" [disabled]="loading || !shown.length"><i class="pi pi-file-excel"></i> {{ selected ? 'Excel (with ' + selected.vendorName + ')' : 'Excel' }}</button>
+    <button type="button" class="btn ghost" (click)="refresh()" [disabled]="loading"><i class="pi pi-refresh"></i> Refresh</button>
+  </div>
+
+  <div class="stats" [style.grid-template-columns]="'repeat(' + (rail === 'IR' ? 5 : 4) + ', minmax(0, 1fr))'" style="margin: 0 0 12px">
+    <div class="stat"><b class="warn">{{ totals.liability | currency:'USD':'symbol':'1.0-0' }}</b><span>liability: approved, not billed to the vendor (no debit memo)</span></div>
+    <div class="stat"><b>{{ totals.pendingAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>submitted, awaiting a decision</span></div>
+    <div class="stat"><b class="ok">{{ totals.creditedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>credited to members in period</span></div>
+    <div class="stat"><b class="ok">{{ totals.reimbursedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>billed to vendors (debit memo) in period · paid: to come</span></div>
+    <div class="stat" *ngIf="rail === 'IR'"><b>{{ totals.proPadAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>PRO pad in period (PRO's cost)</span></div>
+  </div>
+
+  <div class="filters">
+    <input class="in" placeholder="Vendor or parent company" [(ngModel)]="q" />
+    <label class="sub" style="display:flex; align-items:center; gap:6px">Period
+      <input class="in" type="date" style="max-width: 150px" [(ngModel)]="from" (change)="refresh()" />
+      <input class="in" type="date" style="max-width: 150px" [(ngModel)]="to" (change)="refresh()" />
+    </label>
+    <label class="sub" style="display:flex; align-items:center; gap:6px"><input type="checkbox" [(ngModel)]="byParent" /> Group by parent company</label>
+    <label class="sub" style="display:flex; align-items:center; gap:6px"><input type="checkbox" [(ngModel)]="onlyWithActivity" /> Only with activity</label>
+  </div>
+  <div class="chips">
+    <span class="lbl">Show</span>
+    <button type="button" [class.on]="chip === ''" (click)="chip = ''">All<b>{{ chipCount('') }}</b></button>
+    <button type="button" [class.on]="chip === 'LIABILITY'" (click)="chip = chip === 'LIABILITY' ? '' : 'LIABILITY'">Has liability<b>{{ chipCount('LIABILITY') }}</b></button>
+    <button type="button" [class.on]="chip === 'PENDING'" (click)="chip = chip === 'PENDING' ? '' : 'PENDING'">Awaiting decision<b>{{ chipCount('PENDING') }}</b></button>
+    <button type="button" [class.on]="chip === 'OLD60'" (click)="chip = chip === 'OLD60' ? '' : 'OLD60'">Not billed &gt; 60 days<b>{{ chipCount('OLD60') }}</b></button>
+    <button type="button" [class.on]="chip === 'OLD90'" (click)="chip = chip === 'OLD90' ? '' : 'OLD90'">&gt; 90 days<b>{{ chipCount('OLD90') }}</b></button>
+    <button type="button" [class.on]="chip === 'LIVE'" (click)="chip = chip === 'LIVE' ? '' : 'LIVE'">Live programs<b>{{ chipCount('LIVE') }}</b></button>
+  </div>
+
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>Vendor</th><th class="num">Products</th><th class="num">Live programs</th>
+        <th class="num">Liability</th><th class="num">Awaiting decision</th>
+        <th class="num">Credited</th><th class="num">Billed (DM)</th><th class="num" *ngIf="rail === 'IR'">PRO pad</th><th>Oldest not billed</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let v of shown" class="click" (click)="open(v)" [class.sel]="selected?.vendorId === v.vendorId && !v.isGroup" [class.off]="v.isActive === false">
+        <td><div class="rec">{{ v.vendorName }}</div>
+          <div class="sub" *ngIf="v.parentCompany">{{ v.parentCompany }}</div>
+          <div class="sub" *ngIf="v.isGroup">{{ v.members.join(', ') }}</div></td>
+        <td class="num">{{ v.productsActive }}</td>
+        <td class="num">{{ v.programsLive }}<span class="sub" *ngIf="v.programsUpcoming"> (+{{ v.programsUpcoming }} later)</span></td>
+        <td class="money"><b [class.warn]="v.liability > 0">{{ v.liability | currency }}</b><div class="sub">{{ v.liabilityClaims }} claims</div></td>
+        <td class="money">{{ v.pendingAmount | currency }}<div class="sub">{{ v.pendingClaims }} claims</div></td>
+        <td class="money">{{ v.creditedAmount | currency }}</td>
+        <td class="money">{{ v.reimbursedAmount | currency }}</td>
+        <td class="money" *ngIf="rail === 'IR'">{{ v.proPadAmount | currency }}</td>
+        <td class="mono">{{ v.oldestUnreimbursed | date:'MM/dd/yy' }}<span class="sub" *ngIf="daysOld(v.oldestUnreimbursed) as d"> · {{ d }} d</span></td>
+      </tr>
+      <tr *ngIf="!shown.length && !loading"><td colspan="9" class="empty">No vendors match.</td></tr>
+      <tr *ngIf="loading"><td colspan="9" class="empty"><i class="pi pi-spin pi-spinner"></i> Adding up every claim for every vendor… this can take a little while.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<ng-container *ngIf="selected">
+  <section class="card" *ngIf="rail === 'IR' && terms">
+    <div class="card-head"><h2>{{ selected.vendorName }}: terms</h2><span class="sub">used by every upload for this vendor</span></div>
+    <div class="field-grid">
+      <label>Catalog prefix (PRO adds) <input class="in mono" [(ngModel)]="terms.catalogPrefix" placeholder="e.g. SR_" maxlength="20" /></label>
+      <label>PRO brand ids to search <input class="in mono" [(ngModel)]="terms.brandIds" placeholder="e.g. 73 (empty = all)" /></label>
+      <label>Vendor share, % of IR <input class="in num" type="number" min="0" max="100" step="0.01" [(ngModel)]="terms.vendorSharePct" placeholder="when the file has none" /></label>
+      <label>PRO pad on combo rows, % <input class="in num" type="number" min="0" max="100" step="0.01" [(ngModel)]="terms.comboPadPct" placeholder="e.g. 1" /></label>
+      <label>Claim window, days <input class="in num" type="number" min="0" max="365" [(ngModel)]="terms.expireDays" /></label>
+      <label>Default rebate type
+        <select class="in" [(ngModel)]="terms.defaultRebateType"><option [ngValue]="null">None</option><option *ngFor="let t of types" [ngValue]="t.rebateTypeId">{{ t.name }}</option></select>
+      </label>
+      <label class="wide">Notes <input class="in" [(ngModel)]="terms.notes" maxlength="1000" /></label>
+    </div>
+    <div class="hint">Vendor SKUs match PRO catalog numbers (CAT_NO) with the prefix added, then as sent, then ignoring dashes and spaces, then by UPC, in [PRO].dbo.Product.</div>
+    <div class="actions" style="margin-top: 10px" *ngIf="termsDirty || termsNotice">
+      <span class="sub grow">{{ termsNotice }}</span>
+      <button type="button" class="btn ghost" (click)="discardTerms()" *ngIf="termsDirty">Discard</button>
+      <button type="button" class="btn primary" (click)="saveTerms()" *ngIf="termsDirty" [disabled]="termsBusy">Save terms</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>{{ selected.vendorName }}: products</h2>
+      <span class="sub">liability {{ selected.liability | currency }} · awaiting decision {{ selected.pendingAmount | currency }}</span>
+      <span class="sub" *ngIf="detailLoading"><i class="pi pi-spin pi-spinner"></i> working…</span>
+      <span class="grow"></span>
+      <button type="button" class="btn primary" *ngIf="selected.liability > 0" (click)="billVendor()" [disabled]="detailLoading"
+              title="Open Debit memos with this vendor's unbilled claims"><i class="pi pi-send"></i> Bill vendor (debit memo)</button>
+      <button type="button" class="btn ghost" (click)="showPrograms.emit({ vendorId: selected.vendorId })"><i class="pi pi-list"></i> All programs</button>
+      <button type="button" class="icon-btn" (click)="selected = null" title="Close"><i class="pi pi-times"></i></button>
+    </div>
+    <table class="grid">
+      <thead><tr><th>Product</th><th class="num">Live</th><th>Last program</th><th class="num">Current amount</th>
+        <th class="num">Units not reimbursed</th><th class="num">Liability</th><th class="num">Awaiting decision</th><th class="num">Credited</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let p of products" class="click" (click)="showPrograms.emit({ modelId: p.modelId })" [class.off]="!p.isActive">
+          <td><div class="rec">{{ p.description }}</div><div class="sub mono">#{{ p.modelId }} · PRO {{ p.proCodeText }}</div></td>
+          <td class="num">{{ p.programsLive }}</td>
+          <td class="mono">{{ p.lastProgramDate | date:'MM/dd/yy' }}</td>
+          <td class="money">{{ p.liveAmount | currency }}</td>
+          <td class="num">{{ p.liabilityUnits }}</td>
+          <td class="money"><b [class.warn]="p.liability > 0">{{ p.liability | currency }}</b></td>
+          <td class="money">{{ p.pendingAmount | currency }}</td>
+          <td class="money">{{ p.creditedAmount | currency }}</td>
+        </tr>
+        <tr *ngIf="!products.length && !detailLoading"><td colspan="8" class="empty">No products with activity.</td></tr>
+        <tr *ngIf="detailLoading"><td colspan="8" class="empty"><i class="pi pi-spin pi-spinner"></i> Adding up {{ selected.vendorName }}'s claims…</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Claims not reimbursed</h2><span class="sub">{{ openClaims.length }} approved with no debit memo, or awaiting a decision</span></div>
+    <table class="grid">
+      <thead><tr><th>Claim</th><th>Member</th><th>Submitted</th><th>State</th><th>Products</th><th class="num">Units</th><th class="num">Member amount</th><th class="num">Vendor owes</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let c of openClaims">
+          <td class="mono">{{ c.orderId }}</td>
+          <td class="mono">{{ c.memberId }}</td>
+          <td class="mono">{{ c.claimDate | date:'MM/dd/yy' }}<span class="sub" *ngIf="daysOld(c.claimDate) as d"> · {{ d }} d</span></td>
+          <td><span class="status" [class.warn]="c.bucket === 'SUBMITTED'" [class.info]="c.bucket === 'APPROVED'" [class.bad]="c.bucket === 'SENT'">
+            {{ c.bucket === 'SUBMITTED' ? 'Awaiting decision' : c.bucket === 'APPROVED' ? 'Approved, not sent' : 'Credited, not billed' }}</span></td>
+          <td>{{ c.products }}</td>
+          <td class="num">{{ c.units }}</td>
+          <td class="money">{{ c.amount | currency }}</td>
+          <td class="money">{{ c.bucket === 'SUBMITTED' ? '—' : (c.vendorAmount | currency) }}</td>
+        </tr>
+        <tr *ngIf="!openClaims.length && !detailLoading"><td colspan="8" class="empty">Nothing outstanding.</td></tr>
+        <tr *ngIf="detailLoading"><td colspan="8" class="empty"><i class="pi pi-spin pi-spinner"></i> Loading claims…</td></tr>
+      </tbody>
+    </table>
+  </section>
+</ng-container>

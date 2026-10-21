@@ -29,13 +29,15 @@ import { AccountManagementComponent } from './prointernalengine/components/Membe
 import { ReceivablesComponent } from './prointernalengine/components/dashboards/accounting/receivables/receivables.component';
 import { ShippingerrorsComponent } from './prointernalengine/components/dashboards/warehouse/shippingerrors/shippingerrors.component'; 
 import { ProductEditComponent } from './prointernalengine/components/ecommerce/product-edit/product-edit.component';
+import { IntegrationDeskComponent } from './prointernalengine/components/integration/integration-desk/integration-desk.component';
+import { RebateDeskComponent } from './prointernalengine/components/rebates/rebate-desk/rebate-desk.component';
 import { ShopifyAdminComponent } from './prointernalengine/components/dashboards/Marketing/shopify-admin/shopify-admin.component';
 import { CreditsComponent } from './prointernalengine/components/dashboards/accounting/credits.component/credits.component';
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
 import { VendorCardComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-card/vendor-card.component';
-import { IrSetupDashboardComponent } from './prointernalengine/components/instantrebate/ir-setup-dashboard/ir-setup-dashboard.component';
+import { VendorCustomFieldsComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-custom-fields/vendor-custom-fields.component';
 import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component';
 import { OrdersComponent } from './prointernalengine/components/dashboards/Orders/orders.component';
 import { EdiManagementComponent } from './prointernalengine/components/dashboards/Orders/edi-management/edi-management.component';
@@ -71,7 +73,8 @@ const routes: Routes = [
       { path: 'instantrebate', component: RebatesupportComponent, canActivate: [AuthGuard] },
       { path: 'rebatesetup', component: RebateSetupComponent, canActivate: [AuthGuard] },
       { path: 'uploadrebates', component: RebateExcelUploaderComponent, canActivate: [AuthGuard] },
-      { path: 'rebatemanagement', component: IrSetupDashboardComponent, canActivate: [AuthGuard] },
+      /* The old Rebate Management page is replaced by the Rebate Desk; old links and bookmarks land there. */
+      { path: 'rebatemanagement', redirectTo: 'rebatedesk', pathMatch: 'full' },
       { path: 'gating', component: GatingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Gating' } },
       { path: 'stock', component: VendorStockComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor Stock' } },
       { path: 'forecast', component: ForecastComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Forcasting' } },
@@ -85,11 +88,14 @@ const routes: Routes = [
       { path: 'accountmanagement', component: AccountManagementComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Account Management' } },
 
       { path: 'members', component: MemberDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Member Desk' } },
+      { path: 'integration', component: IntegrationDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Integration' } },
+      { path: 'rebatedesk', component: RebateDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Rebate Desk' } },
       { path: 'members/access-rules', component: AccessRulesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Access Rules' } },
       { path: 'members/:accountNumber', component: MemberDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Member' } },
 
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
       { path: 'vendor-card', component: VendorCardComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor' } },
+      { path: 'vendor-custom-fields', component: VendorCustomFieldsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor Custom Fields' } },
       { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },
       { path: 'shippingmonitor', component: ShipmentMonitorComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Monitor' } },
 

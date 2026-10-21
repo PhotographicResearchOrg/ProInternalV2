@@ -1,0 +1,199 @@
+<div class="notice" style="margin: 0 0 12px" *ngIf="notice" (click)="notice = ''"><i class="pi pi-check"></i> {{ notice }}</div>
+<div class="error" style="margin: 0 0 12px" *ngIf="error && !pending"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+
+<div class="split" [style.grid-template-columns]="selected || adding ? 'minmax(0, 1.5fr) minmax(0, 1fr)' : '1fr'">
+  <!-- Finder -->
+  <section class="card">
+    <div class="card-head">
+      <h2>{{ rail === 'PP' ? 'Price-protection programs' : 'Instant-rebate programs' }}</h2>
+      <span class="sub">{{ total }} found</span>
+      <span class="grow"></span>
+      <button type="button" class="btn ghost" (click)="exportExcel()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button>
+      <button type="button" class="btn primary" (click)="startAdd()"><i class="pi pi-plus"></i>
+        {{ rail === 'PP' ? 'Add price protection' : 'Add programs' }}</button>
+    </div>
+
+    <div class="filters">
+      <input class="in" placeholder="Product, PRO code, vendor{{ rail === 'IR' ? ', program or batch #' : ', program #' }}"
+             [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
+      <select class="in" style="max-width: 220px" [(ngModel)]="filter.vendorId" (ngModelChange)="go(1)" *ngIf="!modelId">
+        <option [ngValue]="null">All vendors</option>
+        <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
+      </select>
+      <select class="in" style="max-width: 130px" [(ngModel)]="filter.state" (ngModelChange)="go(1)">
+        <option value="">On and off</option>
+        <option value="ON">On</option>
+        <option value="OFF">Off</option>
+      </select>
+      <select class="in" style="max-width: 150px" [(ngModel)]="filter.when" (ngModelChange)="go(1)" *ngIf="rail === 'IR'">
+        <option value="">Any dates</option>
+        <option value="CURRENT">Running today</option>
+        <option value="FUTURE">Starts later</option>
+        <option value="PAST">Ended</option>
+        <option value="ENDING">Ending in 14 days</option>
+      </select>
+      <ng-container *ngIf="rail === 'PP'">
+        <input class="in" type="date" style="max-width: 150px" [(ngModel)]="filter.from" (change)="go(1)" title="From" />
+        <input class="in" type="date" style="max-width: 150px" [(ngModel)]="filter.to" (change)="go(1)" title="To" />
+      </ng-container>
+    </div>
+
+    <div class="chips">
+      <span class="lbl">Show</span>
+      <button type="button" *ngFor="let c of chips" [class.on]="chipOn(c)" (click)="useChip(c)">{{ c.label }}</button>
+    </div>
+    <table class="grid">
+      <thead>
+        <tr *ngIf="rail === 'IR'">
+          <th>Product</th><th>Vendor</th><th>Type</th><th>Dates</th>
+          <th class="num">Member</th><th class="num">IR</th><th class="num">MAP</th><th>Batch</th><th>State</th>
+        </tr>
+        <tr *ngIf="rail === 'PP'">
+          <th>Product</th><th>Vendor</th><th>Date</th>
+          <th class="num">Credit</th><th class="num">New cost</th><th class="num">New MAP</th><th>State</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of rows" class="click" (click)="open(p)" [class.sel]="selected?.programId === p.programId" [class.off]="!p.isLive">
+          <td><div class="rec">{{ p.description }}</div><div class="sub mono">#{{ p.programId }} · PRO {{ p.proCodeText }}</div></td>
+          <td>{{ p.vendorName }}</td>
+          <ng-container *ngIf="rail === 'IR'">
+            <td>{{ p.irTypeName }}</td>
+            <td class="mono">{{ p.startDate | date:'MM/dd/yy' }} – {{ p.endDate | date:'MM/dd/yy' }}</td>
+            <td class="money">{{ p.reimbursement | currency }}<div class="sub" *ngIf="p.proPad">incl. {{ p.proPad | currency }} PRO</div></td>
+            <td class="money">{{ p.instantRebate | currency }}</td>
+            <td class="money">{{ p.mapPrice | currency }}</td>
+            <td class="mono">{{ p.batchId || '—' }}</td>
+          </ng-container>
+          <ng-container *ngIf="rail === 'PP'">
+            <td class="mono">{{ p.programDate | date:'MM/dd/yy' }}</td>
+            <td class="money">{{ p.amount | currency }}</td>
+            <td class="money">{{ p.newInvoiceCost | currency }}</td>
+            <td class="money">{{ p.mapPrice | currency }}</td>
+          </ng-container>
+          <td><span class="status" [class.ok]="p.isLive">{{ p.isLive ? 'ON' : 'OFF' }}</span></td>
+        </tr>
+        <tr *ngIf="!rows.length && !loading"><td colspan="9" class="empty">No programs match.</td></tr>
+        <tr *ngIf="loading"><td colspan="9" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+    <div class="pager" *ngIf="total > pageSize">
+      <button type="button" class="btn ghost" (click)="go(page - 1)" [disabled]="page <= 1">Previous</button>
+      <span>Page {{ page }} of {{ pages }}</span>
+      <button type="button" class="btn ghost" (click)="go(page + 1)" [disabled]="page >= pages">Next</button>
+    </div>
+  </section>
+
+  <!-- One program -->
+  <section class="card" *ngIf="selected">
+    <div class="drawer-head">
+      <div class="grow">
+        <div class="sub mono">Program #{{ selected.programId }}{{ selected.batchId ? ' · batch ' + selected.batchId : '' }}</div>
+        <h2>{{ selected.description }}</h2>
+        <div class="sub">{{ selected.vendorName }} · PRO {{ selected.proCodeText }}{{ rail === 'IR' ? ' · ' + selected.irTypeName : '' }}</div>
+      </div>
+      <button type="button" class="icon-btn" (click)="close()" title="Close"><i class="pi pi-times"></i></button>
+    </div>
+
+    <div class="actions">
+      <span class="status" [class.ok]="selected.isLive">{{ selected.isLive ? 'ON for members' : 'OFF' }}</span>
+      <span class="grow"></span>
+      <button type="button" class="btn" *ngIf="!selected.isLive" (click)="askActive(selected, true)"><i class="pi pi-play"></i> Turn on</button>
+      <button type="button" class="btn danger" *ngIf="selected.isLive" (click)="askActive(selected, false)"><i class="pi pi-pause"></i> Turn off</button>
+    </div>
+
+    <h3 class="sub" style="margin: 6px 0">{{ rail === 'IR' ? 'Amounts' : 'Price protection' }}</h3>
+    <div class="field-grid">
+      <ng-container *ngIf="rail === 'IR'">
+        <label>Vendor share <input class="in num" type="number" step="0.01" [(ngModel)]="edit.vendorShare" [class.dirty]="+edit.vendorShare !== +(selected.vendorShare ?? selected.reimbursement)" /></label>
+        <label>PRO pad <input class="in num" type="number" step="0.01" min="0" [(ngModel)]="edit.proPad" [class.dirty]="+edit.proPad !== +(selected.proPad ?? 0)" /></label>
+        <label>Member gets <input class="in num" [value]="memberAmount | currency" disabled /></label>
+        <label>Instant rebate <input class="in num" type="number" step="0.01" [(ngModel)]="edit.instantRebate" [class.dirty]="+edit.instantRebate !== +selected.instantRebate" /></label>
+        <label>MAP <input class="in num" type="number" step="0.01" [(ngModel)]="edit.mapPrice" [class.dirty]="+edit.mapPrice !== +selected.mapPrice" /></label>
+      </ng-container>
+      <ng-container *ngIf="rail === 'PP'">
+        <label>Program date <input class="in" type="date" [(ngModel)]="edit.programDate" /></label>
+        <label>Credit to member <input class="in num" type="number" step="0.01" [(ngModel)]="edit.amount" [class.dirty]="+edit.amount !== +selected.amount" /></label>
+        <label>New invoice cost <input class="in num" type="number" step="0.01" [(ngModel)]="edit.newInvoiceCost" [class.dirty]="+edit.newInvoiceCost !== +selected.newInvoiceCost" /></label>
+        <label>New MAP <input class="in num" type="number" step="0.01" [(ngModel)]="edit.newMap" [class.dirty]="+edit.newMap !== +selected.mapPrice" /></label>
+        <label>EZPay <input class="in num" [value]="selected.ezPay | currency" disabled /></label>
+      </ng-container>
+    </div>
+    <div class="actions" style="margin-top: 10px" *ngIf="amountsDirty">
+      <button type="button" class="btn ghost" (click)="discard()">Discard</button>
+      <button type="button" class="btn primary" (click)="askAmounts()" [disabled]="datesDirty">Save {{ rail === 'IR' ? 'amounts' : 'changes' }}</button>
+    </div>
+
+    <ng-container *ngIf="rail === 'IR'">
+      <h3 class="sub" style="margin: 14px 0 6px">Dates (extend or shorten this program)</h3>
+      <div class="field-grid">
+        <label>Start <input class="in" type="date" [(ngModel)]="edit.startDate" [class.dirty]="edit.startDate !== (selected.startDate | slice:0:10)" /></label>
+        <label>End <input class="in" type="date" [(ngModel)]="edit.endDate" [class.dirty]="edit.endDate !== (selected.endDate | slice:0:10)" /></label>
+        <label>Claims until <input class="in" type="date" [(ngModel)]="edit.expireOn" [class.dirty]="edit.expireOn !== (selected.expireOn | slice:0:10)" /></label>
+      </div>
+      <div class="actions" style="margin-top: 10px" *ngIf="datesDirty">
+        <button type="button" class="btn ghost" (click)="discard()">Discard</button>
+        <button type="button" class="btn primary" (click)="askDates()" [disabled]="amountsDirty">Save dates</button>
+      </div>
+      <div class="hint" *ngIf="amountsDirty && datesDirty">Amounts and dates are saved separately, one at a time.</div>
+    </ng-container>
+
+    <h3 class="sub" style="margin: 16px 0 8px">History</h3>
+    <ul class="timeline" *ngIf="history.length">
+      <li *ngFor="let h of history">
+        <div class="t-top"><b>{{ h.eventType }}</b><span class="sub">{{ h.at | date:'MM/dd/yy h:mm a' }} · {{ h.actor }}</span></div>
+        <div class="t-reason" *ngIf="h.reason">{{ h.reason }}</div>
+      </li>
+    </ul>
+    <div class="empty" *ngIf="!history.length">No desk changes yet.</div>
+  </section>
+
+  <!-- Manual entry -->
+  <section class="card" *ngIf="adding">
+    <div class="drawer-head">
+      <div class="grow"><h2>{{ rail === 'IR' ? 'Add instant-rebate programs' : 'Add price protection' }}</h2>
+        <div class="sub">One product. {{ rail === 'IR' ? 'Repeat weekly if needed; the set gets its own batch number.' : 'One per product and date.' }}</div></div>
+      <button type="button" class="icon-btn" (click)="adding = false" title="Close"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="field-grid">
+      <label class="wide">Product
+        <app-rebate-product-picker [rail]="rail" (picked)="addProduct = $event"></app-rebate-product-picker>
+      </label>
+      <ng-container *ngIf="rail === 'IR'">
+        <label>Rebate type
+          <select class="in" [(ngModel)]="add.irType"><option *ngFor="let t of types" [ngValue]="t.rebateTypeId">{{ t.name }}</option></select>
+        </label>
+        <label>Vendor share <input class="in num" type="number" step="0.01" [(ngModel)]="add.reimbursement" /></label>
+        <label>PRO pad <input class="in num" type="number" step="0.01" min="0" [(ngModel)]="add.proPad" /></label>
+        <label>Instant rebate <input class="in num" type="number" step="0.01" [(ngModel)]="add.instantRebate" /></label>
+        <label>MAP <input class="in num" type="number" step="0.01" [(ngModel)]="add.mapPrice" /></label>
+        <label>Start <input class="in" type="date" [(ngModel)]="add.startDate" /></label>
+        <label>End <input class="in" type="date" [(ngModel)]="add.endDate" (change)="addEndChanged()" /></label>
+        <label>Claims until <input class="in" type="date" [(ngModel)]="add.expireOn" /></label>
+        <label>Repeat for more weeks <input class="in num" type="number" min="0" max="52" [(ngModel)]="add.repeatWeeks" /></label>
+      </ng-container>
+      <ng-container *ngIf="rail === 'PP'">
+        <label>Program date <input class="in" type="date" [(ngModel)]="add.programDate" /></label>
+        <label>Credit to member <input class="in num" type="number" step="0.01" [(ngModel)]="add.amount" /></label>
+        <label>New invoice cost <input class="in num" type="number" step="0.01" [(ngModel)]="add.newInvoiceCost" /></label>
+        <label>New MAP <input class="in num" type="number" step="0.01" [(ngModel)]="add.newMap" /></label>
+      </ng-container>
+      <label>When saved
+        <select class="in" [(ngModel)]="add.startActive">
+          <option [ngValue]="false">Off: turn on later</option>
+          <option [ngValue]="true">On: members see it</option>
+        </select>
+      </label>
+      <label class="wide">Reason (optional) <input class="in" [(ngModel)]="add.reason" maxlength="500" /></label>
+    </div>
+    <div class="error" style="margin: 12px 0 0" *ngIf="error"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+    <div class="actions" style="margin-top: 14px">
+      <button type="button" class="btn ghost" (click)="adding = false">Cancel</button>
+      <button type="button" class="btn primary" (click)="saveAdd()" [disabled]="busy || !addProduct">{{ busy ? 'Saving…' : 'Save' }}</button>
+    </div>
+  </section>
+</div>
+
+<app-rebate-reason-dialog [open]="!!pending" [title]="pendingTitle" [detail]="pendingDetail" [busy]="busy" [error]="error"
+  [danger]="pending?.kind === 'active' && !$any(pending).active" confirmLabel="Confirm"
+  (confirmed)="confirm($event)" (closed)="pending = null"></app-rebate-reason-dialog>

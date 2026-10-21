@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0",
+  "correlationId": "0b9d3e44-1c2f-4a8b-b6e0-3f7a9d2c5e18",
+  "responseType": "ACKNOWLEDGEMENT",
+  "result": "ACCEPTED_WITH_CHANGES",
+  "externalId": "V-2201",
+  "respondedAt": "2026-10-15T14:05:40Z",
+  "changes": [
+    { "field": "vendor.shortName", "sentValue": "PROMASTER DISTRIBUTION", "appliedValue": "PROMASTER DIST", "note": "Computyme short names are limited to 14 characters." }
+  ]
+}

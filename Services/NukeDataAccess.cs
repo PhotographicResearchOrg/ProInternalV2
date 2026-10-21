@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using ProInternal.Helpers;
 using ProInternal.Models.Dashboard;
@@ -122,7 +122,7 @@ namespace ProInternal.Services
                     DryRun = req.DryRun,
                     Overwrite = req.OverwriteDuplicates,
                     MarkCommitted = !req.DryRun,                 // <-- tell SP to update rows only on real commit
-                    CommittedBy = committedBy ?? "Web"         // <-- who did it
+                    CommittedBy = committedBy ?? "unknown"     // signed-in user, passed by the controller
                 },
                 commandType: CommandType.StoredProcedure,
                 transaction: tx

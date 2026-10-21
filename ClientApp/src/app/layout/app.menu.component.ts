@@ -125,12 +125,11 @@ export class AppMenuComponent implements OnInit {
         ]
     });
 
-    can('/rebatesupport') && rawModel.push({
+    (can('/rebatesupport') || can('/rebatedesk')) && rawModel.push({
       label: 'Rebate Management',
       icon: 'pi pi-wrench',
       items: [
-        
-        can('/rebatesetup') && { label: 'Rebate Management', icon: 'pi pi-dollar', routerLink: ['/rebatemanagement'] },
+        can('/rebatedesk') && { label: 'Rebate Desk', icon: 'pi pi-percentage', routerLink: ['/rebatedesk'] },
         can('/rebatesupport') && { label: '(IR) Maintenance', icon: 'pi pi-dollar', routerLink: ['/rebatesupport'] },
         can('/rebatesetup') && { label: '(IR) Setup', icon: 'pi pi-wrench', routerLink: ['/rebatesetup'] },
         can('/uploadrebates') && { label: '(IR) Batch Upload', icon: 'pi pi-database', routerLink: ['/uploadrebates'] }
@@ -190,7 +189,8 @@ export class AppMenuComponent implements OnInit {
                 label: 'Vendor Accounts',
                 icon: 'pi pi-cog',
                 routerLink: ['/accountmanagement']
-              }
+              },
+              can('/vendor-custom-fields') && { label: 'Vendor Custom Fields', icon: 'pi pi-list', routerLink: ['/vendor-custom-fields'] },
             ]
           },
 
@@ -198,7 +198,14 @@ export class AppMenuComponent implements OnInit {
           label: 'Account Management', icon: 'pi pi-briefcase',
           items: [
             can('/members') && { label: 'Member Desk', icon: 'pi pi-id-card', routerLink: ['/members'] },
-            can('/members/access-rules') && { label: 'Access Rules', icon: 'pi pi-shield', routerLink: ['/members/access-rules'] }
+            can('/members/access-rules') && { label: 'Access Rules', icon: 'pi pi-shield', routerLink: ['/members/access-rules'] },,
+          ]
+        },
+
+        {
+          label: 'Integration', icon: 'pi pi-sync',
+          items: [
+            can('/integration') && { label: 'Integration Desk', icon: 'pi pi-sync', routerLink: ['/integration'] }
           ]
         },
 
