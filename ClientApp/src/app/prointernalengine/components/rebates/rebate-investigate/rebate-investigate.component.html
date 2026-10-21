@@ -31,7 +31,7 @@
     <span class="chip" *ngFor="let k of claimants.codes" [class.info]="k.isLinked" [title]="k.productName">
       {{ k.proCode }}{{ k.isLinked ? ' · linked via ' + k.linkedFrom : '' }}{{ k.productName ? ' · ' + k.productName : '' }}</span>
   </div>
-  <table class="grid">
+  <div class="tablewrap"><table class="grid">
     <thead><tr><th rdSort="memberId" [rdSortBy]="sorts['who']">Member</th><th class="num" rdSort="claims" [rdSortBy]="sorts['who']">Claims</th><th class="num" rdSort="unitsBought" [rdSortBy]="sorts['who']">Bought</th><th class="num" rdSort="unitsPadded" [rdSortBy]="sorts['who']">Stock padding</th>
       <th class="num" rdSort="unitsAvailable" [rdSortBy]="sorts['who']">Available</th><th class="num" rdSort="unitsClaimed" [rdSortBy]="sorts['who']">Claimed</th>
       <th class="num" rdSort="netAvailable" [rdSortBy]="sorts['who']">Net available</th><th class="num" rdSort="claimRatePct" [rdSortBy]="sorts['who']">Claim rate</th>
@@ -54,7 +54,7 @@
       </tr>
       <tr *ngIf="!claimants.members.length"><td colspan="11" class="empty">Nobody claimed it in this window.</td></tr>
     </tbody>
-  </table>
+  </table></div>
 </section>
 
 <!-- ============ one member ============ -->
@@ -98,18 +98,18 @@
     <div style="margin: 0 0 12px" *ngIf="member.purchases.length">
       <button type="button" class="btn ghost" (click)="showPurchases = !showPurchases">
         <i class="pi" [ngClass]="showPurchases ? 'pi-chevron-down' : 'pi-chevron-right'"></i> Bought by month ({{ member.purchases.length }} months)</button>
-      <table class="grid" *ngIf="showPurchases" style="margin-top: 6px; max-width: 420px">
+      <div class="tablewrap"><table class="grid" *ngIf="showPurchases" style="margin-top: 6px; max-width: 420px">
         <thead><tr><th rdSort="monthStart" [rdSortBy]="sorts['buys']">Month</th><th class="num" rdSort="units" [rdSortBy]="sorts['buys']">Units</th><th class="num" rdSort="amount" [rdSortBy]="sorts['buys']">Amount</th></tr></thead>
         <tbody><tr *ngFor="let p of member.purchases | rdSort:sorts['buys']"><td class="mono">{{ p.monthStart | date:'MMM yyyy':'UTC' }}</td>
           <td class="num">{{ p.units | number:'1.0-0' }}</td><td class="money">{{ p.amount | currency }}</td></tr></tbody>
-      </table>
+      </table></div>
     </div>
 
     <div class="chips">
       <span class="lbl">Products</span>
       <button type="button" *ngFor="let c of productChips" [class.on]="productChip === c.key" (click)="productChip = c.key; productTake = 25; recompute()">{{ c.label }}<b>{{ v.flagCounts[c.key] }}</b></button>
     </div>
-    <table class="grid">
+    <div class="tablewrap"><table class="grid">
       <thead><tr><th rdSort="description" [rdSortBy]="sorts['products']">Product</th><th class="num" rdSort="unitsBought" [rdSortBy]="sorts['products']">Bought</th><th class="num" rdSort="unitsPadded" [rdSortBy]="sorts['products']">Stock padding</th><th class="num" rdSort="_avail" [rdSortBy]="sorts['products']">Available</th><th class="num" rdSort="unitsClaimed" [rdSortBy]="sorts['products']">Claimed</th><th class="num" [rdSort]="sortNet" [rdSortBy]="sorts['products']">Net available</th><th style="width: 160px" rdSort="_bC" [rdSortBy]="sorts['products']">Claimed against available</th>
         <th class="num" rdSort="approvedAmount" [rdSortBy]="sorts['products']">Approved</th><th class="num" rdSort="declinedAmount" [rdSortBy]="sorts['products']">Declined</th><th [rdSort]="sortProductFlag" [rdSortBy]="sorts['products']">Flags</th><th></th></tr></thead>
       <tbody>
@@ -135,12 +135,12 @@
             <span class="status warn" *ngIf="p.claimsWithNoPurchaseBefore && !p.noPurchaseOnRecord" title="Claim lines with no purchase of this product in or before the claim month">no purchase before · {{ p.claimsWithNoPurchaseBefore }}</span>
             <span class="status bad" *ngIf="p.repeatedSerials" title="Serial numbers also on another claim">serial · {{ p.repeatedSerials }}</span>
           </td>
-          <td style="white-space: nowrap"><button type="button" class="btn ghost" *ngIf="modelIds.length !== 1 || modelIds[0] !== p.modelId" (click)="onlyProduct(p.modelId)">Only this</button></td>
+          <td style="white-space: nowrap"><button type="button" class="icon-btn" *ngIf="modelIds.length !== 1 || modelIds[0] !== p.modelId" (click)="onlyProduct(p.modelId)" title="Show only this product"><i class="pi pi-filter"></i></button></td>
         </tr>
         </ng-container>
         <tr *ngIf="!v.products.length"><td colspan="11" class="empty">No products here.</td></tr>
       </tbody>
-    </table>
+    </table></div>
     <div class="pager" *ngIf="v.products.length > productTake">
       <button type="button" class="btn ghost" (click)="productTake = productTake + 25">Show more ({{ v.products.length - productTake }})</button>
     </div>
@@ -149,7 +149,7 @@
   <!-- ============ linked models ============ -->
   <section class="card" *ngIf="v.hasLinked">
     <div class="card-head"><h2>Linked models</h2><span class="sub">discontinued products and their successors (Product.ReplacementCode); their purchases count as bought</span></div>
-    <table class="grid">
+    <div class="tablewrap"><table class="grid">
       <thead><tr><th rdSort="product" [rdSortBy]="sorts['linked']">Rebate product</th><th rdSort="proCode" [rdSortBy]="sorts['linked']">PRO code</th><th rdSort="productName" [rdSortBy]="sorts['linked']">Product</th><th rdSort="isLinked" [rdSortBy]="sorts['linked']">Link</th><th class="num" rdSort="unitsBought" [rdSortBy]="sorts['linked']">Bought</th><th class="num" rdSort="unitsPadded" [rdSortBy]="sorts['linked']">Stock padding</th></tr></thead>
       <tbody>
         <tr *ngFor="let k of v.linked | rdSort:sorts['linked']" [class.off]="k.discontinued">
@@ -163,7 +163,7 @@
           <td class="num">{{ k.unitsPadded ? (k.unitsPadded | number:'1.0-0') : '—' }}</td>
         </tr>
       </tbody>
-    </table>
+    </table></div>
   </section>
 
   <section class="card">
@@ -172,7 +172,7 @@
       <span class="lbl">Show</span>
       <button type="button" *ngFor="let c of claimChips" [class.on]="claimChip === c.key" (click)="claimChip = c.key; claimTake = 100; recompute()">{{ c.label }}<b>{{ v.chipCounts[c.key] }}</b></button>
     </div>
-    <table class="grid">
+    <div class="tablewrap"><table class="grid">
       <thead><tr><th rdSort="orderId" [rdSortBy]="sorts['claims']">Claim</th><th rdSort="claimDate" [rdSortBy]="sorts['claims']">Claimed</th><th rdSort="products" [rdSortBy]="sorts['claims']">Product</th><th class="num" rdSort="units" [rdSortBy]="sorts['claims']">Units</th><th class="num" rdSort="amount" [rdSortBy]="sorts['claims']">Amount</th><th rdSort="_label" [rdSortBy]="sorts['claims']">Status</th>
         <th rdSort="arPostedAt" [rdSortBy]="sorts['claims']">Posted to GL</th><th rdSort="debitMemo" [rdSortBy]="sorts['claims']">Debit memo</th><th [rdSort]="sortProofCount" [rdSortBy]="sorts['claims']">Proof</th><th [rdSort]="sortClaimFlag" [rdSortBy]="sorts['claims']">Flags</th></tr></thead>
       <tbody>
@@ -207,7 +207,7 @@
         </tr>
         <tr *ngIf="!v.claims.length"><td colspan="10" class="empty">No claims here.</td></tr>
       </tbody>
-    </table>
+    </table></div>
     <div class="pager" *ngIf="v.claims.length > claimTake">
       <button type="button" class="btn ghost" (click)="claimTake = claimTake + 100">Show more ({{ v.claims.length - claimTake }})</button>
     </div>

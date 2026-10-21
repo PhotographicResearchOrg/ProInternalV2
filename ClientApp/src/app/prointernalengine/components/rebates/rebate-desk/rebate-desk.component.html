@@ -66,7 +66,7 @@
       <ng-container *ngIf="view === 'overview'">
         <section class="card">
           <div class="card-head"><h2>What needs a person</h2></div>
-          <table class="grid">
+          <div class="tablewrap"><table class="grid">
             <tbody>
               <tr class="click" (click)="pick('purgatory')"><td><b>Purgatory</b><div class="sub">Rows from vendor files that failed a check</div></td>
                 <td class="num"><span class="status" [class.bad]="overview.purgatoryRows">{{ overview.purgatoryRows || 0 }}</span></td></tr>
@@ -75,7 +75,7 @@
               <tr class="click" (click)="pick('programs')"><td><b>Programs ending in the next 14 days</b><div class="sub">Extend them, or let them end</div></td>
                 <td class="num"><span class="status" [class.warn]="overview.endingIn14Days">{{ overview.endingIn14Days || 0 }}</span></td></tr>
             </tbody>
-          </table>
+          </table></div>
         </section>
         <section class="card">
           <div class="card-head"><h2>Catalog</h2></div>
@@ -105,7 +105,7 @@
               <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
-          <table class="grid">
+          <div class="tablewrap"><table class="grid">
             <thead><tr><th rdSort="uploadId" [rdSortBy]="sorts['uploads']">#</th><th rdSort="vendorName" [rdSortBy]="sorts['uploads']">Vendor</th><th rdSort="fileName" [rdSortBy]="sorts['uploads']">File</th><th rdSort="mappingSource" [rdSortBy]="sorts['uploads']">Mapping</th><th rdSort="status" [rdSortBy]="sorts['uploads']">Status</th><th class="num" rdSort="rowsTotal" [rdSortBy]="sorts['uploads']">Rows</th><th class="num" rdSort="rowsPurgatory" [rdSortBy]="sorts['uploads']">Purgatory</th><th rdSort="batchId" [rdSortBy]="sorts['uploads']">Batch</th><th rdSort="createdAt" [rdSortBy]="sorts['uploads']">Uploaded</th></tr></thead>
             <tbody>
               <tr *ngFor="let u of uploads | rdSort:sorts['uploads']" class="click" (click)="openUpload(u.uploadId)">
@@ -121,7 +121,7 @@
               </tr>
               <tr *ngIf="!uploads.length && !loading"><td colspan="9" class="empty">No uploads.</td></tr>
             </tbody>
-          </table>
+          </table></div>
         </section>
       </ng-container>
 
@@ -177,7 +177,7 @@
             <button type="button" class="btn ghost" (click)="clearTicks()">Clear</button>
           </div>
           <div class="split" [style.grid-template-columns]="row ? 'minmax(0, 1.4fr) minmax(0, 1fr)' : '1fr'">
-            <table class="grid">
+            <div class="tablewrap"><table class="grid">
               <thead><tr><th style="width: 26px"><input type="checkbox" [checked]="allTicked" (change)="tickAll($any($event.target).checked)" title="Tick every row shown" /></th><th rdSort="sourceRow" [rdSortBy]="sorts['urows']">Row</th><th [rdSort]="sortSku" [rdSortBy]="sorts['urows']">Vendor SKU / PRO product</th><th [rdSort]="sortModel" [rdSortBy]="sorts['urows']">Rebate product (disposition)</th><th rdSort="startDate" [rdSortBy]="sorts['urows']">Dates</th><th class="num" rdSort="reimbursement" [rdSortBy]="sorts['urows']">Vendor share</th><th class="num" rdSort="memberAmount" [rdSortBy]="sorts['urows']">Member</th><th rdSort="status" [rdSortBy]="sorts['urows']">Status</th></tr></thead>
               <tbody>
                 <tr *ngFor="let r of filteredRows | rdSort:sorts['urows']" class="click" (click)="openRow(r, upload.vendorId)" [class.sel]="row?.rowId === r.rowId">
@@ -200,7 +200,7 @@
                 </tr>
                 <tr *ngIf="!filteredRows.length"><td colspan="8" class="empty">No rows here.</td></tr>
               </tbody>
-            </table>
+            </table></div>
             <ng-container *ngIf="row" [ngTemplateOutlet]="rowPanel"></ng-container>
           </div>
         </section>
@@ -231,7 +231,7 @@
             <button type="button" class="btn ghost" (click)="clearTicks()">Clear</button>
           </div>
           <div class="split" [style.grid-template-columns]="row ? 'minmax(0, 1.4fr) minmax(0, 1fr)' : '1fr'">
-            <table class="grid">
+            <div class="tablewrap"><table class="grid">
               <thead><tr><th style="width: 26px"><input type="checkbox" [checked]="allTicked" (change)="tickAll($any($event.target).checked)" title="Tick every row shown" /></th><th rdSort="vendorName" [rdSortBy]="sorts['purg']">Upload</th><th rdSort="sourceRow" [rdSortBy]="sorts['purg']">Row</th><th [rdSort]="sortSku" [rdSortBy]="sorts['purg']">Vendor SKU / PRO product</th><th [rdSort]="sortProblem" [rdSortBy]="sorts['purg']">Problems</th><th class="num" rdSort="reimbursement" [rdSortBy]="sorts['purg']">Vendor share</th></tr></thead>
               <tbody>
                 <tr *ngFor="let r of purgatoryShown | rdSort:sorts['purg']" class="click" (click)="openRow(r, r.vendorId)" [class.sel]="row?.rowId === r.rowId">
@@ -245,7 +245,7 @@
                 </tr>
                 <tr *ngIf="!purgatoryShown.length && !loading"><td colspan="6" class="empty">{{ purgatory.length ? 'No rows with that problem.' : 'Purgatory is empty.' }}</td></tr>
               </tbody>
-            </table>
+            </table></div>
             <ng-container *ngIf="row" [ngTemplateOutlet]="rowPanel"></ng-container>
           </div>
         </section>
@@ -303,7 +303,7 @@
                   <div class="err" *ngIf="proErr">{{ proErr }}</div>
                   <div class="sub" style="margin-top: 6px" *ngIf="proSearched && !proSearching && !proErr && !proHits.length">
                     No PRO product matches "{{ proQ }}". Try part of the name, the catalog # or the UPC. If PRO does not carry it yet, it has to be added to the catalog first; skip the row for now.</div>
-                  <table class="grid" style="margin-top: 8px" *ngIf="proHits.length">
+                  <div class="tablewrap"><table class="grid" style="margin-top: 8px" *ngIf="proHits.length">
                     <thead><tr><th></th><th rdSort="productCode" [rdSortBy]="sorts['prohits']">PRO code</th><th rdSort="modelName" [rdSortBy]="sorts['prohits']">Name</th><th rdSort="catalogNumber" [rdSortBy]="sorts['prohits']">Catalog #</th><th rdSort="usedBy" [rdSortBy]="sorts['prohits']">Rebate products</th></tr></thead>
                     <tbody>
                       <tr *ngFor="let h of proHits | rdSort:sorts['prohits']" [class.off]="h.isDiscontinued" class="click" (click)="tick('' + h.productCode, true)">
@@ -314,7 +314,7 @@
                         <td class="sub">{{ h.usedBy || '—' }}</td>
                       </tr>
                     </tbody>
-                  </table>
+                  </table></div>
                   <div class="actions" style="margin-top: 8px" *ngIf="proHits.length">
                     <span class="grow"></span>
                     <button type="button" class="btn ghost" *ngIf="step1Done" (click)="step1Open = false">Cancel</button>
@@ -463,7 +463,7 @@
                 <option value="">All</option><option value="LIVE">On</option><option value="OFF">Off</option><option value="MIXED">Partly on</option>
               </select>
             </div>
-            <table class="grid">
+            <div class="tablewrap"><table class="grid">
               <thead><tr><th rdSort="batchId" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">Batch</th><th rdSort="vendorName" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">Vendor</th><th rdSort="irTypeName" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">Type</th><th rdSort="programStart" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">Dates</th><th class="num" rdSort="programs" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">Programs</th><th rdSort="state" [rdSortBy]="sorts['batches']" (rdSortChange)="loadBatches(1)">State</th></tr></thead>
               <tbody>
                 <tr *ngFor="let b of batches" class="click" (click)="openBatch(b)" [class.sel]="batch?.batchId === b.batchId" [class.off]="b.state === 'OFF'">
@@ -476,7 +476,7 @@
                 </tr>
                 <tr *ngIf="!batches.length && !loading"><td colspan="6" class="empty">No batches match.</td></tr>
               </tbody>
-            </table>
+            </table></div>
             <div class="pager" *ngIf="batchTotal > 50">
               <button type="button" class="btn ghost" (click)="loadBatches(batchPage - 1)" [disabled]="batchPage <= 1">Previous</button>
               <span>Page {{ batchPage }} of {{ batchPages }}</span>
@@ -506,7 +506,7 @@
               <button type="button" class="btn ghost" (click)="openBatch(batch)">Discard</button>
               <button type="button" class="btn primary" (click)="pending = { kind: 'batch-dates' }">Save dates</button>
             </div>
-            <table class="grid" style="margin-top: 12px">
+            <div class="tablewrap"><table class="grid" style="margin-top: 12px">
               <thead><tr><th rdSort="description" [rdSortBy]="sorts['bprogs']">Product</th><th class="num" rdSort="reimbursement" [rdSortBy]="sorts['bprogs']">Member</th><th class="num" rdSort="instantRebate" [rdSortBy]="sorts['bprogs']">IR</th><th class="num" rdSort="mapPrice" [rdSortBy]="sorts['bprogs']">MAP</th><th rdSort="startDate" [rdSortBy]="sorts['bprogs']">Dates</th><th rdSort="isLive" [rdSortBy]="sorts['bprogs']">State</th><th></th></tr></thead>
               <tbody>
                 <ng-container *ngFor="let p of batchPrograms | rdSort:sorts['bprogs']">
@@ -551,7 +551,7 @@
                   </tr>
                 </ng-container>
               </tbody>
-            </table>
+            </table></div>
             <div class="hint" style="margin-top: 6px">Click a program to change its amounts or dates, or turn it on or off, on its own.</div>
             <h3 class="sub" style="margin: 14px 0 8px">History</h3>
             <ul class="timeline" *ngIf="batchHistory.length">
@@ -567,7 +567,7 @@
       <section class="card" *ngIf="view === 'templates'">
         <div class="card-head"><h2>Saved vendor layouts</h2><span class="sub">A confirmed mapping is reused automatically the next time the same headers arrive.</span><span class="grow"></span>
           <button type="button" class="btn ghost" (click)="exportTemplates()" [disabled]="!templates.length"><i class="pi pi-file-excel"></i> Excel</button></div>
-        <table class="grid">
+        <div class="tablewrap"><table class="grid">
           <thead><tr><th rdSort="vendorName" [rdSortBy]="sorts['templates']">Vendor</th><th rdSort="sheetName" [rdSortBy]="sorts['templates']">Sheet</th><th>Columns</th><th rdSort="source" [rdSortBy]="sorts['templates']">Source</th><th class="num" rdSort="timesUsed" [rdSortBy]="sorts['templates']">Used</th><th rdSort="lastUsedAt" [rdSortBy]="sorts['templates']">Last used</th><th></th></tr></thead>
           <tbody>
             <tr *ngFor="let t of templates | rdSort:sorts['templates']">
@@ -581,7 +581,7 @@
             </tr>
             <tr *ngIf="!templates.length"><td colspan="7" class="empty">No saved layouts yet. The first confirmed upload for each vendor creates one.</td></tr>
           </tbody>
-        </table>
+        </table></div>
       </section>
 
       <!-- ============ Declined claims ============ -->
@@ -592,7 +592,7 @@
       <section class="card" *ngIf="view === 'history' || view === 'pp-history'">
         <div class="card-head"><h2>History: {{ rail === 'PP' ? 'price protection' : 'instant rebates' }}</h2><span class="sub">Latest 300 changes</span><span class="grow"></span>
           <button type="button" class="btn ghost" (click)="exportHistory()" [disabled]="!history.length"><i class="pi pi-file-excel"></i> Excel</button></div>
-        <table class="grid">
+        <div class="tablewrap"><table class="grid">
           <thead><tr><th rdSort="at" [rdSortBy]="sorts['history']">When</th><th rdSort="actor" [rdSortBy]="sorts['history']">Who</th><th rdSort="eventType" [rdSortBy]="sorts['history']">What</th><th [rdSort]="sortOn" [rdSortBy]="sorts['history']">On</th><th rdSort="reason" [rdSortBy]="sorts['history']">Reason</th><th>Detail</th></tr></thead>
           <tbody>
             <tr *ngFor="let h of history | rdSort:sorts['history']">
@@ -608,7 +608,7 @@
             </tr>
             <tr *ngIf="!history.length && !loading"><td colspan="6" class="empty">Nothing yet.</td></tr>
           </tbody>
-        </table>
+        </table></div>
       </section>
     </div>
   </div>

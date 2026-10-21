@@ -54,7 +54,7 @@
     </div>
 
     <div class="scroll-x">
-      <table class="mapgrid">
+      <div class="tablewrap"><table class="mapgrid">
         <thead>
           <tr>
             <th *ngFor="let h of proposal.headers; let i = index" [class.mapped]="fieldFor(i)">
@@ -72,7 +72,7 @@
             <td *ngFor="let h of proposal.headers; let i = index">{{ r[i] }}</td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
     </div>
   </section>
 

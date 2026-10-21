@@ -1,4 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { LayoutService } from 'src/app/layout/service/app.layout.service';
+import { collapseMainMenu } from '../../../rebates/shared/desk-frame';
 import { NotificationService } from 'src/app/services/notification.service';
 
 /* The BRM's page: shipping errors, their HubSpot companies, and the instant-rebate claims that need
@@ -9,13 +11,17 @@ import { NotificationService } from 'src/app/services/notification.service';
   templateUrl: './dashboard-brm.component.html',
   styleUrls: ['../../../rebates/shared/rebate-desk.shared.scss', './dashboard-brm.component.scss']
 })
-export class DashboardBrmComponent {
+export class DashboardBrmComponent implements OnInit, OnDestroy {
+  private restoreMenu: () => void = () => {};
   public SelectedAccountNumbers: string[] = [];
   public isHubspotCardCollapsed = true;
   public isShippingCardCollapsed = false;
   public brmShippingErrorCount = 0;
 
-  constructor(private notificationService: NotificationService) {}
+  constructor(private notificationService: NotificationService, private layout: LayoutService) {}
+
+  ngOnInit(): void { this.restoreMenu = collapseMainMenu(this.layout); }
+  ngOnDestroy(): void { this.restoreMenu(); }
 
   onAccountFilter(accountNumbers: string[]): void {
     this.SelectedAccountNumbers = (accountNumbers || []).map(a => String(a));

@@ -15,7 +15,7 @@
   <div class="sub" style="margin: 0 0 8px">{{ declineStatus === 3
     ? 'Waiting on the member for more information or support. Click a claim to see its files and timeline, add the support, then send it back to the approval queue or confirm the decline.'
     : 'Declined for good. Click a claim to see its files and timeline.' }}</div>
-  <table class="grid">
+  <div class="tablewrap"><table class="grid">
     <thead><tr><th rdSort="orderID" [rdSortBy]="sorts['declines']">Claim</th><th rdSort="processDate" [rdSortBy]="sorts['declines']">{{ declineStatus === 3 ? 'Asked' : 'Declined' }}</th><th rdSort="memberID" [rdSortBy]="sorts['declines']">Member</th><th rdSort="model" [rdSortBy]="sorts['declines']">Product</th><th class="num" rdSort="quantity" [rdSortBy]="sorts['declines']">Qty</th><th class="num" rdSort="total" [rdSortBy]="sorts['declines']">Amount</th><th rdSort="rejectReason" [rdSortBy]="sorts['declines']">Reason</th><th [rdSort]="sortEmail" [rdSortBy]="sorts['declines']">Email</th><th *ngIf="declineStatus === 3"></th><th></th></tr></thead>
     <tbody>
       <ng-container *ngFor="let d of declinesShown | rdSort:sorts['declines'] | slice:0:declineTake; trackBy: trackDecline">
@@ -35,7 +35,7 @@
         <td [attr.colspan]="declineStatus === 3 ? 10 : 9">
           <div class="decl-lines">
             <h3 class="sub" style="margin: 0 0 6px">Claim lines</h3>
-            <table class="grid">
+            <div class="tablewrap"><table class="grid">
               <thead><tr><th>Product</th><th>PRO code</th><th>Serial #</th><th>Program week</th><th class="num">Qty</th><th class="num">Each</th><th class="num">Net</th></tr></thead>
               <tbody>
                 <tr *ngFor="let l of declineLines">
@@ -51,7 +51,7 @@
                   <td class="num">{{ declineUnitsTotal }}</td><td></td><td class="money">{{ declineLinesTotal | currency }}</td></tr>
                 <tr *ngIf="!declineLines.length"><td colspan="7" class="empty">Loading the claim lines…</td></tr>
               </tbody>
-            </table>
+            </table></div>
           </div>
           <div class="decl-panel">
             <div>
@@ -86,7 +86,7 @@
       </ng-container>
       <tr *ngIf="!declinesShown.length"><td [attr.colspan]="declineStatus === 3 ? 10 : 9" class="empty">{{ declines.length ? 'Nothing here in this window.' : 'Loading…' }}</td></tr>
     </tbody>
-  </table>
+  </table></div>
   <div class="pager" *ngIf="declinesShown.length > declineTake">
     <button type="button" class="btn ghost" (click)="declineTake = declineTake + 100">Show more</button>
   </div>

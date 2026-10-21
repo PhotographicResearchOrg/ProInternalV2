@@ -43,7 +43,7 @@
       <span class="lbl">Show</span>
       <button type="button" *ngFor="let c of chips" [class.on]="chipOn(c)" (click)="useChip(c)">{{ c.label }}</button>
     </div>
-    <table class="grid">
+    <div class="tablewrap"><table class="grid">
       <thead>
         <tr *ngIf="rail === 'IR'">
           <th rdSort="description" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Product</th><th rdSort="vendorName" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Vendor</th><th rdSort="irTypeName" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Type</th><th rdSort="startDate" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Dates</th>
@@ -77,7 +77,7 @@
         <tr *ngIf="!rows.length && !loading"><td colspan="9" class="empty">No programs match.</td></tr>
         <tr *ngIf="loading"><td colspan="9" class="empty">Loading…</td></tr>
       </tbody>
-    </table>
+    </table></div>
     <div class="pager" *ngIf="total > pageSize">
       <button type="button" class="btn ghost" (click)="go(page - 1)" [disabled]="page <= 1">Previous</button>
       <span>Page {{ page }} of {{ pages }}</span>

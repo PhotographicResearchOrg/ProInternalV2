@@ -36,7 +36,7 @@
     <button type="button" [class.on]="chip === 'LIVE'" (click)="chip = chip === 'LIVE' ? '' : 'LIVE'">Live programs<b>{{ chipCount('LIVE') }}</b></button>
   </div>
 
-  <table class="grid">
+  <div class="tablewrap"><table class="grid">
     <thead>
       <tr>
         <th rdSort="vendorName" [rdSortBy]="sorts['vendors']">Vendor</th><th class="num" rdSort="productsActive" [rdSortBy]="sorts['vendors']">Products</th><th class="num" rdSort="programsLive" [rdSortBy]="sorts['vendors']">Live programs</th>
@@ -61,7 +61,7 @@
       <tr *ngIf="!shown.length && !loading"><td colspan="9" class="empty">No vendors match.</td></tr>
       <tr *ngIf="loading"><td colspan="9" class="empty"><i class="pi pi-spin pi-spinner"></i> Adding up every claim for every vendor… this can take a little while.</td></tr>
     </tbody>
-  </table>
+  </table></div>
 </section>
 
 <ng-container *ngIf="selected">
@@ -97,7 +97,7 @@
       <button type="button" class="btn ghost" (click)="showPrograms.emit({ vendorId: selected.vendorId })"><i class="pi pi-list"></i> All programs</button>
       <button type="button" class="icon-btn" (click)="selected = null" title="Close"><i class="pi pi-times"></i></button>
     </div>
-    <table class="grid">
+    <div class="tablewrap"><table class="grid">
       <thead><tr><th rdSort="description" [rdSortBy]="sorts['vprods']">Product</th><th class="num" rdSort="programsLive" [rdSortBy]="sorts['vprods']">Live</th><th rdSort="lastProgramDate" [rdSortBy]="sorts['vprods']">Last program</th><th class="num" rdSort="liveAmount" [rdSortBy]="sorts['vprods']">Current amount</th>
         <th class="num" rdSort="liabilityUnits" [rdSortBy]="sorts['vprods']">Units not reimbursed</th><th class="num" rdSort="liability" [rdSortBy]="sorts['vprods']">Liability</th><th class="num" rdSort="pendingAmount" [rdSortBy]="sorts['vprods']">Awaiting decision</th><th class="num" rdSort="creditedAmount" [rdSortBy]="sorts['vprods']">Posted to GL</th></tr></thead>
       <tbody>
@@ -114,12 +114,12 @@
         <tr *ngIf="!products.length && !detailLoading"><td colspan="8" class="empty">No products with activity.</td></tr>
         <tr *ngIf="detailLoading"><td colspan="8" class="empty"><i class="pi pi-spin pi-spinner"></i> Adding up {{ selected.vendorName }}'s claims…</td></tr>
       </tbody>
-    </table>
+    </table></div>
   </section>
 
   <section class="card">
     <div class="card-head"><h2>Claims not reimbursed</h2><span class="sub">{{ openClaims.length }} approved with no debit memo, or awaiting a decision</span></div>
-    <table class="grid">
+    <div class="tablewrap"><table class="grid">
       <thead><tr><th rdSort="orderId" [rdSortBy]="sorts['vclaims']">Claim</th><th rdSort="memberId" [rdSortBy]="sorts['vclaims']">Member</th><th rdSort="claimDate" [rdSortBy]="sorts['vclaims']">Submitted</th><th rdSort="bucket" [rdSortBy]="sorts['vclaims']">State</th><th rdSort="products" [rdSortBy]="sorts['vclaims']">Products</th><th class="num" rdSort="units" [rdSortBy]="sorts['vclaims']">Units</th><th class="num" rdSort="amount" [rdSortBy]="sorts['vclaims']">Member amount</th><th class="num" rdSort="vendorAmount" [rdSortBy]="sorts['vclaims']">Vendor owes</th></tr></thead>
       <tbody>
         <tr *ngFor="let c of openClaims | rdSort:sorts['vclaims']">
@@ -136,6 +136,6 @@
         <tr *ngIf="!openClaims.length && !detailLoading"><td colspan="8" class="empty">Nothing outstanding.</td></tr>
         <tr *ngIf="detailLoading"><td colspan="8" class="empty"><i class="pi pi-spin pi-spinner"></i> Loading claims…</td></tr>
       </tbody>
-    </table>
+    </table></div>
   </section>
 </ng-container>

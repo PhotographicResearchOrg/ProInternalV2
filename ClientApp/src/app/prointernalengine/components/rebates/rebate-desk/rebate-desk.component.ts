@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { finalize, switchMap } from 'rxjs/operators';
@@ -7,6 +7,8 @@ import { Rail, RebateDeskService, apiMessage, isoDate } from 'src/app/services/r
 import { IR_PROGRAM_COLS, UPLOAD_ROW_COLS, col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
 import { DEFAULT_MONTHS, windowStart } from '../shared/rebate-window.component';
 import { rdSortParams, rdSorts } from '../shared/rebate-sort';
+import { collapseMainMenu } from '../shared/desk-frame';
+import { LayoutService } from 'src/app/layout/service/app.layout.service';
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
@@ -50,7 +52,8 @@ const HISTORY_COLS = [
   templateUrl: './rebate-desk.component.html',
   styleUrls: ['../shared/rebate-desk.shared.scss']
 })
-export class RebateDeskComponent implements OnInit {
+export class RebateDeskComponent implements OnInit, OnDestroy {
+  private restoreMenu: () => void = () => {};
   /* Column sorting: one state per table; computed columns sort by these. */
   readonly sorts = rdSorts();
   readonly sortSku = (r: any) => r.vendorSku || r.upc || r.proCode || r.productCode;
@@ -144,9 +147,13 @@ export class RebateDeskComponent implements OnInit {
     private desk: RebateDeskService,
     private data: DataService,
     private route: ActivatedRoute,
-    private router: Router) {}
+    private router: Router,
+    private layout: LayoutService) {}
+
+  ngOnDestroy(): void { this.restoreMenu(); }
 
   ngOnInit(): void {
+    this.restoreMenu = collapseMainMenu(this.layout);
     this.desk.types().subscribe(t => (this.types = t));
     this.desk.vendors('IR').subscribe(v => (this.vendors = v));
     this.loadOverview();
