@@ -1,6 +1,9 @@
 /* Category desk discovery. Read-only. Run in Pro (SSMS), send back the results.
    Each block is its own batch, so one failing block doesn't stop the rest. */
 
+USE PRO;
+GO
+
 -- 1. How the B2B site reads categories and filters by them
 SELECT name, OBJECT_DEFINITION(object_id) AS definition
 FROM sys.procedures
