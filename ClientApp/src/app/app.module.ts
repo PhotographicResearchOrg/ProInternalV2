@@ -118,6 +118,7 @@ import { CategoryDeskComponent } from './prointernalengine/components/ecommerce/
 import { CategoryPickerComponent } from './prointernalengine/components/ecommerce/category-picker/category-picker.component';
 import { ProductAiComponent } from './prointernalengine/components/ecommerce/product-ai/product-ai.component';
 import { ProductForecastComponent } from './prointernalengine/components/ecommerce/product-forecast/product-forecast.component';
+import { ProductAssetsComponent } from './prointernalengine/components/ecommerce/product-assets/product-assets.component';
 
 @NgModule({
   declarations:
@@ -128,6 +129,7 @@ import { ProductForecastComponent } from './prointernalengine/components/ecommer
       CategoryPickerComponent,
       ProductAiComponent,
       ProductForecastComponent,
+      ProductAssetsComponent,
     OrdersComponent,
     EdiManagementComponent,
     FileAppComponent,

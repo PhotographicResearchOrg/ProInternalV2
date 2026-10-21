@@ -378,6 +378,12 @@ GetSellThroughExportData(
 
 
 
+        #region Product assets
+        // piv2.Product_Assets (Shopify fields, images, documents, Shopify change feed) and Connection's GetProductFiles.
+        ProductAssetsView Product_Assets(int productId);
+        List<ProductS3File> Product_S3Files(string productCode);
+        #endregion
+
     }
 
 }

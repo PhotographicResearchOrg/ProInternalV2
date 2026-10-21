@@ -60,6 +60,7 @@ import {
   CategoryFilters, CategoryProductPage, CategoryProductQuery, CategoryTree, PublishItem, PublishRequest,
   PublishResult, PublishSummary, RevertConflict
 } from 'src/app/models/category/category-desk.models';
+import { ProductAssetsView } from 'src/app/models/Product/product-assets.models';
 import { AiStatus, AiUsageRow, ForecastAccuracyRow, ForecastRun, ForecastView, ResearchSnapshot } from 'src/app/models/ai/ai.models';
 
 
@@ -1161,6 +1162,11 @@ export class DataService {
   //endregion
 
   //region Product AI  (API: AiController, api/ai)
+  /** Product Desk · Shopify & assets (read only). */
+  productAssets(productId: number): Observable<ProductAssetsView> {
+    return this.api.get<ProductAssetsView>(`API/products/${productId}/assets`);
+  }
+
   private readonly aiBase = 'API/Ai';
 
   aiStatus(): Observable<AiStatus> {

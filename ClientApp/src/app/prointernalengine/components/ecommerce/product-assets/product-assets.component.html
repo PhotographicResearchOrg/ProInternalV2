@@ -1,0 +1,147 @@
+<section class="card as-card">
+  <header class="as-head">
+    <span class="ci"><i class="pi pi-images"></i></span>
+    <div>
+      <h3>Shopify & assets</h3>
+      <div class="hint">What's stored for this product today: Shopify ids and what was sent to Shopify, images, documents, files and videos. Read only.</div>
+    </div>
+    <button type="button" class="link right" *ngIf="view" (click)="exportAll()"><i class="pi pi-file-excel"></i> Export</button>
+  </header>
+
+  <div class="hint" *ngIf="loading"><i class="pi pi-spin pi-spinner"></i> Loading…</div>
+  <div class="error" *ngIf="error">{{ error }}</div>
+
+  <ng-container *ngIf="view as v">
+    <!-- ================= Shopify ================= -->
+    <div class="block">
+      <div class="block-head"><i class="pi pi-shopping-bag"></i> Shopify</div>
+
+      <div class="kv">
+        <div>
+          <span class="k">In Shopify</span>
+          <span class="v" *ngIf="shopifyProductId; else notIn"><span class="pill good">Yes</span> product {{ shopifyProductId }}
+            <a *ngIf="adminLink" [href]="adminLink" target="_blank" rel="noopener">Open in Shopify <i class="pi pi-external-link"></i></a></span>
+          <ng-template #notIn><span class="v"><span class="pill">No</span> no Shopify product id</span></ng-template>
+        </div>
+        <div>
+          <span class="k">Last status sent</span>
+          <span class="v" *ngIf="lastStatus as s; else noStatus">
+            <span class="pill" [class.good]="s.status === 'Active'">{{ s.status }}</span>
+            {{ when(s.when) }}
+            <span class="pill bad" *ngIf="s.ok === false">Shopify returned an error</span>
+          </span>
+          <ng-template #noStatus><span class="v hint">No status change in the feed</span></ng-template>
+        </div>
+        <div>
+          <span class="k">Waiting to send</span>
+          <span class="v">{{ pendingCount }} change{{ pendingCount === 1 ? '' : 's' }}</span>
+        </div>
+        <div *ngFor="let f of shopifyFields">
+          <span class="k">{{ f.fieldName }}</span>
+          <span class="v mono">{{ f.fieldValue || '—' }}</span>
+        </div>
+      </div>
+
+      <div class="sub-label">Changes sent to Shopify <span class="hint">(productlastchanged, newest first)</span></div>
+      <table class="tbl" *ngIf="v.shopifyFeed.length; else noFeed">
+        <thead><tr><th>Changed</th><th>What</th><th>From → to</th><th>Sent</th><th>Shopify's answer</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let r of feed">
+            <td>{{ when(r.dateChanged) }}</td>
+            <td>{{ r.change }}</td>
+            <td class="clip" [title]="(r.oldValue || '') + ' → ' + (r.newValue || '')">{{ r.oldValue || '—' }} → {{ r.newValue || '—' }}</td>
+            <td>{{ r.dateProcessed ? when(r.dateProcessed) : 'Waiting' }}</td>
+            <td class="clip" [title]="r.result || ''">
+              <span class="pill good" *ngIf="resultOk(r.result) === true">OK</span>
+              <span class="pill bad" *ngIf="resultOk(r.result) === false">Error</span>
+              {{ r.result || '' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <button type="button" class="link" *ngIf="v.shopifyFeed.length > 8" (click)="showAllFeed = !showAllFeed">
+        {{ showAllFeed ? 'Show fewer' : 'Show all ' + v.shopifyFeed.length }}</button>
+      <ng-template #noFeed><div class="empty">Nothing has been sent to Shopify for this product.</div></ng-template>
+
+      <div class="sub-label">Governance issues</div>
+      <div class="error" *ngIf="v.shopifyError">{{ v.shopifyError }}</div>
+      <table class="tbl" *ngIf="v.shopifyIssues.length; else noIssues">
+        <thead><tr><th>Found</th><th>Issue</th><th>Severity</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let i of v.shopifyIssues">
+            <td>{{ when(i.createdDate) }}</td><td>{{ i.issueType }}</td>
+            <td><span class="pill" [class.bad]="(i.issueSeverity || '').toLowerCase() === 'high'">{{ i.issueSeverity }}</span></td>
+            <td class="clip" [title]="i.details">{{ i.details }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #noIssues><div class="empty">No open governance issues.</div></ng-template>
+
+      <div class="sub-label">Shopify category (taxonomy audit)</div>
+      <table class="tbl" *ngIf="v.shopifyTaxonomy.length; else noTax">
+        <thead><tr><th>Shopify category</th><th>Applied</th><th>Images</th><th>Status</th><th>When</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let t of v.shopifyTaxonomy">
+            <td>{{ t.shopifyCategoryFullName }} <span class="hint">{{ t.shopifyCategoryId }}</span></td>
+            <td>{{ t.wasApplied ? 'Yes' : 'No' }}</td><td>{{ t.imageCount }}</td><td>{{ t.status }}</td><td>{{ when(t.createdDate) }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #noTax><div class="empty">Not in the taxonomy audit.</div></ng-template>
+    </div>
+
+    <!-- ================= Images ================= -->
+    <div class="block">
+      <div class="block-head"><i class="pi pi-image"></i> Images <span class="hint">({{ v.images.length }})</span></div>
+      <div class="gallery" *ngIf="v.images.length; else noImages">
+        <button type="button" class="thumb" *ngFor="let i of v.images" (click)="bigImage = i.imageName" [title]="i.imageName">
+          <img [src]="imageUrl(i)" [alt]="i.imageName" loading="lazy" />
+          <span class="name">{{ i.imageName }}</span>
+          <span class="sizes">
+            <span [class.on]="i.has100">100</span><span [class.on]="i.has250">250</span><span [class.on]="i.hasFull">Full</span>
+          </span>
+          <span class="pill bad" *ngIf="!i.inProductImage" title="In the image folders but not in ProductImage, so the B2B site doesn't show it">Not listed</span>
+        </button>
+      </div>
+      <ng-template #noImages><div class="empty">No images for this product.</div></ng-template>
+    </div>
+
+    <!-- ================= Documents & files ================= -->
+    <div class="block">
+      <div class="block-head"><i class="pi pi-file-pdf"></i> Documents & files</div>
+      <div class="list" *ngIf="v.documents.length || v.files.length; else noDocs">
+        <div class="row" *ngFor="let d of v.documents">
+          <i class="pi pi-file"></i>
+          <a *ngIf="d.link; else plainDoc" [href]="d.link" target="_blank" rel="noopener">{{ d.displayName || d.fileName }}</a>
+          <ng-template #plainDoc><span>{{ d.displayName || d.fileName }}</span></ng-template>
+          <span class="hint clip" [title]="d.fileLocation || ''">{{ d.fileLocation }}</span>
+        </div>
+        <div class="row" *ngFor="let f of v.files">
+          <i class="pi pi-cloud"></i>
+          <a *ngIf="isLink(f.link); else plainFile" [href]="f.link" target="_blank" rel="noopener">{{ f.displayName || f.link }}</a>
+          <ng-template #plainFile><span>{{ f.displayName || f.link }}</span></ng-template>
+          <span class="hint">{{ f.bucket }}</span>
+        </div>
+      </div>
+      <ng-template #noDocs><div class="empty">No documents or files.</div></ng-template>
+      <div class="error" *ngIf="v.filesError">{{ v.filesError }}</div>
+    </div>
+
+    <!-- ================= Videos and other asset fields ================= -->
+    <div class="block" *ngIf="otherFields.length">
+      <div class="block-head"><i class="pi pi-video"></i> Videos and other asset fields</div>
+      <div class="kv">
+        <div *ngFor="let f of otherFields">
+          <span class="k">{{ f.fieldName }}</span>
+          <span class="v" *ngIf="videoLink(f) as link; else rawVal"><a [href]="link" target="_blank" rel="noopener">{{ f.fieldValue }} <i class="pi pi-external-link"></i></a></span>
+          <ng-template #rawVal><span class="v clip" [title]="f.fieldValue || ''">{{ f.fieldValue || '—' }}</span></ng-template>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</section>
+
+<div class="lightbox" *ngIf="bigImage" (click)="bigImage = null">
+  <img [src]="imageUrl(bigImage)" [alt]="bigImage" />
+  <span>{{ bigImage }} · click to close</span>
+</div>

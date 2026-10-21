@@ -3331,6 +3331,30 @@ GetShopifyGovernanceIssues()
         }
         #endregion
 
+        #region Product assets
+        public ProductAssetsView Product_Assets(int productId)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.Product_Assets", new { ProductId = productId },
+                commandType: CommandType.StoredProcedure, commandTimeout: 30);
+            var view = multi.Read<ProductAssetsView>().FirstOrDefault();
+            if (view == null || string.IsNullOrEmpty(view.ProductCode)) return null;
+            view.Fields      = multi.Read<ProductAssetField>().ToList();
+            view.Images      = multi.Read<ProductImageAsset>().ToList();
+            view.Documents   = multi.Read<ProductDocumentAsset>().ToList();
+            view.ShopifyFeed = multi.Read<ProductShopifyChange>().ToList();
+            return view;
+        }
+
+        /* The same call the Connection site makes for a product's S3 files. */
+        public List<ProductS3File> Product_S3Files(string productCode)
+        {
+            using var conn = GetConnection();
+            return conn.Query<ProductS3File>("GetProductFiles", new { productCode },
+                commandType: CommandType.StoredProcedure, commandTimeout: 20).ToList();
+        }
+        #endregion
+
 
     }
 }
