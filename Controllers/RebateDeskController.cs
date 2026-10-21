@@ -262,9 +262,8 @@ namespace ProInternal.Controllers
 
         [HttpGet("batches")]
         public Task<IActionResult> Batches([FromQuery] string? q, [FromQuery] int? vendorId, [FromQuery] string? state,
-                                           [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12) =>
-            Read(async (,
-                                            [FromQuery] string? sort = null, [FromQuery] bool desc = false) => Paged(await _data.QueryAsync("piv2.Rebate_Batches", new
+                                           [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12, [FromQuery] string? sort = null, [FromQuery] bool desc = false) =>
+            Read(async () => Paged(await _data.QueryAsync("piv2.Rebate_Batches", new
             {
                 Q = string.IsNullOrWhiteSpace(q) ? null : q.Trim(),
                 VendorId = vendorId,
@@ -304,9 +303,8 @@ namespace ProInternal.Controllers
         [HttpGet("programs")]
         public Task<IActionResult> Programs([FromQuery] int? vendorId, [FromQuery] int? modelId, [FromQuery] int? batchId,
                                             [FromQuery] string? state, [FromQuery] string? when, [FromQuery] string? q,
-                                            [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12) =>
-            Read(async (,
-                                            [FromQuery] string? sort = null, [FromQuery] bool desc = false) => Paged(await _data.QueryAsync("piv2.Rebate_Programs", new
+                                            [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12, [FromQuery] string? sort = null, [FromQuery] bool desc = false) =>
+            Read(async () => Paged(await _data.QueryAsync("piv2.Rebate_Programs", new
             {
                 VendorId = vendorId,
                 ModelId = modelId,
@@ -378,9 +376,8 @@ namespace ProInternal.Controllers
 
         [HttpGet("products")]
         public Task<IActionResult> Products([FromQuery] string? rail, [FromQuery] int? vendorId, [FromQuery] string? q,
-                                            [FromQuery] bool? active, [FromQuery] int page = 1, [FromQuery] int pageSize = 50) =>
-            Read(async (,
-                                            [FromQuery] string? sort = null, [FromQuery] bool desc = false) => Paged(await _data.QueryAsync("piv2.Rebate_Products", new
+                                            [FromQuery] bool? active, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? sort = null, [FromQuery] bool desc = false) =>
+            Read(async () => Paged(await _data.QueryAsync("piv2.Rebate_Products", new
             {
                 Rail = Rail(rail),
                 VendorId = vendorId,
@@ -458,9 +455,8 @@ namespace ProInternal.Controllers
         [HttpGet("pp/programs")]
         public Task<IActionResult> PriceProtectionPrograms([FromQuery] int? vendorId, [FromQuery] int? modelId, [FromQuery] string? state,
                                                            [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? q,
-                                                           [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12) =>
-            Read(async (,
-                                            [FromQuery] string? sort = null, [FromQuery] bool desc = false) => Paged(await _data.QueryAsync("piv2.PP_Programs", new
+                                                           [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12, [FromQuery] string? sort = null, [FromQuery] bool desc = false) =>
+            Read(async () => Paged(await _data.QueryAsync("piv2.PP_Programs", new
             {
                 VendorId = vendorId,
                 ModelId = modelId,
@@ -538,9 +534,8 @@ namespace ProInternal.Controllers
         [HttpGet("claims")]
         public Task<IActionResult> Claims([FromQuery] string? rail, [FromQuery] string? q, [FromQuery] int? vendorId, [FromQuery] string? state,
                                           [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 50,
-                                          [FromQuery] int months = 12, [FromQuery] int? memberId = null, [FromQuery] int? modelId = null) =>
-            Read(async (,
-                                            [FromQuery] string? sort = null, [FromQuery] bool desc = false) => Paged(await _data.QueryAsync("piv2.Claim_Search", new
+                                          [FromQuery] int months = 12, [FromQuery] int? memberId = null, [FromQuery] int? modelId = null, [FromQuery] string? sort = null, [FromQuery] bool desc = false) =>
+            Read(async () => Paged(await _data.QueryAsync("piv2.Claim_Search", new
             {
                 Rail = Rail(rail),
                 Q = q,
