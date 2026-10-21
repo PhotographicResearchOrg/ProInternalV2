@@ -1,0 +1,98 @@
+<section class="card fc-card">
+  <header class="fc-head">
+    <span class="ci"><i class="pi pi-chart-line"></i></span>
+    <div>
+      <h3>Forecast</h3>
+      <div class="hint">Monthly units for buyers, from Computyme sales history. Every forecast is saved and scored against what actually sold.</div>
+    </div>
+  </header>
+
+  <div class="fc-off" *ngIf="status && gate && !gate.allowed && !view?.runs?.length">
+    <i class="pi pi-lock"></i> {{ gate.reason }}
+  </div>
+
+  <div class="fc-run" *ngIf="gate?.allowed">
+    <span class="label">Forecast the next</span>
+    <div class="seg">
+      <button type="button" *ngFor="let h of horizons" [class.on]="horizon === h" (click)="horizon = h">{{ h }} months</button>
+    </div>
+    <button type="button" class="go" [disabled]="!canRun" (click)="run()">
+      <i class="pi" [ngClass]="running ? 'pi-spin pi-spinner' : 'pi-play'"></i>{{ running ? 'Forecasting…' : 'Run forecast' }}
+    </button>
+    <span class="hint">{{ gate?.model }} · about ${{ gate?.estimatedCostUsd | number: '1.2-2' }} · {{ gate?.userTodayCalls }} of {{ gate?.dailyLimit }} today</span>
+  </div>
+
+  <div class="error" *ngIf="error">{{ error }}</div>
+  <div class="hint" *ngIf="loading"><i class="pi pi-spin pi-spinner"></i> Loading…</div>
+
+  <div class="empty" *ngIf="!loading && view && !view.history.length && !view.runs.length">
+    No sales in the last 36 months, so there's nothing to forecast from yet.
+  </div>
+
+  <ng-container *ngIf="view && (view.history.length || selected)">
+    <div class="countries" *ngIf="countries.length > 1">
+      <button type="button" *ngFor="let c of countries" [class.on]="country === c" (click)="setCountry(c)">{{ c === 'ALL' ? 'All countries' : c }}</button>
+    </div>
+
+    <div class="chart">
+      <p-chart type="line" [data]="chartData" [options]="chartOptions" height="280px"></p-chart>
+    </div>
+
+    <ng-container *ngIf="selected as r">
+      <div class="summary">
+        <div class="stamp">
+          <span><i class="pi pi-bolt"></i> {{ r.model }}</span>
+          <span>{{ when(r.calledAt) }} · {{ r.userName }}</span>
+        </div>
+        <div class="totals">
+          <div><span class="hint">Likely, {{ months.length }} months</span><strong>{{ totals.likely | number: '1.0-0' }}</strong></div>
+          <div><span class="hint">Range</span><strong>{{ totals.low | number: '1.0-0' }}–{{ totals.high | number: '1.0-0' }}</strong></div>
+          <div><span class="hint">A month</span><strong>{{ (months.length ? totals.likely / months.length : 0) | number: '1.0-1' }}</strong></div>
+        </div>
+        <p class="text" *ngIf="r.summary">{{ r.summary }}</p>
+      </div>
+
+      <table class="fc-table">
+        <thead><tr><th>Month</th><th class="num">Likely</th><th class="num">Range</th><th class="num">Sold</th><th>How it was worked out</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let p of months">
+            <td>{{ monthLabel(p.monthStart) }}</td>
+            <td class="num"><strong>{{ p.likely | number: '1.0-1' }}</strong></td>
+            <td class="num">{{ p.low | number: '1.0-0' }}–{{ p.high | number: '1.0-0' }}</td>
+            <td class="num" [class.hit]="p.actual !== null && p.actual >= p.low && p.actual <= p.high"
+                [class.miss]="p.actual !== null && (p.actual < p.low || p.actual > p.high)">{{ p.actual === null ? '—' : (p.actual | number: '1.0-0') }}</td>
+            <td class="hint">{{ p.method }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="row-actions">
+        <button type="button" class="link" (click)="exportRun()"><i class="pi pi-file-excel"></i> Export this forecast</button>
+      </div>
+    </ng-container>
+
+    <div class="runs" *ngIf="view.runs.length">
+      <div class="label">Saved forecasts ({{ view.runs.length }})</div>
+      <button type="button" class="run" *ngFor="let r of view.runs" [class.current]="selected?.usageId === r.usageId" (click)="pick(r)">
+        <span class="when">{{ r.calledAt + 'Z' | date: 'MMM d, y' }}</span>
+        <span class="what">{{ r.question }} · {{ r.userName }}</span>
+        <ng-container *ngIf="score(r) as s">
+          <span class="acc" *ngIf="s.monthsEnded; else waiting">
+            {{ s.monthsEnded }} month{{ s.monthsEnded === 1 ? '' : 's' }} in: forecast {{ s.forecast | number: '1.0-0' }}, sold {{ s.actual | number: '1.0-0' }}
+            <span class="pill" [class.good]="s.errorPct !== null && s.errorPct <= 25" [class.bad]="s.errorPct !== null && s.errorPct > 50">
+              {{ s.errorPct === null ? 'no sales' : s.errorPct + '% off' }}</span>
+            <span class="hint">{{ s.inRange }} of {{ s.monthsEnded }} in range</span>
+          </span>
+          <ng-template #waiting><span class="hint">Scored once its first month ends</span></ng-template>
+        </ng-container>
+      </button>
+    </div>
+  </ng-container>
+
+  <div class="accuracy" *ngIf="gate?.allowed || status?.canSeeUsage">
+    <span class="label">Accuracy report, all products</span>
+    <input type="date" [(ngModel)]="accFrom" /> to <input type="date" [(ngModel)]="accTo" />
+    <button type="button" class="link" [disabled]="exportingAcc" (click)="exportAccuracy()">
+      <i class="pi" [ngClass]="exportingAcc ? 'pi-spin pi-spinner' : 'pi-file-excel'"></i> Export
+    </button>
+  </div>
+</section>

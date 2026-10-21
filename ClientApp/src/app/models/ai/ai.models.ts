@@ -62,3 +62,48 @@ export const RESEARCH_TOPICS: { key: string; label: string; icon: string }[] = [
   { key: 'PRICING', label: 'Street price', icon: 'pi pi-dollar' },
   { key: 'MARKET', label: 'Market and what\'s new', icon: 'pi pi-chart-line' }
 ];
+
+/* ------------------------------------------------------------ forecast */
+
+export interface SalesHistoryRow { country: string; monthStart: string; units: number; amount: number; }
+
+export interface ForecastPoint {
+  usageId: number;
+  country: string;        // ISO country, or ALL
+  monthStart: string;
+  likely: number;
+  low: number;
+  high: number;
+  method: string;
+  actual: number | null;  // once the month has ended
+}
+
+export interface ForecastRun {
+  usageId: number;
+  calledAt: string;
+  userName: string;
+  model: string;
+  costUsd: number;
+  costIsEstimate: boolean;
+  question: string | null;
+  summary: string | null;
+  months: number;
+  points: ForecastPoint[];
+}
+
+export interface ForecastView { history: SalesHistoryRow[]; runs: ForecastRun[]; }
+
+export interface ForecastAccuracyRow {
+  usageId: number;
+  calledAt: string;
+  userName: string;
+  model: string;
+  productCode: string;
+  modelName: string;
+  brandName: string;
+  monthsScored: number;
+  forecast: number;
+  actual: number;
+  errorPct: number | null;
+  monthsInRange: number;
+}

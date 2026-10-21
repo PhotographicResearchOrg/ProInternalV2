@@ -229,6 +229,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
     { id: 'content', label: 'Content & Languages', icon: 'pi pi-globe' },
     { id: 'categories', label: 'Categories', icon: 'pi pi-sitemap' },
     { id: 'research', label: 'Market research', icon: 'pi pi-search-plus' },
+    { id: 'forecast', label: 'Forecast', icon: 'pi pi-chart-line' },
     { id: 'contract', label: 'Contract JSON', icon: 'pi pi-code' }
   ];
   activeSection = 'overview';

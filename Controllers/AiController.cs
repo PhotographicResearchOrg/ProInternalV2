@@ -22,7 +22,10 @@ namespace ProInternal.Controllers
      *   GET  api/ai/products/{id}/research              the product's saved market research, newest first
      *   POST api/ai/products/{id}/research              ask Perplexity; the answer is saved to the product
      *   GET  api/ai/products/{id}/research/{fileId}     one saved answer (Markdown)
-     *   GET  api/ai/usage?from=&to=                     usage and cost report (AI.Usage)
+     *   GET  api/ai/products/{id}/forecast              sales history, saved forecasts with actuals
+ *   POST api/ai/products/{id}/forecast              run a forecast (3, 6 or 12 months); saved to the product
+ *   GET  api/ai/forecast/accuracy?from=&to=         how accurate past forecasts were (AI.Forecast or AI.Usage)
+ *   GET  api/ai/usage?from=&to=                     usage and cost report (AI.Usage)
      *
      * Every call passes AiGovernance first (feature on, permission, monthly budget, daily limit)
      * and is written to piv2.AiUsageLog with the model that answered, success or failure.
@@ -36,15 +39,17 @@ namespace ProInternal.Controllers
 
         private readonly AiGovernance _governance;
         private readonly PerplexityResearchService _perplexity;
+        private readonly ForecastService _forecast;
         private readonly IProDataAccess _db;
         private readonly IFileLibrary _files;
         private readonly ILogger<AiController> _log;
 
-        public AiController(AiGovernance governance, PerplexityResearchService perplexity, IProDataAccess db,
-                            IFileLibrary files, ILogger<AiController> log)
+        public AiController(AiGovernance governance, PerplexityResearchService perplexity, ForecastService forecast,
+                            IProDataAccess db, IFileLibrary files, ILogger<AiController> log)
         {
             _governance = governance;
             _perplexity = perplexity;
+            _forecast = forecast;
             _db = db;
             _files = files;
             _log = log;
@@ -153,6 +158,45 @@ namespace ProInternal.Controllers
                 Detail = topic,
                 Markdown = markdown
             };
+        }
+
+        // ------------------------------------------------------------ forecast
+
+        [HttpGet("products/{productId:int}/forecast")]
+        public ActionResult<ForecastView> Forecast(int productId)
+        {
+            if (!Permissions.HasAny(User, "AI.Forecast", AiGovernance.UsagePermission))
+                return StatusCode(403, new { message = "You need AI.Forecast in Security Admin." });
+            return _forecast.View(productId);
+        }
+
+        [HttpPost("products/{productId:int}/forecast")]
+        public async Task<ActionResult<ForecastRun>> RunForecast(int productId, [FromBody] ForecastRequest request, CancellationToken cancellationToken)
+        {
+            var gate = _governance.Check(User, "FORECAST");
+            if (!gate.Allowed)
+                return StatusCode(403, new { message = gate.Reason });
+
+            try
+            {
+                return await _forecast.RunAsync(User, productId, request?.Horizon ?? 6, gate.EstimatedCostUsd, cancellationToken);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _governance.Log(User, "FORECAST", null, productId, 1, null, false, "Forecast", Trim(ex.Message, 900));
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("forecast/accuracy")]
+        public ActionResult<List<ForecastAccuracyRow>> ForecastAccuracy([FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        {
+            if (!Permissions.HasAny(User, "AI.Forecast", AiGovernance.UsagePermission))
+                return StatusCode(403, new { message = "You need AI.Forecast in Security Admin." });
+            var end = to ?? DateTime.UtcNow.Date;
+            var start = from ?? end.AddMonths(-12);
+            if (end < start) (start, end) = (end, start);
+            return _db.Forecast_Accuracy(start, end);
         }
 
         // ------------------------------------------------------------ usage report

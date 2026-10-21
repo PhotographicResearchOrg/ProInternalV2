@@ -3296,6 +3296,39 @@ GetShopifyGovernanceIssues()
             return conn.QueryFirstOrDefault<AiModels.AiProductContext>("piv2.Ai_ProductContext",
                 new { ProductId = productId }, commandType: CommandType.StoredProcedure);
         }
+
+        public List<AiModels.SalesHistoryRow> Forecast_History(int productId, int months)
+        {
+            using var conn = GetConnection();
+            return conn.Query<AiModels.SalesHistoryRow>("piv2.Forecast_History",
+                new { ProductId = productId, Months = months }, commandType: CommandType.StoredProcedure, commandTimeout: 60).ToList();
+        }
+
+        public void Forecast_Save(long usageId, int productId, string rowsJson)
+        {
+            using var conn = GetConnection();
+            conn.Execute("piv2.Forecast_Save", new { UsageId = usageId, ProductId = productId, Rows = rowsJson },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        /* Runs and their months (with actuals). History is added by the caller. */
+        public AiModels.ForecastView Forecast_Runs(int productId)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.Forecast_Runs", new { ProductId = productId },
+                commandType: CommandType.StoredProcedure, commandTimeout: 60);
+            var runs = multi.Read<AiModels.ForecastRun>().ToList();
+            var points = multi.Read<AiModels.ForecastPoint>().ToList();
+            foreach (var r in runs) r.Points = points.Where(p => p.UsageId == r.UsageId).ToList();
+            return new AiModels.ForecastView { Runs = runs };
+        }
+
+        public List<AiModels.ForecastAccuracyRow> Forecast_Accuracy(DateTime from, DateTime to)
+        {
+            using var conn = GetConnection();
+            return conn.Query<AiModels.ForecastAccuracyRow>("piv2.Forecast_Accuracy",
+                new { From = from.Date, To = to.Date }, commandType: CommandType.StoredProcedure, commandTimeout: 120).ToList();
+        }
         #endregion
 
 

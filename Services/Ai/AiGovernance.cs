@@ -29,7 +29,7 @@ namespace ProInternal.Services.Ai
      *       "CategorySuggest":   { "Enabled": false },
      *       "ProductLookup":     { "Enabled": false },
      *       "CompetitorPricing": { "Enabled": false },
-     *       "Forecast":          { "Enabled": false }
+     *       "Forecast":          { "Enabled": true,  "Model": "PIV2 forecast + Claude on Bedrock", "EstimatedCostUsd": 0.01, "DailyLimitPerUser": 100 }
      *     }
      *   }
      * EstimatedCostUsd is per item (per product, per language). When a provider reports the real
@@ -49,7 +49,7 @@ namespace ProInternal.Services.Ai
             new Feature("CATEGORY_SUGGEST",   "CategorySuggest",   "AI.CategorySuggest",   "Category suggestions", "Bedrock",    "Claude on Bedrock",       0.01m, 500, false),
             new Feature("PRODUCT_LOOKUP",     "ProductLookup",     "AI.ProductLookup",     "Product lookup",       "Perplexity", "Perplexity Agent (fast)", 0.03m, 50,  false),
             new Feature("COMPETITOR_PRICING", "CompetitorPricing", "AI.CompetitorPricing", "Competitor pricing",   "DataForSEO", "Google Shopping",         0.05m, 50,  false),
-            new Feature("FORECAST",           "Forecast",          "AI.Forecast",          "Forecast",             "Chronos",    "Chronos-2 + Claude",      0.01m, 100, false)
+            new Feature("FORECAST",           "Forecast",          "AI.Forecast",          "Forecast",             "Bedrock",    "PIV2 forecast + Claude on Bedrock", 0.01m, 100, true)
         }.ToDictionary(f => f.Key, StringComparer.OrdinalIgnoreCase);
 
         private readonly IConfiguration _config;

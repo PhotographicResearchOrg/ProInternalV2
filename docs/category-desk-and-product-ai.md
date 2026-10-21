@@ -29,7 +29,7 @@ docs/category-desk-and-product-ai.docx                        design and decisio
 
 1. **Names are confirmed** against PRO: EGRP list `EDA.EGROUPS.EGROUPS`; a product's EGRP is `IVMSTData.E_GRP` (read in one view, `piv2.vProductEgrp`, which is the one line to change at cutover); brand from `dbo.Brand`; vendor from `dbo.VendorBrand` when it exists. `dbo.Product` (a synonym to a cache table) is not used.
    - `02`: the restore of a deleted category assumes `Category.ImageName` fits 400 characters and `Type` 100; adjust if the columns are larger.
-2. **SQL, in PRO:** run `01`, `02`, `03`, `04`, `05`. `01` builds the product view with vendors only if `dbo.VendorBrand` exists at that moment; if the Vendor Desk tables arrive later, run `01` again. In `05`, `@ProductRoute` is `/productedit`; change it if the Product Desk route has moved to `/products`.
+2. **SQL, in PRO:** run `01`, `02`, `03`, `04`, `05`, `06` (forecast; set `@AppUser` in its last block so the API can read the sales copy in PRO_NUKE). `01` builds the product view with vendors only if `dbo.VendorBrand` exists at that moment; if the Vendor Desk tables arrive later, run `01` again. In `05`, `@ProductRoute` is `/productedit`; change it if the Product Desk route has moved to `/products`.
 3. **Security Admin:**
    - **First:** give `AI.Translate` to the roles that translate today. Translate is behind it from this release, or the buttons disappear.
    - `Categories.View` / `Categories.Edit`, `AI.MarketResearch`, `AI.Usage` to the right roles. `PIV2_ADMIN` passes everything.
@@ -59,6 +59,7 @@ docs/category-desk-and-product-ai.docx                        design and decisio
 - EGRP categories (Category.EGRP set) sit at the top level or under a web group. Until `Product:SqlIsMaster` is true they are Computyme's: they can be renamed and regrouped, not merged away or emptied; products and the sub-categories inside an EGRP category stay inside it. EGRP categories never nest.
 - Product placement is written exactly as today (`TopCatId` / `CatId` / `SubCatId`); moving a category re-writes every product under it. Show/hide writes `IsActive` and `IsPublic` together.
 - Rules refused by the procedures come back as 400 with a plain message (50480–50499).
+- Forecast (Product Desk, `AI.Forecast`): monthly units for 3, 6 or 12 months, by country, from the nightly sales copy (`PRO_NUKE.piv2.MemberSalesMonth`). The numbers come from an engine built into the API that backtests several methods per product and keeps the most accurate ($0); Claude on Bedrock writes the buyer summary. Optional `Forecast:ChronosEndpointArn` sends the numbers to Chronos on Bedrock instead (billed by the hour while its endpoint runs). Every run is saved (`piv2.ProductForecast`) and scored against actual sales; accuracy report exports to Excel.
 - AI: every call checks permission, feature on, monthly budget and the user's daily limit, then logs who, model, cost and outcome to `piv2.AiUsageLog`. Market research answers are saved to the product with sources, model and cost.
 
 ## Checked here

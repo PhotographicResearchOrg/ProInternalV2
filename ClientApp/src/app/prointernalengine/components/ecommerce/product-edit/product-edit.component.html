@@ -1097,6 +1097,11 @@
         <app-product-ai [productId]="productId"></app-product-ai>
       </div>
 
+      <!-- ---------- Forecast ---------- -->
+      <div *ngIf="activeSection === 'forecast'" class="stack">
+        <app-product-forecast [productId]="productId"></app-product-forecast>
+      </div>
+
       <!-- ---------- Contract JSON ---------- -->
       <div *ngIf="activeSection === 'contract'" class="grid fit">
         <section class="card">

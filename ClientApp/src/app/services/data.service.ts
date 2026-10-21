@@ -60,7 +60,7 @@ import {
   CategoryFilters, CategoryProductPage, CategoryProductQuery, CategoryTree, PublishItem, PublishRequest,
   PublishResult, PublishSummary, RevertConflict
 } from 'src/app/models/category/category-desk.models';
-import { AiStatus, AiUsageRow, ResearchSnapshot } from 'src/app/models/ai/ai.models';
+import { AiStatus, AiUsageRow, ForecastAccuracyRow, ForecastRun, ForecastView, ResearchSnapshot } from 'src/app/models/ai/ai.models';
 
 
 @Injectable()
@@ -1177,6 +1177,15 @@ export class DataService {
   }
   aiUsage(from: string, to: string): Observable<AiUsageRow[]> {
     return this.api.get<AiUsageRow[]>(`${this.aiBase}/usage?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  }
+  aiForecast(productId: number): Observable<ForecastView> {
+    return this.api.get<ForecastView>(`${this.aiBase}/products/${productId}/forecast`);
+  }
+  aiForecastRun(productId: number, horizon: number): Observable<ForecastRun> {
+    return this.api.post<ForecastRun>(`${this.aiBase}/products/${productId}/forecast`, { horizon });
+  }
+  aiForecastAccuracy(from: string, to: string): Observable<ForecastAccuracyRow[]> {
+    return this.api.get<ForecastAccuracyRow[]>(`${this.aiBase}/forecast/accuracy?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
   }
   //endregion
 

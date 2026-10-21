@@ -117,6 +117,7 @@ import { AccessRulesComponent } from './prointernalengine/components/MemberManag
 import { CategoryDeskComponent } from './prointernalengine/components/ecommerce/category-desk/category-desk.component';
 import { CategoryPickerComponent } from './prointernalengine/components/ecommerce/category-picker/category-picker.component';
 import { ProductAiComponent } from './prointernalengine/components/ecommerce/product-ai/product-ai.component';
+import { ProductForecastComponent } from './prointernalengine/components/ecommerce/product-forecast/product-forecast.component';
 
 @NgModule({
   declarations:
@@ -126,6 +127,7 @@ import { ProductAiComponent } from './prointernalengine/components/ecommerce/pro
       CategoryDeskComponent,
       CategoryPickerComponent,
       ProductAiComponent,
+      ProductForecastComponent,
     OrdersComponent,
     EdiManagementComponent,
     FileAppComponent,

@@ -130,6 +130,7 @@ builder.Services.AddScoped<IFileLibrary, FileLibrary>();
 // Product AI: budget, limits and usage log for every AI feature; Perplexity market research.
 builder.Services.AddScoped<ProInternal.Services.Ai.AiGovernance>();
 builder.Services.AddScoped<ProInternal.Services.Ai.PerplexityResearchService>();
+builder.Services.AddScoped<ProInternal.Services.Ai.ForecastService>();
 
 
 // Phase 2: Rebate Desk (PRO_NUKE). The AI column mapper is one shared Bedrock client.

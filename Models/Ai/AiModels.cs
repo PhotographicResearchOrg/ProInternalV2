@@ -108,4 +108,67 @@ namespace ProInternal.Models.Ai
         public string Detail { get; set; }              // topic
         public string Markdown { get; set; }            // filled when one snapshot is opened
     }
+
+    /* ------------------------------------------------------------ forecast */
+
+    public class ForecastRequest
+    {
+        public int Horizon { get; set; } = 6;            // 3, 6 or 12 months
+    }
+
+    public class SalesHistoryRow
+    {
+        public string Country { get; set; }
+        public DateTime MonthStart { get; set; }
+        public decimal Units { get; set; }
+        public decimal Amount { get; set; }
+    }
+
+    public class ForecastPoint
+    {
+        public long UsageId { get; set; }
+        public string Country { get; set; }               // ISO country, or ALL
+        public DateTime MonthStart { get; set; }
+        public decimal Likely { get; set; }
+        public decimal Low { get; set; }
+        public decimal High { get; set; }
+        public string Method { get; set; }
+        public decimal? Actual { get; set; }              // once the month has ended
+    }
+
+    public class ForecastRun
+    {
+        public long UsageId { get; set; }
+        public DateTime CalledAt { get; set; }
+        public string UserName { get; set; }
+        public string Model { get; set; }
+        public decimal CostUsd { get; set; }
+        public bool CostIsEstimate { get; set; }
+        public string Question { get; set; }
+        public string Summary { get; set; }
+        public int Months { get; set; }
+        public List<ForecastPoint> Points { get; set; } = new();
+    }
+
+    public class ForecastView
+    {
+        public List<SalesHistoryRow> History { get; set; } = new();
+        public List<ForecastRun> Runs { get; set; } = new();
+    }
+
+    public class ForecastAccuracyRow
+    {
+        public long UsageId { get; set; }
+        public DateTime CalledAt { get; set; }
+        public string UserName { get; set; }
+        public string Model { get; set; }
+        public string ProductCode { get; set; }
+        public string ModelName { get; set; }
+        public string BrandName { get; set; }
+        public int MonthsScored { get; set; }
+        public decimal Forecast { get; set; }
+        public decimal Actual { get; set; }
+        public decimal? ErrorPct { get; set; }
+        public int MonthsInRange { get; set; }
+    }
 }

@@ -368,6 +368,10 @@ GetSellThroughExportData(
         List<AiModels.AiUsageRow> Ai_UsageReport(DateTime from, DateTime to);
         List<AiModels.ResearchSnapshot> Ai_ResearchList(int productId);
         AiModels.AiProductContext Ai_ProductContext(int productId);
+        List<AiModels.SalesHistoryRow> Forecast_History(int productId, int months);
+        void Forecast_Save(long usageId, int productId, string rowsJson);
+        AiModels.ForecastView Forecast_Runs(int productId);
+        List<AiModels.ForecastAccuracyRow> Forecast_Accuracy(DateTime from, DateTime to);
         #endregion
 
 
