@@ -330,6 +330,8 @@
           This product is switched off for sale on every channel.
         </div>
 
+        <app-product-assets [productId]="productId" [compact]="true" (openFull)="setSection('assets')"></app-product-assets>
+
         <section class="card" *ngIf="serverProblems.length">
           <header class="card-head">
             <span class="ci" [ngStyle]="{background: P.redSoft, color: P.red}"><i class="pi pi-times-circle"></i></span>

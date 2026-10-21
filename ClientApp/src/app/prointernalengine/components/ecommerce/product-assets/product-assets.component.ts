@@ -1,8 +1,10 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import * as XLSX from 'xlsx';
 import { DataService } from 'src/app/services/data.service';
 import { ProductAssetField, ProductAssetsView, ProductImageAsset, ProductShopifyChange } from 'src/app/models/Product/product-assets.models';
+
+export interface AssetFolder { name: string; count: number; icon: string; }
 
 /**
  * Product Desk · Shopify & assets (read only).
@@ -17,6 +19,9 @@ import { ProductAssetField, ProductAssetsView, ProductImageAsset, ProductShopify
 })
 export class ProductAssetsComponent implements OnChanges {
   @Input() productId: number | string = 0;
+  /** Compact: only the folder summary (for the product's Overview), with a link to the full section. */
+  @Input() compact = false;
+  @Output() openFull = new EventEmitter<void>();
 
   view: ProductAssetsView | null = null;
   loading = false;
@@ -41,6 +46,32 @@ export class ProductAssetsComponent implements OnChanges {
       error: (e: HttpErrorResponse) => { this.loading = false; this.error = e?.error?.message || 'Couldn\'t load Shopify and assets.'; }
     });
   }
+
+  // ------------------------------------------------------------ folder summary
+
+  /** What the product has, by folder: image sizes, document folders (from UploadFile's location), S3 files, videos. */
+  get folders(): AssetFolder[] {
+    const v = this.view;
+    if (!v) { return []; }
+    const out: AssetFolder[] = [];
+    const add = (name: string, count: number, icon: string) => { if (count > 0) { out.push({ name, count, icon }); } };
+    add('Product Image - Hi Res', v.images.filter(i => i.hasFull).length, 'pi pi-image');
+    add('Product Image - 250', v.images.filter(i => i.has250).length, 'pi pi-image');
+    add('Product Image - Lo Res', v.images.filter(i => i.has100).length, 'pi pi-image');
+    add('Images on the B2B site', v.images.filter(i => i.inProductImage).length, 'pi pi-globe');
+    const docFolders = new Map<string, number>();
+    v.documents.forEach(d => {
+      const parts = (d.fileLocation ?? '').split(/[\\/]/).filter(x => !!x);
+      const folder = parts.length ? parts[parts.length - 1] : 'Documents';
+      docFolders.set(folder, (docFolders.get(folder) ?? 0) + 1);
+    });
+    [...docFolders.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([n, c]) => add(n, c, 'pi pi-file-pdf'));
+    add('S3 files', v.files.length, 'pi pi-cloud');
+    add('Videos', this.otherFields.filter(f => /video|youtube/i.test(f.fieldName) && !!f.fieldValue).length, 'pi pi-video');
+    return out;
+  }
+
+  get assetTotal(): number { return this.folders.filter(f => f.name !== 'Images on the B2B site').reduce((a, f) => a + f.count, 0); }
 
   // ------------------------------------------------------------ Shopify
 

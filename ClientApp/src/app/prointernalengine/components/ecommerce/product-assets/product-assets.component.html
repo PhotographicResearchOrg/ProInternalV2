@@ -1,4 +1,4 @@
-<section class="card as-card">
+<section class="card as-card" *ngIf="!compact">
   <header class="as-head">
     <span class="ci"><i class="pi pi-images"></i></span>
     <div>
@@ -12,6 +12,12 @@
   <div class="error" *ngIf="error">{{ error }}</div>
 
   <ng-container *ngIf="view as v">
+    <!-- ================= What the product has, by folder ================= -->
+    <div class="folders" *ngIf="folders.length; else noAssets">
+      <span class="folder" *ngFor="let f of folders"><i [class]="f.icon"></i> {{ f.name }} <strong>{{ f.count }}</strong></span>
+    </div>
+    <ng-template #noAssets><div class="empty">No images, documents, files or videos for this product.</div></ng-template>
+
     <!-- ================= Shopify ================= -->
     <div class="block">
       <div class="block-head"><i class="pi pi-shopping-bag"></i> Shopify</div>
@@ -145,3 +151,23 @@
   <img [src]="imageUrl(bigImage)" [alt]="bigImage" />
   <span>{{ bigImage }} · click to close</span>
 </div>
+
+<!-- Compact: the folder summary only (product Overview) -->
+<section class="card as-card" *ngIf="compact">
+  <header class="as-head">
+    <span class="ci"><i class="pi pi-images"></i></span>
+    <div>
+      <h3>Assets <span class="hint" *ngIf="view">({{ assetTotal }})</span></h3>
+      <div class="hint">What's in this product's folders</div>
+    </div>
+    <button type="button" class="link right" (click)="openFull.emit()">See all <i class="pi pi-arrow-right"></i></button>
+  </header>
+  <div class="hint" *ngIf="loading"><i class="pi pi-spin pi-spinner"></i> Loading…</div>
+  <div class="error" *ngIf="error">{{ error }}</div>
+  <ng-container *ngIf="view">
+    <div class="folders" *ngIf="folders.length; else noAssetsC">
+      <span class="folder" *ngFor="let f of folders"><i [class]="f.icon"></i> {{ f.name }} <strong>{{ f.count }}</strong></span>
+    </div>
+    <ng-template #noAssetsC><div class="empty">No images, documents, files or videos for this product.</div></ng-template>
+  </ng-container>
+</section>

@@ -142,3 +142,24 @@
   img { max-width: 90vw; max-height: 80vh; background: #fff; border-radius: 8px; }
   span { color: #fff; font-size: 12px; }
 }
+
+.folders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.folder {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #dde1e7;
+  border-radius: 8px;
+  background: #fbfbfc;
+  font-size: 12.5px;
+
+  i { color: #0e7c73; }
+  strong { margin-left: 2px; color: #141c2b; }
+}
