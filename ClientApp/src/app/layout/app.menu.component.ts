@@ -130,9 +130,7 @@ export class AppMenuComponent implements OnInit {
       icon: 'pi pi-wrench',
       items: [
         can('/rebatedesk') && { label: 'Rebate Desk', icon: 'pi pi-percentage', routerLink: ['/rebatedesk'] },
-        can('/rebatesupport') && { label: '(IR) Maintenance', icon: 'pi pi-dollar', routerLink: ['/rebatesupport'] },
-        can('/rebatesetup') && { label: '(IR) Setup', icon: 'pi pi-wrench', routerLink: ['/rebatesetup'] },
-        can('/uploadrebates') && { label: '(IR) Batch Upload', icon: 'pi pi-database', routerLink: ['/uploadrebates'] }
+        can('/rebatesupport') && { label: '(IR) Maintenance', icon: 'pi pi-dollar', routerLink: ['/rebatesupport'] }
       ]
     });
 
