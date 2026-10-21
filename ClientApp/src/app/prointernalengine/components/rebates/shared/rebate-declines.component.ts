@@ -74,7 +74,15 @@ export class RebateDeclinesComponent implements OnInit, OnChanges {
   }
 
   /* In the window and the account filter. */
+  private winCache: { src: any[]; key: string; out: any[] } | null = null;
   get declinesInWindow(): any[] {
+    const wkey = `${this.declineMonths}|${(this.accountFilter || []).join(',')}`;
+    if (this.winCache && this.winCache.src === this.declines && this.winCache.key === wkey) return this.winCache.out;
+    this.winCache = { src: this.declines, key: wkey, out: this.buildWindow() };
+    return this.winCache.out;
+  }
+
+  private buildWindow(): any[] {
     const start = windowStart(this.declineMonths);
     const accounts = this.accountFilter && this.accountFilter.length ? new Set(this.accountFilter.map(a => String(a).trim())) : null;
     return this.declines.filter(d =>
@@ -82,7 +90,12 @@ export class RebateDeclinesComponent implements OnInit, OnChanges {
       (!accounts || accounts.has(String(d.memberID ?? '').trim())));
   }
 
-  declineCount(status: number): number { return this.declinesInWindow.filter(d => d.status === status).length; }
+  declineCount(status: number): number {
+    const w = this.declinesInWindow;
+    if (this.countCache?.src !== w) this.countCache = { src: w, s2: w.filter(d => d.status === 2).length, s3: w.filter(d => d.status === 3).length };
+    return status === 2 ? this.countCache.s2 : status === 3 ? this.countCache.s3 : w.filter(d => d.status === status).length;
+  }
+  private countCache: { src: any[]; s2: number; s3: number } | null = null;
 
   get declinesShown(): any[] {
     const q = this.declineQ.trim().toLowerCase();

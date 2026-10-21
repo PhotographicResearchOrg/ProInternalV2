@@ -78,7 +78,17 @@ export class RebateVendorsComponent implements OnChanges {
   }
 
   /* Vendors, or parent companies with their vendors' numbers added up. */
+  /* Worked out once per change, not on every screen check (grouping makes new rows each time otherwise). */
+  private shownCache: { key: string; src: any[]; out: any[] } | null = null;
   get shown(): any[] {
+    const key = `${this.onlyWithActivity}|${this.chip}|${this.q.trim().toLowerCase()}|${this.byParent}`;
+    if (this.shownCache && this.shownCache.src === this.vendors && this.shownCache.key === key) return this.shownCache.out;
+    const out = this.buildShown();
+    this.shownCache = { key, src: this.vendors, out };
+    return out;
+  }
+
+  private buildShown(): any[] {
     let list = this.vendors;
     if (this.onlyWithActivity)
       list = list.filter(v => v.programsLive || v.liability || v.pendingAmount || v.supportAmount || v.creditedAmount || v.productsActive);
@@ -108,7 +118,14 @@ export class RebateVendorsComponent implements OnChanges {
     return [...groups.values()].sort((a, b) => b.liability - a.liability);
   }
 
+  private totalsCache: { src: any[]; out: any } | null = null;
   get totals(): any {
+    if (this.totalsCache && this.totalsCache.src === this.vendors) return this.totalsCache.out;
+    this.totalsCache = { src: this.vendors, out: this.buildTotals() };
+    return this.totalsCache.out;
+  }
+
+  private buildTotals(): any {
     const t = { liability: 0, pendingAmount: 0, supportAmount: 0, creditedAmount: 0, reimbursedAmount: 0, proPadAmount: 0, programsLive: 0 };
     for (const v of this.vendors) for (const k of Object.keys(t)) (t as any)[k] += +v[k] || 0;
     return t;

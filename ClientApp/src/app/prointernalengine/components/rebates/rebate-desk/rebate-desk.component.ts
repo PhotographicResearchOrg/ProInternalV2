@@ -410,8 +410,13 @@ export class RebateDeskComponent implements OnInit, OnDestroy {
     return out;
   }
 
+  private tkCache: { src: any[]; out: any[] } | null = null;
   get tickable(): any[] {
-    return (this.view === 'purgatory' ? this.purgatoryShown : this.filteredRows).filter(r => r.status === 'PURGATORY' || r.status === 'READY' || !r.status);
+    const src = this.view === 'purgatory' ? this.purgatoryShown : this.filteredRows;
+    if (this.tkCache && this.tkCache.src === src) return this.tkCache.out;
+    const out = src.filter(r => r.status === 'PURGATORY' || r.status === 'READY' || !r.status);
+    this.tkCache = { src, out };
+    return out;
   }
 
   tickRow(r: any, on: boolean, e?: Event): void {
@@ -424,7 +429,14 @@ export class RebateDeskComponent implements OnInit, OnDestroy {
     this.picked = on ? new Set(this.tickable.map(r => r.rowId)) : new Set();
   }
 
-  get allTicked(): boolean { return this.tickable.length > 0 && this.tickable.every(r => this.picked.has(r.rowId)); }
+  private atCache: { src: any[]; picked: Set<number>; out: boolean } | null = null;
+  get allTicked(): boolean {
+    const src = this.tickable;
+    if (this.atCache && this.atCache.src === src && this.atCache.picked === this.picked) return this.atCache.out;
+    const out = src.length > 0 && src.every(r => this.picked.has(r.rowId));
+    this.atCache = { src, picked: this.picked, out };
+    return out;
+  }
 
   /* Ticked rows that overlap something (the only ones "Load anyway" applies to). */
   private poCache: { rows: any[]; picked: Set<number>; out: number[] } | null = null;
