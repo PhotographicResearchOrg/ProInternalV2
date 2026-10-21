@@ -3,6 +3,7 @@
     Database: PRO      Safe to run twice (CREATE OR ALTER).      Run after 01.
 
       piv2.CategoryDesk_ProductState()     per product: where it sits and what's wrong with it
+      piv2.CategoryDesk_FillState          the same for the whole catalog, built in steps (fast)
       piv2.CategoryDesk_Tree               the tree with product counts, queue counts, EGRPs not on the tree
       piv2.CategoryDesk_Products           product search and queues, with suggested categories
       piv2.CategoryDesk_Filters            brand and vendor lists for the search
@@ -72,6 +73,74 @@ OUTER APPLY (SELECT TOP (1) rp.NodeId
              WHERE p.ReplacementCode IS NOT NULL AND rp.ProductCode = p.ReplacementCode) r;
 GO
 
+/* The same as CategoryDesk_ProductState(), built in steps for the whole catalog: the tree (a recursive
+   view) and the product list are each read once into temp tables, then joined. As one inline query,
+   SQL Server can re-run the tree's recursion and the replacement lookup once per product.
+   The caller creates #state with the function's columns:
+       SELECT TOP (0) * INTO #state FROM piv2.CategoryDesk_ProductState();
+       EXEC piv2.CategoryDesk_FillState;                                                           */
+CREATE OR ALTER PROCEDURE piv2.CategoryDesk_FillState
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT CatId, Depth, TopId, EgrpNodeId, PathIds, PathNames, EffectiveVisible, EGRP
+    INTO #fs_tree
+    FROM piv2.vCategoryTree;
+    CREATE CLUSTERED INDEX IX_fs_tree ON #fs_tree (CatId);
+
+    SELECT EGRP, MIN(CatId) AS CatId
+    INTO #fs_egrp
+    FROM #fs_tree
+    WHERE Depth >= 1 AND EGRP IS NOT NULL
+    GROUP BY EGRP;
+
+    SELECT DISTINCT ParentCatId AS CatId
+    INTO #fs_parent
+    FROM dbo.Category
+    WHERE ParentCatId IS NOT NULL;
+
+    SELECT ProductId, ProductCode, ModelName, BrandId, BrandName, VendorId, VendorName, Egrp,
+           IsDiscontinued, IsForSale, IsPublic, ReplacementCode, EnterDate, NodeId
+    INTO #fs_prod
+    FROM piv2.vCategoryProduct;
+
+    SELECT ProductCode, MIN(NodeId) AS NodeId
+    INTO #fs_code
+    FROM #fs_prod
+    GROUP BY ProductCode;
+    CREATE CLUSTERED INDEX IX_fs_code ON #fs_code (ProductCode);
+
+    INSERT #state (ProductId, ProductCode, ModelName, BrandId, BrandName, VendorId, VendorName, Egrp,
+                   IsDiscontinued, IsForSale, IsPublic, ReplacementCode, EnterDate,
+                   NodeId, Depth, TopId, NodeEgrpId, PathIds, PathNames, EgrpNodeId, Problem)
+    SELECT
+        p.ProductId, p.ProductCode, p.ModelName, p.BrandId, p.BrandName, p.VendorId, p.VendorName, p.Egrp,
+        p.IsDiscontinued, p.IsForSale, p.IsPublic, p.ReplacementCode, p.EnterDate,
+        p.NodeId,
+        t.Depth,
+        t.TopId,
+        t.EgrpNodeId,
+        t.PathIds,
+        t.PathNames,
+        et.CatId,
+        CASE
+            WHEN p.NodeId = 0                                         THEN 'UNCATEGORIZED'
+            WHEN t.CatId IS NULL OR t.Depth = 0                       THEN 'MISSING'
+            WHEN p.IsDiscontinued = 0 AND t.EffectiveVisible = 0      THEN 'HIDDEN'
+            WHEN et.CatId IS NOT NULL AND ISNULL(t.EgrpNodeId, -1) <> et.CatId THEN 'EGRP_MISMATCH'
+            WHEN p.IsDiscontinued = 0 AND k.CatId IS NOT NULL         THEN 'ON_PARENT'
+            WHEN p.IsDiscontinued = 1 AND r.NodeId = 0                THEN 'REPLACEMENT_UNCATEGORIZED'
+            ELSE NULL
+        END
+    FROM #fs_prod p
+    LEFT JOIN #fs_tree t    ON t.CatId = p.NodeId
+    LEFT JOIN #fs_egrp et   ON et.EGRP = p.Egrp
+    LEFT JOIN #fs_parent k  ON k.CatId = p.NodeId
+    LEFT JOIN #fs_code r    ON p.ReplacementCode IS NOT NULL AND r.ProductCode = p.ReplacementCode;
+END
+GO
+
 /* ================================================================ tree */
 
 CREATE OR ALTER PROCEDURE piv2.CategoryDesk_Tree
@@ -79,7 +148,8 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT * INTO #state FROM piv2.CategoryDesk_ProductState();
+    SELECT TOP (0) * INTO #state FROM piv2.CategoryDesk_ProductState();
+    EXEC piv2.CategoryDesk_FillState;
 
     /* Counts roll up: a product counts for its node and every node above it. */
     SELECT CAST(a.value AS int) AS CatId,
@@ -167,7 +237,8 @@ BEGIN
     DECLARE @nodePath nvarchar(1000) = (SELECT PathIds FROM piv2.vCategoryTree WHERE CatId = @NodeId);
     DECLARE @like nvarchar(110) = N'%' + @Term + N'%';
 
-    SELECT * INTO #state FROM piv2.CategoryDesk_ProductState();
+    SELECT TOP (0) * INTO #state FROM piv2.CategoryDesk_ProductState();
+    EXEC piv2.CategoryDesk_FillState;
 
     SELECT s.*, COUNT(*) OVER () AS TotalCount
     INTO #page
@@ -273,15 +344,18 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT DISTINCT p.BrandId AS Id, p.BrandName AS Name
-    FROM piv2.vCategoryProduct p
-    WHERE p.BrandId IS NOT NULL AND p.BrandName <> N''
-    ORDER BY p.BrandName;
+    SELECT b.BrandId AS Id, LTRIM(RTRIM(b.BrandName)) AS Name
+    FROM dbo.Brand b
+    WHERE NULLIF(LTRIM(RTRIM(b.BrandName)), N'') IS NOT NULL
+      AND EXISTS (SELECT 1 FROM dbo.ProductData d WHERE d.BrandId = b.BrandId)
+    ORDER BY LTRIM(RTRIM(b.BrandName));
 
-    SELECT DISTINCT p.VendorId AS Id, p.VendorName AS Name
-    FROM piv2.vCategoryProduct p
+    SELECT p.VendorId AS Id, MIN(p.VendorName) AS Name
+    FROM (SELECT DISTINCT BrandId FROM dbo.ProductData WHERE BrandId IS NOT NULL) d
+    CROSS APPLY (SELECT TOP (1) cp.VendorId, cp.VendorName FROM piv2.vCategoryProduct cp WHERE cp.BrandId = d.BrandId) p
     WHERE p.VendorId IS NOT NULL AND p.VendorName IS NOT NULL
-    ORDER BY p.VendorName;
+    GROUP BY p.VendorId
+    ORDER BY MIN(p.VendorName);
 END
 GO
 

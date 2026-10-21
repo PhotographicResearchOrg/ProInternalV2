@@ -90,12 +90,37 @@ GO
    CUTOVER (Product Data – Ownership and Cutover, step 6): change this view to read PIV2_Product.EGRP.
    Nothing else in the desk changes. */
 
+/* IVMSTData is read once (grouped by ID) and matched to ProductCode converted to ID's own data type,
+   so SQL Server can hash-join it, or seek IVMSTData's index when one product is asked for.
+   Comparing two different types (for example a varchar ID to an int ProductCode) would make it
+   convert every IVMSTData row and scan it once per product. */
+DECLARE @idType sysname, @idLen smallint, @codeType sysname, @match nvarchar(400);
+SELECT @idType = TYPE_NAME(c.user_type_id), @idLen = c.max_length
+FROM sys.columns c WHERE c.object_id = OBJECT_ID(N'dbo.IVMSTData') AND c.name = N'ID';
+SELECT @codeType = TYPE_NAME(c.user_type_id)
+FROM sys.columns c WHERE c.object_id = OBJECT_ID(N'dbo.ProductData') AND c.name = N'ProductCode';
+
+SET @match =
+    CASE
+        WHEN @idType IS NULL OR @idType = @codeType THEN N'd.ProductCode'
+        WHEN @idType IN (N'varchar', N'char')
+            THEN N'CAST(d.ProductCode AS varchar(' + CASE WHEN @idLen = -1 THEN N'max' ELSE CAST(@idLen AS nvarchar(6)) END + N'))'
+        WHEN @idType IN (N'nvarchar', N'nchar')
+            THEN N'CAST(d.ProductCode AS nvarchar(' + CASE WHEN @idLen = -1 THEN N'max' ELSE CAST(@idLen / 2 AS nvarchar(6)) END + N'))'
+        ELSE N'TRY_CAST(d.ProductCode AS ' + @idType + N')'
+    END;
+
+DECLARE @egrpView nvarchar(max) = N'
 CREATE OR ALTER VIEW piv2.vProductEgrp
 AS
-SELECT d.Id AS ProductId,
-       TRY_CAST(NULLIF(LTRIM(RTRIM(i.E_GRP)), N'') AS int) AS Egrp
+SELECT d.Id AS ProductId, e.Egrp
 FROM dbo.ProductData d
-OUTER APPLY (SELECT TOP (1) x.E_GRP FROM dbo.IVMSTData x WHERE x.ID = d.ProductCode) i;
+LEFT JOIN (SELECT x.ID, MAX(TRY_CAST(NULLIF(LTRIM(RTRIM(x.E_GRP)), N'''') AS int)) AS Egrp
+           FROM dbo.IVMSTData x
+           GROUP BY x.ID) e
+       ON e.ID = ' + @match + N';';
+EXEC (@egrpView);
+PRINT N'vProductEgrp: IVMSTData.ID is ' + ISNULL(@idType, N'?') + N', ProductData.ProductCode is ' + ISNULL(@codeType, N'?') + N'; matched on ' + @match + N'.';
 GO
 
 /* ---------------------------------------------------------------- products, as the desk reads them
