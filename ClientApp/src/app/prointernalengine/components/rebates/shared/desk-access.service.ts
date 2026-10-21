@@ -28,22 +28,33 @@ export const VIEW_AREAS: Record<string, DeskArea | null> = {
 export class DeskAccessService {
   constructor(private auth: AuthService) {}
 
-  private names(): Set<string> {
+  /* The permission list is read from storage once and kept until it changes (the screen asks many times a second). */
+  private lastRaw: string | null | undefined = undefined;
+  private cached = new Set<string>();
+  private cachedByDrawer = false;
+  private cachedAdmin = false;
+
+  private refresh(): void {
+    let raw: string | null = null;
+    try { raw = localStorage.getItem('permissions'); } catch { raw = null; }
+    if (raw === this.lastRaw) return;
+    this.lastRaw = raw;
     const set = new Set<string>();
     for (const p of this.auth.getPermissions() || []) {
       const n = (p as any)?.permissionName ?? (p as any)?.PermissionName;
       if (typeof n === 'string') set.add(n.toLowerCase());
     }
-    return set;
+    this.cached = set;
+    this.cachedByDrawer = [...set].some(n => n.startsWith('rebatedesk.'));
+    try { this.cachedAdmin = this.auth.hasRole('PIV2_ADMIN'); } catch { this.cachedAdmin = false; }
   }
 
-  private get admin(): boolean { try { return this.auth.hasRole('PIV2_ADMIN'); } catch { return false; } }
+  private names(): Set<string> { this.refresh(); return this.cached; }
+
+  private get admin(): boolean { this.refresh(); return this.cachedAdmin; }
 
   /* True once the user has been given any drawer permission (then drawers are checked one by one). */
-  get byDrawer(): boolean {
-    for (const n of this.names()) if (n.startsWith('rebatedesk.')) return true;
-    return false;
-  }
+  get byDrawer(): boolean { this.refresh(); return this.cachedByDrawer; }
 
   canView(area: DeskArea | null): boolean {
     if (!area || this.admin || !this.byDrawer) return true;
