@@ -1,6 +1,6 @@
 /* Product AI models. API: AiController (api/ai). */
 
-export type AiFeatureKey = 'MARKET_RESEARCH' | 'TRANSLATE' | 'CATEGORY_SUGGEST' | 'PRODUCT_LOOKUP' | 'COMPETITOR_PRICING' | 'FORECAST';
+export type AiFeatureKey = 'MARKET_RESEARCH' | 'TRANSLATE' | 'FORECAST' | 'PRODUCT_LOOKUP' | 'COMPETITOR_PRICING';
 
 export interface AiGate {
   feature: AiFeatureKey;

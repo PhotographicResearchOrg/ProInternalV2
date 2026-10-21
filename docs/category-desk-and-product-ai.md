@@ -11,7 +11,7 @@ sql/category-desk/
   02-category-desk-procedures.sql    tree, products + queues + suggestions, filters, publish, revert, history
   03-category-desk-permissions.sql   Categories.View, Categories.Edit
   04-ai-governance.sql               piv2.AiUsageLog + budget / limit / report / research procedures
-  05-ai-permissions.sql              AI.MarketResearch, AI.Translate, AI.Usage (+ 4 for the next package)
+  05-ai-permissions.sql              AI.MarketResearch, AI.Translate, AI.Forecast, AI.Usage (+ 2 for the next package)
 Controllers/CategoryDeskController.cs, Controllers/AiController.cs
 Models/CategoryDesk/, Models/Ai/
 Services/Ai/AiGovernance.cs, Services/Ai/PerplexityResearchService.cs

@@ -26,7 +26,7 @@ BEGIN
         UsageId     bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_AiUsageLog PRIMARY KEY,
         CalledAt    datetime2(0)   NOT NULL CONSTRAINT DF_AiUsageLog_At DEFAULT SYSUTCDATETIME(),
         UserName    nvarchar(128)  NOT NULL,
-        Feature     varchar(30)    NOT NULL,     -- MARKET_RESEARCH | TRANSLATE | CATEGORY_SUGGEST | PRODUCT_LOOKUP | COMPETITOR_PRICING | FORECAST
+        Feature     varchar(30)    NOT NULL,     -- MARKET_RESEARCH | TRANSLATE | FORECAST | PRODUCT_LOOKUP | COMPETITOR_PRICING
         Provider    varchar(30)    NOT NULL,     -- Perplexity | Bedrock | DataForSEO | PIV2
         Model       nvarchar(120)  NOT NULL,     -- exactly what answered, shown on every result
         ProductId   int            NULL,

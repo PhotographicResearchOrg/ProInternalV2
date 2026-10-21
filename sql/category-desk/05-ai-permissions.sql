@@ -8,7 +8,6 @@
 
       AI.MarketResearch     Market research on a product (Perplexity); every answer is saved to the product
       AI.Translate          The Translate buttons on the Product Desk (Bedrock)
-      AI.CategorySuggest    AI category suggestions on the Category Desk queues      (next package)
       AI.ProductLookup      Description, images and UPC lookup on a product          (next package)
       AI.CompetitorPricing  Competitor prices on a product (DataForSEO)              (next package)
       AI.Forecast           Sales forecast on a product, and the forecast accuracy report
@@ -29,7 +28,6 @@ DECLARE @want TABLE (Name nvarchar(200) NOT NULL PRIMARY KEY, Description nvarch
 INSERT @want (Name, Description, RoutePath) VALUES
     (N'AI.MarketResearch',    N'AI · Market research on a product (Perplexity); answers saved to the product', @ProductRoute),
     (N'AI.Translate',         N'AI · Translate product content (Bedrock)', @ProductRoute),
-    (N'AI.CategorySuggest',   N'AI · Category suggestions on the Category Desk queues', N'/categories'),
     (N'AI.ProductLookup',     N'AI · Description, images and UPC lookup on a product', @ProductRoute),
     (N'AI.CompetitorPricing', N'AI · Competitor prices on a product (DataForSEO)', @ProductRoute),
     (N'AI.Forecast',          N'AI · Sales forecast on a product', @ProductRoute),
