@@ -424,8 +424,43 @@ export class ProductSheetComponent implements OnInit, OnChanges {
   setOnlyFilled(v: boolean): void { this.layout.onlyFilled = v; this.saveLayout(); }
 
   resetLayout(): void {
-    this.layout = { hiddenGroups: [], hiddenFields: [], groupOrder: [], onlyFilled: false };
+    this.layout = { hiddenGroups: [], hiddenFields: [], groupOrder: [], onlyFilled: false, views: this.layout.views ?? [], current: null };
     this.saveLayout();
+  }
+
+  // ---- named views: save the current layout under a name, switch between them
+
+  get views(): { name: string }[] { return this.layout.views ?? []; }
+
+  saveViewAs(): void {
+    const name = (prompt('Name this view (for example Pricing, Web content, Buyer):', this.layout.current ?? '') ?? '').trim();
+    if (!name) { return; }
+    const snap = {
+      name, hiddenGroups: [...this.layout.hiddenGroups], hiddenFields: [...this.layout.hiddenFields],
+      groupOrder: [...this.layout.groupOrder], onlyFilled: this.layout.onlyFilled
+    };
+    const others = (this.layout.views ?? []).filter(v => v.name.toLowerCase() !== name.toLowerCase());
+    this.layout.views = [...others, snap].sort((a, b) => a.name.localeCompare(b.name));
+    this.layout.current = name;
+    this.saveLayout();
+  }
+
+  useView(name: string): void {
+    const v = (this.layout.views ?? []).find(x => x.name === name);
+    if (!v) {          // "All fields": everything, in the standard order
+      this.layout = { ...this.layout, hiddenGroups: [], hiddenFields: [], groupOrder: [], onlyFilled: false, current: null };
+    } else {
+      this.layout = { ...this.layout, hiddenGroups: [...v.hiddenGroups], hiddenFields: [...v.hiddenFields],
+                      groupOrder: [...v.groupOrder], onlyFilled: v.onlyFilled, current: v.name };
+    }
+    this.saveLayout();
+  }
+
+  deleteView(): void {
+    const name = this.layout.current;
+    if (!name || !confirm(`Delete the view "${name}"?`)) { return; }
+    this.layout.views = (this.layout.views ?? []).filter(v => v.name !== name);
+    this.useView('');
   }
 
   private layoutTimer: any;

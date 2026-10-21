@@ -5,6 +5,10 @@
       <span class="hint">Every attribute of this product on one page. <i class="pi pi-lock"></i> fields are read only, and hovering shows why.</span>
     </div>
     <div class="tools">
+      <select class="viewpick" [ngModel]="layout.current ?? ''" (ngModelChange)="useView($event)" title="Your saved views">
+        <option value="">All fields</option>
+        <option *ngFor="let v of views" [value]="v.name">{{ v.name }}</option>
+      </select>
       <span class="search"><i class="pi pi-search"></i><input type="text" [(ngModel)]="search" placeholder="Find a field or value" /></span>
       <button type="button" class="tbtn" [class.on]="showLayout" (click)="showLayout = !showLayout"><i class="pi pi-sliders-h"></i> Fields</button>
       <button type="button" class="tbtn" [class.on]="showHistory" (click)="showHistory = !showHistory"><i class="pi pi-history"></i> Changes</button>
@@ -25,8 +29,10 @@
   <div class="layout" *ngIf="showLayout">
     <div class="layout-top">
       <label class="chk"><input type="checkbox" [ngModel]="layout.onlyFilled" (ngModelChange)="setOnlyFilled($event)" /> Only fields that have a value</label>
+      <button type="button" class="link" (click)="saveViewAs()"><i class="pi pi-save"></i> Save as a view</button>
+      <button type="button" class="link" *ngIf="layout.current" (click)="deleteView()">Delete "{{ layout.current }}"</button>
       <button type="button" class="link" (click)="resetLayout()">Show everything again</button>
-      <span class="hint">Your layout is saved for you, on any computer.</span>
+      <span class="hint">Changes here apply now and are saved for you on any computer. Save as a view to keep this layout under a name and switch back to it.</span>
     </div>
     <div class="layout-groups">
       <div class="lg" *ngFor="let g of allGroupNames; let i = index">

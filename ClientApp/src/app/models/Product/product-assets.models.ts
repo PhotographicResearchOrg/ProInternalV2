@@ -106,4 +106,7 @@ export interface ProductSheetLayout {
   hiddenFields: string[];
   groupOrder: string[];
   onlyFilled: boolean;
+  /** Named layouts the person saved ("Pricing", "Web content"...), and which one is in use. */
+  views?: { name: string; hiddenGroups: string[]; hiddenFields: string[]; groupOrder: string[]; onlyFilled: boolean }[];
+  current?: string | null;
 }
