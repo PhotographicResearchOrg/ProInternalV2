@@ -26,6 +26,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using static ProInternal.Controllers.AuthController;
 using MemberDesk = ProInternal.Models.Member;
+using CategoryDesk = ProInternal.Models.CategoryDesk;
+using AiModels = ProInternal.Models.Ai;
 
 namespace ProInternal.Services
 {
@@ -345,6 +347,29 @@ GetSellThroughExportData(
         List<Dictionary<string, object>> AccessRule_ExportMembers();
         List<MemberDesk.ProductLookupItem> Product_Lookup(string term);
         #endregion
+
+        #region Category Desk
+        // piv2.CategoryDesk_* procedures. Business rules refused by Publish come back as SqlException 50480-50499.
+        CategoryDesk.CategoryTree CategoryDesk_Tree(bool sqlIsMaster);
+        CategoryDesk.CategoryProductPage CategoryDesk_Products(CategoryDesk.CategoryProductQuery query);
+        CategoryDesk.CategoryFilters CategoryDesk_Filters();
+        CategoryDesk.PublishResult CategoryDesk_Publish(string changesJson, string comment, int? baseVersion, bool sqlIsMaster, string user);
+        List<CategoryDesk.PublishSummary> CategoryDesk_History();
+        List<CategoryDesk.PublishItem> CategoryDesk_PublishDetail(int publishId);
+        List<CategoryDesk.RevertConflict> CategoryDesk_RevertCheck(int publishId);
+        CategoryDesk.PublishResult CategoryDesk_Revert(int publishId, bool skipConflicts, bool sqlIsMaster, string user);
+        #endregion
+
+        #region Product AI
+        // piv2.Ai_* procedures: usage log, budget and limits, saved market research.
+        AiModels.AiUsageCheck Ai_UsageCheck(string feature, string user);
+        long Ai_UsageLog(string user, string feature, string provider, string model, int? productId, int items,
+                         decimal costUsd, bool costIsEstimate, string status, string question, string detail, long? fileId);
+        List<AiModels.AiUsageRow> Ai_UsageReport(DateTime from, DateTime to);
+        List<AiModels.ResearchSnapshot> Ai_ResearchList(int productId);
+        AiModels.AiProductContext Ai_ProductContext(int productId);
+        #endregion
+
 
 
 

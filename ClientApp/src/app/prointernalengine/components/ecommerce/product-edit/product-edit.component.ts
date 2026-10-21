@@ -24,6 +24,7 @@ import {
   Component, ElementRef, HostListener, Input, OnChanges, OnDestroy, OnInit, Optional, SimpleChanges, ViewChild
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { DataService } from 'src/app/services/data.service';
 import { Observable, Subject, Subscription, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map, switchMap, takeUntil, tap } from 'rxjs/operators';
 import {
@@ -227,9 +228,13 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
     { id: 'logistics', label: 'Size & Customs', icon: 'pi pi-box' },
     { id: 'content', label: 'Content & Languages', icon: 'pi pi-globe' },
     { id: 'categories', label: 'Categories', icon: 'pi pi-sitemap' },
+    { id: 'research', label: 'Market research', icon: 'pi pi-search-plus' },
     { id: 'contract', label: 'Contract JSON', icon: 'pi pi-code' }
   ];
   activeSection = 'overview';
+
+  /* AI.Translate, the AI budget and the daily limit decide whether the Translate buttons show. */
+  canTranslate = false;
 
   readonly statuses: { value: ProductStatus; label: string }[] = [
     { value: 'ACTIVE', label: 'Active' },
@@ -346,11 +351,17 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
 
   constructor(
     private products: ProductContractService,
+    private data: DataService,
     @Optional() private route: ActivatedRoute | null,
     @Optional() public router: Router | null
   ) { }
 
   ngOnInit(): void {
+    this.data.aiStatus().subscribe({
+      next: s => (this.canTranslate = !!s.features.find(f => f.feature === 'TRANSLATE')?.allowed),
+      error: () => (this.canTranslate = false)
+    });
+
     this.products.getBrands().subscribe({
       next: brands => (this.brandOptions = brands ?? []),
       error: error => console.error('Unable to load brands.', error)

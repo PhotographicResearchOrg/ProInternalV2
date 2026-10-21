@@ -38,6 +38,7 @@ import { VendorCustomFieldsComponent } from './prointernalengine/components/Memb
 import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component';
 import { OrdersComponent } from './prointernalengine/components/dashboards/Orders/orders.component';
 import { EdiManagementComponent } from './prointernalengine/components/dashboards/Orders/edi-management/edi-management.component';
+import { CategoryDeskComponent } from './prointernalengine/components/ecommerce/category-desk/category-desk.component';
 import { MemberDeskComponent } from './prointernalengine/components/MemberManagement/member-desk/member-desk.component';
 import { AccessRulesComponent } from './prointernalengine/components/MemberManagement/member-desk/access-rules.component';
 
@@ -80,6 +81,7 @@ const routes: Routes = [
       { path: 'exclusion/group/company', component: ExclusionGroupCompanyComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Company Exclusion Groups' } },
       { path: 'accountmanagement', component: AccountManagementComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Account Management' } },
 
+      { path: 'categories', component: CategoryDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Category Desk' } },
       { path: 'members', component: MemberDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Member Desk' } },
       { path: 'integration', component: IntegrationDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Integration' } },
       { path: 'rebatedesk', component: RebateDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Rebate Desk' } },

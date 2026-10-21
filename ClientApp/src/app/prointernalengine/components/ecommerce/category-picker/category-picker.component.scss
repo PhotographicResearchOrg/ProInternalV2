@@ -1,0 +1,75 @@
+:host { display: block; }
+
+.picker { font-size: 13px; }
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  .crumb { font-weight: 600; }
+  .crumb.top { color: #5b6472; }
+  .sep { color: #929cab; font-size: 11px; }
+}
+
+.computyme-chip {
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #b8720c;
+  background: #fbf0dd;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hidden-note { color: #c53d3d; font-size: 11.5px; font-weight: 600; }
+.none, .faint { color: #929cab; }
+.note { margin-top: 8px; color: #5b6472; font-size: 12px; }
+
+.actions { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+
+.pk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid #dde1e7;
+  border-radius: 8px;
+  background: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pk-link { background: none; border: 0; padding: 0; color: #0e7c73; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; }
+
+.chooser {
+  margin-top: 10px;
+
+  input { width: 100%; height: 34px; padding: 4px 10px; border: 1px solid #dde1e7; border-radius: 8px; font: inherit; }
+
+  .options {
+    max-height: 260px;
+    overflow: auto;
+    margin: 8px 0;
+    border: 1px solid #dde1e7;
+    border-radius: 8px;
+
+    button {
+      display: block;
+      width: 100%;
+      padding: 7px 10px;
+      border: 0;
+      border-bottom: 1px solid #eef0f3;
+      background: #ffffff;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+
+      &:hover:not(:disabled) { background: #e2f2f0; }
+      &.current { font-weight: 700; color: #0a665f; }
+    }
+  }
+}
+
+.error { margin-top: 8px; color: #c53d3d; font-weight: 600; }

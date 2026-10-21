@@ -114,12 +114,18 @@ import { OrdersComponent } from './prointernalengine/components/dashboards/Order
 import { EdiManagementComponent } from './prointernalengine/components/dashboards/Orders/edi-management/edi-management.component';
 import { MemberDeskComponent } from './prointernalengine/components/MemberManagement/member-desk/member-desk.component';
 import { AccessRulesComponent } from './prointernalengine/components/MemberManagement/member-desk/access-rules.component';
+import { CategoryDeskComponent } from './prointernalengine/components/ecommerce/category-desk/category-desk.component';
+import { CategoryPickerComponent } from './prointernalengine/components/ecommerce/category-picker/category-picker.component';
+import { ProductAiComponent } from './prointernalengine/components/ecommerce/product-ai/product-ai.component';
 
 @NgModule({
   declarations:
     [
       MemberDeskComponent,
       AccessRulesComponent,
+      CategoryDeskComponent,
+      CategoryPickerComponent,
+      ProductAiComponent,
     OrdersComponent,
     EdiManagementComponent,
     FileAppComponent,

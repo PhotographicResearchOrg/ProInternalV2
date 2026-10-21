@@ -56,6 +56,12 @@ import {
   VendorFileApi, VendorFileCategory, CreateVendorRequest
 } from 'src/app/models/vendor/vendor-card.model';
 import { AccessRule, AccessRuleMember, MemberDetail, MemberListItem } from 'src/app/models/member/member-desk.models';
+import {
+  CategoryFilters, CategoryProductPage, CategoryProductQuery, CategoryTree, PublishItem, PublishRequest,
+  PublishResult, PublishSummary, RevertConflict
+} from 'src/app/models/category/category-desk.models';
+import { AiStatus, AiUsageRow, ResearchSnapshot } from 'src/app/models/ai/ai.models';
+
 
 @Injectable()
 export class DataService {
@@ -1120,6 +1126,59 @@ export class DataService {
     return this.api.get<{ productCode: string; modelName: string; brandName: string }[]>(`${this.memberBase}/products?term=${encodeURIComponent(term)}`);
   }
   //endregion Member Desk
+
+  //region Category Desk  (API: CategoryDeskController, api/categorydesk)
+  private readonly categoryBase = 'API/CategoryDesk';
+
+  categoryTree(): Observable<CategoryTree> {
+    return this.api.get<CategoryTree>(`${this.categoryBase}/tree`);
+  }
+  categoryFilters(): Observable<CategoryFilters> {
+    return this.api.get<CategoryFilters>(`${this.categoryBase}/filters`);
+  }
+  categoryProducts(query: CategoryProductQuery): Observable<CategoryProductPage> {
+    const params = Object.entries(query)
+      .filter(([, v]) => v !== null && v !== undefined && v !== '')
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join('&');
+    return this.api.get<CategoryProductPage>(`${this.categoryBase}/products${params ? '?' + params : ''}`);
+  }
+  categoryPublish(body: PublishRequest): Observable<PublishResult> {
+    return this.api.post<PublishResult>(`${this.categoryBase}/publish`, body);
+  }
+  categoryHistory(): Observable<PublishSummary[]> {
+    return this.api.get<PublishSummary[]>(`${this.categoryBase}/history`);
+  }
+  categoryPublishDetail(publishId: number): Observable<PublishItem[]> {
+    return this.api.get<PublishItem[]>(`${this.categoryBase}/history/${publishId}`);
+  }
+  categoryRevertCheck(publishId: number): Observable<RevertConflict[]> {
+    return this.api.get<RevertConflict[]>(`${this.categoryBase}/history/${publishId}/revert-check`);
+  }
+  categoryRevert(publishId: number, skipConflicts: boolean): Observable<PublishResult> {
+    return this.api.post<PublishResult>(`${this.categoryBase}/history/${publishId}/revert`, { skipConflicts });
+  }
+  //endregion
+
+  //region Product AI  (API: AiController, api/ai)
+  private readonly aiBase = 'API/Ai';
+
+  aiStatus(): Observable<AiStatus> {
+    return this.api.get<AiStatus>(`${this.aiBase}/status`);
+  }
+  aiResearchList(productId: number): Observable<ResearchSnapshot[]> {
+    return this.api.get<ResearchSnapshot[]>(`${this.aiBase}/products/${productId}/research`);
+  }
+  aiResearchGet(productId: number, fileId: number): Observable<ResearchSnapshot> {
+    return this.api.get<ResearchSnapshot>(`${this.aiBase}/products/${productId}/research/${fileId}`);
+  }
+  aiResearch(productId: number, body: { question?: string | null; topic?: string | null }): Observable<ResearchSnapshot> {
+    return this.api.post<ResearchSnapshot>(`${this.aiBase}/products/${productId}/research`, body);
+  }
+  aiUsage(from: string, to: string): Observable<AiUsageRow[]> {
+    return this.api.get<AiUsageRow[]>(`${this.aiBase}/usage?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  }
+  //endregion
 
 
 

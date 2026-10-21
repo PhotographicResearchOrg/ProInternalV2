@@ -938,7 +938,7 @@
           <header class="card-head">
             <span class="ci" [ngStyle]="{background: P.blueSoft, color: P.blue}"><i class="pi pi-globe"></i></span><h3>Languages</h3>
             <div class="act addrow">
-              <button type="button" class="btn-ai" *ngIf="missingMarketLocales.length"
+              <button type="button" class="btn-ai" *ngIf="canTranslate && missingMarketLocales.length"
                       [disabled]="isTranslating() || !defaultContent?.name"
                       [title]="'AI-translate from ' + localeLabel(content.defaultLocale) + ' into: ' + missingMarketLabels"
                       (click)="translateMissing()">
@@ -970,7 +970,7 @@
                 <span><b>Default language</b><span class="hint">Shown when the reader's own is missing. Translations are made from it.</span></span>
               </label>
               <div class="langactions">
-                <button type="button" class="btn-ai" *ngIf="lang !== defaultContent"
+                <button type="button" class="btn-ai" *ngIf="canTranslate && lang !== defaultContent"
                         [disabled]="isTranslating() || !defaultContent?.name"
                         (click)="translateLocale(lang)">
                   <i class="pi" [class.pi-bolt]="!isTranslating(lang.locale)" [class.pi-spin]="isTranslating(lang.locale)" [class.pi-spinner]="isTranslating(lang.locale)"></i>
@@ -1087,16 +1087,14 @@
         <section class="card">
           <header class="card-head"><span class="ci"><i class="pi pi-sitemap"></i></span><h3>Categories</h3></header>
           <div class="card-body">
-            <div class="field" *ngFor="let id of page?.categoryPath || []; let i = index">
-              <span class="k">{{ ['Top category', 'Category', 'Sub-category'][i] || 'Category' }}</span>
-              <span class="v mono">{{ id }}</span>
-            </div>
-            <div class="cf-empty" *ngIf="!(page?.categoryPath || []).length">Not in any category.</div>
+            <app-category-picker [productId]="productId" [categoryPath]="page.categoryPath || []" (changed)="load(true)"></app-category-picker>
           </div>
         </section>
-        <div class="note">
-          Read from the product's current category today. Choosing categories here, by name and in several languages, waits for the category table and its contract.
-        </div>
+      </div>
+
+      <!-- ---------- Market research ---------- -->
+      <div *ngIf="activeSection === 'research'" class="stack">
+        <app-product-ai [productId]="productId"></app-product-ai>
       </div>
 
       <!-- ---------- Contract JSON ---------- -->

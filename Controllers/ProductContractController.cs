@@ -1,3 +1,5 @@
+using ProInternal.Helpers.Security;
+using ProInternal.Services.Ai;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -103,11 +105,13 @@ namespace ProInternal.Controllers
          * Translates one language's content into others with Bedrock.
          * Nothing is saved: the page shows the result marked "AI, not
          * reviewed", and the normal save stores it.
+         * Needs AI.Translate, and counts against the AI budget and daily limit.
          */
         [HttpPost("{productId:int}/contract/translate")]
         public async Task<ActionResult<ProductTranslateResult>> Translate(
             int productId,
             [FromBody] ProductTranslateRequest request,
+            [FromServices] AiGovernance governance,
             CancellationToken cancellationToken)
         {
             if (request.Source is null || request.Targets.Count == 0)
@@ -116,12 +120,21 @@ namespace ProInternal.Controllers
             if (string.IsNullOrWhiteSpace(Str(request.Source["name"])))
                 return BadRequest("The source language needs a name before it can be translated.");
 
+            var gate = governance.Check(User, "TRANSLATE", request.Targets.Count);
+            if (!gate.Allowed)
+                return StatusCode(403, gate.Reason);
+
             /* Every brand name is protected, not only this product's: descriptions mention others. */
             var brands = await _products.GetBrandsAsync(cancellationToken);
             request.DoNotTranslate.AddRange(brands.Select(b => b.Name ?? "").Where(n => n.Length > 1));
             request.DoNotTranslate.Add("ProMaster");
 
             var result = await Translator.TranslateAsync(request, cancellationToken);
+
+            governance.Log(User, "TRANSLATE", result.Model, productId, Math.Max(1, result.Results.Count), null,
+                result.Results.Count > 0,
+                "Translate " + request.SourceLocale + " into " + string.Join(", ", request.Targets),
+                result.Failures.Count > 0 ? "Failed: " + string.Join("; ", result.Failures.Select(f => f.Locale + " " + f.Message)) : null);
 
             /* Every language failed the same way (e.g. no permission): say so plainly. */
             if (result.Results.Count == 0 && result.Failures.Count > 0)

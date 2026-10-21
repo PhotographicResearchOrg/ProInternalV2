@@ -1,0 +1,35 @@
+<div class="picker">
+  <div class="faint" *ngIf="loading"><i class="pi pi-spin pi-spinner"></i> Loading categories…</div>
+
+  <ng-container *ngIf="!loading">
+    <div class="crumbs" *ngIf="node; else none">
+      <ng-container *ngFor="let c of crumbs; let i = index; let last = last">
+        <span class="crumb" [class.top]="i === 0">{{ c }}</span>
+        <span class="computyme-chip" *ngIf="i === 0 && !sqlIsMaster">Computyme EGRP {{ top?.egrp }}</span>
+        <i class="pi pi-angle-right sep" *ngIf="!last"></i>
+      </ng-container>
+      <span class="hidden-note" *ngIf="!node.effectiveVisible">Hidden on B2B</span>
+    </div>
+    <ng-template #none><div class="none">Not in any category.</div></ng-template>
+
+    <div class="note" *ngIf="!sqlIsMaster">
+      The top level follows the product's Computyme EGRP and is changed in Computyme. You can move it anywhere inside that branch here.
+    </div>
+
+    <div class="actions">
+      <button type="button" class="pk-btn" *ngIf="canEdit && !picking" (click)="picking = true"><i class="pi pi-pencil"></i>Change category</button>
+      <a class="pk-link" routerLink="/categories">Open the Category Desk</a>
+    </div>
+
+    <div class="chooser" *ngIf="picking">
+      <input type="text" [(ngModel)]="search" placeholder="Find a category" />
+      <div class="options">
+        <button type="button" *ngFor="let n of options" [class.current]="n.catId === nodeId" [disabled]="saving" (click)="pick(n)">{{ n.pathNames }}</button>
+        <div class="none" *ngIf="!options.length">No category matches.</div>
+      </div>
+      <button type="button" class="pk-link" (click)="picking = false">Cancel</button>
+    </div>
+
+    <div class="error" *ngIf="error">{{ error }}</div>
+  </ng-container>
+</div>

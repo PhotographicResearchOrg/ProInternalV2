@@ -127,6 +127,11 @@ builder.Services.AddSingleton<IntegrationDispatcher>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<IntegrationDispatcher>());
 builder.Services.AddScoped<IFileLibrary, FileLibrary>();
 
+// Product AI: budget, limits and usage log for every AI feature; Perplexity market research.
+builder.Services.AddScoped<ProInternal.Services.Ai.AiGovernance>();
+builder.Services.AddScoped<ProInternal.Services.Ai.PerplexityResearchService>();
+
+
 // Phase 2: Rebate Desk (PRO_NUKE). The AI column mapper is one shared Bedrock client.
 builder.Services.AddScoped<ProInternal.Services.Rebates.IRebateDeskDataAccess, ProInternal.Services.Rebates.RebateDeskDataAccess>();
 builder.Services.AddSingleton<ProInternal.Services.Rebates.IRebateAiMapper, ProInternal.Services.Rebates.BedrockRebateMapper>();

@@ -1,0 +1,77 @@
+<section class="card ai-card">
+  <header class="ai-head">
+    <span class="ci"><i class="pi pi-search-plus"></i></span>
+    <div>
+      <h3>Market research</h3>
+      <div class="hint">Asks the web about this product. Every answer is saved here with its sources, the model, the cost, who asked and when.</div>
+    </div>
+  </header>
+
+  <div class="ai-off" *ngIf="status && gate && !gate.allowed && !research.length">
+    <i class="pi pi-lock"></i> {{ gate.reason }}
+  </div>
+
+  <ng-container *ngIf="gate?.allowed">
+    <div class="stamp">
+      <span><i class="pi pi-bolt"></i> {{ gate?.model }}</span>
+      <span>about ${{ gate?.estimatedCostUsd | number: '1.2-2' }} a question</span>
+      <span>{{ gate?.userTodayCalls }} of {{ gate?.dailyLimit }} today</span>
+    </div>
+    <div class="budget" *ngIf="status">
+      <div class="bar"><span [style.width.%]="budgetPct" [class.high]="budgetPct >= 80"></span></div>
+      <span class="hint">AI this month: ${{ status.monthCostUsd | number: '1.2-2' }} of ${{ status.budgetUsd | number: '1.0-0' }}</span>
+    </div>
+
+    <div class="topics">
+      <button type="button" *ngFor="let t of topics" class="topic" [disabled]="!canAsk" (click)="ask(t.key)">
+        <i class="pi" [ngClass]="asking === t.key ? 'pi-spin pi-spinner' : t.icon"></i>{{ t.label }}
+      </button>
+    </div>
+    <div class="own">
+      <input type="text" [(ngModel)]="question" maxlength="1000" [disabled]="!!asking"
+             placeholder="Ask your own question, e.g. Which retailers stock it in Canada?" (keydown.enter)="ask(null)" />
+      <button type="button" class="ask" [disabled]="!canAsk || !question.trim()" (click)="ask(null)">
+        <i class="pi" [ngClass]="asking === 'OWN' ? 'pi-spin pi-spinner' : 'pi-send'"></i>Ask
+      </button>
+    </div>
+  </ng-container>
+
+  <div class="error" *ngIf="error">{{ error }}</div>
+
+  <!-- the answer being read -->
+  <div class="answer" *ngIf="open">
+    <div class="answer-head">
+      <div>
+        <div class="q">{{ open.question }}</div>
+        <div class="hint">{{ open.calledAt + (open.calledAt.endsWith('Z') ? '' : 'Z') | date: 'MMM d, y h:mm a' }} · {{ open.userName }}
+          <ng-container *ngIf="open.model"> · {{ open.model }}</ng-container>
+          <ng-container *ngIf="open.costUsd"> · ${{ open.costUsd | number: '1.2-4' }}{{ open.costIsEstimate ? ' (est.)' : '' }}</ng-container>
+        </div>
+      </div>
+      <button type="button" class="close" (click)="open = null" aria-label="Close"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="md" [innerHTML]="openHtml"></div>
+  </div>
+
+  <!-- everything asked before -->
+  <div class="history" *ngIf="research.length || loading">
+    <div class="history-head">
+      <span class="label">Saved research ({{ research.length }})</span>
+      <button type="button" class="link" [disabled]="!research.length" (click)="exportList()"><i class="pi pi-file-excel"></i> Export</button>
+    </div>
+    <div class="hint" *ngIf="loading"><i class="pi pi-spin pi-spinner"></i> Loading…</div>
+    <button type="button" class="row" *ngFor="let r of research" [class.current]="open?.fileId === r.fileId" (click)="view(r)">
+      <span class="when">{{ r.calledAt + 'Z' | date: 'MMM d, y' }}</span>
+      <span class="what">{{ r.question }}</span>
+      <span class="who">{{ r.userName }} · {{ r.model }}</span>
+    </button>
+  </div>
+
+  <div class="usage" *ngIf="status?.canSeeUsage">
+    <span class="label">AI usage report</span>
+    <input type="month" [(ngModel)]="usageMonth" />
+    <button type="button" class="link" [disabled]="exporting" (click)="exportUsage()">
+      <i class="pi" [ngClass]="exporting ? 'pi-spin pi-spinner' : 'pi-file-excel'"></i> Export every AI call that month
+    </button>
+  </div>
+</section>

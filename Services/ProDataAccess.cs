@@ -36,6 +36,8 @@ using System.Threading.Tasks;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using MemberDesk = ProInternal.Models.Member;
+using CategoryDesk = ProInternal.Models.CategoryDesk;
+using AiModels = ProInternal.Models.Ai;
 
 
 namespace ProInternal.Services
@@ -3118,6 +3120,184 @@ GetShopifyGovernanceIssues()
                 new { Term = term }, commandType: CommandType.StoredProcedure).ToList();
         }
         #endregion
+
+        #region Category Desk
+        // Category Desk models live in ProInternal.Models.CategoryDesk; the alias keeps them apart
+        // from existing models with the same names.
+
+        private static readonly HashSet<string> CategoryQueues = new(StringComparer.OrdinalIgnoreCase) { "UNCATEGORIZED", "SUSPECT" };
+        private static readonly HashSet<string> CategoryStatuses = new(StringComparer.OrdinalIgnoreCase) { "ACTIVE", "DISCONTINUED" };
+
+        public CategoryDesk.CategoryTree CategoryDesk_Tree(bool sqlIsMaster)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.CategoryDesk_Tree",
+                commandType: CommandType.StoredProcedure, commandTimeout: 60);
+
+            return new CategoryDesk.CategoryTree
+            {
+                Nodes          = multi.Read<CategoryDesk.CategoryNode>().ToList(),
+                Summary        = multi.Read<CategoryDesk.CategorySummary>().FirstOrDefault() ?? new CategoryDesk.CategorySummary(),
+                EgrpsNotOnTree = multi.Read<CategoryDesk.EgrpOption>().ToList(),
+                Orphans        = multi.Read<CategoryDesk.OrphanCategory>().ToList(),
+                SqlIsMaster    = sqlIsMaster
+            };
+        }
+
+        public CategoryDesk.CategoryProductPage CategoryDesk_Products(CategoryDesk.CategoryProductQuery q)
+        {
+            var page = q.Page < 1 ? 1 : q.Page;
+            var size = q.PageSize <= 0 ? 0 : Math.Min(q.PageSize, 500);   // 0 = every match, capped in SQL at 50,000
+            var term = q.Term?.Trim();
+            if (term?.Length > 100) term = term[..100];
+            var queue = q.Queue?.Trim();
+            var status = q.Status?.Trim();
+
+            using var conn = GetConnection();
+            var rows = conn.Query<CategoryDesk.CategoryProductRow>(
+                "piv2.CategoryDesk_Products",
+                new
+                {
+                    Term = string.IsNullOrEmpty(term) ? null : term,
+                    q.BrandId,
+                    q.VendorId,
+                    Status = !string.IsNullOrEmpty(status) && CategoryStatuses.Contains(status) ? status.ToUpperInvariant() : null,
+                    q.ForSale,
+                    q.IsPublic,
+                    q.NodeId,
+                    q.IncludeChildren,
+                    Queue = !string.IsNullOrEmpty(queue) && CategoryQueues.Contains(queue) ? queue.ToUpperInvariant() : null,
+                    q.Egrp,
+                    q.NewDays,
+                    Page = page,
+                    PageSize = size
+                },
+                commandType: CommandType.StoredProcedure,
+                commandTimeout: 90).ToList();
+
+            return new CategoryDesk.CategoryProductPage
+            {
+                Rows = rows,
+                Total = rows.Count > 0 ? rows[0].TotalCount : 0,
+                Page = page,
+                PageSize = size
+            };
+        }
+
+        public CategoryDesk.CategoryFilters CategoryDesk_Filters()
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.CategoryDesk_Filters", commandType: CommandType.StoredProcedure);
+            return new CategoryDesk.CategoryFilters
+            {
+                Brands  = multi.Read<CategoryDesk.FilterOption>().ToList(),
+                Vendors = multi.Read<CategoryDesk.FilterOption>().ToList()
+            };
+        }
+
+        public CategoryDesk.PublishResult CategoryDesk_Publish(string changesJson, string comment, int? baseVersion, bool sqlIsMaster, string user)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple(
+                "piv2.CategoryDesk_Publish",
+                new
+                {
+                    Changes = changesJson,
+                    Comment = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim(),
+                    User = user,
+                    SqlIsMaster = sqlIsMaster,
+                    BaseVersion = baseVersion
+                },
+                commandType: CommandType.StoredProcedure,
+                commandTimeout: 120);
+            return ReadPublishResult(multi);
+        }
+
+        public List<CategoryDesk.PublishSummary> CategoryDesk_History()
+        {
+            using var conn = GetConnection();
+            return conn.Query<CategoryDesk.PublishSummary>("piv2.CategoryDesk_History",
+                new { Top = 500 }, commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public List<CategoryDesk.PublishItem> CategoryDesk_PublishDetail(int publishId)
+        {
+            using var conn = GetConnection();
+            return conn.Query<CategoryDesk.PublishItem>("piv2.CategoryDesk_PublishDetail",
+                new { PublishId = publishId }, commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public List<CategoryDesk.RevertConflict> CategoryDesk_RevertCheck(int publishId)
+        {
+            using var conn = GetConnection();
+            return conn.Query<CategoryDesk.RevertConflict>("piv2.CategoryDesk_RevertCheck",
+                new { PublishId = publishId }, commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public CategoryDesk.PublishResult CategoryDesk_Revert(int publishId, bool skipConflicts, bool sqlIsMaster, string user)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple(
+                "piv2.CategoryDesk_Revert",
+                new { PublishId = publishId, SkipConflicts = skipConflicts, User = user, SqlIsMaster = sqlIsMaster },
+                commandType: CommandType.StoredProcedure,
+                commandTimeout: 120);
+            return ReadPublishResult(multi);
+        }
+
+        private static CategoryDesk.PublishResult ReadPublishResult(SqlMapper.GridReader multi)
+        {
+            var result = multi.Read<CategoryDesk.PublishResult>().FirstOrDefault() ?? new CategoryDesk.PublishResult();
+            result.NewIds = multi.Read<CategoryDesk.NewCategoryId>().ToList();
+            return result;
+        }
+        #endregion
+
+        #region Product AI
+        public AiModels.AiUsageCheck Ai_UsageCheck(string feature, string user)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<AiModels.AiUsageCheck>("piv2.Ai_Usage_Check",
+                new { Feature = feature, UserName = user }, commandType: CommandType.StoredProcedure)
+                ?? new AiModels.AiUsageCheck();
+        }
+
+        public long Ai_UsageLog(string user, string feature, string provider, string model, int? productId, int items,
+                                decimal costUsd, bool costIsEstimate, string status, string question, string detail, long? fileId)
+        {
+            using var conn = GetConnection();
+            return conn.QuerySingle<long>("piv2.Ai_Usage_Log",
+                new
+                {
+                    UserName = user, Feature = feature, Provider = provider, Model = model, ProductId = productId,
+                    Items = items, CostUsd = costUsd, CostIsEstimate = costIsEstimate, Status = status,
+                    Question = question, Detail = detail, FileId = fileId
+                },
+                commandType: CommandType.StoredProcedure);
+        }
+
+        public List<AiModels.AiUsageRow> Ai_UsageReport(DateTime from, DateTime to)
+        {
+            using var conn = GetConnection();
+            return conn.Query<AiModels.AiUsageRow>("piv2.Ai_Usage_Report",
+                new { From = from.Date, To = to.Date }, commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public List<AiModels.ResearchSnapshot> Ai_ResearchList(int productId)
+        {
+            using var conn = GetConnection();
+            return conn.Query<AiModels.ResearchSnapshot>("piv2.Ai_Research_List",
+                new { ProductId = productId }, commandType: CommandType.StoredProcedure).ToList();
+        }
+
+        public AiModels.AiProductContext Ai_ProductContext(int productId)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<AiModels.AiProductContext>("piv2.Ai_ProductContext",
+                new { ProductId = productId }, commandType: CommandType.StoredProcedure);
+        }
+        #endregion
+
 
     }
 }

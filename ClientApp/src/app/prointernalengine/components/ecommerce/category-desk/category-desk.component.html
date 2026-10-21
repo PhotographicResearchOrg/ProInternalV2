@@ -1,0 +1,541 @@
+<p-toast></p-toast>
+
+<div class="desk-page">
+
+  <!-- =========================================================== HEADER -->
+  <header class="desk-header">
+    <div>
+      <div class="eyebrow">ProMaster · Merchandising</div>
+      <h1>Category Desk</h1>
+      <div class="subtitle">The categories members see on the WH page, and where every product sits. Changes are a draft until you publish.</div>
+    </div>
+    <div class="header-actions">
+      <ng-container *ngIf="canEdit">
+        <button type="button" class="btn btn-secondary" [disabled]="!canUndo" (click)="undo()" title="Undo (Ctrl+Z)"><i class="pi pi-undo"></i>Undo</button>
+        <button type="button" class="btn btn-secondary icon-only" [disabled]="!canRedo" (click)="redo()" title="Redo (Ctrl+Y)" aria-label="Redo"><i class="pi pi-refresh"></i></button>
+        <button type="button" class="btn btn-secondary" [disabled]="!changeCount" (click)="discard()">Discard</button>
+      </ng-container>
+      <button type="button" class="btn btn-secondary" (click)="view === 'history' ? (view = 'products') : showHistory()">
+        <i class="pi" [ngClass]="view === 'history' ? 'pi-sitemap' : 'pi-history'"></i>{{ view === 'history' ? 'Back to products' : 'History' }}
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="exportTree()"><i class="pi pi-file-excel"></i>Export tree</button>
+      <button *ngIf="canEdit" type="button" class="btn btn-primary" [disabled]="!changeCount" (click)="openPublish()">
+        <i class="pi pi-send"></i>Publish{{ changeCount ? ' ' + changeCount + ' change' + (changeCount === 1 ? '' : 's') : '' }}
+      </button>
+    </div>
+  </header>
+
+  <div class="lock-note" *ngIf="!sqlIsMaster">
+    <i class="pi pi-lock"></i>
+    <span>The top level is the <span class="computyme-chip">Computyme</span> EGRP. A product's top level follows its EGRP and is changed in Computyme until product data moves to SQL. Everything below the top level is edited here.</span>
+  </div>
+
+  <!-- =========================================================== SUMMARY -->
+  <div class="summary-grid">
+    <div class="summary-card" [class.active-card]="queue === 'UNCATEGORIZED'" (click)="openQueue('UNCATEGORIZED')">
+      <div class="summary-label">Uncategorized</div>
+      <div class="summary-value">{{ summary.uncategorized | number }}</div>
+      <div class="summary-sub">Active products with no category</div>
+    </div>
+    <div class="summary-card warning-card" [class.active-card]="queue === 'SUSPECT'" (click)="openQueue('SUSPECT')">
+      <div class="summary-label">Suspect</div>
+      <div class="summary-value">{{ summary.suspect | number }}</div>
+      <div class="summary-sub">Hidden, missing, wrong EGRP or on a parent</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Empty (hidden on B2B)</div>
+      <div class="summary-value">{{ summary.visibleEmpty | number }}</div>
+      <div class="summary-sub">Shown categories with no active products</div>
+    </div>
+    <div class="summary-card" [class.alert-card]="changeCount > 0" (click)="canEdit && openPublish()">
+      <div class="summary-label">Unpublished changes</div>
+      <div class="summary-value">{{ changeCount | number }}</div>
+      <div class="summary-sub">{{ changeCount ? 'Live when you publish' : 'Nothing waiting' }}</div>
+    </div>
+  </div>
+
+  <div class="warn-note" *ngIf="orphans.length">
+    <i class="pi pi-exclamation-triangle"></i>
+    <span>{{ orphans.length }} categor{{ orphans.length === 1 ? 'y has' : 'ies have' }} a parent that no longer exists, so the WH page can't show {{ orphans.length === 1 ? 'it' : 'them' }}:
+      {{ orphanNames }}</span>
+  </div>
+
+  <div class="empty-state" *ngIf="loading"><i class="pi pi-spin pi-spinner"></i> Loading categories…</div>
+
+  <!-- =========================================================== WORKSPACE -->
+  <div class="cat-workspace" *ngIf="!loading">
+
+    <!-- ---------------------------------------------------- tree -->
+    <section class="desk-card tree-card">
+      <div class="tree-toolbar">
+        <span class="input-with-icon tree-search">
+          <i class="pi pi-search"></i>
+          <input type="text" placeholder="Find a category" [(ngModel)]="treeFilter" (ngModelChange)="onTreeFilter()" />
+        </span>
+        <button type="button" class="row-action" title="Expand all" (click)="expandAll(true)"><i class="pi pi-plus"></i></button>
+        <button type="button" class="row-action" title="Collapse all" (click)="expandAll(false)"><i class="pi pi-minus"></i></button>
+      </div>
+
+      <div class="tree-list" role="tree">
+        <div *ngFor="let r of rows; trackBy: trackRow"
+             class="tree-row" role="treeitem"
+             [class.selected]="r.cat.catId === selectedId"
+             [class.hidden-cat]="!r.effectiveVisible"
+             [class.drop-target]="dropTargetId === r.cat.catId"
+             [style.padding-left.px]="8 + (r.depth - 1) * 18"
+             [attr.draggable]="canDragCat(r)"
+             (dragstart)="onCatDragStart($event, r)"
+             (dragover)="onDragOver($event, r)"
+             (dragleave)="onDragLeave(r)"
+             (drop)="onDrop($event, r)"
+             (click)="select(r.cat.catId)"
+             (dblclick)="startRename(r.cat.catId)">
+          <i class="pi chevron" [ngClass]="r.hasChildren ? (r.expanded ? 'pi-chevron-down' : 'pi-chevron-right') : ''" (click)="r.hasChildren && toggle(r, $event)"></i>
+          <i class="pi pi-lock lock-icon" *ngIf="r.locked" title="Computyme EGRP"></i>
+          <span class="change-dot" *ngIf="r.changed" title="Changed in your draft"></span>
+          <ng-container *ngIf="renamingId !== r.cat.catId; else renameBox">
+            <span class="tree-name">{{ r.cat.name }}</span>
+          </ng-container>
+          <ng-template #renameBox>
+            <input class="rename-input" type="text" [(ngModel)]="renameText" (click)="$event.stopPropagation()"
+                   (keydown.enter)="commitRename()" (keydown.escape)="renamingId = null" (blur)="commitRename()" autofocus />
+          </ng-template>
+          <i class="pi pi-eye-slash faint" *ngIf="!r.cat.visible" title="Hidden"></i>
+          <span class="tree-count" [title]="r.active + ' active of ' + r.total">{{ r.total | number }}</span>
+        </div>
+        <div class="empty-inline" *ngIf="!rows.length">{{ treeFilter ? 'No category matches.' : 'No categories yet.' }}</div>
+      </div>
+
+      <div class="tree-footer" *ngIf="canEdit">
+        <button type="button" class="btn btn-secondary" [disabled]="selectedId === null" (click)="openAdd(selectedId)"><i class="pi pi-plus"></i>Add sub-category</button>
+        <button type="button" class="btn btn-secondary" (click)="openAdd(null, true)"><i class="pi pi-plus"></i>Top level</button>
+      </div>
+      <div class="tree-hint">Drag a category onto another to move it. Drag products from the list onto a category. Double-click or F2 to rename.</div>
+    </section>
+
+    <!-- ---------------------------------------------------- right side -->
+    <section class="desk-card detail-card">
+
+      <!-- ======================= HISTORY ======================= -->
+      <ng-container *ngIf="view === 'history'">
+        <div class="section-header">
+          <div>
+            <div class="section-label">Publish history</div>
+            <div class="section-subtitle">Every publish, newest first. Any of them can be reverted; a revert is a new publish you can revert too.</div>
+          </div>
+          <button type="button" class="btn btn-secondary" [disabled]="!history.length" (click)="exportHistory()"><i class="pi pi-file-excel"></i>Export</button>
+        </div>
+        <div class="empty-inline" *ngIf="historyLoading"><i class="pi pi-spin pi-spinner"></i> Loading…</div>
+        <div class="table-responsive" *ngIf="!historyLoading">
+          <table class="desk-table">
+            <thead><tr><th>#</th><th>When</th><th>Who</th><th>Comment</th><th class="num">Categories</th><th class="num">Products</th><th></th></tr></thead>
+            <tbody>
+              <tr *ngFor="let h of history" class="desk-row" (click)="openDetail(h)">
+                <td class="mono">{{ h.publishId }}</td>
+                <td class="nowrap">{{ h.publishedAt + 'Z' | date: 'MMM d, y h:mm a' }}</td>
+                <td>{{ h.publishedBy }}</td>
+                <td>
+                  {{ h.comment || '—' }}
+                  <span class="status-badge status-violet" *ngIf="h.revertedByPublishId">Reverted by #{{ h.revertedByPublishId }}</span>
+                  <span class="status-badge status-progress" *ngIf="h.fromAi">{{ h.fromAi }} from AI</span>
+                  <span class="status-badge status-ready" *ngIf="h.fromSuggestion">{{ h.fromSuggestion }} suggested</span>
+                </td>
+                <td class="num">{{ h.categoryChanges }}</td>
+                <td class="num">{{ h.productChanges | number }}</td>
+                <td class="actions-column">
+                  <button *ngIf="canEdit" type="button" class="row-action" (click)="$event.stopPropagation(); openRevert(h)"><i class="pi pi-replay"></i>Revert</button>
+                </td>
+              </tr>
+              <tr *ngIf="!history.length"><td colspan="7" class="empty-inline">Nothing published yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </ng-container>
+
+      <!-- ======================= PRODUCTS ======================= -->
+      <ng-container *ngIf="view === 'products'">
+
+        <!-- queue header -->
+        <div class="section-header" *ngIf="queue">
+          <div>
+            <div class="section-label">{{ queue === 'UNCATEGORIZED' ? 'Uncategorized queue' : 'Suspect queue' }}</div>
+            <div class="section-subtitle" *ngIf="queue === 'UNCATEGORIZED'">Active products with no category. Each shows a suggestion and why; accept it, or tick products and move them.</div>
+            <div class="section-subtitle" *ngIf="queue === 'SUSPECT'">Products whose category is hidden or gone, sits on a parent, or doesn't match their Computyme EGRP.</div>
+          </div>
+          <button type="button" class="btn btn-secondary" (click)="clearQueue()"><i class="pi pi-times"></i>Close queue</button>
+        </div>
+
+        <!-- selected category -->
+        <div class="cat-detail" *ngIf="!queue && selected as s">
+          <div class="crumb">{{ pathOf(s.parentCatId) || 'Top level' }}</div>
+          <div class="cat-title-row">
+            <h2>{{ s.name }}</h2>
+            <span class="computyme-chip" *ngIf="isLockedTop(s.catId)">Computyme EGRP {{ s.egrp }}</span>
+            <span class="status-badge status-hold" *ngIf="!effectiveVisible(s.catId)">Hidden on B2B</span>
+            <span class="status-badge status-exception" *ngIf="effectiveVisible(s.catId) && rolled(s.catId, true) === 0">Empty: hidden on B2B</span>
+            <span class="status-badge status-progress" *ngIf="isChanged(s.catId)">Changed in draft</span>
+          </div>
+          <div class="cat-stats">
+            <span><strong>{{ rolled(s.catId) | number }}</strong> products</span>
+            <span><strong>{{ rolled(s.catId, true) | number }}</strong> active</span>
+            <span *ngIf="selectedBase as b"><strong>{{ b.discontinuedCount | number }}</strong> discontinued</span>
+            <span class="faint mono" *ngIf="s.catId > 0">id {{ s.catId }}</span>
+          </div>
+
+          <div class="cat-controls" *ngIf="canEdit">
+            <label class="check-row"><input type="checkbox" [ngModel]="s.visible" (ngModelChange)="setVisible(s.catId, $event)" />Show on B2B (hides everything under it when off)</label>
+            <div class="cat-buttons">
+              <button type="button" class="btn btn-secondary" (click)="startRename(s.catId)"><i class="pi pi-pencil"></i>Rename</button>
+              <button type="button" class="btn btn-secondary" (click)="openAdd(s.catId)"><i class="pi pi-plus"></i>Sub-category</button>
+              <button type="button" class="btn btn-secondary" *ngIf="!isLockedTop(s.catId)" (click)="openChooser('merge')"><i class="pi pi-sign-in"></i>Merge into…</button>
+              <button type="button" class="btn btn-danger" *ngIf="!isLockedTop(s.catId)" (click)="deleteSelected()"><i class="pi pi-trash"></i>Delete</button>
+            </div>
+          </div>
+
+          <div class="field notes-field">
+            <label>Internal notes <span class="faint">(never shown on B2B)</span></label>
+            <textarea rows="2" [disabled]="!canEdit" [ngModel]="s.notes" #notesBox
+                      (blur)="saveNotes(s.catId, notesBox.value)" placeholder="What belongs here, and what doesn't"></textarea>
+          </div>
+        </div>
+
+        <div class="section-header" *ngIf="!queue && !selected">
+          <div>
+            <div class="section-label">All products</div>
+            <div class="section-subtitle">Pick a category on the left, open a queue, or search every product.</div>
+          </div>
+        </div>
+
+        <!-- filters -->
+        <div class="filter-strip">
+          <div class="field grow">
+            <label>Search</label>
+            <span class="input-with-icon">
+              <i class="pi" [ngClass]="productsLoading ? 'pi-spin pi-spinner' : 'pi-search'"></i>
+              <input type="text" placeholder="Code, model or brand" [(ngModel)]="query.term" (ngModelChange)="searchProducts()" />
+            </span>
+          </div>
+          <div class="field">
+            <label>Brand</label>
+            <select [(ngModel)]="query.brandId" (ngModelChange)="searchProducts()">
+              <option [ngValue]="null">Any brand</option>
+              <option *ngFor="let b of filters.brands" [ngValue]="b.id">{{ b.name }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Vendor</label>
+            <select [(ngModel)]="query.vendorId" (ngModelChange)="searchProducts()">
+              <option [ngValue]="null">Any vendor</option>
+              <option *ngFor="let v of filters.vendors" [ngValue]="v.id">{{ v.name }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select [(ngModel)]="query.status" (ngModelChange)="searchProducts()">
+              <option [ngValue]="null">Any</option>
+              <option value="ACTIVE">Active</option>
+              <option value="DISCONTINUED">Discontinued</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>For sale</label>
+            <select [(ngModel)]="query.forSale" (ngModelChange)="searchProducts()">
+              <option [ngValue]="null">Any</option>
+              <option [ngValue]="true">Yes</option>
+              <option [ngValue]="false">No</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Public</label>
+            <select [(ngModel)]="query.isPublic" (ngModelChange)="searchProducts()">
+              <option [ngValue]="null">Any</option>
+              <option [ngValue]="true">Yes</option>
+              <option [ngValue]="false">No</option>
+            </select>
+          </div>
+          <div class="field small">
+            <label>EGRP</label>
+            <input type="number" [(ngModel)]="query.egrp" (ngModelChange)="searchProducts()" placeholder="Any" />
+          </div>
+          <div class="field small">
+            <label>New in (days)</label>
+            <input type="number" min="1" [(ngModel)]="query.newDays" (ngModelChange)="searchProducts()" placeholder="Any" />
+          </div>
+          <div class="field" *ngIf="selected && !queue">
+            <label class="check-row"><input type="checkbox" [(ngModel)]="query.includeChildren" (ngModelChange)="searchProducts()" />Include sub-categories</label>
+          </div>
+        </div>
+
+        <!-- bulk bar -->
+        <div class="bulk-bar">
+          <span class="faint">{{ productTotal | number }} match{{ productTotal === 1 ? '' : 'es' }}</span>
+          <ng-container *ngIf="canEdit">
+            <span *ngIf="selectionCount">· <strong>{{ selectionCount | number }}</strong> selected</span>
+            <button type="button" class="link" *ngIf="selectedProducts.size && !selectAllMatching && productTotal > products.length" (click)="selectAllMatching = true">
+              Select all {{ productTotal | number }} matching
+            </button>
+            <button type="button" class="btn btn-secondary" [disabled]="!selectionCount" (click)="openChooser('move-products')"><i class="pi pi-arrow-right"></i>Move selected to…</button>
+            <ng-container *ngIf="queue">
+              <span class="accept-above">Accept all suggestions at
+                <input type="number" min="1" max="100" [(ngModel)]="acceptAbove" />% or more</span>
+              <button type="button" class="btn btn-secondary" (click)="acceptAllAbove()"><i class="pi pi-check"></i>Accept on this page</button>
+            </ng-container>
+          </ng-container>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-secondary" [disabled]="!productTotal" (click)="exportProducts()"><i class="pi pi-file-excel"></i>Export {{ productTotal | number }}</button>
+        </div>
+
+        <!-- products -->
+        <div class="table-responsive">
+          <table class="desk-table product-table">
+            <thead>
+              <tr>
+                <th class="check-col" *ngIf="canEdit"><input type="checkbox" [checked]="allOnPageSelected" (change)="togglePage($any($event.target).checked)" /></th>
+                <th>Code</th>
+                <th>Model</th>
+                <th>Brand</th>
+                <th>Category</th>
+                <th *ngIf="queue">{{ queue === 'SUSPECT' ? 'Problem / suggestion' : 'Suggestion' }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of products; trackBy: trackProduct" class="desk-row" [class.muted-row]="p.isDiscontinued"
+                  [attr.draggable]="canEdit" (dragstart)="onProductDragStart($event, p)">
+                <td class="check-col" *ngIf="canEdit">
+                  <input type="checkbox" [checked]="selectAllMatching || selectedProducts.has(p.productId)" (change)="toggleProduct(p, $any($event.target).checked)" />
+                </td>
+                <td class="mono nowrap">{{ p.productCode }}</td>
+                <td>
+                  {{ p.modelName }}
+                  <span class="status-badge status-hold" *ngIf="p.isDiscontinued">Discontinued</span>
+                  <span class="faint small-text" *ngIf="p.replacementCode"> → {{ p.replacementCode }}</span>
+                </td>
+                <td class="nowrap">{{ p.brandName }}</td>
+                <td>
+                  <ng-container *ngIf="!isMoved(p)">{{ p.nodePath || '—' }}</ng-container>
+                  <ng-container *ngIf="isMoved(p)">
+                    <span class="strike faint">{{ p.nodePath || 'No category' }}</span><br />
+                    <span class="draft-path"><span class="change-dot"></span>{{ pathOf(draftNode(p)) || 'No category' }}</span>
+                  </ng-container>
+                  <div class="faint small-text" *ngIf="p.egrp !== null">EGRP {{ p.egrp }}</div>
+                </td>
+                <td *ngIf="queue" class="suggest-cell">
+                  <div class="problem" *ngIf="p.problem && p.problem !== 'UNCATEGORIZED'">{{ problemLabels[p.problem] || p.problem }}</div>
+                  <ng-container *ngIf="p.suggestedNodeId !== null && !isMoved(p)">
+                    <div class="suggest-path">{{ p.suggestedPath }}
+                      <span class="confidence" [class.low]="(p.suggestConfidence ?? 0) < 50">{{ p.suggestConfidence }}%</span>
+                    </div>
+                    <div class="faint small-text">{{ p.suggestReason }}</div>
+                    <button *ngIf="canEdit" type="button" class="row-action approve-action" (click)="acceptSuggestion(p)"><i class="pi pi-check"></i>Accept</button>
+                  </ng-container>
+                  <span class="faint" *ngIf="p.suggestedNodeId === null && !isMoved(p)">No suggestion</span>
+                </td>
+                <td class="actions-column">
+                  <button *ngIf="canEdit && p.isDiscontinued && p.replacementCode" type="button" class="row-action" title="Put the replacement in this product's category"
+                          (click)="placeReplacement(p)"><i class="pi pi-clone"></i>Replacement here</button>
+                </td>
+              </tr>
+              <tr *ngIf="!products.length && !productsLoading"><td [attr.colspan]="queue ? 7 : 6" class="empty-inline">Nothing matches.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pager" *ngIf="productTotal > (query.pageSize || 100)">
+          <button type="button" class="row-action" (click)="page(-1)"><i class="pi pi-chevron-left"></i></button>
+          <span>{{ pageLabel }}</span>
+          <button type="button" class="row-action" (click)="page(1)"><i class="pi pi-chevron-right"></i></button>
+        </div>
+      </ng-container>
+    </section>
+  </div>
+
+  <!-- =========================================================== B2B PREVIEW -->
+  <section class="desk-card preview-card" *ngIf="!loading">
+    <div class="section-header">
+      <div>
+        <div class="section-label"><i class="pi pi-eye"></i> Preview: Connection WH page</div>
+        <div class="section-subtitle">How the Categories list on the WH page looks after you publish: A–Z, hidden and empty categories left out. Ticking a parent there selects everything under it.</div>
+      </div>
+    </div>
+    <div class="preview-panel">
+      <p class="preview-title">Categories:</p>
+      <ul class="preview-list">
+        <li *ngFor="let r of preview" [style.padding-left.px]="r.depth * 18" [class.selected]="r.selected">
+          <i class="pi" [ngClass]="r.hasChildren ? (r.expanded ? 'pi-chevron-down' : 'pi-chevron-right') : 'pi-blank'" (click)="r.hasChildren && previewToggle(r)"></i>
+          <span class="fake-check" [class.on]="r.selected"></span>
+          <span (click)="select(r.catId)">{{ r.name }}</span>
+        </li>
+        <li *ngIf="!preview.length" class="faint">Nothing would show.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<!-- =========================================================== MODALS -->
+
+<!-- add -->
+<div class="modal-backdrop" *ngIf="addModal as m" (click)="addModal = null">
+  <div class="desk-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">Category Desk</div>
+        <h2>{{ m.parentId === null ? 'Add a top-level category' : 'Add a sub-category' }}</h2>
+        <div class="subtitle" *ngIf="m.parentId !== null">Under {{ pathOf(m.parentId) }}</div>
+      </div>
+      <button type="button" class="modal-close" (click)="addModal = null"><i class="pi pi-times"></i></button>
+    </div>
+    <ng-container *ngIf="m.parentId === null">
+      <div class="modal-warning info" *ngIf="!sqlIsMaster">
+        <i class="pi pi-info-circle"></i>
+        <span>The top level is the Computyme EGRP. Pick one that isn't on the tree yet.</span>
+      </div>
+      <div class="egrp-list">
+        <button type="button" *ngFor="let e of egrpsLeft()" class="egrp-option" [class.active]="m.egrp === e.egrp" (click)="pickEgrp(e)">
+          <span class="mono">{{ e.egrp }}</span> {{ e.name }}
+        </button>
+        <div class="empty-inline" *ngIf="!egrpsLeft().length">Every Computyme EGRP is already on the tree.</div>
+      </div>
+    </ng-container>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" [(ngModel)]="m.name" maxlength="100" (keydown.enter)="confirmAdd()" placeholder="Li-ion camera packs" />
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" (click)="addModal = null">Cancel</button>
+      <button type="button" class="btn btn-primary" (click)="confirmAdd()">Add to draft</button>
+    </div>
+  </div>
+</div>
+
+<!-- chooser: move products, reallocate before delete, merge -->
+<div class="modal-backdrop" *ngIf="chooser as c" (click)="chooser = null">
+  <div class="desk-modal wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">Category Desk</div>
+        <h2>{{ c.title }}</h2>
+        <div class="subtitle">{{ c.subtitle }}</div>
+      </div>
+      <button type="button" class="modal-close" (click)="chooser = null"><i class="pi pi-times"></i></button>
+    </div>
+    <span class="input-with-icon">
+      <i class="pi pi-search"></i>
+      <input type="text" [(ngModel)]="c.search" placeholder="Find a category" autofocus />
+    </span>
+    <div class="chooser-list">
+      <button type="button" class="chooser-option" *ngFor="let o of chooserOptions" [disabled]="c.busy" (click)="choose(o.id)">{{ o.path }}</button>
+      <div class="empty-inline" *ngIf="!chooserOptions.length">No category matches.</div>
+    </div>
+    <div class="modal-actions">
+      <span class="faint" *ngIf="c.busy"><i class="pi pi-spin pi-spinner"></i> Working…</span>
+      <button type="button" class="btn btn-secondary" (click)="chooser = null">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- publish -->
+<div class="modal-backdrop" *ngIf="publishModal as m" (click)="!m.busy && (publishModal = null)">
+  <div class="desk-modal wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">Category Desk</div>
+        <h2>Publish {{ changeCount }} change{{ changeCount === 1 ? '' : 's' }}</h2>
+        <div class="subtitle">They go live on the WH page together. You can revert this publish later from History.</div>
+      </div>
+      <button type="button" class="modal-close" [disabled]="m.busy" (click)="publishModal = null"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="publish-summary">
+      <div *ngIf="draftChanges.cats.length">
+        <div class="section-label">Categories</div>
+        <div class="change-line" *ngFor="let c of draftChanges.cats"><strong>{{ c.label }}</strong> <span class="faint">{{ c.what }}</span></div>
+      </div>
+      <div *ngIf="draftChanges.moves.length">
+        <div class="section-label">Products ({{ draftChanges.moves.length | number }})</div>
+        <div class="change-line" *ngFor="let mv of draftChanges.moves.slice(0, 50)">
+          <strong>{{ mv.label }}</strong> <span class="faint">→ {{ pathOf(mv.nodeId) }}</span>
+          <span class="status-badge status-ready" *ngIf="mv.source === 'RULE'">suggested</span>
+          <span class="status-badge status-progress" *ngIf="mv.source === 'AI'">AI</span>
+        </div>
+        <div class="faint" *ngIf="draftChanges.moves.length > 50">…and {{ draftChanges.moves.length - 50 | number }} more</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Comment <span class="faint">(shows in History)</span></label>
+      <input type="text" [(ngModel)]="m.comment" maxlength="500" placeholder="Split Li-ion out of Rechargeable" />
+    </div>
+    <div class="validation-error" *ngIf="m.error">{{ m.error }}</div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" [disabled]="m.busy" (click)="publishModal = null">Keep editing</button>
+      <button type="button" class="btn btn-primary" [disabled]="m.busy" (click)="publish()">
+        <i class="pi" [ngClass]="m.busy ? 'pi-spin pi-spinner' : 'pi-send'"></i>Publish
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- publish detail -->
+<div class="modal-backdrop" *ngIf="detail as d" (click)="detail = null">
+  <div class="desk-modal wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">Publish #{{ d.summary.publishId }}</div>
+        <h2>{{ d.summary.comment || 'No comment' }}</h2>
+        <div class="subtitle">{{ d.summary.publishedBy }} · {{ d.summary.publishedAt + 'Z' | date: 'MMM d, y h:mm a' }}</div>
+      </div>
+      <button type="button" class="modal-close" (click)="detail = null"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="table-responsive detail-scroll">
+      <table class="desk-table">
+        <thead><tr><th>Item</th><th>Change</th><th>Before</th><th>After</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let i of d.items">
+            <td>{{ i.itemLabel }} <span class="faint mono">{{ i.itemType === 'PRODUCT' ? '' : '#' + i.itemId }}</span></td>
+            <td>{{ i.action | titlecase }}<span class="faint" *ngIf="i.fields"> ({{ i.fields.replace(',', ', ') }})</span></td>
+            <td class="faint">{{ i.beforePath || (i.action === 'ADD' ? '—' : '') }}</td>
+            <td>{{ i.afterPath || (i.action === 'DELETE' ? '—' : '') }}</td>
+            <td><span class="status-badge" [ngClass]="i.source === 'AI' ? 'status-progress' : i.source === 'RULE' ? 'status-ready' : 'status-violet'">{{ i.source | titlecase }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" (click)="exportDetail()"><i class="pi pi-file-excel"></i>Export</button>
+      <button *ngIf="canEdit" type="button" class="btn btn-warning" (click)="openRevert(d.summary)"><i class="pi pi-replay"></i>Revert this publish</button>
+    </div>
+  </div>
+</div>
+
+<!-- revert -->
+<div class="modal-backdrop" *ngIf="revertModal as m" (click)="!m.busy && (revertModal = null)">
+  <div class="desk-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">Revert</div>
+        <h2>Put back publish #{{ m.summary.publishId }}?</h2>
+        <div class="subtitle">Everything it changed goes back to how it was before. This is saved as a new publish.</div>
+      </div>
+      <button type="button" class="modal-close" [disabled]="m.busy" (click)="revertModal = null"><i class="pi pi-times"></i></button>
+    </div>
+    <ng-container *ngIf="m.conflicts.length">
+      <div class="modal-warning">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>{{ m.conflicts.length }} item(s) were changed again by a later publish.</span>
+      </div>
+      <div class="conflict-list">
+        <div class="change-line" *ngFor="let c of m.conflicts.slice(0, 20)">
+          <strong>{{ c.itemLabel }}</strong> <span class="faint">changed in #{{ c.laterPublishId }} by {{ c.laterBy }}</span>
+        </div>
+      </div>
+      <label class="check-row"><input type="radio" name="skip" [value]="true" [(ngModel)]="m.skip" />Leave those as they are now (recommended)</label>
+      <label class="check-row"><input type="radio" name="skip" [value]="false" [(ngModel)]="m.skip" />Put those back too, overwriting the later changes</label>
+    </ng-container>
+    <div class="validation-error" *ngIf="m.error">{{ m.error }}</div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" [disabled]="m.busy" (click)="revertModal = null">Cancel</button>
+      <button type="button" class="btn btn-warning" [disabled]="m.busy" (click)="revert()">
+        <i class="pi" [ngClass]="m.busy ? 'pi-spin pi-spinner' : 'pi-replay'"></i>Revert
+      </button>
+    </div>
+  </div>
+</div>
