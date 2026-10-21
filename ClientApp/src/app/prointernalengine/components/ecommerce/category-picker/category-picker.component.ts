@@ -56,14 +56,15 @@ export class CategoryPickerComponent implements OnChanges {
 
   get crumbs(): string[] { return this.node ? this.node.pathNames.split(' › ') : []; }
 
-  get top(): CategoryNode | undefined { return this.node?.topId ? this.nodes.get(this.node.topId) : undefined; }
+  /** The EGRP category the product sits in (Computyme's until cutover). */
+  get egrpNode(): CategoryNode | undefined { return this.node?.egrpNodeId ? this.nodes.get(this.node.egrpNodeId) : undefined; }
 
-  /* Until cutover the product stays in its EGRP branch (its current top level). */
+  /* Until cutover the product stays inside its EGRP category. */
   get options(): CategoryNode[] {
     const q = this.search.trim().toLowerCase();
-    const branch = !this.sqlIsMaster ? this.node?.topId ?? null : null;
+    const branch = !this.sqlIsMaster ? this.node?.egrpNodeId ?? null : null;
     return [...this.nodes.values()]
-      .filter(n => n.depth >= 1 && (branch === null || n.topId === branch))
+      .filter(n => n.depth >= 1 && (branch === null || n.egrpNodeId === branch))
       .filter(n => !q || n.pathNames.toLowerCase().includes(q))
       .sort((a, b) => a.pathNames.localeCompare(b.pathNames))
       .slice(0, 200);

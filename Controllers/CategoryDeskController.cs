@@ -21,7 +21,7 @@ namespace ProInternal.Controllers
      * The Product Desk routes (/products, /productedit) can read the tree, so its category picker works.
      *
      * Product:SqlIsMaster (appsettings, absent = false) is the same switch the Product Desk reads.
-     * False: the top level (Computyme EGRP) is locked, and products stay inside their EGRP branch.
+     * False: EGRP categories (at the top level or under a group) are Computyme's, and products stay inside theirs.
      *
      * Every rule is in the piv2.CategoryDesk_* procedures; a refusal (50480-50499) comes back as 400 with its message.
      */

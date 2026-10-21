@@ -8,8 +8,9 @@ export interface CategoryNode {
   effectiveVisible: boolean;
   notes: string | null;
   egrp: number | null;
-  depth: number;               // 0 = root (never shown), 1 = top level (EGRP)
+  depth: number;               // 0 = root (never shown), 1 = top level
   topId: number | null;
+  egrpNodeId: number | null;   // the EGRP category this node is in (itself or above), null outside any
   pathNames: string;
   ownCount: number;
   ownActiveCount: number;
@@ -72,7 +73,7 @@ export interface CategoryProductRow {
   enterDate: string | null;
   nodeId: number;
   nodePath: string | null;
-  egrpTopId: number | null;
+  egrpNodeId: number | null;   // where the product's Computyme EGRP sits in the tree
   problem: string | null;
   suggestedNodeId: number | null;
   suggestedPath: string | null;
@@ -162,7 +163,7 @@ export const PROBLEM_LABELS: Record<string, string> = {
   UNCATEGORIZED: 'No category',
   MISSING: 'Category no longer exists',
   HIDDEN: 'Category is hidden',
-  EGRP_MISMATCH: 'Top level doesn\'t match its EGRP',
+  EGRP_MISMATCH: 'Not inside its Computyme EGRP category',
   ON_PARENT: 'Sits on a category that has sub-categories',
   REPLACEMENT_UNCATEGORIZED: 'Discontinued; its replacement has no category'
 };

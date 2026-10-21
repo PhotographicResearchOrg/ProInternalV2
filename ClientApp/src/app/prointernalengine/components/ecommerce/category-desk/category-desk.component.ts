@@ -113,7 +113,7 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
   private subs: Subscription[] = [];
 
   /* modals */
-  chooser: { purpose: ChooserPurpose; title: string; subtitle: string; branchTopId: number | null; excludeId: number | null; search: string; busy?: boolean } | null = null;
+  chooser: { purpose: ChooserPurpose; title: string; subtitle: string; branchEgrpId: number | null; outsideEgrpOnly: boolean; excludeId: number | null; search: string; busy?: boolean } | null = null;
   publishModal: { comment: string; busy: boolean; error?: string } | null = null;
   addModal: { parentId: number | null; name: string; egrp: number | null; fromEgrp: boolean } | null = null;
   history: PublishSummary[] = [];
@@ -307,11 +307,20 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
     return d;
   }
 
-  topOf(id: number | null): number | null {
+  /** The EGRP category a category is in: itself, or the nearest one above it. Null outside any. */
+  egrpOf(id: number | null): number | null {
     let c = this.cat(id);
     let guard = 0;
-    while (c && c.parentCatId !== null && c.parentCatId !== this.rootId && guard++ < 40) { c = this.cat(c.parentCatId); }
-    return c && c.parentCatId === this.rootId ? c.catId : null;
+    while (c && guard++ < 40) {
+      if (c.egrp !== null && c.egrp !== undefined) { return c.catId; }
+      c = this.cat(c.parentCatId);
+    }
+    return null;
+  }
+
+  /** True when an EGRP category sits anywhere in this category's subtree (itself included). */
+  private hasEgrpInside(id: number): boolean {
+    return [...this.subtreeIds(id)].some(x => { const c = this.cat(x); return !!c && c.egrp !== null && c.egrp !== undefined; });
   }
 
   pathOf(id: number | null): string {
@@ -351,8 +360,10 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
       || (b.notes ?? '') !== (d.notes ?? '') || (b.egrp ?? null) !== (d.egrp ?? null);
   }
 
-  isLockedTop(id: number): boolean {
-    return !this.sqlIsMaster && this.depthOf(id) === 1;
+  /** An EGRP category: Computyme's while it is master (can be regrouped and renamed, not merged away). */
+  isEgrp(id: number): boolean {
+    const c = this.cat(id);
+    return !!c && c.egrp !== null && c.egrp !== undefined;
   }
 
   private countChanges(): number {
@@ -389,7 +400,7 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
         total: this.rolled(id), active: this.rolled(id, true),
         changed: this.isChanged(id) || this.movedNodes.has(id),
         effectiveVisible: this.effectiveVisible(id),
-        locked: !this.sqlIsMaster && depth === 1
+        locked: !this.sqlIsMaster && c.egrp !== null && c.egrp !== undefined
       });
       if (open) { kids.forEach(k => walk(k, depth + 1)); }
     };
@@ -494,6 +505,8 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
   }
 
   openAdd(parentId: number | null, fromEgrp = false): void {
+    /* an EGRP category goes under a group or at the top level, never inside another EGRP */
+    if (fromEgrp && parentId !== null && this.egrpOf(parentId) !== null) { parentId = null; }
     this.addModal = { parentId, name: '', egrp: null, fromEgrp };
   }
 
@@ -509,10 +522,8 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
     const name = m.name.trim();
     const parentId = m.parentId ?? this.rootId;
     if (!name) { this.warn('Give it a name.'); return; }
-    if (parentId === this.rootId && !this.sqlIsMaster && m.egrp === null) {
-      this.warn('The top level is the Computyme EGRP. Pick an EGRP from the list.');
-      return;
-    }
+    if (m.fromEgrp && m.egrp === null) { this.warn('Pick an EGRP from the list.'); return; }
+    if (m.egrp !== null && this.egrpOf(parentId) !== null) { this.warn('An EGRP category can\'t go inside another one.'); return; }
     if (this.siblingNameTaken(parentId, name, null)) { this.warn(`There's already a ${name} there.`); return; }
     const id = this.nextTempId--;
     this.change(() => this.draftCats.set(id, {
@@ -531,7 +542,7 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
 
   /* ---------------------------------------------------------------- drag and drop */
 
-  canDragCat(row: TreeRow): boolean { return this.canEdit && !row.locked; }
+  canDragCat(_: TreeRow): boolean { return this.canEdit; }
 
   onCatDragStart(e: DragEvent, row: TreeRow): void {
     if (!this.canDragCat(row)) { e.preventDefault(); return; }
@@ -573,10 +584,19 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
     const c = this.cat(id);
     if (!c || id === newParentId || c.parentCatId === newParentId) { return; }
     if (this.isAncestor(id, newParentId)) { this.warn('A category can\'t go inside itself.'); return; }
-    if (!this.sqlIsMaster) {
-      if (this.depthOf(id) === 1) { this.warn('Top-level (EGRP) categories are Computyme\'s until product data moves to SQL.'); return; }
-      if (this.topOf(id) !== this.topOf(newParentId)) {
-        this.warn(`${c.name} can't leave its EGRP branch (${this.cat(this.topOf(id))?.name}). That's a Computyme change until cutover.`);
+    const targetEgrp = this.egrpOf(newParentId);
+    if (targetEgrp !== null && this.hasEgrpInside(id)) {
+      this.warn(`${c.name} has an EGRP category in it, and EGRP categories can't go inside another one (${this.cat(targetEgrp)?.name}).`);
+      return;
+    }
+    if (!this.sqlIsMaster && !this.isEgrp(id)) {
+      const ownEgrp = this.egrpOf(id);
+      if (ownEgrp !== null && ownEgrp !== targetEgrp) {
+        this.warn(`${c.name} can't leave its EGRP category (${this.cat(ownEgrp)?.name}). Moving between EGRPs is done in Computyme until cutover.`);
+        return;
+      }
+      if (ownEgrp === null && targetEgrp !== null && this.rolled(id) > 0) {
+        this.warn(`Moving ${c.name} into ${this.cat(targetEgrp)?.name} would take its products out of their own EGRP categories. Move the products first.`);
         return;
       }
     }
@@ -677,10 +697,10 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
   private placeProducts(rows: CategoryProductRow[], nodeId: number, source: ChangeSource): { moved: number; outside: number } {
     let moved = 0;
     let outside = 0;
-    const targetTop = this.topOf(nodeId);
+    const targetEgrp = this.egrpOf(nodeId);
     this.change(() => {
       rows.forEach(r => {
-        if (!this.sqlIsMaster && r.egrpTopId !== null && targetTop !== r.egrpTopId) { outside++; return; }
+        if (!this.sqlIsMaster && r.egrpNodeId !== null && targetEgrp !== r.egrpNodeId) { outside++; return; }
         const prev = this.moves.get(r.productId);
         const from = prev?.fromNodeId ?? r.nodeId;
         if (from === nodeId) { this.moves.delete(r.productId); } else {
@@ -742,11 +762,11 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
     const sel = this.selected;
     if (purpose === 'move-products') {
       if (!this.selectionCount) { this.warn('Tick the products to move first.'); return; }
-      this.chooser = { purpose, title: `Move ${this.selectionCount.toLocaleString()} product(s) to…`, subtitle: 'Products in another EGRP branch stay where they are.', branchTopId: null, excludeId: null, search: '' };
+      this.chooser = { purpose, title: `Move ${this.selectionCount.toLocaleString()} product(s) to…`, subtitle: 'Products whose Computyme EGRP is somewhere else stay where they are.', branchEgrpId: null, outsideEgrpOnly: false, excludeId: null, search: '' };
     } else if (sel && purpose === 'delete-reallocate') {
-      this.chooser = { purpose, title: `Delete ${sel.name}`, subtitle: `${this.rolled(sel.catId).toLocaleString()} product(s) are in it. Pick where they go; its sub-categories are deleted with it.`, branchTopId: this.sqlIsMaster ? null : this.topOf(sel.catId), excludeId: sel.catId, search: '' };
+      this.chooser = { purpose, title: `Delete ${sel.name}`, subtitle: `${this.rolled(sel.catId).toLocaleString()} product(s) are in it. Pick where they go; its sub-categories are deleted with it.`, branchEgrpId: this.sqlIsMaster ? null : this.egrpOf(sel.catId), outsideEgrpOnly: false, excludeId: sel.catId, search: '' };
     } else if (sel && purpose === 'merge') {
-      this.chooser = { purpose, title: `Merge ${sel.name} into…`, subtitle: 'Its products and sub-categories move to the category you pick, then it is removed.', branchTopId: this.sqlIsMaster ? null : this.topOf(sel.catId), excludeId: sel.catId, search: '' };
+      this.chooser = { purpose, title: `Merge ${sel.name} into…`, subtitle: 'Its products and sub-categories move to the category you pick, then it is removed.', branchEgrpId: this.sqlIsMaster ? null : this.egrpOf(sel.catId), outsideEgrpOnly: this.egrpOf(sel.catId) === null && this.hasEgrpInside(sel.catId), excludeId: sel.catId, search: '' };
     }
   }
 
@@ -760,7 +780,8 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
       const cat = this.cat(id);
       if (!cat || id === this.rootId || this.depthOf(id) < 1) { return; }
       if (c.excludeId !== null && this.isAncestor(c.excludeId, id)) { return; }
-      if (c.branchTopId !== null && this.topOf(id) !== c.branchTopId) { return; }
+      if (c.branchEgrpId !== null && this.egrpOf(id) !== c.branchEgrpId) { return; }
+      if (c.outsideEgrpOnly && this.egrpOf(id) !== null) { return; }
       const path = this.pathOf(id);
       if (q && !path.toLowerCase().includes(q)) { return; }
       out.push({ id, path, locked: false });
@@ -809,7 +830,14 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
   deleteSelected(): void {
     const sel = this.selected;
     if (!sel) { return; }
-    if (this.isLockedTop(sel.catId)) { this.warn('Top-level (EGRP) categories stay until product data moves to SQL.'); return; }
+    if (!this.sqlIsMaster && this.isEgrp(sel.catId) && this.rolled(sel.catId) > 0) {
+      this.warn(`${sel.name} still has products. Their EGRP comes from Computyme, so change them there first.`);
+      return;
+    }
+    if (!this.sqlIsMaster && this.egrpOf(sel.catId) === null && this.hasEgrpInside(sel.catId)) {
+      this.warn(`${sel.name} holds EGRP categories. Move them to another group first; EGRP categories are Computyme's until cutover.`);
+      return;
+    }
     if (this.rolled(sel.catId) > 0) { this.openChooser('delete-reallocate'); return; }
     const parent = sel.parentCatId;
     this.change(() => [...this.subtreeIds(sel.catId)].forEach(id => this.markDeleted(id)));

@@ -6,9 +6,10 @@
       dbo.Category.Notes            internal note on a category (never shown on B2B)
       piv2.CategoryChangeLog        one row per item per publish, before and after
       piv2.CategoryPublishSeq       publish numbers
-      piv2.ComputymeEgroups         synonym for Computyme's EGRP list (CONFIRM THE NAME BELOW)
-      piv2.vCategoryProduct         the product columns the desk reads, in one place (CONFIRM THE NAMES BELOW)
-      piv2.vCategoryTree            every category reachable from a root, with depth and path
+      piv2.ComputymeEgroups         synonym for Computyme's EGRP list (EDA.EGROUPS.EGROUPS)
+      piv2.vProductEgrp             a product's EGRP: the one place it is read (IVMSTData.E_GRP until cutover)
+      piv2.vCategoryProduct         the product columns the desk reads, in one place
+      piv2.vCategoryTree            every category reachable from a root, with depth, path and EGRP category
 
     Nothing existing is changed apart from the new nullable Notes column. The Connection site
     and the legacy site map Category by column name and ignore a column they don't know.
@@ -76,22 +77,40 @@ GO
 
 /* ---------------------------------------------------------------- Computyme EGRP list
 
-   The legacy NewCats screen read Computyme's EGROUPS (columns ID and DESC_C) through the
-   Entities connection. CONFIRM where that table lives in SQL and fix the name below if needed.
-   If it's wrong, the desk still works; only the "Add top level from an EGRP" list comes back empty. */
+   Computyme's EGRP list (ID, DESC_C), used for "Add an EGRP category" while Computyme is master.
+   After cutover the EGRP categories in the tree are the list, and this synonym is no longer read. */
 
 IF OBJECT_ID(N'piv2.ComputymeEgroups', N'SN') IS NULL
-    CREATE SYNONYM piv2.ComputymeEgroups FOR EDA.EGROUPS.EGROUPS;     -- CONFIRM
+    CREATE SYNONYM piv2.ComputymeEgroups FOR EDA.EGROUPS.EGROUPS;
+GO
+
+/* ---------------------------------------------------------------- a product's EGRP: the one place it is read
+
+   Today: Computyme's IVMST.E_GRP, replicated into dbo.IVMSTData, matched on product code.
+   CUTOVER (Product Data – Ownership and Cutover, step 6): change this view to read PIV2_Product.EGRP.
+   Nothing else in the desk changes. */
+
+CREATE OR ALTER VIEW piv2.vProductEgrp
+AS
+SELECT d.Id AS ProductId,
+       TRY_CAST(NULLIF(LTRIM(RTRIM(i.E_GRP)), N'') AS int) AS Egrp
+FROM dbo.ProductData d
+OUTER APPLY (SELECT TOP (1) x.E_GRP FROM dbo.IVMSTData x WHERE x.ID = d.ProductCode) i;
 GO
 
 /* ---------------------------------------------------------------- products, as the desk reads them
 
-   ProductData holds the category placement (TopCatId, CatId NOT NULL with 0 = none, SubCatId).
-   dbo.Product (the IVMST view the B2B site reads) supplies brand name, vendor and EGRP.
-   CONFIRM the dbo.Product column names marked below; they are the names the Connection site's
-   Product model uses (BrandName, VendorID, egrp). Everything in the desk reads products through
-   this one view, so a rename is a one-line fix here. */
+   ProductData holds the placement (TopCatId, CatId NOT NULL with 0 = none, SubCatId).
+   Brand name from dbo.Brand. Vendor is the brand's vendor (dbo.VendorBrand, from the Vendor Desk)
+   when that table exists. EGRP from piv2.vProductEgrp. */
 
+DECLARE @vendorJoin nvarchar(max) =
+    CASE WHEN OBJECT_ID(N'dbo.VendorBrand', N'U') IS NOT NULL
+         THEN N'OUTER APPLY (SELECT TOP (1) vb.VendorId, v.Name FROM dbo.VendorBrand vb JOIN dbo.Vendor v ON v.VendorId = vb.VendorId
+                             WHERE b.BrandName IS NOT NULL AND vb.BrandName = b.BrandName ORDER BY vb.SortOrder, vb.VendorId) vv'
+         ELSE N'OUTER APPLY (SELECT CAST(NULL AS int) AS VendorId, CAST(NULL AS nvarchar(200)) AS Name) vv' END;
+
+DECLARE @sql nvarchar(max) = N'
 CREATE OR ALTER VIEW piv2.vCategoryProduct
 AS
 SELECT
@@ -99,41 +118,46 @@ SELECT
     d.ProductCode,
     d.ModelName,
     d.BrandId,
-    COALESCE(p.BrandName, N'')                        AS BrandName,        -- CONFIRM dbo.Product.BrandName
-    p.VendorID                                        AS VendorId,         -- CONFIRM dbo.Product.VendorID
-    v.Name                                            AS VendorName,
-    p.egrp                                            AS Egrp,             -- CONFIRM dbo.Product.egrp
+    COALESCE(LTRIM(RTRIM(b.BrandName)), N'''')        AS BrandName,
+    vv.VendorId,
+    vv.Name                                           AS VendorName,
+    e.Egrp,
     CAST(d.IsDiscontinued AS bit)                     AS IsDiscontinued,
     CAST(CASE WHEN ISNULL(d.IsForSale, 0) = 1 THEN 1 ELSE 0 END AS bit) AS IsForSale,
     CAST(CASE WHEN ISNULL(d.IsPublic, 0)  = 1 THEN 1 ELSE 0 END AS bit) AS IsPublic,
-    NULLIF(LTRIM(RTRIM(d.ReplacementCode)), N'')      AS ReplacementCode,
+    NULLIF(LTRIM(RTRIM(d.ReplacementCode)), N'''')    AS ReplacementCode,
     d.EnterDate,
+    d.UPC,
     d.TopCatId,
     d.CatId,
     d.SubCatId,
-    /* Where the product sits: the deepest of the three that is set. */
+    /* where the product sits: the deepest of the three that is set */
     COALESCE(NULLIF(d.SubCatId, 0), NULLIF(d.CatId, 0), NULLIF(d.TopCatId, 0), 0) AS NodeId
 FROM dbo.ProductData d
-LEFT JOIN dbo.Product p ON p.Id = d.Id
-LEFT JOIN dbo.Vendor  v ON v.VendorId = p.VendorID;
+LEFT JOIN dbo.Brand b          ON b.BrandId = d.BrandId
+LEFT JOIN piv2.vProductEgrp e  ON e.ProductId = d.Id
+' + @vendorJoin + N';';
+EXEC (@sql);
 GO
 
 /* ---------------------------------------------------------------- the tree
 
-   Every category reachable from a root (ParentCatId NULL). The Connection site shows the
-   children of its first root as the top level, so Depth 1 = top level (the EGRP level).
+   Every category reachable from a root (ParentCatId NULL). The Connection site shows the children
+   of its first root as the top level (Depth 1).
+   EGRP categories (Category.EGRP set) are Computyme's and sit at level 1 or under a web group;
+   EgrpNodeId is the EGRP category a node is in (itself, or the nearest one above it), NULL outside any.
    Visible = the category's own IsActive. EffectiveVisible = it and every ancestor are active
-   (what the WH page can actually show). Categories whose parent doesn't exist are not here;
-   the desk lists them as orphans. */
+   (what the WH page can show). Categories whose parent doesn't exist are not here (orphans). */
 
 CREATE OR ALTER VIEW piv2.vCategoryTree
 AS
 WITH t AS
 (
-    SELECT c.CatId, c.ParentCatId, c.CatName, c.IsActive, c.Notes, c.EGRP,
+    SELECT c.CatId, c.ParentCatId, CAST(LTRIM(RTRIM(c.CatName)) AS nvarchar(200)) AS CatName, c.IsActive, c.Notes, c.EGRP,
            0 AS Depth,
            CAST(NULL AS int) AS TopId,
            CAST(NULL AS int) AS L2Id,
+           CAST(NULL AS int) AS EgrpNodeId,
            CAST(N'/' + CAST(c.CatId AS nvarchar(12)) + N'/' AS nvarchar(1000)) AS PathIds,
            CAST(N'' AS nvarchar(2000)) AS PathNames,
            CAST(1 AS bit) AS EffectiveVisible,
@@ -143,19 +167,20 @@ WITH t AS
 
     UNION ALL
 
-    SELECT c.CatId, c.ParentCatId, c.CatName, c.IsActive, c.Notes, c.EGRP,
+    SELECT c.CatId, c.ParentCatId, CAST(LTRIM(RTRIM(c.CatName)) AS nvarchar(200)), c.IsActive, c.Notes, c.EGRP,
            t.Depth + 1,
            CASE WHEN t.Depth = 0 THEN c.CatId ELSE t.TopId END,
            CASE WHEN t.Depth = 1 THEN c.CatId WHEN t.Depth >= 2 THEN t.L2Id ELSE NULL END,
+           CASE WHEN c.EGRP IS NOT NULL THEN c.CatId ELSE t.EgrpNodeId END,
            CAST(t.PathIds + CAST(c.CatId AS nvarchar(12)) + N'/' AS nvarchar(1000)),
-           CAST(CASE WHEN t.Depth = 0 THEN c.CatName ELSE t.PathNames + N' › ' + c.CatName END AS nvarchar(2000)),
+           CAST(CASE WHEN t.Depth = 0 THEN LTRIM(RTRIM(c.CatName)) ELSE t.PathNames + N' › ' + LTRIM(RTRIM(c.CatName)) END AS nvarchar(2000)),
            CAST(CASE WHEN t.EffectiveVisible = 1 AND c.IsActive = 1 THEN 1 ELSE 0 END AS bit),
            t.RootId
     FROM dbo.Category c
     JOIN t ON c.ParentCatId = t.CatId
     WHERE t.Depth < 30          -- stops a loop in bad data
 )
-SELECT CatId, ParentCatId, CatName, IsActive, Notes, EGRP, Depth, TopId, L2Id,
+SELECT CatId, ParentCatId, CatName, IsActive, Notes, EGRP, Depth, TopId, L2Id, EgrpNodeId,
        PathIds, PathNames, EffectiveVisible, RootId
 FROM t;
 GO

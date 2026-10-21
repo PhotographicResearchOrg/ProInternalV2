@@ -77,13 +77,27 @@ JOIN dbo.Category c ON c.CatId = COALESCE(NULLIF(d.SubCatId,0), NULLIF(d.CatId,0
 WHERE c.IsActive = 0;
 GO
 
--- 8. Does the product's top category match its Computyme EGRP?
---    (dbo.Product is the IVMST view; if EGRP is named differently there, fix the column)
+-- 8. Is each product inside its Computyme EGRP category? (IVMSTData.E_GRP; the EGRP category can be at any level)
+WITH tree AS (
+    SELECT CatId, EGRP, CAST(CASE WHEN EGRP IS NOT NULL THEN CatId END AS int) AS EgrpNodeId
+    FROM dbo.Category WHERE ParentCatId IS NULL
+    UNION ALL
+    SELECT c.CatId, c.EGRP, CASE WHEN c.EGRP IS NOT NULL THEN c.CatId ELSE t.EgrpNodeId END
+    FROM dbo.Category c JOIN tree t ON c.ParentCatId = t.CatId
+),
+prod AS (
+    SELECT d.Id, COALESCE(NULLIF(d.SubCatId, 0), NULLIF(d.CatId, 0), NULLIF(d.TopCatId, 0), 0) AS NodeId,
+           (SELECT TOP (1) TRY_CAST(i.E_GRP AS int) FROM dbo.IVMSTData i WHERE i.ID = d.ProductCode) AS Egrp
+    FROM dbo.ProductData d
+)
 SELECT
-    SUM(CASE WHEN c.EGRP = p.EGRP THEN 1 ELSE 0 END)             AS top_matches_egrp,
-    SUM(CASE WHEN c.EGRP <> p.EGRP THEN 1 ELSE 0 END)            AS top_differs_from_egrp,
-    SUM(CASE WHEN c.EGRP IS NULL THEN 1 ELSE 0 END)              AS top_has_no_egrp
-FROM dbo.ProductData d
-JOIN dbo.Product  p ON p.Id = d.Id
-JOIN dbo.Category c ON c.CatId = d.TopCatId;
+    SUM(CASE WHEN p.NodeId = 0 THEN 1 ELSE 0 END)                                      AS no_category,
+    SUM(CASE WHEN p.Egrp IS NULL THEN 1 ELSE 0 END)                                     AS no_egrp_in_computyme,
+    SUM(CASE WHEN e.CatId IS NULL AND p.Egrp IS NOT NULL THEN 1 ELSE 0 END)             AS egrp_not_in_tree,
+    SUM(CASE WHEN p.NodeId <> 0 AND t.EgrpNodeId = e.CatId THEN 1 ELSE 0 END)          AS inside_its_egrp,
+    SUM(CASE WHEN p.NodeId <> 0 AND e.CatId IS NOT NULL AND ISNULL(t.EgrpNodeId, -1) <> e.CatId THEN 1 ELSE 0 END) AS outside_its_egrp
+FROM prod p
+LEFT JOIN tree t ON t.CatId = p.NodeId
+LEFT JOIN (SELECT EGRP, MIN(CatId) AS CatId FROM dbo.Category WHERE EGRP IS NOT NULL GROUP BY EGRP) e ON e.EGRP = p.Egrp
+OPTION (MAXRECURSION 50);
 GO

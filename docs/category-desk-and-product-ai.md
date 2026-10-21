@@ -27,9 +27,7 @@ docs/category-desk-and-product-ai.docx                        design and decisio
 
 ## Deploy, in order
 
-1. **Confirm names** (marked `CONFIRM`):
-   - `01`: where Computyme's EGROUPS table lives (`piv2.ComputymeEgroups` synonym; default `EDA.EGROUPS.EGROUPS`). If it's wrong the desk still works, only the "add top level from EGRP" list is empty.
-   - `01` and `04`: `dbo.Product` columns `BrandName`, `VendorID`, `egrp`, `UPC` (the Connection site's names), and that `dbo.Product` has one row per `Id`.
+1. **Names are confirmed** against PRO: EGRP list `EDA.EGROUPS.EGROUPS`; a product's EGRP is `IVMSTData.E_GRP` (read in one view, `piv2.vProductEgrp`, which is the one line to change at cutover); brand from `dbo.Brand`; vendor from `dbo.VendorBrand` when it exists. `dbo.Product` (a synonym to a cache table) is not used.
    - `02`: the restore of a deleted category assumes `Category.ImageName` fits 400 characters and `Type` 100; adjust if the columns are larger.
 2. **SQL, in PRO:** run `01`, `02`, `03`, `04`, `05`. In `05`, `@ProductRoute` is `/productedit`; change it if the Product Desk route has moved to `/products`.
 3. **Security Admin:**
@@ -58,7 +56,7 @@ docs/category-desk-and-product-ai.docx                        design and decisio
 - Everything on the Category Desk is a draft until **Publish**. Undo/redo, discard, and the draft survives a reload.
 - Any past publish can be reverted (as a new publish). Later changes to the same items are listed; skip or overwrite.
 - A publish is refused if someone published changes to the same items after you started.
-- Until `Product:SqlIsMaster` is true: top level (EGRP) locked; products and categories stay in their EGRP branch.
+- EGRP categories (Category.EGRP set) sit at the top level or under a web group. Until `Product:SqlIsMaster` is true they are Computyme's: they can be renamed and regrouped, not merged away or emptied; products and the sub-categories inside an EGRP category stay inside it. EGRP categories never nest.
 - Product placement is written exactly as today (`TopCatId` / `CatId` / `SubCatId`); moving a category re-writes every product under it. Show/hide writes `IsActive` and `IsPublic` together.
 - Rules refused by the procedures come back as 400 with a plain message (50480–50499).
 - AI: every call checks permission, feature on, monthly budget and the user's daily limit, then logs who, model, cost and outcome to `piv2.AiUsageLog`. Market research answers are saved to the product with sources, model and cost.

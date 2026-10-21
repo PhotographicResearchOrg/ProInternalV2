@@ -5,7 +5,7 @@
     <div class="crumbs" *ngIf="node; else none">
       <ng-container *ngFor="let c of crumbs; let i = index; let last = last">
         <span class="crumb" [class.top]="i === 0">{{ c }}</span>
-        <span class="computyme-chip" *ngIf="i === 0 && !sqlIsMaster">Computyme EGRP {{ top?.egrp }}</span>
+        <span class="computyme-chip" *ngIf="egrpNode && c === egrpNode.name && !sqlIsMaster">Computyme EGRP {{ egrpNode.egrp }}</span>
         <i class="pi pi-angle-right sep" *ngIf="!last"></i>
       </ng-container>
       <span class="hidden-note" *ngIf="!node.effectiveVisible">Hidden on B2B</span>
@@ -13,7 +13,7 @@
     <ng-template #none><div class="none">Not in any category.</div></ng-template>
 
     <div class="note" *ngIf="!sqlIsMaster">
-      The top level follows the product's Computyme EGRP and is changed in Computyme. You can move it anywhere inside that branch here.
+      The product's EGRP comes from Computyme and is changed there. Here you can move it anywhere inside its EGRP category.
     </div>
 
     <div class="actions">

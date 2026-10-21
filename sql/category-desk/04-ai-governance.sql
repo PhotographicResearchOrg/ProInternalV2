@@ -1,6 +1,6 @@
 /*
     Product AI · 04  Usage log and procedures
-    Database: PRO      Safe to run twice.      Run after phase-1-platform/00 (the piv2 schema).
+    Database: PRO      Safe to run twice.      Run after 01 and 02 (it reads the Category Desk's product view).
 
     One table every AI feature writes to: who, which feature, which model, how many items,
     what it cost, and (for market research) the saved snapshot in the File Library.
@@ -124,8 +124,8 @@ BEGIN
 END
 GO
 
-/* What research needs to know about the product. dbo.Product supplies UPC and the Computyme vendor;
-   CONFIRM the column names marked below (they are the Connection site's Product model names). */
+/* What research needs to know about the product (from the Category Desk's product view, so brand,
+   vendor and EGRP come from the same place everywhere). */
 CREATE OR ALTER PROCEDURE piv2.Ai_ProductContext
     @ProductId int
 AS
@@ -133,16 +133,12 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT TOP (1)
-        d.Id AS ProductId, d.ProductCode, d.ModelName, p.BrandName,     -- CONFIRM dbo.Product.BrandName
-        p.UPC,                                                          -- CONFIRM dbo.Product.UPC
-        v.Name AS VendorName,
+        p.ProductId, p.ProductCode, p.ModelName, p.BrandName, p.UPC, p.VendorName,
         t.PathNames AS CategoryPath,
-        CAST(d.IsDiscontinued AS bit) AS IsDiscontinued
-    FROM dbo.ProductData d
-    LEFT JOIN dbo.Product p ON p.Id = d.Id
-    LEFT JOIN dbo.Vendor v  ON v.VendorId = p.VendorID
-    LEFT JOIN piv2.vCategoryTree t ON t.CatId = COALESCE(NULLIF(d.SubCatId, 0), NULLIF(d.CatId, 0), NULLIF(d.TopCatId, 0))
-    WHERE d.Id = @ProductId;
+        p.IsDiscontinued
+    FROM piv2.vCategoryProduct p
+    LEFT JOIN piv2.vCategoryTree t ON t.CatId = p.NodeId
+    WHERE p.ProductId = @ProductId;
 END
 GO
 

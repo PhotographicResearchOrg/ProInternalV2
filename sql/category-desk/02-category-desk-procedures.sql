@@ -33,11 +33,11 @@ CREATE OR ALTER FUNCTION piv2.CategoryDesk_ProductState()
 RETURNS TABLE
 AS
 RETURN
-WITH egrpTop AS
+WITH egrpNode AS
 (
     SELECT EGRP, MIN(CatId) AS CatId
     FROM piv2.vCategoryTree
-    WHERE Depth = 1 AND EGRP IS NOT NULL
+    WHERE Depth >= 1 AND EGRP IS NOT NULL
     GROUP BY EGRP
 ),
 parents AS
@@ -50,21 +50,22 @@ SELECT
     p.NodeId,
     t.Depth,
     t.TopId,
+    t.EgrpNodeId AS NodeEgrpId,
     t.PathIds,
     t.PathNames,
-    et.CatId AS EgrpTopId,
+    et.CatId AS EgrpNodeId,
     CASE
         WHEN p.NodeId = 0                                         THEN 'UNCATEGORIZED'
         WHEN t.CatId IS NULL OR t.Depth = 0                       THEN 'MISSING'
         WHEN p.IsDiscontinued = 0 AND t.EffectiveVisible = 0      THEN 'HIDDEN'
-        WHEN et.CatId IS NOT NULL AND t.TopId <> et.CatId         THEN 'EGRP_MISMATCH'
+        WHEN et.CatId IS NOT NULL AND ISNULL(t.EgrpNodeId, -1) <> et.CatId THEN 'EGRP_MISMATCH'
         WHEN p.IsDiscontinued = 0 AND k.CatId IS NOT NULL         THEN 'ON_PARENT'
         WHEN p.IsDiscontinued = 1 AND r.NodeId = 0                THEN 'REPLACEMENT_UNCATEGORIZED'
         ELSE NULL
     END AS Problem
 FROM piv2.vCategoryProduct p
 LEFT JOIN piv2.vCategoryTree t ON t.CatId = p.NodeId
-LEFT JOIN egrpTop et           ON et.EGRP = p.Egrp
+LEFT JOIN egrpNode et          ON et.EGRP = p.Egrp
 LEFT JOIN parents k            ON k.CatId = p.NodeId
 OUTER APPLY (SELECT TOP (1) rp.NodeId
              FROM piv2.vCategoryProduct rp
@@ -95,7 +96,7 @@ BEGIN
 
     /* 1. nodes */
     SELECT t.CatId, t.ParentCatId, t.CatName AS Name, t.IsActive AS Visible, t.EffectiveVisible,
-           t.Notes, t.EGRP AS Egrp, t.Depth, t.TopId, t.PathNames,
+           t.Notes, t.EGRP AS Egrp, t.Depth, t.TopId, t.EgrpNodeId, t.PathNames,
            ISNULL(c.OwnCount, 0) AS OwnCount, ISNULL(c.OwnActiveCount, 0) AS OwnActiveCount, ISNULL(c.TotalCount, 0) AS TotalCount,
            ISNULL(c.ActiveCount, 0) AS ActiveCount, ISNULL(c.DiscontinuedCount, 0) AS DiscontinuedCount
     FROM piv2.vCategoryTree t
@@ -112,7 +113,7 @@ BEGIN
             AND NOT EXISTS (SELECT 1 FROM dbo.Category p WHERE p.CatId = c.ParentCatId))                        AS Orphans,
         (SELECT ISNULL(MAX(PublishId), 0) FROM piv2.CategoryChangeLog)                                          AS Version;
 
-    /* 3. Computyme EGRPs that aren't a top-level category yet (replaces NewCats) */
+    /* 3. Computyme EGRPs that aren't in the tree yet (replaces NewCats) */
     CREATE TABLE #egrp (Egrp int, Name nvarchar(200));
     BEGIN TRY
         /* dynamic, so a synonym that points nowhere is caught here instead of failing the whole call */
@@ -193,7 +194,7 @@ BEGIN
        1 replacement of a categorized discontinued product
        2 where most products of the same brand sit, inside the product's EGRP branch
        3 the same by vendor
-       5 the EGRP's top-level node (needs a sub-category)
+       5 the product's EGRP category
        Signal 4 (name match) and AI come later. */
     CREATE TABLE #sug (ProductId int PRIMARY KEY, NodeId int, Reason nvarchar(300), Confidence int, Signal varchar(12));
 
@@ -201,19 +202,19 @@ BEGIN
     BEGIN
         /* Products that are placed properly: the pool the counts come from. */
         SELECT s.ProductId, s.ProductCode, s.ReplacementCode, s.BrandId, s.BrandName, s.VendorId, s.VendorName,
-               s.NodeId, s.TopId, s.Depth, s.PathNames
+               s.NodeId, s.NodeEgrpId, s.Depth, s.PathNames
         INTO #pool
         FROM #state s
-        WHERE s.Problem IS NULL AND s.Depth >= 2;
+        WHERE s.Problem IS NULL AND s.Depth >= 1;
 
         INSERT #sug (ProductId, NodeId, Reason, Confidence, Signal)
         SELECT pg.ProductId,
-               COALESCE(r1.NodeId, r2.NodeId, r3.NodeId, pg.EgrpTopId),
+               COALESCE(r1.NodeId, r2.NodeId, r3.NodeId, pg.EgrpNodeId),
                CASE
                    WHEN r1.NodeId IS NOT NULL THEN N'Replaces ' + r1.ProductCode + N', which is in ' + r1.PathNames
                    WHEN r2.NodeId IS NOT NULL THEN CONCAT(r2.n, N' of ', r2.total, N' ', pg.BrandName, N' products in this branch are here (', r2.n * 100 / r2.total, N'%)')
                    WHEN r3.NodeId IS NOT NULL THEN CONCAT(r3.n, N' of ', r3.total, N' ', ISNULL(pg.VendorName, N'vendor'), N' products in this branch are here (', r3.n * 100 / r3.total, N'%)')
-                   WHEN pg.EgrpTopId IS NOT NULL THEN N'Its EGRP''s top level; needs a sub-category'
+                   WHEN pg.EgrpNodeId IS NOT NULL THEN N'Its EGRP category (from Computyme)'
                END,
                CASE
                    WHEN r1.NodeId IS NOT NULL THEN 95
@@ -225,18 +226,18 @@ BEGIN
                    WHEN r1.NodeId IS NOT NULL THEN 'REPLACEMENT'
                    WHEN r2.NodeId IS NOT NULL THEN 'BRAND'
                    WHEN r3.NodeId IS NOT NULL THEN 'VENDOR'
-                   WHEN pg.EgrpTopId IS NOT NULL THEN 'EGRP'
+                   WHEN pg.EgrpNodeId IS NOT NULL THEN 'EGRP'
                END
         FROM #page pg
         OUTER APPLY (SELECT TOP (1) po.NodeId, po.ProductCode, po.PathNames
                      FROM #pool po
                      WHERE po.ReplacementCode = pg.ProductCode
-                       AND (pg.EgrpTopId IS NULL OR po.TopId = pg.EgrpTopId)) r1
+                       AND (pg.EgrpNodeId IS NULL OR po.NodeEgrpId = pg.EgrpNodeId)) r1
         OUTER APPLY (SELECT TOP (1) x.NodeId, x.n, x.total
                      FROM (SELECT po.NodeId, COUNT(*) AS n, SUM(COUNT(*)) OVER () AS total
                            FROM #pool po
                            WHERE pg.BrandId IS NOT NULL AND po.BrandId = pg.BrandId AND po.ProductId <> pg.ProductId
-                             AND (pg.EgrpTopId IS NULL OR po.TopId = pg.EgrpTopId)
+                             AND (pg.EgrpNodeId IS NULL OR po.NodeEgrpId = pg.EgrpNodeId)
                            GROUP BY po.NodeId) x
                      WHERE x.total >= 2
                      ORDER BY x.n DESC, x.NodeId) r2
@@ -244,17 +245,17 @@ BEGIN
                      FROM (SELECT po.NodeId, COUNT(*) AS n, SUM(COUNT(*)) OVER () AS total
                            FROM #pool po
                            WHERE pg.VendorId IS NOT NULL AND po.VendorId = pg.VendorId AND po.ProductId <> pg.ProductId
-                             AND (pg.EgrpTopId IS NULL OR po.TopId = pg.EgrpTopId)
+                             AND (pg.EgrpNodeId IS NULL OR po.NodeEgrpId = pg.EgrpNodeId)
                            GROUP BY po.NodeId) x
                      WHERE x.total >= 2
                      ORDER BY x.n DESC, x.NodeId) r3
-        WHERE COALESCE(r1.NodeId, r2.NodeId, r3.NodeId, pg.EgrpTopId) IS NOT NULL
-          AND COALESCE(r1.NodeId, r2.NodeId, r3.NodeId, pg.EgrpTopId) <> pg.NodeId;
+        WHERE COALESCE(r1.NodeId, r2.NodeId, r3.NodeId, pg.EgrpNodeId) IS NOT NULL
+          AND COALESCE(r1.NodeId, r2.NodeId, r3.NodeId, pg.EgrpNodeId) <> pg.NodeId;
     END
 
     SELECT pg.ProductId, pg.ProductCode, pg.ModelName, pg.BrandId, pg.BrandName, pg.VendorId, pg.VendorName, pg.Egrp,
            pg.IsDiscontinued, pg.IsForSale, pg.IsPublic, pg.ReplacementCode, pg.EnterDate,
-           pg.NodeId, pg.PathNames AS NodePath, pg.EgrpTopId, pg.Problem,
+           pg.NodeId, pg.PathNames AS NodePath, pg.EgrpNodeId, pg.Problem,
            sg.NodeId AS SuggestedNodeId, st.PathNames AS SuggestedPath, sg.Reason AS SuggestReason,
            sg.Confidence AS SuggestConfidence, sg.Signal AS SuggestSignal,
            pg.TotalCount
@@ -387,7 +388,7 @@ BEGIN
     IF @msg IS NOT NULL THROW 50483, @msg, 1;
 
     /* ---------------------------------------------------------- ids for new categories
-       A new top level made from an EGRP keeps the old convention (EGRP + 5000) when that id is free.
+       A new EGRP category keeps the old convention (EGRP + 5000) when that id is free.
        Everything else takes the next free id from 10000 up. */
     UPDATE #c SET RealId = Id WHERE Id > 0;
 
@@ -456,23 +457,24 @@ BEGIN
         WHERE pr.IsDeleted = 0 AND q.IsDeleted = 1;
     IF @msg IS NOT NULL THROW 50491, @msg, 1;
 
-    /* walk the proposed tree from the roots */
-    CREATE TABLE #reach (CatId int PRIMARY KEY, Depth int, TopId int NULL, L2Id int NULL, PathIds nvarchar(1000), EffVisible bit);
+    /* walk the proposed tree from the roots; EgrpNodeId = the EGRP category a node will be in */
+    CREATE TABLE #reach (CatId int PRIMARY KEY, Depth int, TopId int NULL, L2Id int NULL, EgrpNodeId int NULL, PathIds nvarchar(1000), EffVisible bit);
     WITH w AS
     (
-        SELECT pr.CatId, 0 AS Depth, CAST(NULL AS int) AS TopId, CAST(NULL AS int) AS L2Id,
+        SELECT pr.CatId, 0 AS Depth, CAST(NULL AS int) AS TopId, CAST(NULL AS int) AS L2Id, CAST(NULL AS int) AS EgrpNodeId,
                CAST(N'/' + CAST(pr.CatId AS nvarchar(12)) + N'/' AS nvarchar(1000)) AS PathIds, CAST(1 AS bit) AS EffVisible
         FROM #prop pr WHERE pr.ParentCatId IS NULL AND pr.IsDeleted = 0
         UNION ALL
         SELECT pr.CatId, w.Depth + 1,
                CASE WHEN w.Depth = 0 THEN pr.CatId ELSE w.TopId END,
                CASE WHEN w.Depth = 1 THEN pr.CatId WHEN w.Depth >= 2 THEN w.L2Id END,
+               CASE WHEN pr.EGRP IS NOT NULL THEN pr.CatId ELSE w.EgrpNodeId END,
                CAST(w.PathIds + CAST(pr.CatId AS nvarchar(12)) + N'/' AS nvarchar(1000)),
                CAST(CASE WHEN w.EffVisible = 1 AND pr.IsActive = 1 THEN 1 ELSE 0 END AS bit)
         FROM #prop pr JOIN w ON pr.ParentCatId = w.CatId
         WHERE pr.IsDeleted = 0 AND w.Depth < 30
     )
-    INSERT #reach SELECT CatId, Depth, TopId, L2Id, PathIds, EffVisible FROM w;
+    INSERT #reach SELECT CatId, Depth, TopId, L2Id, EgrpNodeId, PathIds, EffVisible FROM w;
 
     SELECT TOP (1) @msg = CONCAT(N'Moving ', pr.CatName, N' there would put it inside itself.')
     FROM #prop pr WHERE pr.IsChanged = 1 AND pr.IsDeleted = 0 AND NOT EXISTS (SELECT 1 FROM #reach r WHERE r.CatId = pr.CatId);
@@ -490,36 +492,44 @@ BEGIN
                                                OR UPPER(k.CatName) <> UPPER(pr.CatName)) THEN 1 ELSE 0 END) = 1;
     IF @msg IS NOT NULL THROW 50487, @msg, 1;
 
-    /* ---------------------------------------------------------- the top level belongs to Computyme until cutover */
-    SELECT t.CatId, t.Depth, t.TopId, t.PathIds INTO #now FROM piv2.vCategoryTree t;
+    /* ---------------------------------------------------------- EGRP categories
+       An EGRP category (Category.EGRP set) is Computyme's wherever it sits: at the top level or under
+       a web group. Groups above it are web-only, so an EGRP category can be regrouped. */
+    SELECT t.CatId, t.Depth, t.TopId, t.EgrpNodeId, t.PathIds INTO #now FROM piv2.vCategoryTree t;
 
-    IF @SqlIsMaster = 0
-    BEGIN
-        SELECT TOP (1) @msg = CONCAT(pr.CatName, N' can''t be a top-level category: the top level is the Computyme EGRP. Add it from the EGRP list, or put it under a top-level category.')
-        FROM #prop pr JOIN #reach r ON r.CatId = pr.CatId
-        WHERE pr.IsChanged = 1 AND r.Depth = 1 AND pr.EGRP IS NULL
-          AND NOT EXISTS (SELECT 1 FROM #now n WHERE n.CatId = pr.CatId AND n.Depth = 1);   -- already top level: renaming is fine
-        IF @msg IS NOT NULL THROW 50488, @msg, 1;
+    /* an EGRP category can't sit inside another one (always) */
+    SELECT TOP (1) @msg = CONCAT(pr.CatName, N' (EGRP ', pr.EGRP, N') can''t go inside another EGRP category (', ek.CatName, N'). Put it under a group or at the top level.')
+    FROM #prop pr
+    JOIN #reach rp ON rp.CatId = pr.ParentCatId
+    JOIN #prop ek  ON ek.CatId = rp.EgrpNodeId
+    WHERE pr.IsDeleted = 0 AND pr.EGRP IS NOT NULL AND rp.EgrpNodeId IS NOT NULL
+      /* already nested like that in today's data: leave it alone */
+      AND NOT EXISTS (SELECT 1 FROM dbo.Category k JOIN #now np ON np.CatId = k.ParentCatId
+                      WHERE k.CatId = pr.CatId AND np.EgrpNodeId IS NOT NULL);
+    IF @msg IS NOT NULL THROW 50488, @msg, 1;
 
-        SELECT TOP (1) @msg = CONCAT(pr.CatName, N' is a top-level (EGRP) category. It can''t be moved until product data moves to SQL; change it in Computyme.')
-        FROM #prop pr JOIN #now n ON n.CatId = pr.CatId AND n.Depth = 1
-        JOIN dbo.Category k ON k.CatId = pr.CatId
-        WHERE pr.IsDeleted = 0 AND ISNULL(pr.ParentCatId, -1) <> ISNULL(k.ParentCatId, -1);
-        IF @msg IS NOT NULL THROW 50489, @msg, 1;
-
-        SELECT TOP (1) @msg = CONCAT(pr.CatName, N' can''t leave its EGRP branch (', top0.CatName, N'). Moving between EGRPs is done in Computyme until product data moves to SQL.')
-        FROM #prop pr
-        JOIN #now n ON n.CatId = pr.CatId AND n.Depth >= 2
-        JOIN #reach r ON r.CatId = pr.CatId
-        JOIN dbo.Category top0 ON top0.CatId = n.TopId
-        WHERE pr.IsChanged = 1 AND ISNULL(r.TopId, -1) <> n.TopId;
-        IF @msg IS NOT NULL THROW 50490, @msg, 1;
-    END
-
-    SELECT TOP (1) @msg = CONCAT(N'EGRP ', pr.EGRP, N' is already a top-level category.')
+    SELECT TOP (1) @msg = CONCAT(N'EGRP ', pr.EGRP, N' is already in the tree.')
     FROM #prop pr WHERE pr.IsDeleted = 0 AND pr.EGRP IS NOT NULL
     GROUP BY pr.EGRP HAVING COUNT(*) > 1 AND MAX(CAST(pr.IsChanged AS int)) = 1;
     IF @msg IS NOT NULL THROW 50494, @msg, 1;
+
+    IF @SqlIsMaster = 0
+    BEGIN
+        /* a new category can only be an EGRP category if that EGRP exists in Computyme's list */
+        SELECT TOP (1) @msg = CONCAT(N'A new EGRP category must be one of Computyme''s EGRPs (', pr.EGRP, N' isn''t new here).')
+        FROM #prop pr JOIN #c c ON c.RealId = pr.CatId
+        WHERE c.Id < 0 AND pr.EGRP IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.Category k WHERE k.EGRP = pr.EGRP);
+        IF @msg IS NOT NULL THROW 50489, @msg, 1;
+
+        /* a web category inside an EGRP category stays inside it: moving between EGRPs is a Computyme change */
+        SELECT TOP (1) @msg = CONCAT(pr.CatName, N' can''t leave its EGRP category (', ek.CatName, N'). Moving between EGRPs is done in Computyme until product data moves to SQL.')
+        FROM #prop pr
+        JOIN #now n ON n.CatId = pr.CatId AND n.EgrpNodeId IS NOT NULL AND n.EgrpNodeId <> pr.CatId
+        JOIN #reach r ON r.CatId = pr.CatId
+        JOIN dbo.Category ek ON ek.CatId = n.EgrpNodeId
+        WHERE pr.IsChanged = 1 AND pr.EGRP IS NULL AND ISNULL(r.EgrpNodeId, -1) <> n.EgrpNodeId;
+        IF @msg IS NOT NULL THROW 50490, @msg, 1;
+    END
 
     /* ---------------------------------------------------------- product moves */
     SELECT TOP (1) @msg = CONCAT(N'Product ', p.ProductId, N' isn''t in the product table.')
@@ -530,19 +540,24 @@ BEGIN
     FROM #p p WHERE p.RealNodeId IS NULL OR (p.RealNodeId <> 0 AND NOT EXISTS (SELECT 1 FROM #reach r WHERE r.CatId = p.RealNodeId AND r.Depth >= 1));
     IF @msg IS NOT NULL THROW 50492, @msg, 1;
 
+    /* each product's EGRP category (where its Computyme EGRP sits in the tree) */
+    SELECT cp.ProductId, cp.ProductCode, cp.Egrp, MIN(pr.CatId) AS EgrpNodeId
+    INTO #pegrp
+    FROM piv2.vCategoryProduct cp
+    JOIN #prop pr ON pr.EGRP = cp.Egrp AND pr.IsDeleted = 0
+    WHERE cp.Egrp IS NOT NULL
+    GROUP BY cp.ProductId, cp.ProductCode, cp.Egrp;
+
     IF @SqlIsMaster = 0
     BEGIN
-        SELECT @n = COUNT(*), @msg = MIN(CONCAT(cp.ProductCode, N' (EGRP ', cp.Egrp, N')'))
+        SELECT @n = COUNT(*), @msg = MIN(CONCAT(pe.ProductCode, N' (EGRP ', pe.Egrp, N')'))
         FROM #p p
-        JOIN piv2.vCategoryProduct cp ON cp.ProductId = p.ProductId
+        JOIN #pegrp pe ON pe.ProductId = p.ProductId
         JOIN #reach r ON r.CatId = p.RealNodeId
-        JOIN (SELECT k.EGRP, MIN(k.CatId) AS CatId
-              FROM dbo.Category k JOIN #now n ON n.CatId = k.CatId AND n.Depth = 1
-              WHERE k.EGRP IS NOT NULL GROUP BY k.EGRP) et ON et.EGRP = cp.Egrp
-        WHERE p.RealNodeId <> 0 AND r.TopId <> et.CatId;
+        WHERE p.RealNodeId <> 0 AND ISNULL(r.EgrpNodeId, -1) <> pe.EgrpNodeId;
         IF @n > 0
         BEGIN
-            SET @msg = CONCAT(@n, N' product(s), for example ', @msg, N', would leave their EGRP branch. A product''s top level follows its Computyme EGRP; change it in Computyme, or pick a category inside its branch.');
+            SET @msg = CONCAT(@n, N' product(s), for example ', @msg, N', would leave their EGRP category. A product''s EGRP comes from Computyme; change it there, or pick a category inside its EGRP.');
             THROW 50486, @msg, 1;
         END
         SET @msg = NULL;
@@ -610,6 +625,25 @@ BEGIN
            COALESCE(NULLIF(d.SubCatId, 0), NULLIF(d.CatId, 0), NULLIF(d.TopCatId, 0), 0) AS NodeId
     INTO #pbefore
     FROM dbo.ProductData d JOIN #repath r ON r.ProductId = d.Id;
+
+    /* moving a category must not carry products out of their EGRP category either */
+    IF @SqlIsMaster = 0
+    BEGIN
+        SELECT @n = COUNT(*), @msg = MIN(CONCAT(pe.ProductCode, N' (EGRP ', pe.Egrp, N')'))
+        FROM #pbefore b
+        JOIN #pegrp pe ON pe.ProductId = b.ProductId
+        JOIN #now nb   ON nb.CatId = b.NodeId
+        JOIN #reach ra ON ra.CatId = b.NodeId
+        WHERE NOT EXISTS (SELECT 1 FROM #p p WHERE p.ProductId = b.ProductId)
+          AND nb.EgrpNodeId = pe.EgrpNodeId
+          AND ISNULL(ra.EgrpNodeId, -1) <> pe.EgrpNodeId;
+        IF @n > 0
+        BEGIN
+            SET @msg = CONCAT(N'That move would take ', @n, N' product(s), for example ', @msg, N', out of their EGRP category. Move the products first, or keep the category inside the EGRP.');
+            THROW 50498, @msg, 1;
+        END
+        SET @msg = NULL;
+    END
 
     /* ---------------------------------------------------------- apply */
     INSERT dbo.Category (CatId, CatName, ParentCatId, IsActive, IsPublic, EGRP, Type, Notes)

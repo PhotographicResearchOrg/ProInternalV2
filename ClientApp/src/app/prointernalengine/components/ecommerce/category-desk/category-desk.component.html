@@ -27,7 +27,7 @@
 
   <div class="lock-note" *ngIf="!sqlIsMaster">
     <i class="pi pi-lock"></i>
-    <span>The top level is the <span class="computyme-chip">Computyme</span> EGRP. A product's top level follows its EGRP and is changed in Computyme until product data moves to SQL. Everything below the top level is edited here.</span>
+    <span>Categories with a lock are <span class="computyme-chip">Computyme</span> EGRPs. You can rename them and regroup them under any group, but a product's EGRP comes from Computyme, so products stay inside their own EGRP category until product data moves to SQL. Groups and sub-categories are edited here freely.</span>
   </div>
 
   <!-- =========================================================== SUMMARY -->
@@ -91,7 +91,7 @@
              (click)="select(r.cat.catId)"
              (dblclick)="startRename(r.cat.catId)">
           <i class="pi chevron" [ngClass]="r.hasChildren ? (r.expanded ? 'pi-chevron-down' : 'pi-chevron-right') : ''" (click)="r.hasChildren && toggle(r, $event)"></i>
-          <i class="pi pi-lock lock-icon" *ngIf="r.locked" title="Computyme EGRP"></i>
+          <i class="pi pi-lock lock-icon" *ngIf="r.locked" [title]="'Computyme EGRP ' + r.cat.egrp"></i>
           <span class="change-dot" *ngIf="r.changed" title="Changed in your draft"></span>
           <ng-container *ngIf="renamingId !== r.cat.catId; else renameBox">
             <span class="tree-name">{{ r.cat.name }}</span>
@@ -107,8 +107,9 @@
       </div>
 
       <div class="tree-footer" *ngIf="canEdit">
-        <button type="button" class="btn btn-secondary" [disabled]="selectedId === null" (click)="openAdd(selectedId)"><i class="pi pi-plus"></i>Add sub-category</button>
-        <button type="button" class="btn btn-secondary" (click)="openAdd(null, true)"><i class="pi pi-plus"></i>Top level</button>
+        <button type="button" class="btn btn-secondary" [disabled]="selectedId === null" (click)="openAdd(selectedId)"><i class="pi pi-plus"></i>Sub-category</button>
+        <button type="button" class="btn btn-secondary" (click)="openAdd(null)" title="A web group at the top level, e.g. Bags &amp; Cases"><i class="pi pi-plus"></i>Group</button>
+        <button type="button" class="btn btn-secondary" (click)="openAdd(selectedId, true)" title="Add one of Computyme's EGRPs, under the selected group or at the top level"><i class="pi pi-plus"></i>EGRP</button>
       </div>
       <div class="tree-hint">Drag a category onto another to move it. Drag products from the list onto a category. Double-click or F2 to rename.</div>
     </section>
@@ -170,7 +171,8 @@
           <div class="crumb">{{ pathOf(s.parentCatId) || 'Top level' }}</div>
           <div class="cat-title-row">
             <h2>{{ s.name }}</h2>
-            <span class="computyme-chip" *ngIf="isLockedTop(s.catId)">Computyme EGRP {{ s.egrp }}</span>
+            <span class="computyme-chip" *ngIf="isEgrp(s.catId)">Computyme EGRP {{ s.egrp }}</span>
+            <span class="faint small-text" *ngIf="!isEgrp(s.catId) && egrpOf(s.catId) !== null">Inside EGRP {{ cat(egrpOf(s.catId))?.egrp }}</span>
             <span class="status-badge status-hold" *ngIf="!effectiveVisible(s.catId)">Hidden on B2B</span>
             <span class="status-badge status-exception" *ngIf="effectiveVisible(s.catId) && rolled(s.catId, true) === 0">Empty: hidden on B2B</span>
             <span class="status-badge status-progress" *ngIf="isChanged(s.catId)">Changed in draft</span>
@@ -187,8 +189,8 @@
             <div class="cat-buttons">
               <button type="button" class="btn btn-secondary" (click)="startRename(s.catId)"><i class="pi pi-pencil"></i>Rename</button>
               <button type="button" class="btn btn-secondary" (click)="openAdd(s.catId)"><i class="pi pi-plus"></i>Sub-category</button>
-              <button type="button" class="btn btn-secondary" *ngIf="!isLockedTop(s.catId)" (click)="openChooser('merge')"><i class="pi pi-sign-in"></i>Merge into…</button>
-              <button type="button" class="btn btn-danger" *ngIf="!isLockedTop(s.catId)" (click)="deleteSelected()"><i class="pi pi-trash"></i>Delete</button>
+              <button type="button" class="btn btn-secondary" *ngIf="sqlIsMaster || !isEgrp(s.catId)" (click)="openChooser('merge')"><i class="pi pi-sign-in"></i>Merge into…</button>
+              <button type="button" class="btn btn-danger" (click)="deleteSelected()"><i class="pi pi-trash"></i>Delete</button>
             </div>
           </div>
 
@@ -380,15 +382,15 @@
     <div class="modal-header">
       <div>
         <div class="eyebrow">Category Desk</div>
-        <h2>{{ m.parentId === null ? 'Add a top-level category' : 'Add a sub-category' }}</h2>
-        <div class="subtitle" *ngIf="m.parentId !== null">Under {{ pathOf(m.parentId) }}</div>
+        <h2>{{ m.fromEgrp ? 'Add an EGRP category' : m.parentId === null ? 'Add a group' : 'Add a sub-category' }}</h2>
+        <div class="subtitle">{{ m.parentId === null ? 'At the top level' : 'Under ' + pathOf(m.parentId) }}</div>
       </div>
       <button type="button" class="modal-close" (click)="addModal = null"><i class="pi pi-times"></i></button>
     </div>
-    <ng-container *ngIf="m.parentId === null">
-      <div class="modal-warning info" *ngIf="!sqlIsMaster">
+    <ng-container *ngIf="m.fromEgrp">
+      <div class="modal-warning info">
         <i class="pi pi-info-circle"></i>
-        <span>The top level is the Computyme EGRP. Pick one that isn't on the tree yet.</span>
+        <span>Computyme's EGRPs that aren't in the tree yet. It's added under the selected group, or at the top level.</span>
       </div>
       <div class="egrp-list">
         <button type="button" *ngFor="let e of egrpsLeft()" class="egrp-option" [class.active]="m.egrp === e.egrp" (click)="pickEgrp(e)">

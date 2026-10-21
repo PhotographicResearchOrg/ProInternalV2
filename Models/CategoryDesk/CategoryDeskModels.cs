@@ -18,6 +18,7 @@ namespace ProInternal.Models.CategoryDesk
         public int? Egrp { get; set; }
         public int Depth { get; set; }
         public int? TopId { get; set; }
+        public int? EgrpNodeId { get; set; }        // the EGRP category this node is in (itself or above), null outside any
         public string PathNames { get; set; }
         public int OwnCount { get; set; }
         public int OwnActiveCount { get; set; }
@@ -55,7 +56,7 @@ namespace ProInternal.Models.CategoryDesk
         public List<EgrpOption> EgrpsNotOnTree { get; set; } = new();
         public List<OrphanCategory> Orphans { get; set; } = new();
 
-        /* Product:SqlIsMaster. False: the top level (EGRP) is Computyme's and locked. */
+        /* Product:SqlIsMaster. False: EGRP categories are Computyme's; products stay inside theirs. */
         public bool SqlIsMaster { get; set; }
         public bool CanEdit { get; set; }
     }
@@ -96,7 +97,7 @@ namespace ProInternal.Models.CategoryDesk
         public DateTime? EnterDate { get; set; }
         public int NodeId { get; set; }
         public string NodePath { get; set; }
-        public int? EgrpTopId { get; set; }
+        public int? EgrpNodeId { get; set; }        // the EGRP category the product's Computyme EGRP sits at
         public string Problem { get; set; }
         public int? SuggestedNodeId { get; set; }
         public string SuggestedPath { get; set; }
