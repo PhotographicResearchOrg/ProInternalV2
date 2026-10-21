@@ -3,7 +3,7 @@ import { RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.serv
 
 /* Every step on one instant-rebate claim, oldest first, and who has it now (piv2.Claim_Timeline). */
 export const BALL_LABELS: Record<string, string> = {
-  PRO: 'PRO (approval queue)', DEALER: 'Dealer / BRM (support asked)', ACCOUNTING: 'Accounting',
+  PRO: 'PRO (approval queue)', PRO_REVIEW: 'PRO (being reviewed)', DEALER: 'Dealer / BRM (support asked)', ACCOUNTING: 'Accounting',
   PRO_BILLING: 'PRO (bill the vendor)', VENDOR: 'Vendor (billed)', CLOSED: 'Closed', DONE: 'Done', UNKNOWN: 'Unknown'
 };
 
@@ -31,9 +31,6 @@ export const BALL_LABELS: Record<string, string> = {
         </li>
       </ol>
       <div class="sub" *ngIf="!loading && !steps.length && !error">Nothing recorded for this claim.</div>
-      <div class="sub tl-note" *ngIf="steps.length && !hasLog">
-        Older steps are rebuilt from what the records still show: the legacy screens overwrite a claim's decision,
-        so an earlier "needs support" can show only as its BRM notice.</div>
     </div>`,
   styleUrls: ['./rebate-desk.shared.scss']
 })

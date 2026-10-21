@@ -484,7 +484,7 @@ table.grid td .btn { white-space: nowrap; }
   border-radius: 8px; border: 1px solid var(--border); background: var(--card);
   .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--faint); }
   &.b-dealer { background: var(--amberSoft); border-color: var(--amber); }
-  &.b-pro, &.b-pro_billing, &.b-accounting { background: var(--blueSoft); border-color: var(--blue); }
+  &.b-pro, &.b-pro_review, &.b-pro_billing, &.b-accounting { background: var(--blueSoft); border-color: var(--blue); }
   &.b-closed { background: var(--redSoft); border-color: var(--red); }
   &.b-done, &.b-vendor { background: var(--greenSoft); border-color: var(--green); }
 }
@@ -519,6 +519,9 @@ tr.expand > td { background: #fafbfd; padding: 12px; }
   .actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
 }
 @media (max-width: 900px) { .decl-panel { grid-template-columns: 1fr; } }
+.decl-lines { margin-bottom: 12px; }
+.decl-lines table.grid td { padding: 5px 8px; }
+.decl-lines .tot td { font-weight: 650; border-bottom: none; }
 
 /* ---- phones and small tablets: look things up comfortably ----
    The view list becomes one strip you swipe sideways; wide tables scroll sideways inside

@@ -167,7 +167,20 @@ export class RebateDeskComponent implements OnInit {
   uploadingFor: number | null = null;
   timelineVersion = 0;
   trackDecline = (_: number, d: any) => d.orderID;
-  toggleDecline(d: any): void { this.declineOpen = this.declineOpen?.orderID === d.orderID ? null : d; }
+  declineLines: any[] = [];
+  declineLinesFor: number | null = null;
+  toggleDecline(d: any): void {
+    this.declineOpen = this.declineOpen?.orderID === d.orderID ? null : d;
+    if (!this.declineOpen || this.declineLinesFor === +d.orderID) return;
+    this.declineLines = [];
+    this.declineLinesFor = +d.orderID;
+    this.desk.claim('IR', +d.orderID).subscribe({
+      next: r => { if (this.declineLinesFor === +d.orderID) this.declineLines = r.lines || []; },
+      error: e => (this.error = apiMessage(e))
+    });
+  }
+  get declineLinesTotal(): number { return this.declineLines.reduce((s, l) => s + (+l.net || 0), 0); }
+  get declineUnitsTotal(): number { return this.declineLines.reduce((s, l) => s + (+l.quantity || 0), 0); }
 
   loadDeclines(): void {
     this.desk.declines(this.declineMonths).subscribe({

@@ -220,7 +220,7 @@ BEGIN
                  WHEN 'DEBIT_MEMO'       THEN N'Billed to the vendor on debit memo ' + l.DmNow
                  ELSE N'Decision row changed' END AS Text,
             CASE k0.Kind
-                 WHEN 'RESUBMITTED' THEN 'PRO' WHEN 'OPENED' THEN 'PRO' WHEN 'APPROVED' THEN 'ACCOUNTING'
+                 WHEN 'RESUBMITTED' THEN 'PRO' WHEN 'OPENED' THEN 'PRO_REVIEW' WHEN 'APPROVED' THEN 'ACCOUNTING'
                  WHEN 'DECLINED' THEN 'CLOSED' WHEN 'SUPPORT_ASKED' THEN 'DEALER' WHEN 'POSTED' THEN 'ACCOUNTING'
                  WHEN 'REPOST' THEN 'ACCOUNTING' WHEN 'DEBIT_MEMO' THEN 'VENDOR' ELSE NULL END AS Ball) k
      WHERE l.OrderId = @OrderId AND l.Source = 'PROCESS' AND k0.Kind <> 'CHANGED';
@@ -231,7 +231,7 @@ BEGIN
         /* Opened before the log started (no insert logged for this row). */
         IF NOT EXISTS (SELECT 1 FROM piv2.ClaimLog WHERE ProcessId = @pid AND Action = 'I')
             INSERT #t (At, Seq, Kind, Actor, Text, Ball, Source)
-            VALUES (@opened, 20, 'OPENED', @user, N'Opened for review', 'PRO', 'Decision');
+            VALUES (@opened, 20, 'OPENED', @user, N'Opened for review', 'PRO_REVIEW', 'Decision');
         /* Decided before the log started (the log has no move to this status). */
         IF @status IN (1, 2, 3)
            AND NOT EXISTS (SELECT 1 FROM piv2.ClaimLog WHERE ProcessId = @pid AND StatusNow = @status
@@ -321,7 +321,7 @@ BEGIN
     SELECT
         CASE WHEN @lines IS NULL OR @lines = 0 THEN 'UNKNOWN'
              WHEN @pid IS NULL THEN 'PRO'
-             WHEN COALESCE(@status, 0) = 0 THEN 'PRO'
+             WHEN COALESCE(@status, 0) = 0 THEN 'PRO_REVIEW'
              WHEN @status = 3 THEN 'DEALER'
              WHEN @status = 2 THEN 'CLOSED'
              WHEN @status = 1 AND COALESCE(@posted, 0) <> 1 THEN 'ACCOUNTING'

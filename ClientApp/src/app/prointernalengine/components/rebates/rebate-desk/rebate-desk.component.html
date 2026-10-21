@@ -618,6 +618,26 @@
             </tr>
             <tr class="expand" *ngIf="declineOpen?.orderID === d.orderID">
               <td [attr.colspan]="declineStatus === 3 ? 10 : 9">
+                <div class="decl-lines">
+                  <h3 class="sub" style="margin: 0 0 6px">Claim lines</h3>
+                  <table class="grid">
+                    <thead><tr><th>Product</th><th>PRO code</th><th>Serial #</th><th>Program week</th><th class="num">Qty</th><th class="num">Each</th><th class="num">Net</th></tr></thead>
+                    <tbody>
+                      <tr *ngFor="let l of declineLines">
+                        <td>{{ l.description || l.model }}</td>
+                        <td class="mono">{{ l.proCode }}</td>
+                        <td class="mono">{{ l.serialNumber || '—' }}</td>
+                        <td class="sub">{{ l.programWeek }}</td>
+                        <td class="num">{{ l.quantity }}</td>
+                        <td class="money">{{ l.reimbursementAmount | currency }}</td>
+                        <td class="money">{{ l.net | currency }}</td>
+                      </tr>
+                      <tr class="tot" *ngIf="declineLines.length > 1"><td colspan="4">{{ declineLines.length }} lines</td>
+                        <td class="num">{{ declineUnitsTotal }}</td><td></td><td class="money">{{ declineLinesTotal | currency }}</td></tr>
+                      <tr *ngIf="!declineLines.length"><td colspan="7" class="empty">Loading the claim lines…</td></tr>
+                    </tbody>
+                  </table>
+                </div>
                 <div class="decl-panel">
                   <div>
                     <h3>Support files</h3>
