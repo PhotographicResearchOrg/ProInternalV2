@@ -142,7 +142,9 @@ export class AppMenuComponent implements OnInit {
           label: 'Product Management', icon: 'pi pi-box',
             items:
            [
-               can('ecommerce/product-overview') && { label: 'Product Configuration', icon: 'pi pi-sliders-h', routerLink: ['ecommerce/product-overview'] },(can('/gating') || can('/exclusions/group')) &&
+               can('ecommerce/product-overview') && { label: 'Product Configuration', icon: 'pi pi-sliders-h', routerLink: ['ecommerce/product-overview'] },
+               can('/categories') && { label: 'Category Desk', icon: 'pi pi-sitemap', routerLink: ['/categories'] },
+               (can('/gating') || can('/exclusions/group')) &&
               {
                 label: 'Exclusions', icon: 'pi pi-ban',
                 items:
