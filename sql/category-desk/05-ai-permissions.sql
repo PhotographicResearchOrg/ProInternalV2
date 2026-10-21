@@ -11,7 +11,7 @@
       AI.CategorySuggest    AI category suggestions on the Category Desk queues      (next package)
       AI.ProductLookup      Description, images and UPC lookup on a product          (next package)
       AI.CompetitorPricing  Competitor prices on a product (DataForSEO)              (next package)
-      AI.Forecast           Sales forecast on a product (Chronos)                    (next package)
+      AI.Forecast           Sales forecast on a product, and the forecast accuracy report
       AI.Usage              See the AI usage and cost report, and export it
 
     IMPORTANT: grant AI.Translate to the roles that translate today BEFORE deploying the API,

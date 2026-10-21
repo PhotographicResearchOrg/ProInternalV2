@@ -22,16 +22,14 @@ namespace ProInternal.Services.Ai
      * Sales forecast for one product, for buyers.
      *
      *   1. History: units per month and country, last 36 complete months (piv2.Forecast_History).
-     *   2. Forecast the product's total with ForecastEngine (built into the API, $0), or with Chronos
-     *      on Bedrock Marketplace when Forecast:ChronosEndpointArn is set (falls back to the built-in
-     *      engine if it doesn't answer). Chronos runs on a dedicated endpoint billed by the hour.
+     *   2. Forecast the product's total with ForecastEngine (built into the API, $0).
      *   3. Split the total by country using each country's share of the last 12 months.
      *   4. Claude (Bedrock) writes a short summary for the buyer.
      *   5. The run is logged to piv2.AiUsageLog (who, when, model, summary) and every month is
      *      saved to piv2.ProductForecast, so it can be compared with what actually sold.
      *
      * appsettings (optional):
-     *   "Forecast": { "ChronosEndpointArn": "arn:aws:sagemaker:us-east-1:...:endpoint/chronos-...", "HistoryMonths": 36 }
+     *   "Forecast": { "HistoryMonths": 36 }
      *   "Bedrock":  { "Region": "us-east-1", "SummaryModel": "us.anthropic.claude-sonnet-5-5" }
      */
     public sealed class ForecastService
@@ -73,7 +71,7 @@ namespace ProInternal.Services.Ai
             var series = months.Select(m => byMonth.TryGetValue(m, out var u) ? u : 0d).ToList();
 
             /* the forecast for the total */
-            var (method, errorPct, points, engineModel) = await ForecastTotalAsync(series, horizon, ct);
+            var (method, errorPct, points, engineModel) = ForecastTotal(series, horizon);
 
             /* country split by the last 12 months */
             var recent = history.Where(h => h.MonthStart >= thisMonth.AddMonths(-12)).ToList();
@@ -142,73 +140,11 @@ namespace ProInternal.Services.Ai
 
         // ------------------------------------------------------------ engines
 
-        private async Task<(string Method, double ErrorPct, List<ForecastEngine.Point> Points, string Model)> ForecastTotalAsync(
-            List<double> series, int horizon, CancellationToken ct)
+        private static (string Method, double ErrorPct, List<ForecastEngine.Point> Points, string Model) ForecastTotal(
+            List<double> series, int horizon)
         {
-            /* Chronos on Bedrock Marketplace, when an endpoint is set up (it bills by the hour while it runs). */
-            var chronosArn = _config["Forecast:ChronosEndpointArn"];
-            if (!string.IsNullOrWhiteSpace(chronosArn))
-            {
-                try
-                {
-                    var pts = await ChronosAsync(chronosArn, series, horizon, ct);
-                    if (pts != null) return ("Chronos on Bedrock", 0, pts, "Chronos on Bedrock");
-                }
-                catch (Exception ex)
-                {
-                    _log.LogWarning(ex, "Chronos on Bedrock didn't answer; using the built-in forecast");
-                }
-            }
-
             var r = ForecastEngine.Forecast(series, horizon);
             return (r.Method, r.BacktestErrorPct, r.Points, $"PIV2 forecast · {r.Method}");
-        }
-
-        /* Chronos request/response as Bedrock Marketplace (SageMaker JumpStart) serves it:
-           {"inputs":[{"target":[...]}],"parameters":{"prediction_length":h,"quantile_levels":[0.1,0.5,0.9]}}
-           -> {"predictions":[{"0.1":[...],"0.5":[...],"0.9":[...],"mean":[...]}]} */
-        private async Task<List<ForecastEngine.Point>> ChronosAsync(string endpointArn, List<double> series, int horizon, CancellationToken ct)
-        {
-            var region = _config["Bedrock:Region"];
-            using var client = new AmazonBedrockRuntimeClient(RegionEndpoint.GetBySystemName(string.IsNullOrWhiteSpace(region) ? "us-east-1" : region));
-
-            var trimmed = series.SkipWhile(v => v <= 0).ToList();
-            if (trimmed.Count < 4) return null;
-            var body = new JsonObject
-            {
-                ["inputs"] = new JsonArray(new JsonObject { ["target"] = new JsonArray(trimmed.Select(v => (JsonNode)v).ToArray()) }),
-                ["parameters"] = new JsonObject
-                {
-                    ["prediction_length"] = horizon,
-                    ["quantile_levels"] = new JsonArray(0.1, 0.5, 0.9)
-                }
-            };
-
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(45));
-            var response = await client.InvokeModelAsync(new InvokeModelRequest
-            {
-                ModelId = endpointArn,
-                ContentType = "application/json",
-                Accept = "application/json",
-                Body = new System.IO.MemoryStream(Encoding.UTF8.GetBytes(body.ToJsonString()))
-            }, timeout.Token);
-
-            using var reader = new System.IO.StreamReader(response.Body);
-            var json = JsonNode.Parse(await reader.ReadToEndAsync(timeout.Token));
-            var pred = json?["predictions"]?.AsArray().FirstOrDefault();
-            List<double> Read(string key) => pred?[key]?.AsArray().Select(n => n.GetValue<double>()).ToList();
-            var mid = Read("0.5") ?? Read("mean");
-            var low = Read("0.1");
-            var high = Read("0.9");
-            if (mid == null || low == null || high == null || mid.Count < horizon) return null;
-
-            return Enumerable.Range(0, horizon).Select(i => new ForecastEngine.Point
-            {
-                Likely = Math.Max(0, Math.Round(mid[i], 1)),
-                Low = Math.Max(0, Math.Round(low[i], 1)),
-                High = Math.Max(0, Math.Round(high[i], 1))
-            }).ToList();
         }
 
         private async Task<(string Text, string Model)> SummaryAsync(
