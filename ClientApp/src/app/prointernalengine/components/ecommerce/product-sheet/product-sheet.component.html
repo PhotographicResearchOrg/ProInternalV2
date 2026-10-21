@@ -9,12 +9,16 @@
         <option value="">All fields</option>
         <option *ngFor="let v of views" [value]="v.name">{{ v.name }}</option>
       </select>
-      <span class="search"><i class="pi pi-search"></i><input type="text" [(ngModel)]="search" placeholder="Find a field or value" /></span>
+      <span class="search"><i class="pi pi-search"></i><input type="text" [(ngModel)]="search" (ngModelChange)="recompute()" placeholder="Find a field or value" /></span>
       <button type="button" class="tbtn" [class.on]="showLayout" (click)="showLayout = !showLayout"><i class="pi pi-sliders-h"></i> Fields</button>
       <button type="button" class="tbtn" [class.on]="showHistory" (click)="showHistory = !showHistory"><i class="pi pi-history"></i> Changes</button>
       <button type="button" class="tbtn" (click)="exportSheet()"><i class="pi pi-file-excel"></i> Export</button>
     </div>
   </header>
+
+  <nav class="jump" *ngIf="groupsView.length > 1">
+    <button type="button" *ngFor="let g of groupsView" (click)="jumpTo(g.name)">{{ g.name }}</button>
+  </nav>
 
   <div class="pending" *ngIf="pending.size">
     <i class="pi pi-pencil"></i> {{ pending.size }} field{{ pending.size === 1 ? '' : 's' }} changed. Save at the top of the page keeps them.
@@ -35,15 +39,15 @@
       <span class="hint">Changes here apply now and are saved for you on any computer. Save as a view to keep this layout under a name and switch back to it.</span>
     </div>
     <div class="layout-groups">
-      <div class="lg" *ngFor="let g of allGroupNames; let i = index">
+      <div class="lg" *ngFor="let g of groupNamesAll; let i = index">
         <div class="lg-head">
           <label class="chk"><input type="checkbox" [checked]="!layout.hiddenGroups.includes(g)" (change)="toggleGroup(g)" /> <strong>{{ g }}</strong></label>
           <span class="move">
             <button type="button" [disabled]="i === 0" (click)="moveGroup(g, -1)" title="Move up"><i class="pi pi-arrow-up"></i></button>
-            <button type="button" [disabled]="i === allGroupNames.length - 1" (click)="moveGroup(g, 1)" title="Move down"><i class="pi pi-arrow-down"></i></button>
+            <button type="button" [disabled]="i === groupNamesAll.length - 1" (click)="moveGroup(g, 1)" title="Move down"><i class="pi pi-arrow-down"></i></button>
           </span>
         </div>
-        <div class="lg-fields" *ngIf="g !== 'Assets' && !layout.hiddenGroups.includes(g)">
+        <div class="lg-fields" *ngIf="g !== 'Assets' && g !== 'Languages' && !layout.hiddenGroups.includes(g)">
           <label class="chk small" *ngFor="let r of rowsOf(g)">
             <input type="checkbox" [checked]="!layout.hiddenFields.includes(r.key)" (change)="toggleField(r.key)" /> {{ r.label }}
           </label>
@@ -70,15 +74,50 @@
 
   <!-- ================= the sheet ================= -->
   <ng-container *ngIf="product">
-    <div class="group" *ngFor="let g of groups; trackBy: trackGroup">
-      <div class="g-head">{{ g.name }}</div>
+    <div class="sh-group" *ngFor="let g of groupsView; trackBy: trackGroup" [id]="anchor(g.name)">
+      <div class="g-head">
+        {{ g.name }}
+        <ng-container *ngIf="g.name === 'Languages'">
+          <button type="button" class="link small" *ngIf="canTranslate" [disabled]="translatingAny" (click)="translateMissing.emit()">
+            <i class="pi" [ngClass]="translatingAny ? 'pi-spin pi-spinner' : 'pi-language'"></i> Translate missing languages</button>
+          <button type="button" class="link small" (click)="openSection.emit('content')"><i class="pi pi-plus"></i> Add or remove languages</button>
+        </ng-container>
+      </div>
 
-      <ng-container *ngIf="g.name === 'Assets'; else fieldGrid">
-        <app-product-assets [productId]="productId" [compact]="true" (openFull)="openSection.emit('assets')"></app-product-assets>
+      <ng-container *ngIf="g.name === 'Languages'">
+        <div class="langs">
+          <div class="lang" *ngFor="let l of otherLocales">
+            <div class="lang-head">
+              <strong>{{ localeName(l.locale) }}</strong> <span class="hint">{{ l.locale }}</span>
+              <span class="badge ai" *ngIf="l.translation?.method === 'AI' && !l.translation?.reviewed">AI, not reviewed</span>
+              <span class="badge ok" *ngIf="l.translation?.method === 'AI' && l.translation?.reviewed">AI, reviewed</span>
+              <span class="spacer"></span>
+              <label class="chk small" *ngIf="l.translation?.method === 'AI'">
+                <input type="checkbox" [checked]="!!l.translation?.reviewed" (change)="markReviewed(l, $any($event.target).checked)" /> Reviewed
+              </label>
+              <button type="button" class="tbtn small" *ngIf="canTranslate" [disabled]="translating.has(l.locale)" (click)="translateLocale.emit(l.locale)">
+                <i class="pi" [ngClass]="translating.has(l.locale) ? 'pi-spin pi-spinner' : 'pi-language'"></i>
+                {{ translating.has(l.locale) ? 'Translating…' : 'Translate' }}</button>
+            </div>
+            <div class="sh-grid">
+              <div class="f"><span class="lab">Name</span>
+                <input type="text" [ngModel]="l.name" (ngModelChange)="setLocale(l, 'name', $event)" [disabled]="!canEdit" /></div>
+              <div class="f"><span class="lab">Short description</span>
+                <input type="text" [ngModel]="l.shortDescription" (ngModelChange)="setLocale(l, 'shortDescription', $event)" [disabled]="!canEdit" /></div>
+              <div class="f wide"><span class="lab">Description</span>
+                <textarea rows="3" [ngModel]="l.description" (ngModelChange)="setLocale(l, 'description', $event)" [disabled]="!canEdit"></textarea></div>
+            </div>
+          </div>
+          <div class="empty" *ngIf="!otherLocales.length">Only {{ localeName(content?.defaultLocale) }} so far. Translate missing languages fills the ones the product's markets need.</div>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="g.name === 'Assets' || g.name === 'Languages'; else fieldGrid">
+        <app-product-assets *ngIf="g.name === 'Assets'" [productId]="productId" [compact]="true" (openFull)="openSection.emit('assets')"></app-product-assets>
       </ng-container>
 
       <ng-template #fieldGrid>
-        <div class="grid">
+        <div class="sh-grid">
           <div class="f" *ngFor="let r of g.rows; trackBy: trackRow"
                [class.wide]="r.kind === 'textarea' || r.kind === 'replacement'" [class.changed]="isChanged(r)" [class.locked]="isReadonly(r)">
             <span class="lab" [title]="lockText(r)">
@@ -128,6 +167,6 @@
       </ng-template>
     </div>
 
-    <div class="empty" *ngIf="!groups.length">Nothing matches "{{ search }}".</div>
+    <div class="empty" *ngIf="!groupsView.length">Nothing matches "{{ search }}".</div>
   </ng-container>
 </section>

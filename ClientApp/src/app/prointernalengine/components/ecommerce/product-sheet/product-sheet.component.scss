@@ -70,10 +70,14 @@
   td { padding: 5px 8px; border-bottom: 1px solid #eef0f3; }
 }
 
-.group { padding: 10px 0 6px; border-top: 1px solid #eef0f3; &:first-of-type { border-top: 0; } }
+.sh-group { padding: 12px 0 8px; border-top: 1px solid #eef0f3; &:first-of-type { border-top: 0; } }
 
 .g-head {
-  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0 0 10px;
   font-size: 11.5px;
   font-weight: 800;
   text-transform: uppercase;
@@ -81,8 +85,9 @@
   color: #0e7c73;
 }
 
-.grid {
+.sh-grid {
   display: grid;
+  margin: 0;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 8px 14px;
 }
@@ -144,9 +149,34 @@
   .search { flex: 1; min-width: 0; input { width: 100%; } }
   .viewpick { flex: 1; max-width: none; }
   .tbtn { flex: 1; justify-content: center; padding: 0 8px; }
-  .grid { grid-template-columns: 1fr; }
+  .sh-grid { grid-template-columns: 1fr; }
   .layout .layout-groups { grid-template-columns: 1fr; }
   .f input, .f select, .f textarea, .f .ro { min-height: 40px; font-size: 16px; }   /* 16px: no zoom on iPhone */
   .clip { max-width: 140px; }
   .tbl { display: block; overflow-x: auto; }
 }
+
+.link.small { font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 600; }
+.tbtn.small { height: 28px; font-size: 12px; }
+
+.langs { display: flex; flex-direction: column; gap: 12px; }
+.lang { padding: 10px 12px; border: 1px solid #eef0f3; border-radius: 10px; }
+.lang-head {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;
+  .spacer { flex: 1; }
+}
+.badge {
+  padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  &.ai { color: #a15c07; background: #fbeecb; }
+  &.ok { color: #1c8a4c; background: #e3f5ea; }
+}
+
+.jump {
+  display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px;
+  button {
+    padding: 3px 10px; border: 1px solid #dde1e7; border-radius: 999px; background: #fff;
+    font: inherit; font-size: 12px; font-weight: 600; color: #0e7c73; cursor: pointer;
+    &:hover { background: #dff3f0; border-color: #b6e2db; }
+  }
+}
+.sh-group { scroll-margin-top: 90px; }

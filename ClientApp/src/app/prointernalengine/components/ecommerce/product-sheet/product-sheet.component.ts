@@ -30,7 +30,7 @@ const LAYOUT_KEY = 'piv2.productSheet.layout';
 /** Groups in their default order; anything else follows alphabetically. */
 const GROUP_ORDER = [
   'Status', 'Identity', 'Codes', 'Prices', 'Market prices', 'Stock & shipping', 'Supply', 'Size & customs',
-  'Reorder & returns', 'B2B product page', 'Content (default language)', 'Tech specs', 'Category', 'Assets',
+  'Reorder & returns', 'B2B product page', 'Content (default language)', 'Languages', 'Tech specs', 'Category', 'Assets',
   'Other fields', 'Computyme', 'System'
 ];
 
@@ -68,6 +68,20 @@ export class ProductSheetComponent implements OnInit, OnChanges {
   @Output() pendingChange = new EventEmitter<number>();
   @Output() openSection = new EventEmitter<string>();
   @Output() openProduct = new EventEmitter<number>();
+  /** AI translation (AI.Translate): the page runs it, so it works the same as in Content & Languages. */
+  @Input() canTranslate = false;
+  @Input() translating: Set<string> = new Set<string>();
+  @Input() localeOptions: { locale: string; label: string }[] = [];
+  @Output() translateLocale = new EventEmitter<string>();
+  @Output() translateMissing = new EventEmitter<void>();
+  /** The groups showing right now, in order, for the page's "jump to" links. */
+  @Output() groupsChange = new EventEmitter<string[]>();
+
+  /* Rows and groups are built once and rebuilt only when something they depend on changes,
+     so typing and change detection stay fast. Values are read live through each row's get(). */
+  private rowsCache: SheetRow[] | null = null;
+  groupsView: SheetGroup[] = [];
+  groupNamesAll: string[] = [];
 
   view: ProductSheetView | null = null;
   loading = false;
@@ -96,7 +110,7 @@ export class ProductSheetComponent implements OnInit, OnChanges {
       if (saved) { this.layout = { ...this.layout, ...JSON.parse(saved) }; }
     } catch { /* storage not available */ }
     this.data.productSheetLayout().subscribe({
-      next: l => { if (l?.viewJson) { try { this.layout = { ...this.layout, ...JSON.parse(l.viewJson) }; } catch { } } },
+      next: l => { if (l?.viewJson) { try { this.layout = { ...this.layout, ...JSON.parse(l.viewJson) }; this.recompute(); } catch { } } },
       error: () => {}
     });
     this.repl$.pipe(
@@ -108,7 +122,30 @@ export class ProductSheetComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['productId']) { this.load(); }
     if (changes['product']) { this.lookupReplacementName(); }
+    this.refresh();
   }
+
+  /** Rebuild the rows (the page calls this when the sheet is shown again, e.g. after a market or language was added). */
+  refresh(): void {
+    this.rowsCache = null;
+    this.recompute();
+  }
+
+  /** Re-filter and re-group (search, layout, only-filled). */
+  recompute(): void {
+    this.groupsView = this.buildGroups();
+    this.groupNamesAll = this.orderedGroupNames([...new Set([...this.allRows.map(r => r.group), 'Languages', 'Assets'])]);
+    const names = this.groupsView.map(g => g.name);
+    Promise.resolve().then(() => this.groupsChange.emit(names));
+  }
+
+  /** Scroll the sheet to a group. */
+  jumpTo(group: string): void {
+    const el = document.getElementById(this.anchor(group));
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  anchor(group: string): string { return 'sheet-' + group.toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
 
   load(): void {
     const id = Number(this.productId);
@@ -120,7 +157,7 @@ export class ProductSheetComponent implements OnInit, OnChanges {
     if (!id) { return; }
     this.loading = true;
     this.data.productSheet(id).subscribe({
-      next: v => { this.view = v; this.loading = false; },
+      next: v => { this.view = v; this.loading = false; this.refresh(); },
       error: (e: HttpErrorResponse) => { this.loading = false; this.error = e?.error?.message || 'Couldn\'t load the product\'s fields.'; }
     });
   }
@@ -233,10 +270,16 @@ export class ProductSheetComponent implements OnInit, OnChanges {
     return rows;
   }
 
+  /** Columns the product contract already shows (from Computyme's feed or ProductData): not repeated. */
+  private static readonly SHOWN_ABOVE = new Set([
+    'retail', 'cartonpricingretail', 'authorizedprice', 'map', 'cust_retail', 'ds_chg', 'upc', 'cat_no', 'multiple', 'carton',
+    'isdiscontinued', 'modelname', 'brandid', 'isforsale', 'replacementcode', 'isdropshipelibible', 'productcode'
+  ]);
+
   /** Every ProductData column the contract doesn't cover, and Computyme's columns, from the server. */
   private columnRows(): SheetRow[] {
     return (this.view?.fields ?? [])
-      .filter(f => f.lock !== 'CONTRACT')
+      .filter(f => f.lock !== 'CONTRACT' && !ProductSheetComponent.SHOWN_ABOVE.has(f.columnName.toLowerCase()))
       .map(f => {
         const key = (f.source === 'Computyme' ? 'x:' : 'd:') + f.columnName;
         const editable = f.source === 'ProductData' && !f.lock;
@@ -279,11 +322,38 @@ export class ProductSheetComponent implements OnInit, OnChanges {
   }
 
   get allRows(): SheetRow[] {
-    return [...this.contractRows(), ...this.columnRows(), ...this.techRows()];
+    if (!this.rowsCache) { this.rowsCache = [...this.contractRows(), ...this.columnRows(), ...this.techRows()]; }
+    return this.rowsCache;
+  }
+
+  // ---- languages (every language but the default, which is under Content)
+
+  get otherLocales(): any[] {
+    const c = this.content;
+    return (c?.locales ?? []).filter((l: any) => l.locale !== c.defaultLocale);
+  }
+
+  get translatingAny(): boolean { return this.translating.size > 0; }
+
+  localeName(locale: string | null | undefined): string {
+    return this.localeOptions.find(o => o.locale === locale)?.label ?? (locale ?? '');
+  }
+
+  setLocale(l: any, field: string, value: any): void {
+    if (!this.canEdit) { return; }
+    l[field] = value;
+    this.touched.emit();
+  }
+
+  /* Ticking Reviewed marks an AI translation as checked by a person (stamped with who and when on Save). */
+  markReviewed(l: any, reviewed: boolean): void {
+    if (!l.translation) { return; }
+    l.translation = { ...l.translation, reviewed };
+    this.touched.emit();
   }
 
   /** Groups in the person's order, filtered by search, hidden fields and only-filled. */
-  get groups(): SheetGroup[] {
+  private buildGroups(): SheetGroup[] {
     const term = this.search.trim().toLowerCase();
     const byGroup = new Map<string, SheetRow[]>();
     for (const r of this.allRows) {
@@ -294,16 +364,12 @@ export class ProductSheetComponent implements OnInit, OnChanges {
       if (!byGroup.has(r.group)) { byGroup.set(r.group, []); }
       byGroup.get(r.group)!.push(r);
     }
-    return this.orderedGroupNames([...byGroup.keys(), 'Assets'])
+    return this.orderedGroupNames([...byGroup.keys(), 'Languages', 'Assets'])
       .filter(g => term || !this.layout.hiddenGroups.includes(g))
-      .filter(g => g === 'Assets' ? !term : byGroup.has(g))
+      .filter(g => (g === 'Assets' || g === 'Languages') ? !term && (g === 'Assets' || !!this.content) : byGroup.has(g))
       .map(g => ({ name: g, rows: byGroup.get(g) ?? [] }));
   }
 
-  /** Every group name, in the person's order (for the layout panel). */
-  get allGroupNames(): string[] {
-    return this.orderedGroupNames([...new Set([...this.allRows.map(r => r.group), 'Assets'])]);
-  }
 
   private orderedGroupNames(names: string[]): string[] {
     const uniq = [...new Set(names)];
@@ -336,6 +402,7 @@ export class ProductSheetComponent implements OnInit, OnChanges {
     if (r.set) {                        // contract field: into the page's form
       r.set(value);
       this.touched.emit();
+      if (this.layout.onlyFilled || this.search) { this.recompute(); }
       return;
     }
     if (!r.column) { return; }
@@ -349,6 +416,7 @@ export class ProductSheetComponent implements OnInit, OnChanges {
       this.pending.set(r.column, text);
     }
     this.pendingChange.emit(this.pending.size);
+    if (this.layout.onlyFilled || this.search) { this.recompute(); }
   }
 
   /** Called by the page's Save. Saves the changed ProductData columns; nothing when there are none. */
@@ -412,7 +480,7 @@ export class ProductSheetComponent implements OnInit, OnChanges {
   }
 
   moveGroup(g: string, dir: -1 | 1): void {
-    const order = this.allGroupNames;
+    const order = [...this.groupNamesAll];
     const i = order.indexOf(g);
     const j = i + dir;
     if (i < 0 || j < 0 || j >= order.length) { return; }
@@ -465,6 +533,7 @@ export class ProductSheetComponent implements OnInit, OnChanges {
 
   private layoutTimer: any;
   private saveLayout(): void {
+    this.recompute();
     const json = JSON.stringify(this.layout);
     try { localStorage.setItem(LAYOUT_KEY, json); } catch { /* storage not available */ }
     clearTimeout(this.layoutTimer);

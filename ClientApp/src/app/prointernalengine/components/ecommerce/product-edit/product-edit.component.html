@@ -12,14 +12,34 @@
 
     <ng-container *ngIf="mode === 'edit'">
       <div class="rail-sep"><span>{{ product.product.sku || 'Product' }}</span></div>
-      <button *ngFor="let n of navSections"
-              type="button"
-              class="rail-btn" [class.active]="activeSection === n.id"
-              [disabled]="loading || !!loadError"
-              (click)="setSection(n.id)">
-        <i [class]="n.icon"></i><span>{{ n.label }}</span>
-        <span class="rail-count" *ngIf="problemCount(n.id) as count">{{ count }}</span>
+      <ng-container *ngFor="let n of navSections">
+        <button type="button"
+                class="rail-btn" [class.active]="activeSection === n.id" [title]="n.label"
+                [disabled]="loading || !!loadError"
+                (click)="setSection(n.id)">
+          <i [class]="n.icon"></i><span>{{ n.label }}</span>
+          <span class="rail-count" *ngIf="problemCount(n.id) as count">{{ count }}</span>
+        </button>
+        <!-- under All fields: jump straight to a group -->
+        <div class="rail-jump" *ngIf="n.id === 'sheet' && activeSection === 'sheet' && sheetGroups.length > 1">
+          <button type="button" *ngFor="let g of sheetGroups" (click)="jumpToGroup(g)">{{ g }}</button>
+        </div>
+      </ng-container>
+
+      <button type="button" class="rail-btn rail-more" (click)="showClassic = !showClassic" [disabled]="loading || !!loadError">
+        <i class="pi" [ngClass]="showClassic ? 'pi-chevron-down' : 'pi-chevron-right'"></i><span>Topic pages</span>
+        <span class="rail-count" *ngIf="!showClassic && classicProblemCount">{{ classicProblemCount }}</span>
       </button>
+      <ng-container *ngIf="showClassic">
+        <button *ngFor="let n of classicSections"
+                type="button"
+                class="rail-btn" [class.active]="activeSection === n.id" [title]="n.label"
+                [disabled]="loading || !!loadError"
+                (click)="setSection(n.id)">
+          <i [class]="n.icon"></i><span>{{ n.label }}</span>
+          <span class="rail-count" *ngIf="problemCount(n.id) as count">{{ count }}</span>
+        </button>
+      </ng-container>
     </ng-container>
 
     <ng-container *ngIf="recent.length">
@@ -329,7 +349,10 @@
         <app-product-sheet [productId]="productId" [product]="product" [content]="content" [locked]="locked"
                            [brandOptions]="brandOptions" [statuses]="statuses" [dispositions]="dispositions"
                            (touched)="touch()" (pendingChange)="sheetPending = $event"
-                           (openSection)="setSection($event)" (openProduct)="open($event)"></app-product-sheet>
+                           (openSection)="setSection($event)" (openProduct)="open($event)"
+                           [canTranslate]="canTranslate" [translating]="translating" [localeOptions]="localeOptions"
+                           (translateLocale)="translateLocaleCode($event)" (translateMissing)="translateMissing()"
+                           (groupsChange)="sheetGroups = $event"></app-product-sheet>
       </div>
 
       <div *ngIf="activeSection === 'overview'" class="stack">

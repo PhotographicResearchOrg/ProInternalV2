@@ -2131,3 +2131,33 @@ input[type='date'] {
   .mono { font-family: var(--mono); font-weight: 600; }
   .hint { margin-left: auto; padding: 0; }
 }
+
+/* ---- rail: jump links under All fields, topic pages folded away ---- */
+.rail-jump {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 6px 30px;
+  border-left: 2px solid var(--borderSoft);
+
+  button {
+    padding: 4px 10px;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 12px;
+    color: var(--sub);
+    text-align: left;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &:hover { color: var(--ink); background: #f6f8fa; }
+  }
+}
+
+.rail-more { margin-top: 8px; opacity: .85; }
+
+@media (max-width: 820px) {
+  .rail-jump { display: none; }
+}

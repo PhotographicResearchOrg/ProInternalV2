@@ -235,22 +235,30 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
     green: '#166534', greenSoft: '#dcfce7', red: '#b4231f', redSoft: '#fbe1de', muted: '#eef1f5'
   };
 
+  /* All fields first, then the tools, then the original card pages. */
   navSections: NavItem[] = [
     { id: 'sheet', label: 'All fields', icon: 'pi pi-table' },
+    { id: 'research', label: 'Market research', icon: 'pi pi-search-plus' },
+    { id: 'forecast', label: 'Forecast', icon: 'pi pi-chart-line' },
+    { id: 'lookup', label: 'Find details & prices', icon: 'pi pi-search' },
+    { id: 'assets', label: 'Shopify & assets', icon: 'pi pi-images' },
+    { id: 'categories', label: 'Categories', icon: 'pi pi-sitemap' },
+    { id: 'content', label: 'Content & Languages', icon: 'pi pi-globe' },
+    { id: 'contract', label: 'Contract JSON', icon: 'pi pi-code' }
+  ];
+  /* The original one-topic pages; everything on them is also on All fields. */
+  classicSections: NavItem[] = [
     { id: 'overview', label: 'Overview', icon: 'pi pi-th-large' },
     { id: 'identity', label: 'Identity & Barcodes', icon: 'pi pi-id-card' },
     { id: 'pricing', label: 'Pricing', icon: 'pi pi-dollar' },
     { id: 'supply', label: 'Supply & Returns', icon: 'pi pi-truck' },
     { id: 'reorder', label: 'Reorder', icon: 'pi pi-refresh' },
-    { id: 'logistics', label: 'Size & Customs', icon: 'pi pi-box' },
-    { id: 'content', label: 'Content & Languages', icon: 'pi pi-globe' },
-    { id: 'categories', label: 'Categories', icon: 'pi pi-sitemap' },
-    { id: 'research', label: 'Market research', icon: 'pi pi-search-plus' },
-    { id: 'forecast', label: 'Forecast', icon: 'pi pi-chart-line' },
-    { id: 'lookup', label: 'Find details & prices', icon: 'pi pi-search' },
-    { id: 'assets', label: 'Shopify & assets', icon: 'pi pi-images' },
-    { id: 'contract', label: 'Contract JSON', icon: 'pi pi-code' }
+    { id: 'logistics', label: 'Size & Customs', icon: 'pi pi-box' }
   ];
+  showClassic = false;
+  /* The All fields groups showing, for the rail's jump links. */
+  sheetGroups: string[] = [];
+
   activeSection = 'sheet';
 
   /* AI.Translate, the AI budget and the daily limit decide whether the Translate buttons show. */
@@ -888,7 +896,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
 
           if (!result.success) {
             this.serverProblems = result.problems?.length ? result.problems : [result.message];
-            this.activeSection = 'overview';
+            this.activeSection = 'overview'; this.showClassic = true;
             return;
           }
 
@@ -904,7 +912,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
               ? 'You do not have permission to change products.'
               : 'The server could not save the product.'
           ];
-          this.activeSection = 'overview';
+          this.activeSection = 'overview'; this.showClassic = true;
         }
       });
   }
@@ -915,7 +923,16 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
 
   // ---- header ---------------------------------------------------------
 
-  setSection(id: string): void { this.activeSection = id; }
+  setSection(id: string): void {
+    this.activeSection = id;
+    if (this.classicSections.some(c => c.id === id)) { this.showClassic = true; }
+    if (id === 'sheet') { setTimeout(() => this.sheet?.refresh()); }
+  }
+
+  jumpToGroup(group: string): void {
+    if (this.activeSection !== 'sheet') { this.activeSection = 'sheet'; }
+    setTimeout(() => this.sheet?.jumpTo(group));
+  }
   touch(): void { this.dirty = true; }
 
   toggleForSale(): void { this.product.product.forSale = !this.product.product.forSale; this.touch(); }
@@ -1641,6 +1658,12 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
     this.runTranslation([target.locale]);
   }
 
+  /* From the All fields sheet: translate one language by its code. */
+  translateLocaleCode(locale: string): void {
+    const target = this.content.locales.find(l => l.locale === locale);
+    if (target) { this.translateLocale(target); }
+  }
+
   translateMissing(): void {
     const targets = this.missingMarketLocales;
 
@@ -1964,6 +1987,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   problemCount(section: string): number { return this.problems.filter(p => p.section === section).length; }
+  get classicProblemCount(): number { return this.classicSections.reduce((n, c) => n + this.problemCount(c.id), 0); }
   problemsFor(section: string): Problem[] { return this.problems.filter(p => p.section === section); }
 
   /* Not rule breaks: gaps a 3PL or an international partner will ask about. */
