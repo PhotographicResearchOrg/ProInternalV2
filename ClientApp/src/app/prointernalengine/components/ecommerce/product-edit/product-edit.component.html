@@ -251,6 +251,26 @@
               <span class="tlabel" [ngStyle]="{color: content.published ? P.ink : P.faint}">{{ content.published ? 'Shown on web' : 'Hidden on web' }}</span>
             </button>
           </div>
+          <div class="togline" [title]="locked ? 'Set in Computyme until product data moves to SQL' : ''">
+            <i class="pi pi-ban"></i>
+            <button type="button" class="toggle" [disabled]="locked" (click)="toggleDiscontinued()">
+              <span class="track red" [class.on]="isDiscontinued"><span class="knob"></span></span>
+              <span class="tlabel" [ngStyle]="{color: isDiscontinued ? P.ink : P.faint}">{{ isDiscontinued ? 'Discontinued' : 'Not discontinued' }}</span>
+            </button>
+            <span class="cf-type" *ngIf="locked">Computyme</span>
+          </div>
+          <div class="togline repl-line" *ngIf="isDiscontinued">
+            <i class="pi pi-arrow-right-arrow-left"></i>
+            <ng-container *ngIf="replInfo; else noRepl">
+              <button type="button" class="repl-link" [disabled]="!replInfo.productId" (click)="open(replInfo.productId)"
+                      [title]="replInfo.productId ? 'Open the replacement' : ''">
+                Replaced by <strong>{{ replInfo.code }}</strong> · {{ replInfo.name }}
+              </button>
+            </ng-container>
+            <ng-template #noRepl>
+              <button type="button" class="repl-link muted" (click)="setSection('identity')">No replacement · set one</button>
+            </ng-template>
+          </div>
         </div>
       </div>
 
@@ -425,11 +445,26 @@
                   <option *ngFor="let s of statuses" [ngValue]="s.value">{{ s.label }}</option>
                 </select>
               </label>
-              <label class="fld">
+              <div class="fld repl-fld">
                 <span class="lab">Replaced by <span class="hint">discontinued only</span></span>
-                <input type="text" [disabled]="product.product.status !== 'DISCONTINUED'"
-                       [(ngModel)]="product.product.replacementSku" (ngModelChange)="touch()">
-              </label>
+                <div class="repl-current" *ngIf="replInfo">
+                  <button type="button" class="repl-link" [disabled]="!replInfo.productId" (click)="open(replInfo.productId)">
+                    <strong>{{ replInfo.code }}</strong> · {{ replInfo.name }}<span class="hint" *ngIf="replInfo.brand"> · {{ replInfo.brand }}</span>
+                    <span class="hint" *ngIf="replInfo.status === 'DISCONTINUED'"> · also discontinued</span>
+                  </button>
+                  <button type="button" class="iconbtn" [disabled]="!isDiscontinued" (click)="clearReplacement()" title="Remove the replacement"><i class="pi pi-times"></i></button>
+                </div>
+                <input type="text" [disabled]="!isDiscontinued" [ngModel]="replTerm" (ngModelChange)="searchReplacement($event)"
+                       [placeholder]="isDiscontinued ? (replInfo ? 'Change: search by code or name' : 'Search by code or name') : 'Only when the product is discontinued'">
+                <div class="repl-results" *ngIf="replTerm.trim().length >= 2">
+                  <div class="hint" *ngIf="replSearching"><i class="pi pi-spin pi-spinner"></i> Searching…</div>
+                  <button type="button" class="repl-row" *ngFor="let r of replResults" (click)="pickReplacement(r)">
+                    <span class="mono">{{ r.productCode }}</span> {{ r.name }}
+                    <span class="hint">{{ r.brandName }}{{ r.status === 'DISCONTINUED' ? ' · discontinued' : '' }}</span>
+                  </button>
+                  <div class="hint" *ngIf="!replSearching && !replResults.length">No products match.</div>
+                </div>
+              </div>
             </div>
             <label class="fld">
               <span class="lab">Notes</span>

@@ -209,6 +209,14 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
   readonly pageSizes = [25, 50, 100];
 
   private destroy$ = new Subject<void>();
+
+  // ---- replacement product (discontinued only): search by code or name, show its name ----
+  private repl$ = new Subject<string>();
+  replTerm = '';
+  replResults: ProductSearchRow[] = [];
+  replSearching = false;
+  /* The current replacement, looked up by its code so the page can show its name and open it. */
+  replInfo: { productId: number; code: string; name: string; brand: string | null; status: string } | null = null;
   private loadSub?: Subscription;
 
   // palette (exposed so the template can inline data-driven colors)
@@ -391,6 +399,21 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
     ).subscribe(page => {
       this.jumpLoading = false;
       this.jumpResults = page?.rows ?? [];
+    });
+
+    // Replacement product search: same as the quick jump.
+    this.repl$.pipe(
+      map(term => term.trim()),
+      debounceTime(200),
+      distinctUntilChanged(),
+      tap(term => (this.replSearching = term.length >= 2)),
+      switchMap(term => term.length < 2
+        ? of(null)
+        : this.products.searchProducts({ term, pageSize: 8 }).pipe(catchError(() => of(null)))),
+      takeUntil(this.destroy$)
+    ).subscribe(page => {
+      this.replSearching = false;
+      this.replResults = (page?.rows ?? []).filter(r => String(r.productId) !== String(this.productId));
     });
 
     // Finder: debounced so typing in the filter box does not fire per key.
@@ -793,6 +816,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
         this.priceHistory = [];
         this.remember();
         this.loadPricingAudit();
+        this.lookupReplacement();
       },
 
       error: error => {
@@ -868,6 +892,47 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
 
   toggleForSale(): void { this.product.product.forSale = !this.product.product.forSale; this.touch(); }
   togglePublished(): void { this.content.published = !this.content.published; this.touch(); }
+
+  get isDiscontinued(): boolean { return this.product.product.status === 'DISCONTINUED'; }
+
+  /* Status is Computyme's until Product:SqlIsMaster is true: the switch shows it and is locked. */
+  toggleDiscontinued(): void {
+    if (this.locked) { return; }
+    this.product.product.status = this.isDiscontinued ? 'ACTIVE' : 'DISCONTINUED';
+    this.touch();
+  }
+
+  searchReplacement(term: string): void { this.replTerm = term; this.repl$.next(term); }
+
+  pickReplacement(r: ProductSearchRow): void {
+    this.product.product.replacementSku = r.productCode;
+    this.replInfo = { productId: r.productId, code: r.productCode, name: r.name, brand: r.brandName, status: r.status };
+    this.replTerm = '';
+    this.replResults = [];
+    this.touch();
+  }
+
+  clearReplacement(): void {
+    this.product.product.replacementSku = '';
+    this.replInfo = null;
+    this.touch();
+  }
+
+  /* Finds the replacement by its exact code, for its name and a link to open it. */
+  private lookupReplacement(): void {
+    const code = this.product.product.replacementSku.trim();
+    this.replInfo = null;
+    this.replTerm = '';
+    this.replResults = [];
+    if (!code) { return; }
+    this.products.searchProducts({ term: code, pageSize: 10 }).pipe(catchError(() => of(null))).subscribe(page => {
+      if (this.product.product.replacementSku.trim() !== code) { return; }
+      const r = (page?.rows ?? []).find(x => String(x.productCode).trim().toUpperCase() === code.toUpperCase());
+      this.replInfo = r
+        ? { productId: r.productId, code: r.productCode, name: r.name, brand: r.brandName, status: r.status }
+        : { productId: 0, code, name: 'Not found in the product table', brand: null, status: '' };
+    });
+  }
 
   get brand(): ProductBrandOption | undefined {
     return this.brandOptions.find(b => b.brandId === this.product.brandId);
