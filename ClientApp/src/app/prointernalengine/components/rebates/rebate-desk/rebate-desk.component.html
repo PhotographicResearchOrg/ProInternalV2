@@ -168,8 +168,8 @@
           <div class="chips" *ngIf="problemChips(uploadRows).length">
             <span class="lbl">Problems</span>
             <button type="button" [class.on]="!uChip" (click)="uChip = null">All</button>
-            <button type="button" *ngFor="let c of problemChips(uploadRows)" [class.on]="uChip === c.code"
-                    (click)="uChip = uChip === c.code ? null : c.code; rowFilter = 'ALL'">{{ c.label }}<b>{{ c.count }}</b></button>
+            <button type="button" *ngFor="let c of problemChips(uploadRows); trackBy: trackChip" [class.on]="uChip === c.code"
+                    (click)="uChip = uChip === c.code ? null : c.code; rowFilter = 'ALL'; rowTake = 300">{{ c.label }}<b>{{ c.count }}</b></button>
           </div>
           <div class="bulkbar" *ngIf="picked.size">
             <b>{{ picked.size }} ticked</b>
@@ -183,7 +183,7 @@
             <div class="tablewrap"><table class="grid">
               <thead><tr><th style="width: 26px"><input type="checkbox" [checked]="allTicked" (change)="tickAll($any($event.target).checked)" title="Tick every row shown" /></th><th rdSort="sourceRow" [rdSortBy]="sorts['urows']">Row</th><th [rdSort]="sortSku" [rdSortBy]="sorts['urows']">Vendor SKU / PRO product</th><th [rdSort]="sortModel" [rdSortBy]="sorts['urows']">Rebate product (disposition)</th><th rdSort="startDate" [rdSortBy]="sorts['urows']">Dates</th><th class="num" rdSort="reimbursement" [rdSortBy]="sorts['urows']">Vendor share</th><th class="num" rdSort="memberAmount" [rdSortBy]="sorts['urows']">Member</th><th rdSort="status" [rdSortBy]="sorts['urows']">Status</th></tr></thead>
               <tbody>
-                <tr *ngFor="let r of filteredRows | rdSort:sorts['urows']" class="click" (click)="openRow(r, upload.vendorId)" [class.sel]="row?.rowId === r.rowId">
+                <tr *ngFor="let r of filteredRows | rdSort:sorts['urows'] | slice:0:rowTake; trackBy: trackRow" class="click" (click)="openRow(r, upload.vendorId)" [class.sel]="row?.rowId === r.rowId">
                   <td (click)="$event.stopPropagation()"><input type="checkbox" *ngIf="r.status === 'PURGATORY' || r.status === 'READY'"
                       [checked]="picked.has(r.rowId)" (change)="tickRow(r, $any($event.target).checked)" /></td>
                   <td class="mono">{{ r.sourceRow }}</td>
@@ -202,6 +202,8 @@
                     <div class="sub mono" *ngIf="r.programId">program {{ r.programId }}</div></td>
                 </tr>
                 <tr *ngIf="!filteredRows.length"><td colspan="8" class="empty">No rows here.</td></tr>
+                <tr *ngIf="filteredRows.length > rowTake"><td colspan="8" class="empty">
+                  <button type="button" class="btn ghost" (click)="rowTake = rowTake + 300">Show more ({{ filteredRows.length - rowTake }} more rows)</button></td></tr>
               </tbody>
             </table></div>
             <ng-container *ngIf="row" [ngTemplateOutlet]="rowPanel"></ng-container>
@@ -222,8 +224,8 @@
           <div class="chips" *ngIf="problemChips(purgatory).length">
             <span class="lbl">Problems</span>
             <button type="button" [class.on]="!pChip" (click)="pChip = null">All<b>{{ purgatory.length }}</b></button>
-            <button type="button" *ngFor="let c of problemChips(purgatory)" [class.on]="pChip === c.code"
-                    (click)="pChip = pChip === c.code ? null : c.code">{{ c.label }}<b>{{ c.count }}</b></button>
+            <button type="button" *ngFor="let c of problemChips(purgatory); trackBy: trackChip" [class.on]="pChip === c.code"
+                    (click)="pChip = pChip === c.code ? null : c.code; rowTake = 300">{{ c.label }}<b>{{ c.count }}</b></button>
           </div>
           <div class="bulkbar" *ngIf="picked.size">
             <b>{{ picked.size }} ticked</b>
@@ -237,7 +239,7 @@
             <div class="tablewrap"><table class="grid">
               <thead><tr><th style="width: 26px"><input type="checkbox" [checked]="allTicked" (change)="tickAll($any($event.target).checked)" title="Tick every row shown" /></th><th rdSort="vendorName" [rdSortBy]="sorts['purg']">Upload</th><th rdSort="sourceRow" [rdSortBy]="sorts['purg']">Row</th><th [rdSort]="sortSku" [rdSortBy]="sorts['purg']">Vendor SKU / PRO product</th><th [rdSort]="sortProblem" [rdSortBy]="sorts['purg']">Problems</th><th class="num" rdSort="reimbursement" [rdSortBy]="sorts['purg']">Vendor share</th></tr></thead>
               <tbody>
-                <tr *ngFor="let r of purgatoryShown | rdSort:sorts['purg']" class="click" (click)="openRow(r, r.vendorId)" [class.sel]="row?.rowId === r.rowId">
+                <tr *ngFor="let r of purgatoryShown | rdSort:sorts['purg'] | slice:0:rowTake; trackBy: trackRow" class="click" (click)="openRow(r, r.vendorId)" [class.sel]="row?.rowId === r.rowId">
                   <td (click)="$event.stopPropagation()"><input type="checkbox" [checked]="picked.has(r.rowId)" (change)="tickRow(r, $any($event.target).checked)" /></td>
                   <td><div>{{ r.vendorName }}</div><div class="sub mono">#{{ r.uploadId }} · {{ r.fileName }}</div></td>
                   <td class="mono">{{ r.sourceRow }}</td>
@@ -247,6 +249,8 @@
                   <td class="money">{{ r.reimbursement | currency }}</td>
                 </tr>
                 <tr *ngIf="!purgatoryShown.length && !loading"><td colspan="6" class="empty">{{ purgatory.length ? 'No rows with that problem.' : 'Purgatory is empty.' }}</td></tr>
+                <tr *ngIf="purgatoryShown.length > rowTake"><td colspan="6" class="empty">
+                  <button type="button" class="btn ghost" (click)="rowTake = rowTake + 300">Show more ({{ purgatoryShown.length - rowTake }} more rows)</button></td></tr>
               </tbody>
             </table></div>
             <ng-container *ngIf="row" [ngTemplateOutlet]="rowPanel"></ng-container>

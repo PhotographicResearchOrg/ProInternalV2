@@ -205,6 +205,7 @@ export class RebateDeskComponent implements OnInit, OnDestroy {
     this.uChip = null;
     this.childDirty = false;
     this.view = key;
+    this.rowTake = 300;
     this.error = '';
     this.row = null;
     this.newProduct = null;
@@ -356,9 +357,17 @@ export class RebateDeskComponent implements OnInit, OnDestroy {
       rows: this.history.map(h => ({ ...h, detailText: this.detailText(h.detail) })) }]);
   }
 
+  /* Big uploads: lists are worked out once per change (not on every screen check) and drawn 300 rows at a time. */
+  rowTake = 300;
+  trackRow = (_: number, r: any) => r.rowId;
+  private frCache: { src: any[]; f: string; c: string | null; out: any[] } | null = null;
   get filteredRows(): any[] {
+    const c = this.frCache;
+    if (c && c.src === this.uploadRows && c.f === this.rowFilter && c.c === this.uChip) return c.out;
     const byStatus = this.rowFilter === 'ALL' ? this.uploadRows : this.uploadRows.filter(r => r.status === this.rowFilter);
-    return this.uChip ? byStatus.filter(r => this.hasProblem(r, this.uChip!)) : byStatus;
+    const out = this.uChip ? byStatus.filter(r => this.hasProblem(r, this.uChip!)) : byStatus;
+    this.frCache = { src: this.uploadRows, f: this.rowFilter, c: this.uChip, out };
+    return out;
   }
 
   /* ---- problem chips and ticked rows (upload review and purgatory) ---- */
@@ -375,15 +384,30 @@ export class RebateDeskComponent implements OnInit, OnDestroy {
   };
 
 
+  private chipCache = new WeakMap<any[], { code: string; label: string; count: number }[]>();
   problemChips(rows: any[]): { code: string; label: string; count: number }[] {
+    const hit = this.chipCache.get(rows);
+    if (hit) return hit;
+    const out = this.countProblems(rows);
+    this.chipCache.set(rows, out);
+    return out;
+  }
+  trackChip = (_: number, c: any) => c.code;
+
+  private countProblems(rows: any[]): { code: string; label: string; count: number }[] {
     const n = new Map<string, number>();
     for (const r of rows) for (const p of (r.problems ?? [])) n.set(p.code, (n.get(p.code) ?? 0) + 1);
     return [...n.entries()].map(([code, count]) => ({ code, label: this.problemLabels[code] ?? code, count }))
       .sort((a, b) => b.count - a.count);
   }
 
+  private pgCache: { src: any[]; c: string | null; out: any[] } | null = null;
   get purgatoryShown(): any[] {
-    return this.pChip ? this.purgatory.filter(r => this.hasProblem(r, this.pChip!)) : this.purgatory;
+    const c = this.pgCache;
+    if (c && c.src === this.purgatory && c.c === this.pChip) return c.out;
+    const out = this.pChip ? this.purgatory.filter(r => this.hasProblem(r, this.pChip!)) : this.purgatory;
+    this.pgCache = { src: this.purgatory, c: this.pChip, out };
+    return out;
   }
 
   get tickable(): any[] {
@@ -403,9 +427,13 @@ export class RebateDeskComponent implements OnInit, OnDestroy {
   get allTicked(): boolean { return this.tickable.length > 0 && this.tickable.every(r => this.picked.has(r.rowId)); }
 
   /* Ticked rows that overlap something (the only ones "Load anyway" applies to). */
+  private poCache: { rows: any[]; picked: Set<number>; out: number[] } | null = null;
   get pickedOverlaps(): number[] {
     const rows = this.view === 'purgatory' ? this.purgatory : this.uploadRows;
-    return rows.filter(r => this.picked.has(r.rowId) && (this.hasProblem(r, 'OVERLAP') || this.hasProblem(r, 'OVERLAP_IN_FILE'))).map(r => r.rowId);
+    if (this.poCache && this.poCache.rows === rows && this.poCache.picked === this.picked) return this.poCache.out;
+    const out = rows.filter(r => this.picked.has(r.rowId) && (this.hasProblem(r, 'OVERLAP') || this.hasProblem(r, 'OVERLAP_IN_FILE'))).map(r => r.rowId);
+    this.poCache = { rows, picked: this.picked, out };
+    return out;
   }
 
   bulkSkip(): void { this.pending = { kind: 'bulk-skip', ids: [...this.picked] }; }
