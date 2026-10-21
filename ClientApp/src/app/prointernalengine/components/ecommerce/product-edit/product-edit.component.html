@@ -1137,6 +1137,11 @@
         <app-product-forecast [productId]="productId"></app-product-forecast>
       </div>
 
+      <!-- ---------- Find details & competitor prices ---------- -->
+      <div *ngIf="activeSection === 'lookup'" class="stack">
+        <app-product-lookup [productId]="productId" [current]="lookupCurrent" (apply)="applyLookup($event)"></app-product-lookup>
+      </div>
+
       <!-- ---------- Shopify & assets (read only) ---------- -->
       <div *ngIf="activeSection === 'assets'" class="stack">
         <app-product-assets [productId]="productId"></app-product-assets>

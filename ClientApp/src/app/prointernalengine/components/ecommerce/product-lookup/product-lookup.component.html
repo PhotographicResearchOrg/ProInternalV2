@@ -1,0 +1,170 @@
+<!-- ================= Find details ================= -->
+<section class="card lk-card">
+  <header class="lk-head">
+    <span class="ci"><i class="pi pi-search"></i></span>
+    <div>
+      <h3>Find details</h3>
+      <div class="hint">Looks up the manufacturer's description, features, specs, UPC, EAN and images. Shown beside what the product has now; nothing changes until you click Use and then Save.</div>
+    </div>
+  </header>
+
+  <div class="off" *ngIf="status && lookupGate && !lookupGate.allowed && !lookup"><i class="pi pi-lock"></i> {{ lookupGate.reason }}</div>
+
+  <div class="run" *ngIf="lookupGate?.allowed">
+    <button type="button" class="go" [disabled]="lookupBusy" (click)="runLookup()">
+      <i class="pi" [ngClass]="lookupBusy ? 'pi-spin pi-spinner' : 'pi-search'"></i>{{ lookupBusy ? 'Looking up…' : (lookup ? 'Look up again' : 'Find details') }}
+    </button>
+    <span class="hint">{{ lookupGate?.model }} · about ${{ lookupGate?.estimatedCostUsd | number: '1.2-2' }} · {{ lookupGate?.userTodayCalls }} of {{ lookupGate?.dailyLimit }} today</span>
+  </div>
+  <div class="working" *ngIf="lookupBusy"><i class="pi pi-spin pi-spinner"></i> Searching the web. This usually takes 15 to 45 seconds; the result is saved to the product.</div>
+  <div class="error" *ngIf="lookupError">{{ lookupError }}</div>
+
+  <ng-container *ngIf="lookup as r">
+    <div class="stamp"><span><i class="pi pi-bolt"></i> {{ r.model }}</span><span>{{ when(r.calledAt) }} · {{ r.userName }}</span>
+      <span>${{ r.costUsd | number: '1.2-4' }}{{ r.costIsEstimate ? ' (est.)' : '' }}</span></div>
+
+    <div class="raw" *ngIf="r.rawText">
+      <div class="hint">The answer didn't come back in the expected format, so here it is as text:</div>
+      <pre>{{ r.rawText }}</pre>
+    </div>
+
+    <table class="cmp" *ngIf="!r.rawText">
+      <thead><tr><th>Field</th><th>Now</th><th>Found</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="f">Name</td><td>{{ current?.name || '—' }}</td><td>{{ r.name || '—' }}</td>
+          <td><button type="button" class="use" *ngIf="r.name && !same(r.name, current?.name)" [disabled]="used.has('name')" (click)="use('name', r.name)">{{ used.has('name') ? 'Used' : 'Use' }}</button></td>
+        </tr>
+        <tr>
+          <td class="f">Short description</td><td>{{ current?.shortDescription || '—' }}</td><td>{{ r.shortDescription || '—' }}</td>
+          <td><button type="button" class="use" *ngIf="r.shortDescription && !same(r.shortDescription, current?.shortDescription)" [disabled]="used.has('shortDescription')" (click)="use('shortDescription', r.shortDescription)">{{ used.has('shortDescription') ? 'Used' : 'Use' }}</button></td>
+        </tr>
+        <tr>
+          <td class="f">Description</td><td class="long">{{ current?.description || '—' }}</td><td class="long">{{ r.description || '—' }}</td>
+          <td><button type="button" class="use" *ngIf="r.description && !same(r.description, current?.description)" [disabled]="used.has('description')" (click)="use('description', r.description)">{{ used.has('description') ? 'Used' : 'Use' }}</button></td>
+        </tr>
+        <tr>
+          <td class="f">Features</td>
+          <td><ul *ngIf="current?.features?.length; else dash"><li *ngFor="let f of current?.features">{{ f }}</li></ul></td>
+          <td><ul *ngIf="r.features.length; else dash"><li *ngFor="let f of r.features">{{ f }}</li></ul></td>
+          <td><button type="button" class="use" *ngIf="r.features.length && !same(r.features, current?.features)" [disabled]="used.has('features')" (click)="use('features', r.features)">{{ used.has('features') ? 'Used' : 'Use' }}</button></td>
+        </tr>
+        <tr>
+          <td class="f">Specs</td>
+          <td><dl *ngIf="current?.specs?.length; else dash"><ng-container *ngFor="let s of current?.specs"><dt>{{ s.label }}</dt><dd>{{ s.value }}</dd></ng-container></dl></td>
+          <td><dl *ngIf="r.specs.length; else dash"><ng-container *ngFor="let s of r.specs"><dt>{{ s.label }}</dt><dd>{{ s.value }}</dd></ng-container></dl></td>
+          <td><button type="button" class="use" *ngIf="r.specs.length && !same(r.specs, current?.specs)" [disabled]="used.has('specs')" (click)="use('specs', r.specs)">{{ used.has('specs') ? 'Used' : 'Use' }}</button></td>
+        </tr>
+        <tr>
+          <td class="f">UPC <span class="tag" *ngIf="current?.upcLocked">Computyme</span></td>
+          <td class="mono">{{ current?.upc || '—' }}</td>
+          <td class="mono">{{ r.upc || 'not found' }}
+            <a *ngIf="source(r.upcSource) as u" [href]="u" target="_blank" rel="noopener" class="src">[{{ r.upcSource }}]</a>
+            <span class="pill bad" *ngIf="r.upc && current?.upc && r.upc !== current?.upc">differs</span></td>
+          <td>
+            <button type="button" class="use" *ngIf="r.upc && !current?.upcLocked && !same(r.upc, current?.upc)" [disabled]="used.has('upc')" (click)="use('upc', r.upc)">{{ used.has('upc') ? 'Used' : 'Use' }}</button>
+            <span class="hint" *ngIf="r.upc && current?.upcLocked && r.upc !== current?.upc">Change in Computyme</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="f">EAN</td><td class="mono">{{ current?.ean || '—' }}</td><td class="mono">{{ r.ean || 'not found' }}</td>
+          <td><button type="button" class="use" *ngIf="r.ean && !same(r.ean, current?.ean)" [disabled]="used.has('ean')" (click)="use('ean', r.ean)">{{ used.has('ean') ? 'Used' : 'Use' }}</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #dash>—</ng-template>
+
+    <div class="images" *ngIf="r.images.length">
+      <div class="label">Images found <span class="hint">(open or copy the link; adding them to the image folders is still done by hand)</span></div>
+      <div class="gallery">
+        <div class="thumb" *ngFor="let i of r.images">
+          <a [href]="i.url" target="_blank" rel="noopener"><img [src]="i.url" [alt]="i.description || 'Product image'" loading="lazy" referrerpolicy="no-referrer" /></a>
+          <span class="hint clip" [title]="i.url">{{ i.description || i.url }}</span>
+          <button type="button" class="link" (click)="copy(i.url)"><i class="pi pi-copy"></i> Copy link</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes" *ngIf="r.notes.length">
+      <div class="label">Notes</div>
+      <ul><li *ngFor="let n of r.notes">{{ n }}</li></ul>
+    </div>
+
+    <div class="sources" *ngIf="r.sources.length">
+      <div class="label">Sources</div>
+      <ol><li *ngFor="let s of r.sources" [value]="s.number"><a [href]="s.url" target="_blank" rel="noopener">{{ s.title || s.url }}</a> <span class="hint" *ngIf="s.date">{{ s.date }}</span></li></ol>
+    </div>
+  </ng-container>
+
+  <div class="history" *ngIf="lookupList.length > 1">
+    <div class="label">Saved lookups ({{ lookupList.length }})</div>
+    <button type="button" class="hrow" *ngFor="let s of lookupList" (click)="openLookup(s)" [class.current]="lookup?.fileId === s.fileId">
+      {{ when(s.calledAt) }} · {{ s.userName }} · {{ s.model }}</button>
+  </div>
+</section>
+
+<!-- ================= Competitor prices ================= -->
+<section class="card lk-card">
+  <header class="lk-head">
+    <span class="ci price"><i class="pi pi-dollar"></i></span>
+    <div>
+      <h3>Competitor prices</h3>
+      <div class="hint">Current prices at US retailers for this product, with links and dates, compared with our MAP.</div>
+    </div>
+    <button type="button" class="link right" *ngIf="prices?.prices?.length" (click)="exportPrices()"><i class="pi pi-file-excel"></i> Export</button>
+  </header>
+
+  <div class="off" *ngIf="status && pricesGate && !pricesGate.allowed && !prices"><i class="pi pi-lock"></i> {{ pricesGate.reason }}</div>
+
+  <div class="run" *ngIf="pricesGate?.allowed">
+    <button type="button" class="go" [disabled]="pricesBusy" (click)="runPrices()">
+      <i class="pi" [ngClass]="pricesBusy ? 'pi-spin pi-spinner' : 'pi-dollar'"></i>{{ pricesBusy ? 'Checking prices…' : (prices ? 'Check again' : 'Check prices') }}
+    </button>
+    <span class="hint">{{ pricesGate?.model }} · about ${{ pricesGate?.estimatedCostUsd | number: '1.2-2' }} · {{ pricesGate?.userTodayCalls }} of {{ pricesGate?.dailyLimit }} today</span>
+  </div>
+  <div class="working" *ngIf="pricesBusy"><i class="pi pi-spin pi-spinner"></i> Checking retailers. This usually takes 15 to 45 seconds; the result is saved to the product.</div>
+  <div class="error" *ngIf="pricesError">{{ pricesError }}</div>
+
+  <ng-container *ngIf="prices as p">
+    <div class="stamp"><span><i class="pi pi-bolt"></i> {{ p.model }}</span><span>{{ when(p.calledAt) }} · {{ p.userName }}</span>
+      <span>${{ p.costUsd | number: '1.2-4' }}{{ p.costIsEstimate ? ' (est.)' : '' }}</span></div>
+
+    <div class="raw" *ngIf="p.rawText"><div class="hint">The answer didn't come back in the expected format, so here it is as text:</div><pre>{{ p.rawText }}</pre></div>
+
+    <ng-container *ngIf="!p.rawText">
+      <div class="totals">
+        <div><span class="hint">Lowest</span><strong>{{ p.lowest === null ? '—' : (p.lowest | currency) }}</strong></div>
+        <div><span class="hint">Typical</span><strong>{{ p.typical === null ? '—' : (p.typical | currency) }}</strong></div>
+        <div><span class="hint">Our MAP</span><strong>{{ current?.map ? (current?.map | currency) : '—' }}</strong></div>
+        <div><span class="hint">Our member price</span><strong>{{ current?.memberPrice ? (current?.memberPrice | currency) : '—' }}</strong></div>
+      </div>
+      <p class="summary" *ngIf="p.summary">{{ p.summary }}</p>
+
+      <table class="tbl" *ngIf="p.prices.length; else noPrices">
+        <thead><tr><th>Retailer</th><th class="num">Price</th><th class="num">vs MAP</th><th>In stock</th><th>Seen</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let x of p.prices">
+            <td>{{ x.retailer }}<span class="hint" *ngIf="x.condition && x.condition !== 'new'"> · {{ x.condition }}</span></td>
+            <td class="num"><strong>{{ x.price | currency: x.currency }}</strong></td>
+            <td class="num" [class.below]="(vsMap(x.price) ?? 0) < 0">{{ vsMap(x.price) === null ? '—' : (vsMap(x.price)! > 0 ? '+' : '') + vsMap(x.price) + '%' }}</td>
+            <td>{{ x.inStock === null ? '?' : (x.inStock ? 'Yes' : 'No') }}</td>
+            <td>{{ x.seenOn || '—' }}</td>
+            <td><a *ngIf="x.url" [href]="x.url" target="_blank" rel="noopener">Open <i class="pi pi-external-link"></i></a></td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #noPrices><div class="empty">No retailer prices found for this exact product.</div></ng-template>
+    </ng-container>
+
+    <div class="sources" *ngIf="p.sources.length">
+      <div class="label">Sources</div>
+      <ol><li *ngFor="let s of p.sources" [value]="s.number"><a [href]="s.url" target="_blank" rel="noopener">{{ s.title || s.url }}</a> <span class="hint" *ngIf="s.date">{{ s.date }}</span></li></ol>
+    </div>
+  </ng-container>
+
+  <div class="history" *ngIf="pricesList.length > 1">
+    <div class="label">Saved price checks ({{ pricesList.length }})</div>
+    <button type="button" class="hrow" *ngFor="let s of pricesList" (click)="openPrices(s)" [class.current]="prices?.fileId === s.fileId">
+      {{ when(s.calledAt) }} · {{ s.userName }} · {{ s.model }}</button>
+  </div>
+</section>

@@ -25,6 +25,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DataService } from 'src/app/services/data.service';
+import { LookupApply, LookupCurrent } from '../product-lookup/product-lookup.component';
 import { Observable, Subject, Subscription, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map, switchMap, takeUntil, tap } from 'rxjs/operators';
 import {
@@ -238,6 +239,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
     { id: 'categories', label: 'Categories', icon: 'pi pi-sitemap' },
     { id: 'research', label: 'Market research', icon: 'pi pi-search-plus' },
     { id: 'forecast', label: 'Forecast', icon: 'pi pi-chart-line' },
+    { id: 'lookup', label: 'Find details & prices', icon: 'pi pi-search' },
     { id: 'assets', label: 'Shopify & assets', icon: 'pi pi-images' },
     { id: 'contract', label: 'Contract JSON', icon: 'pi pi-code' }
   ];
@@ -893,6 +895,38 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
 
   toggleForSale(): void { this.product.product.forSale = !this.product.product.forSale; this.touch(); }
   togglePublished(): void { this.content.published = !this.content.published; this.touch(); }
+
+  /* The language the AI lookup compares with and writes to: the default one (English). */
+  private get lookupLocale(): LocaleContent | undefined {
+    return this.content.locales.find(l => l.locale === this.content.defaultLocale) ?? this.content.locales[0];
+  }
+
+  get lookupCurrent(): LookupCurrent {
+    const l = this.lookupLocale;
+    const num = (m: Money | undefined) => { const n = parseFloat(m?.amount ?? ''); return isNaN(n) ? null : n; };
+    return {
+      name: l?.name ?? '', shortDescription: l?.shortDescription ?? '', description: l?.description ?? '',
+      features: l?.features ?? [], specs: l?.specs ?? [],
+      upc: this.product.identifiers.upc, ean: this.product.identifiers.ean, upcLocked: this.locked,
+      map: num(this.product.pricing?.map), memberPrice: num(this.product.pricing?.memberPrice)
+    };
+  }
+
+  /* "Use" on a found value: copied into the page; the normal Save keeps it. */
+  applyLookup(e: LookupApply): void {
+    if (e.field === 'upc') {
+      if (this.locked) { this.showToast('UPC is set in Computyme until product data moves to SQL.'); return; }
+      this.product.identifiers.upc = e.value;
+    } else if (e.field === 'ean') {
+      this.product.identifiers.ean = e.value;
+    } else {
+      const l = this.lookupLocale;
+      if (!l) { this.showToast('Add a language under Content first.'); return; }
+      (l as any)[e.field] = e.value;
+    }
+    this.touch();
+    this.showToast('Copied into the product. Review it, then Save.');
+  }
 
   get isDiscontinued(): boolean { return this.product.product.status === 'DISCONTINUED'; }
 

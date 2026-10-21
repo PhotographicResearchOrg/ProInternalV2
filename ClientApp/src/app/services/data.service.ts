@@ -61,6 +61,7 @@ import {
   PublishResult, PublishSummary, RevertConflict
 } from 'src/app/models/category/category-desk.models';
 import { ProductAssetsView } from 'src/app/models/Product/product-assets.models';
+import { CompetitorPriceResult, ProductLookupResult } from 'src/app/models/ai/ai.models';
 import { AiStatus, AiUsageRow, ForecastAccuracyRow, ForecastRun, ForecastView, ResearchSnapshot } from 'src/app/models/ai/ai.models';
 
 
@@ -1180,6 +1181,24 @@ export class DataService {
   }
   aiResearch(productId: number, body: { question?: string | null; topic?: string | null }): Observable<ResearchSnapshot> {
     return this.api.post<ResearchSnapshot>(`${this.aiBase}/products/${productId}/research`, body);
+  }
+  aiLookupList(productId: number): Observable<ResearchSnapshot[]> {
+    return this.api.get<ResearchSnapshot[]>(`${this.aiBase}/products/${productId}/lookup`);
+  }
+  aiLookupGet(productId: number, fileId: number): Observable<ProductLookupResult> {
+    return this.api.get<ProductLookupResult>(`${this.aiBase}/products/${productId}/lookup/${fileId}`);
+  }
+  aiLookup(productId: number): Observable<ProductLookupResult> {
+    return this.api.post<ProductLookupResult>(`${this.aiBase}/products/${productId}/lookup`, {});
+  }
+  aiPricesList(productId: number): Observable<ResearchSnapshot[]> {
+    return this.api.get<ResearchSnapshot[]>(`${this.aiBase}/products/${productId}/prices`);
+  }
+  aiPricesGet(productId: number, fileId: number): Observable<CompetitorPriceResult> {
+    return this.api.get<CompetitorPriceResult>(`${this.aiBase}/products/${productId}/prices/${fileId}`);
+  }
+  aiPrices(productId: number): Observable<CompetitorPriceResult> {
+    return this.api.post<CompetitorPriceResult>(`${this.aiBase}/products/${productId}/prices`, {});
   }
   aiUsage(from: string, to: string): Observable<AiUsageRow[]> {
     return this.api.get<AiUsageRow[]>(`${this.aiBase}/usage?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);

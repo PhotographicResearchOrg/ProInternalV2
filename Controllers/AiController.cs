@@ -24,6 +24,8 @@ namespace ProInternal.Controllers
      *   GET  api/ai/products/{id}/research/{fileId}     one saved answer (Markdown)
      *   GET  api/ai/products/{id}/forecast              sales history, saved forecasts with actuals
  *   POST api/ai/products/{id}/forecast              run a forecast (3, 6 or 12 months); saved to the product
+ *   GET|POST api/ai/products/{id}/lookup [/{fileId}]  find details: description, features, specs, images, UPC (AI.ProductLookup)
+ *   GET|POST api/ai/products/{id}/prices [/{fileId}]  competitor prices at US retailers (AI.CompetitorPricing)
  *   GET  api/ai/forecast/accuracy?from=&to=         how accurate past forecasts were (AI.Forecast or AI.Usage)
  *   GET  api/ai/usage?from=&to=                     usage and cost report (AI.Usage)
      *
@@ -158,6 +160,141 @@ namespace ProInternal.Controllers
                 Detail = topic,
                 Markdown = markdown
             };
+        }
+
+        // ------------------------------------------------------------ find details and competitor prices
+        // Both use Perplexity (the market research key) and are saved to the product like research.
+        // Nothing is written to the product: the page shows the result beside the current values,
+        // and a person decides what to copy in and saves as usual.
+
+        [HttpGet("products/{productId:int}/lookup")]
+        public ActionResult<List<ResearchSnapshot>> LookupList(int productId) => SavedList(productId, ProductLookupService.LookupFeature, "AI.ProductLookup");
+
+        [HttpGet("products/{productId:int}/lookup/{fileId:long}")]
+        public Task<ActionResult<ProductLookupResult>> LookupGet(int productId, long fileId) =>
+            SavedGet<ProductLookupResult>(productId, fileId, ProductLookupService.LookupCategory, "AI.ProductLookup");
+
+        [HttpPost("products/{productId:int}/lookup")]
+        public async Task<ActionResult<ProductLookupResult>> Lookup(int productId, CancellationToken cancellationToken)
+        {
+            var run = await RunPerplexity(productId, ProductLookupService.LookupFeature, ProductLookupService.LookupQuestion,
+                                          ProductLookupService.LookupInstructions, 2500, cancellationToken);
+            if (run.Error != null) return run.Error;
+
+            var result = new ProductLookupResult();
+            Stamp(result, run);
+            ProductLookupService.FillLookup(result, run.Answer.Text);
+            var markdown = ProductLookupService.LookupMarkdown(run.Product, result, run.Answer.Sources);
+            await SaveAndLog(result, run, markdown, ProductLookupService.LookupCategory, "find details");
+            return result;
+        }
+
+        [HttpGet("products/{productId:int}/prices")]
+        public ActionResult<List<ResearchSnapshot>> PricesList(int productId) => SavedList(productId, ProductLookupService.PricesFeature, "AI.CompetitorPricing");
+
+        [HttpGet("products/{productId:int}/prices/{fileId:long}")]
+        public Task<ActionResult<CompetitorPriceResult>> PricesGet(int productId, long fileId) =>
+            SavedGet<CompetitorPriceResult>(productId, fileId, ProductLookupService.PricesCategory, "AI.CompetitorPricing");
+
+        [HttpPost("products/{productId:int}/prices")]
+        public async Task<ActionResult<CompetitorPriceResult>> Prices(int productId, CancellationToken cancellationToken)
+        {
+            var run = await RunPerplexity(productId, ProductLookupService.PricesFeature, ProductLookupService.PricesQuestion,
+                                          ProductLookupService.PricesInstructions, 2000, cancellationToken);
+            if (run.Error != null) return run.Error;
+
+            var result = new CompetitorPriceResult();
+            Stamp(result, run);
+            ProductLookupService.FillPrices(result, run.Answer.Text);
+            var markdown = ProductLookupService.PricesMarkdown(run.Product, result, run.Answer.Sources);
+            await SaveAndLog(result, run, markdown, ProductLookupService.PricesCategory, "competitor prices");
+            return result;
+        }
+
+        private sealed class PerplexityRun
+        {
+            public ActionResult Error;
+            public AiProductContext Product;
+            public ResearchAnswer Answer;
+            public AiGate Gate;
+            public string Feature;
+            public string Question;
+            public int ProductId;
+        }
+
+        private async Task<PerplexityRun> RunPerplexity(int productId, string feature, string question, string instructions,
+                                                        int maxTokens, CancellationToken cancellationToken)
+        {
+            var run = new PerplexityRun { Feature = feature, Question = question, ProductId = productId };
+            run.Gate = _governance.Check(User, feature);
+            if (!run.Gate.Allowed) { run.Error = StatusCode(403, new { message = run.Gate.Reason }); return run; }
+
+            run.Product = _db.Ai_ProductContext(productId);
+            if (run.Product == null) { run.Error = NotFound(new { message = "That product doesn't exist." }); return run; }
+
+            try
+            {
+                run.Answer = await _perplexity.AskAsync(run.Product, question, cancellationToken, instructions, maxTokens);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.Net.Http.HttpRequestException or TaskCanceledException)
+            {
+                _log.LogWarning(ex, "{Feature} failed for product {ProductId}", feature, productId);
+                _governance.Log(User, feature, null, productId, 1, null, false, question, Trim(ex.Message, 900));
+                run.Error = StatusCode(502, new { message = "Perplexity didn't answer: " + Trim(ex.Message, 300) });
+            }
+            return run;
+        }
+
+        private void Stamp(AiResultBase r, PerplexityRun run)
+        {
+            r.CalledAt = DateTime.UtcNow;
+            r.UserName = Actor;
+            r.Model = run.Answer.Model;
+            r.CostUsd = run.Answer.ReportedCostUsd ?? run.Gate.EstimatedCostUsd;
+            r.CostIsEstimate = run.Answer.ReportedCostUsd == null;
+            r.Sources = run.Answer.Sources;
+        }
+
+        /* Save the snapshot first, then log with its file id, so every logged result can be opened again. */
+        private async Task SaveAndLog(AiResultBase r, PerplexityRun run, string markdown, string category, string label)
+        {
+            try
+            {
+                var fileName = $"{r.CalledAt:yyyy-MM-dd HHmm} {label}.md";
+                using var content = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+                var entry = await _files.StoreAsync(content, category, run.ProductId.ToString(), fileName, "text/markdown", Actor, label);
+                r.FileId = entry.FileId;
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "Couldn't save {Label} for product {ProductId}", label, run.ProductId);
+            }
+            r.UsageId = _governance.Log(User, run.Feature, r.Model, run.ProductId, 1, run.Answer.ReportedCostUsd, true,
+                                        run.Question, r.RawText != null ? "answer was not in the expected format" : null, r.FileId);
+        }
+
+        private ActionResult<List<ResearchSnapshot>> SavedList(int productId, string feature, string permission)
+        {
+            if (!Permissions.HasAny(User, permission, AiGovernance.UsagePermission))
+                return StatusCode(403, new { message = $"You need {permission} in Security Admin." });
+            return _db.Ai_ResearchList(productId, feature);
+        }
+
+        private async Task<ActionResult<T>> SavedGet<T>(int productId, long fileId, string category, string permission) where T : AiResultBase
+        {
+            if (!Permissions.HasAny(User, permission, AiGovernance.UsagePermission))
+                return StatusCode(403, new { message = $"You need {permission} in Security Admin." });
+
+            var entry = await _files.GetAsync(fileId);
+            if (entry == null || entry.Category != category || entry.OwnerKey != productId.ToString())
+                return NotFound();
+
+            using var stream = await _files.OpenAsync(fileId);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            var result = ProductLookupService.FromMarkdown<T>(await reader.ReadToEndAsync());
+            if (result == null) return NotFound(new { message = "That saved result can't be read." });
+            result.FileId = fileId;
+            return result;
         }
 
         // ------------------------------------------------------------ forecast

@@ -48,7 +48,8 @@ namespace ProInternal.Services.Ai
 
         public bool Configured => !string.IsNullOrWhiteSpace(_config["Perplexity:ApiKey"]);
 
-        public async Task<ResearchAnswer> AskAsync(AiProductContext product, string question, CancellationToken cancellationToken)
+        public async Task<ResearchAnswer> AskAsync(AiProductContext product, string question, CancellationToken cancellationToken,
+                                                   string extraInstructions = null, int? maxOutputTokens = null)
         {
             var apiKey = _config["Perplexity:ApiKey"];
             if (string.IsNullOrWhiteSpace(apiKey))
@@ -56,13 +57,15 @@ namespace ProInternal.Services.Ai
 
             var baseUrl = (_config["Perplexity:BaseUrl"] ?? "https://api.perplexity.ai").TrimEnd('/');
             var preset = _config["Perplexity:Preset"] ?? "fast";
-            var maxTokens = _config.GetValue("Perplexity:MaxOutputTokens", 1500);
+            var maxTokens = maxOutputTokens ?? _config.GetValue("Perplexity:MaxOutputTokens", 1500);
 
             var instructions =
                 "You are a market research assistant for ProMaster, a US distributor of photo and imaging products that sells to camera stores. " +
                 "Answer for a buyer deciding what to stock and at what price. Be factual and specific, use short sections and bullet points, " +
                 "cite every fact with the numbered sources, and say plainly when something can't be found. Give prices in US dollars with the retailer and date. " +
                 "Do not invent product codes, prices or specifications.";
+            if (!string.IsNullOrWhiteSpace(extraInstructions))
+                instructions += " " + extraInstructions;
 
             var input = new StringBuilder();
             input.AppendLine($"Product: {product.BrandName} {product.ModelName}".Trim());

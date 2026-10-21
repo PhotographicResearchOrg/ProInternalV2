@@ -107,3 +107,52 @@ export interface ForecastAccuracyRow {
   errorPct: number | null;
   monthsInRange: number;
 }
+
+/* ------------------------------------------------------------ find details and competitor prices */
+
+export interface ResearchSource { number: number; title: string | null; url: string; date: string | null; }
+
+export interface AiResultBase {
+  usageId: number;
+  fileId: number | null;
+  calledAt: string;
+  userName: string;
+  model: string;
+  costUsd: number;
+  costIsEstimate: boolean;
+  sources: ResearchSource[];
+  rawText: string | null;     // the answer as text when it didn't come back in the expected format
+}
+
+export interface LookupSpec { label: string; value: string; }
+export interface LookupImage { url: string; source: number | null; description: string | null; }
+
+export interface ProductLookupResult extends AiResultBase {
+  name: string | null;
+  shortDescription: string | null;
+  description: string | null;
+  features: string[];
+  specs: LookupSpec[];
+  upc: string | null;
+  upcSource: number | null;
+  ean: string | null;
+  images: LookupImage[];
+  notes: string[];
+}
+
+export interface CompetitorPrice {
+  retailer: string;
+  price: number | null;
+  currency: string;
+  url: string | null;
+  inStock: boolean | null;
+  seenOn: string | null;
+  condition: string | null;
+}
+
+export interface CompetitorPriceResult extends AiResultBase {
+  prices: CompetitorPrice[];
+  lowest: number | null;
+  typical: number | null;
+  summary: string | null;
+}

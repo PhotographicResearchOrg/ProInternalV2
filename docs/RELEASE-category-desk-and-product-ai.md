@@ -21,9 +21,13 @@
 - **Market research** (`AI.MarketResearch`): one-click topics or your own question, answered from the web with sources by Perplexity. Every answer is saved to the product with the model, cost, who and when.
 - **Forecast** (`AI.Forecast`): 3, 6 or 12 months, likely units and an 80% range per month, all countries and per country, charted with the last 24 months of sales. Numbers worked out in the PIV2 back end from Computyme sales history (the most accurate of six standard methods per product, $0); Claude on Bedrock writes the buyer note. Every run is saved and scored against actual sales; accuracy report across products exports to Excel.
 - **Translate** now needs `AI.Translate` and counts against the AI budget.
+- **Find details** (`AI.ProductLookup`): the manufacturer's name, descriptions, features, specs, UPC, EAN and image links, beside what the product has now. **Use** copies a value into the page; nothing changes until Save. UPC stays Computyme's until cutover.
+- **Competitor prices** (`AI.CompetitorPricing`): US retailer prices with links, stock and date, lowest and typical, compared with our MAP; exports to Excel. Both use Perplexity and are saved to the product like market research.
+- **Discontinued** switch beside For sale and Shown on web (Computyme's until `SqlIsMaster`), and **Replaced by** with search by code or name and a link to the replacement.
+- **Shopify & assets** (read only): Shopify ids and every Shopify column on ProductData, the `productlastchanged` feed with Shopify's answers, governance issues, taxonomy; images (`ProductImage` with the sizes FolderScan found), `UploadFile` documents, S3 files (`GetProductFiles`), video columns; exports to Excel.
 
 ### AI controls
-- One permission per feature, always enforced: `AI.MarketResearch`, `AI.Translate`, `AI.Forecast`, `AI.Usage` (report), plus `AI.ProductLookup` and `AI.CompetitorPricing` for the next package.
+- One permission per feature, always enforced: `AI.MarketResearch`, `AI.Translate`, `AI.Forecast`, `AI.ProductLookup`, `AI.CompetitorPricing`, `AI.Usage` (report).
 - On/off switch for all AI and per feature; monthly budget; daily limit per person; cost estimate before each call.
 - Every call logged (`piv2.AiUsageLog`) with the model that answered; usage report exports to Excel.
 
@@ -40,10 +44,11 @@ Nothing is dropped, deleted or updated when the scripts run; all are safe to run
 | `04-ai-governance.sql` | `piv2.AiUsageLog`, `piv2.Ai_*` procedures |
 | `05-ai-permissions.sql` | AI permissions |
 | `06-forecast.sql` | `piv2.ProductForecast`, `piv2.SalesMonthly`, `piv2.vMemberCountry`, `piv2.Forecast_*`; grant to read sales |
+| `07-product-assets.sql` | `piv2.Product_Assets` (read only: Shopify fields and feed, images, documents) |
 
 ## Deploy, in order
 
-1. **SQL in PRO:** `01` to `06`.
+1. **SQL in PRO:** `01` to `07`.
    - `05`: `@ProductRoute` is `/productedit`; change it if the Product Desk route is `/products`.
    - `06`: set `@AppUser` in the last block (the API's database user) so the API can read sales history.
    - Run `01` again if the Vendor Desk's `dbo.VendorBrand` is added later; run `06` again after the Rebate Desk's nightly sales job is installed.

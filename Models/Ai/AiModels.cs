@@ -171,4 +171,67 @@ namespace ProInternal.Models.Ai
         public decimal? ErrorPct { get; set; }
         public int MonthsInRange { get; set; }
     }
+
+    // ------------------------------------------------------------ product lookup and competitor prices
+
+    /* What every saved AI result carries: when, who, what model, what it cost. */
+    public abstract class AiResultBase
+    {
+        public long UsageId { get; set; }
+        public long? FileId { get; set; }
+        public DateTime CalledAt { get; set; }
+        public string UserName { get; set; }
+        public string Model { get; set; }
+        public decimal CostUsd { get; set; }
+        public bool CostIsEstimate { get; set; }
+        public List<ResearchSource> Sources { get; set; } = new();
+        /* The answer as text when it didn't come back as the JSON asked for. */
+        public string RawText { get; set; }
+    }
+
+    public class ProductLookupResult : AiResultBase
+    {
+        public string Name { get; set; }
+        public string ShortDescription { get; set; }
+        public string Description { get; set; }
+        public List<string> Features { get; set; } = new();
+        public List<LookupSpec> Specs { get; set; } = new();
+        public string Upc { get; set; }
+        public int? UpcSource { get; set; }
+        public string Ean { get; set; }
+        public List<LookupImage> Images { get; set; } = new();
+        public List<string> Notes { get; set; } = new();
+    }
+
+    public class LookupSpec
+    {
+        public string Label { get; set; }
+        public string Value { get; set; }
+    }
+
+    public class LookupImage
+    {
+        public string Url { get; set; }
+        public int? Source { get; set; }
+        public string Description { get; set; }
+    }
+
+    public class CompetitorPriceResult : AiResultBase
+    {
+        public List<CompetitorPrice> Prices { get; set; } = new();
+        public decimal? Lowest { get; set; }
+        public decimal? Typical { get; set; }
+        public string Summary { get; set; }
+    }
+
+    public class CompetitorPrice
+    {
+        public string Retailer { get; set; }
+        public decimal? Price { get; set; }
+        public string Currency { get; set; }
+        public string Url { get; set; }
+        public bool? InStock { get; set; }
+        public string SeenOn { get; set; }
+        public string Condition { get; set; }
+    }
 }

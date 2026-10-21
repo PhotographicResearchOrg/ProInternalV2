@@ -119,6 +119,7 @@ import { CategoryPickerComponent } from './prointernalengine/components/ecommerc
 import { ProductAiComponent } from './prointernalengine/components/ecommerce/product-ai/product-ai.component';
 import { ProductForecastComponent } from './prointernalengine/components/ecommerce/product-forecast/product-forecast.component';
 import { ProductAssetsComponent } from './prointernalengine/components/ecommerce/product-assets/product-assets.component';
+import { ProductLookupComponent } from './prointernalengine/components/ecommerce/product-lookup/product-lookup.component';
 
 @NgModule({
   declarations:
@@ -130,6 +131,7 @@ import { ProductAssetsComponent } from './prointernalengine/components/ecommerce
       ProductAiComponent,
       ProductForecastComponent,
       ProductAssetsComponent,
+      ProductLookupComponent,
     OrdersComponent,
     EdiManagementComponent,
     FileAppComponent,

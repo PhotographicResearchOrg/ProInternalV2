@@ -366,7 +366,7 @@ GetSellThroughExportData(
         long Ai_UsageLog(string user, string feature, string provider, string model, int? productId, int items,
                          decimal costUsd, bool costIsEstimate, string status, string question, string detail, long? fileId);
         List<AiModels.AiUsageRow> Ai_UsageReport(DateTime from, DateTime to);
-        List<AiModels.ResearchSnapshot> Ai_ResearchList(int productId);
+        List<AiModels.ResearchSnapshot> Ai_ResearchList(int productId, string feature = "MARKET_RESEARCH");
         AiModels.AiProductContext Ai_ProductContext(int productId);
         List<AiModels.SalesHistoryRow> Forecast_History(int productId, int months);
         void Forecast_Save(long usageId, int productId, string rowsJson);

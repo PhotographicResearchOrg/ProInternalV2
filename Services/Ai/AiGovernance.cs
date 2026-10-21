@@ -26,8 +26,8 @@ namespace ProInternal.Services.Ai
      *     "Features": {
      *       "MarketResearch":    { "Enabled": true,  "Model": "Perplexity Agent (fast)", "EstimatedCostUsd": 0.03, "DailyLimitPerUser": 25 },
      *       "Translate":         { "Enabled": true,  "Model": "Claude on Bedrock",       "EstimatedCostUsd": 0.02, "DailyLimitPerUser": 100 },
-     *       "ProductLookup":     { "Enabled": false },
-     *       "CompetitorPricing": { "Enabled": false },
+     *       "ProductLookup":     { "Enabled": true,  "Model": "Perplexity Agent (fast)", "EstimatedCostUsd": 0.04, "DailyLimitPerUser": 50 },
+     *       "CompetitorPricing": { "Enabled": true,  "Model": "Perplexity Agent (fast)", "EstimatedCostUsd": 0.04, "DailyLimitPerUser": 50 },
      *       "Forecast":          { "Enabled": true,  "Model": "PIV2 forecast + Claude on Bedrock", "EstimatedCostUsd": 0.01, "DailyLimitPerUser": 100 }
      *     }
      *   }
@@ -45,8 +45,8 @@ namespace ProInternal.Services.Ai
         {
             new Feature("MARKET_RESEARCH",    "MarketResearch",    "AI.MarketResearch",    "Market research",      "Perplexity", "Perplexity Agent (fast)", 0.03m, 25,  true),
             new Feature("TRANSLATE",          "Translate",         "AI.Translate",         "Translate",            "Bedrock",    "Claude on Bedrock",       0.02m, 100, true),
-            new Feature("PRODUCT_LOOKUP",     "ProductLookup",     "AI.ProductLookup",     "Product lookup",       "Perplexity", "Perplexity Agent (fast)", 0.03m, 50,  false),
-            new Feature("COMPETITOR_PRICING", "CompetitorPricing", "AI.CompetitorPricing", "Competitor pricing",   "DataForSEO", "Google Shopping",         0.05m, 50,  false),
+            new Feature("PRODUCT_LOOKUP",     "ProductLookup",     "AI.ProductLookup",     "Find details",         "Perplexity", "Perplexity Agent (fast)", 0.04m, 50,  true),
+            new Feature("COMPETITOR_PRICING", "CompetitorPricing", "AI.CompetitorPricing", "Competitor prices",    "Perplexity", "Perplexity Agent (fast)", 0.04m, 50,  true),
             new Feature("FORECAST",           "Forecast",          "AI.Forecast",          "Forecast",             "Bedrock",    "PIV2 forecast + Claude on Bedrock", 0.01m, 100, true)
         }.ToDictionary(f => f.Key, StringComparer.OrdinalIgnoreCase);
 

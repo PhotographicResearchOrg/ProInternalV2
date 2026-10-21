@@ -10,7 +10,7 @@
       piv2.Ai_Usage_Check          month spend (all AI), this user's calls today for one feature
       piv2.Ai_Usage_Log            records one call
       piv2.Ai_Usage_Report         usage between two dates, for the report and Excel
-      piv2.Ai_Research_List        a product's saved market research, newest first
+      piv2.Ai_Research_List        a product's saved market research (or lookups, or competitor prices), newest first
       piv2.Ai_ProductContext       what research needs to know about a product
 */
 
@@ -27,7 +27,7 @@ BEGIN
         CalledAt    datetime2(0)   NOT NULL CONSTRAINT DF_AiUsageLog_At DEFAULT SYSUTCDATETIME(),
         UserName    nvarchar(128)  NOT NULL,
         Feature     varchar(30)    NOT NULL,     -- MARKET_RESEARCH | TRANSLATE | FORECAST | PRODUCT_LOOKUP | COMPETITOR_PRICING
-        Provider    varchar(30)    NOT NULL,     -- Perplexity | Bedrock | DataForSEO | PIV2
+        Provider    varchar(30)    NOT NULL,     -- Perplexity | Bedrock | PIV2
         Model       nvarchar(120)  NOT NULL,     -- exactly what answered, shown on every result
         ProductId   int            NULL,
         Items       int            NOT NULL CONSTRAINT DF_AiUsageLog_Items DEFAULT 1,
@@ -112,14 +112,15 @@ END
 GO
 
 CREATE OR ALTER PROCEDURE piv2.Ai_Research_List
-    @ProductId int
+    @ProductId int,
+    @Feature   varchar(30) = 'MARKET_RESEARCH'      -- or PRODUCT_LOOKUP | COMPETITOR_PRICING
 AS
 BEGIN
     SET NOCOUNT ON;
 
     SELECT u.UsageId, u.CalledAt, u.UserName, u.Provider, u.Model, u.CostUsd, u.CostIsEstimate, u.Question, u.Detail, u.FileId
     FROM piv2.AiUsageLog u
-    WHERE u.ProductId = @ProductId AND u.Feature = 'MARKET_RESEARCH' AND u.Status = 'OK' AND u.FileId IS NOT NULL
+    WHERE u.ProductId = @ProductId AND u.Feature = @Feature AND u.Status = 'OK' AND u.FileId IS NOT NULL
     ORDER BY u.CalledAt DESC;
 END
 GO

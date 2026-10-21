@@ -3283,11 +3283,11 @@ GetShopifyGovernanceIssues()
                 new { From = from.Date, To = to.Date }, commandType: CommandType.StoredProcedure).ToList();
         }
 
-        public List<AiModels.ResearchSnapshot> Ai_ResearchList(int productId)
+        public List<AiModels.ResearchSnapshot> Ai_ResearchList(int productId, string feature = "MARKET_RESEARCH")
         {
             using var conn = GetConnection();
             return conn.Query<AiModels.ResearchSnapshot>("piv2.Ai_Research_List",
-                new { ProductId = productId }, commandType: CommandType.StoredProcedure).ToList();
+                new { ProductId = productId, Feature = feature }, commandType: CommandType.StoredProcedure).ToList();
         }
 
         public AiModels.AiProductContext Ai_ProductContext(int productId)

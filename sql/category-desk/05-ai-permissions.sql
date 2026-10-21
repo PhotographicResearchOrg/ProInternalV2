@@ -8,8 +8,8 @@
 
       AI.MarketResearch     Market research on a product (Perplexity); every answer is saved to the product
       AI.Translate          The Translate buttons on the Product Desk (Bedrock)
-      AI.ProductLookup      Description, images and UPC lookup on a product          (next package)
-      AI.CompetitorPricing  Competitor prices on a product (DataForSEO)              (next package)
+      AI.ProductLookup      Find details: description, features, specs, images and UPC on a product (Perplexity)
+      AI.CompetitorPricing  Competitor prices: US retailer prices for a product (Perplexity)
       AI.Forecast           Sales forecast on a product, and the forecast accuracy report
       AI.Usage              See the AI usage and cost report, and export it
 
@@ -29,7 +29,7 @@ INSERT @want (Name, Description, RoutePath) VALUES
     (N'AI.MarketResearch',    N'AI · Market research on a product (Perplexity); answers saved to the product', @ProductRoute),
     (N'AI.Translate',         N'AI · Translate product content (Bedrock)', @ProductRoute),
     (N'AI.ProductLookup',     N'AI · Description, images and UPC lookup on a product', @ProductRoute),
-    (N'AI.CompetitorPricing', N'AI · Competitor prices on a product (DataForSEO)', @ProductRoute),
+    (N'AI.CompetitorPricing', N'AI · Competitor prices on a product (Perplexity)', @ProductRoute),
     (N'AI.Forecast',          N'AI · Sales forecast on a product', @ProductRoute),
     (N'AI.Usage',             N'AI · Usage and cost report', @ProductRoute);
 
