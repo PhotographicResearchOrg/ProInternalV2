@@ -352,6 +352,18 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM #c) AND NOT EXISTS (SELECT 1 FROM #p)
         THROW 50480, N'There is nothing to publish.', 1;
 
+    /* Computyme's EGRP list, read before the transaction so a missing list can't doom it */
+    CREATE TABLE #cegrp (Egrp int PRIMARY KEY);
+    IF @SqlIsMaster = 0
+    BEGIN
+        BEGIN TRY
+            INSERT #cegrp (Egrp)
+            EXEC sp_executesql N'SELECT DISTINCT TRY_CAST(ID AS int) FROM piv2.ComputymeEgroups WHERE TRY_CAST(ID AS int) IS NOT NULL;';
+        END TRY
+        BEGIN CATCH
+        END CATCH;
+    END
+
     BEGIN TRAN;
 
     /* One publish at a time. */
@@ -508,17 +520,22 @@ BEGIN
                       WHERE k.CatId = pr.CatId AND np.EgrpNodeId IS NOT NULL);
     IF @msg IS NOT NULL THROW 50488, @msg, 1;
 
+    /* only a row gaining an EGRP counts, so duplicates already in today's data don't block other edits */
     SELECT TOP (1) @msg = CONCAT(N'EGRP ', pr.EGRP, N' is already in the tree.')
-    FROM #prop pr WHERE pr.IsDeleted = 0 AND pr.EGRP IS NOT NULL
-    GROUP BY pr.EGRP HAVING COUNT(*) > 1 AND MAX(CAST(pr.IsChanged AS int)) = 1;
+    FROM #prop pr LEFT JOIN dbo.Category k ON k.CatId = pr.CatId
+    WHERE pr.IsDeleted = 0 AND pr.EGRP IS NOT NULL
+    GROUP BY pr.EGRP
+    HAVING COUNT(*) > 1
+       AND MAX(CASE WHEN pr.IsChanged = 1 AND (k.CatId IS NULL OR ISNULL(k.EGRP, -1) <> pr.EGRP) THEN 1 ELSE 0 END) = 1;
     IF @msg IS NOT NULL THROW 50494, @msg, 1;
 
     IF @SqlIsMaster = 0
     BEGIN
-        /* a new category can only be an EGRP category if that EGRP exists in Computyme's list */
-        SELECT TOP (1) @msg = CONCAT(N'A new EGRP category must be one of Computyme''s EGRPs (', pr.EGRP, N' isn''t new here).')
+        /* a new EGRP category must be one of Computyme's EGRPs (skipped if the list couldn't be read) */
+        SELECT TOP (1) @msg = CONCAT(N'EGRP ', pr.EGRP, N' isn''t one of Computyme''s EGRPs.')
         FROM #prop pr JOIN #c c ON c.RealId = pr.CatId
-        WHERE c.Id < 0 AND pr.EGRP IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.Category k WHERE k.EGRP = pr.EGRP);
+        WHERE c.Id < 0 AND pr.EGRP IS NOT NULL AND EXISTS (SELECT 1 FROM #cegrp)
+          AND NOT EXISTS (SELECT 1 FROM #cegrp e WHERE e.Egrp = pr.EGRP);
         IF @msg IS NOT NULL THROW 50489, @msg, 1;
 
         /* a web category inside an EGRP category stays inside it: moving between EGRPs is a Computyme change */

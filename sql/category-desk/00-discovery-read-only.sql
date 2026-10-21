@@ -101,3 +101,9 @@ LEFT JOIN tree t ON t.CatId = p.NodeId
 LEFT JOIN (SELECT EGRP, MIN(CatId) AS CatId FROM dbo.Category WHERE EGRP IS NOT NULL GROUP BY EGRP) e ON e.EGRP = p.Egrp
 OPTION (MAXRECURSION 50);
 GO
+
+-- 9. EGRPs on more than one category
+SELECT EGRP, COUNT(*) AS Categories, STRING_AGG(CONCAT(CatId, N' ', LTRIM(RTRIM(CatName))), N' | ') AS Which
+FROM dbo.Category WHERE EGRP IS NOT NULL
+GROUP BY EGRP HAVING COUNT(*) > 1;
+GO

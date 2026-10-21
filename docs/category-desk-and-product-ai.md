@@ -29,7 +29,7 @@ docs/category-desk-and-product-ai.docx                        design and decisio
 
 1. **Names are confirmed** against PRO: EGRP list `EDA.EGROUPS.EGROUPS`; a product's EGRP is `IVMSTData.E_GRP` (read in one view, `piv2.vProductEgrp`, which is the one line to change at cutover); brand from `dbo.Brand`; vendor from `dbo.VendorBrand` when it exists. `dbo.Product` (a synonym to a cache table) is not used.
    - `02`: the restore of a deleted category assumes `Category.ImageName` fits 400 characters and `Type` 100; adjust if the columns are larger.
-2. **SQL, in PRO:** run `01`, `02`, `03`, `04`, `05`. In `05`, `@ProductRoute` is `/productedit`; change it if the Product Desk route has moved to `/products`.
+2. **SQL, in PRO:** run `01`, `02`, `03`, `04`, `05`. `01` builds the product view with vendors only if `dbo.VendorBrand` exists at that moment; if the Vendor Desk tables arrive later, run `01` again. In `05`, `@ProductRoute` is `/productedit`; change it if the Product Desk route has moved to `/products`.
 3. **Security Admin:**
    - **First:** give `AI.Translate` to the roles that translate today. Translate is behind it from this release, or the buttons disappear.
    - `Categories.View` / `Categories.Edit`, `AI.MarketResearch`, `AI.Usage` to the right roles. `PIV2_ADMIN` passes everything.
