@@ -26,6 +26,7 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { DataService } from 'src/app/services/data.service';
 import { LookupApply, LookupCurrent } from '../product-lookup/product-lookup.component';
+import { ProductSheetComponent } from '../product-sheet/product-sheet.component';
 import { Observable, Subject, Subscription, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map, switchMap, takeUntil, tap } from 'rxjs/operators';
 import {
@@ -183,6 +184,12 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
 
   // ---- quick jump (header) ----
   @ViewChild('jumpInput') jumpInput?: ElementRef<HTMLInputElement>;
+  @ViewChild(ProductSheetComponent) sheet?: ProductSheetComponent;
+
+  /* ProductData fields changed on the All fields sheet and not saved yet (saved by the same Save). */
+  sheetPending = 0;
+
+  get unsaved(): boolean { return this.dirty || this.sheetPending > 0; }
   jumpTerm = '';
   jumpResults: ProductSearchRow[] = [];
   jumpOpen = false;
@@ -229,6 +236,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
   };
 
   navSections: NavItem[] = [
+    { id: 'sheet', label: 'All fields', icon: 'pi pi-table' },
     { id: 'overview', label: 'Overview', icon: 'pi pi-th-large' },
     { id: 'identity', label: 'Identity & Barcodes', icon: 'pi pi-id-card' },
     { id: 'pricing', label: 'Pricing', icon: 'pi pi-dollar' },
@@ -243,7 +251,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
     { id: 'assets', label: 'Shopify & assets', icon: 'pi pi-images' },
     { id: 'contract', label: 'Contract JSON', icon: 'pi pi-code' }
   ];
-  activeSection = 'overview';
+  activeSection = 'sheet';
 
   /* AI.Translate, the AI budget and the daily limit decide whether the Translate buttons show. */
   canTranslate = false;
@@ -489,7 +497,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
 
   /* Leaving unsaved edits needs a yes. */
   private canLeave(): boolean {
-    return !this.dirty || confirm('You have unsaved changes to this product. Leave without saving?');
+    return !this.unsaved || confirm('You have unsaved changes to this product. Leave without saving?');
   }
 
   /* For a CanDeactivate guard on the route: canDeactivate: [(c: ProductEditComponent) => c.canDeactivate()] */
@@ -497,7 +505,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
 
   @HostListener('window:beforeunload', ['$event'])
   onBeforeUnload(event: BeforeUnloadEvent): void {
-    if (this.dirty) { event.preventDefault(); event.returnValue = ''; }
+    if (this.unsaved) { event.preventDefault(); event.returnValue = ''; }
   }
 
   open(id: number | string): void {
@@ -799,7 +807,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
     this.loadError = '';
 
     if (!keepSection) {
-      this.activeSection = 'overview';
+      this.activeSection = 'sheet';
       this.serverProblems = [];
       this.page = null;
     }
@@ -841,6 +849,23 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   save(): void {
+    /* The All fields sheet's ProductData changes first; then the product contract, if it changed. */
+    if (this.sheetPending > 0 && this.sheet) {
+      this.saving = true;
+      this.sheet.save().subscribe({
+        next: n => {
+          this.saving = false;
+          if (this.dirty) { this.saveContract(); } else { this.showToast(`Saved ${n} field${n === 1 ? '' : 's'}.`); }
+        },
+        error: (e: Error) => { this.saving = false; this.showToast(e.message || 'The product fields weren\'t saved.'); }
+      });
+      return;
+    }
+    this.saveContract();
+  }
+
+  private saveContract(): void {
+    if (!this.dirty) { return; }
     if (this.problems.length > 0) {
       this.showToast(`Fix ${this.problems.length} problem(s) before saving.`);
       return;
@@ -885,7 +910,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   discard(): void {
-    if (confirm('Discard your changes to this product?')) { this.load(true); }
+    if (confirm('Discard your changes to this product?')) { this.sheet?.discard(); this.load(true); }
   }
 
   // ---- header ---------------------------------------------------------

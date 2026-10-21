@@ -384,6 +384,16 @@ GetSellThroughExportData(
         List<ProductS3File> Product_S3Files(string productCode);
         #endregion
 
+        #region Product sheet
+        // piv2.ProductSheet_*: every ProductData column on one page, saved with a change log; each person's layout.
+        List<ProductSheetField> ProductSheet_Get(int productId, bool sqlIsMaster);
+        int ProductSheet_Save(int productId, string changesJson, string user, bool sqlIsMaster);
+        List<ProductSheetChangeLog> ProductSheet_History(int productId);
+        string ProductSheet_ViewGet(string user);
+        void ProductSheet_ViewSet(string user, string viewJson);
+        List<ProductTechSpecRow> Product_TechSpecs(string productCode);
+        #endregion
+
     }
 
 }

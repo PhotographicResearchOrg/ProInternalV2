@@ -120,6 +120,8 @@ import { ProductAiComponent } from './prointernalengine/components/ecommerce/pro
 import { ProductForecastComponent } from './prointernalengine/components/ecommerce/product-forecast/product-forecast.component';
 import { ProductAssetsComponent } from './prointernalengine/components/ecommerce/product-assets/product-assets.component';
 import { ProductLookupComponent } from './prointernalengine/components/ecommerce/product-lookup/product-lookup.component';
+import { ProductSheetComponent } from './prointernalengine/components/ecommerce/product-sheet/product-sheet.component';
+import { SheetOptionPipe } from './prointernalengine/components/ecommerce/product-sheet/sheet-option.pipe';
 
 @NgModule({
   declarations:
@@ -132,6 +134,8 @@ import { ProductLookupComponent } from './prointernalengine/components/ecommerce
       ProductForecastComponent,
       ProductAssetsComponent,
       ProductLookupComponent,
+      ProductSheetComponent,
+      SheetOptionPipe,
     OrdersComponent,
     EdiManagementComponent,
     FileAppComponent,

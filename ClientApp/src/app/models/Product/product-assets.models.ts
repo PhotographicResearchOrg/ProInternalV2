@@ -59,3 +59,51 @@ export interface ProductAssetsView {
   filesError: string | null;
   shopifyError: string | null;
 }
+
+/* ------------------------------------------------------------ product sheet (GET api/products/{id}/sheet) */
+
+export type SheetLock = 'SYSTEM' | 'CATEGORY' | 'SHOPIFY' | 'COMPUTYME' | 'CONTRACT' | null;
+
+export interface ProductSheetField {
+  source: 'ProductData' | 'Computyme';
+  columnName: string;
+  dataType: string;
+  maxLength: number;
+  prec: number;
+  scale: number;
+  isNullable: boolean;
+  value: string | null;
+  label: string;
+  groupName: string;
+  sortOrder: number;
+  lock: SheetLock;
+  note: string | null;
+}
+
+export interface ProductTechSpecRow {
+  sectionId: number; sectionName: string; sectionDisplayOrder: number;
+  attributeId: number; attributeName: string; attributeDisplayOrder: number;
+  value: string | null;
+}
+
+export interface ProductSheetChangeLog {
+  logId: number; columnName: string; label: string; oldValue: string | null; newValue: string | null;
+  changedBy: string; changedAt: string;
+}
+
+export interface ProductSheetView {
+  fields: ProductSheetField[];
+  techSpecs: ProductTechSpecRow[];
+  history: ProductSheetChangeLog[];
+  techSpecsError: string | null;
+  sqlIsMaster: boolean;
+  canEdit: boolean;
+}
+
+/** Each person's layout: hidden groups and fields, group order, only-filled. */
+export interface ProductSheetLayout {
+  hiddenGroups: string[];
+  hiddenFields: string[];
+  groupOrder: string[];
+  onlyFilled: boolean;
+}

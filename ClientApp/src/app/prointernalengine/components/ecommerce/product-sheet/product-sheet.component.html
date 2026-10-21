@@ -1,0 +1,127 @@
+<section class="card sh-card">
+  <header class="sh-head">
+    <div class="title">
+      <h3>All fields</h3>
+      <span class="hint">Every attribute of this product on one page. <i class="pi pi-lock"></i> fields are read only, and hovering shows why.</span>
+    </div>
+    <div class="tools">
+      <span class="search"><i class="pi pi-search"></i><input type="text" [(ngModel)]="search" placeholder="Find a field or value" /></span>
+      <button type="button" class="tbtn" [class.on]="showLayout" (click)="showLayout = !showLayout"><i class="pi pi-sliders-h"></i> Fields</button>
+      <button type="button" class="tbtn" [class.on]="showHistory" (click)="showHistory = !showHistory"><i class="pi pi-history"></i> Changes</button>
+      <button type="button" class="tbtn" (click)="exportSheet()"><i class="pi pi-file-excel"></i> Export</button>
+    </div>
+  </header>
+
+  <div class="pending" *ngIf="pending.size">
+    <i class="pi pi-pencil"></i> {{ pending.size }} field{{ pending.size === 1 ? '' : 's' }} changed. Save at the top of the page keeps them.
+    <button type="button" class="link" (click)="discard()">Undo these</button>
+  </div>
+  <div class="error" *ngIf="saveError">{{ saveError }}</div>
+  <div class="error" *ngIf="error">{{ error }}</div>
+  <div class="hint" *ngIf="loading"><i class="pi pi-spin pi-spinner"></i> Loading every field…</div>
+  <div class="hint" *ngIf="view && !view.canEdit"><i class="pi pi-lock"></i> You can see these fields; changing them needs the Product Desk in Security Admin.</div>
+
+  <!-- ================= layout: which groups and fields show ================= -->
+  <div class="layout" *ngIf="showLayout">
+    <div class="layout-top">
+      <label class="chk"><input type="checkbox" [ngModel]="layout.onlyFilled" (ngModelChange)="setOnlyFilled($event)" /> Only fields that have a value</label>
+      <button type="button" class="link" (click)="resetLayout()">Show everything again</button>
+      <span class="hint">Your layout is saved for you, on any computer.</span>
+    </div>
+    <div class="layout-groups">
+      <div class="lg" *ngFor="let g of allGroupNames; let i = index">
+        <div class="lg-head">
+          <label class="chk"><input type="checkbox" [checked]="!layout.hiddenGroups.includes(g)" (change)="toggleGroup(g)" /> <strong>{{ g }}</strong></label>
+          <span class="move">
+            <button type="button" [disabled]="i === 0" (click)="moveGroup(g, -1)" title="Move up"><i class="pi pi-arrow-up"></i></button>
+            <button type="button" [disabled]="i === allGroupNames.length - 1" (click)="moveGroup(g, 1)" title="Move down"><i class="pi pi-arrow-down"></i></button>
+          </span>
+        </div>
+        <div class="lg-fields" *ngIf="g !== 'Assets' && !layout.hiddenGroups.includes(g)">
+          <label class="chk small" *ngFor="let r of rowsOf(g)">
+            <input type="checkbox" [checked]="!layout.hiddenFields.includes(r.key)" (change)="toggleField(r.key)" /> {{ r.label }}
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= recent changes ================= -->
+  <div class="history" *ngIf="showHistory && view">
+    <table class="tbl" *ngIf="view.history.length; else noHist">
+      <thead><tr><th>When</th><th>Field</th><th>From</th><th>To</th><th>By</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let h of view.history">
+          <td>{{ when(h.changedAt) }}</td><td>{{ h.label }}</td>
+          <td class="clip" [title]="h.oldValue || ''">{{ h.oldValue ?? '—' }}</td>
+          <td class="clip" [title]="h.newValue || ''">{{ h.newValue ?? '—' }}</td>
+          <td>{{ h.changedBy }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #noHist><div class="empty">No changes made on this sheet yet. Changes from the other sections are in their own history.</div></ng-template>
+  </div>
+
+  <!-- ================= the sheet ================= -->
+  <ng-container *ngIf="product">
+    <div class="group" *ngFor="let g of groups; trackBy: trackGroup">
+      <div class="g-head">{{ g.name }}</div>
+
+      <ng-container *ngIf="g.name === 'Assets'; else fieldGrid">
+        <app-product-assets [productId]="productId" [compact]="true" (openFull)="openSection.emit('assets')"></app-product-assets>
+      </ng-container>
+
+      <ng-template #fieldGrid>
+        <div class="grid">
+          <div class="f" *ngFor="let r of g.rows; trackBy: trackRow"
+               [class.wide]="r.kind === 'textarea' || r.kind === 'replacement'" [class.changed]="isChanged(r)" [class.locked]="isReadonly(r)">
+            <span class="lab" [title]="lockText(r)">
+              {{ r.label }}
+              <i class="pi pi-lock" *ngIf="r.lock && r.lock !== 'CONTRACT'" [title]="lockText(r)"></i>
+            </span>
+
+            <ng-container [ngSwitch]="isReadonly(r) ? 'readonly' : r.kind">
+              <span class="ro" *ngSwitchCase="'readonly'" [title]="lockText(r)">
+                <ng-container *ngIf="r.kind === 'bool'; else roText">{{ r.get() ? 'Yes' : 'No' }}</ng-container>
+                <ng-template #roText>{{ isEmpty(r.get()) ? '—' : (r.kind === 'select' ? ((r.options || []) | sheetOption: r.get()) : r.get()) }}</ng-template>
+              </span>
+
+              <button type="button" *ngSwitchCase="'bool'" class="toggle" (click)="change(r, !r.get())">
+                <span class="track" [class.on]="!!r.get()"><span class="knob"></span></span>
+                <span class="tl">{{ r.get() ? 'Yes' : 'No' }}</span>
+              </button>
+
+              <select *ngSwitchCase="'select'" [ngModel]="r.get()" (ngModelChange)="change(r, $event)">
+                <option *ngFor="let o of r.options" [ngValue]="o.value">{{ o.label }}</option>
+              </select>
+
+              <input *ngSwitchCase="'number'" type="number" [ngModel]="r.get()" (ngModelChange)="change(r, $event)" />
+              <input *ngSwitchCase="'date'" type="date" [ngModel]="r.get()" (ngModelChange)="change(r, $event)" />
+              <textarea *ngSwitchCase="'textarea'" rows="3" [ngModel]="r.get()" (ngModelChange)="change(r, $event)"></textarea>
+
+              <div *ngSwitchCase="'replacement'" class="repl">
+                <div class="repl-now" *ngIf="r.get()">
+                  <button type="button" class="link" [disabled]="!replId" (click)="replId && openProduct.emit(replId)">
+                    <strong>{{ r.get() }}</strong><ng-container *ngIf="replName"> · {{ replName }}</ng-container></button>
+                  <button type="button" class="link" [disabled]="!isDiscontinued" (click)="change(r, ''); replName = null; replId = null">Remove</button>
+                </div>
+                <input type="text" [disabled]="!isDiscontinued" [ngModel]="replTerm" (ngModelChange)="searchReplacement($event)"
+                       [placeholder]="isDiscontinued ? 'Search by code or name' : 'Only when the product is discontinued'" />
+                <div class="repl-results" *ngIf="replTerm.trim().length >= 2 && replResults.length">
+                  <button type="button" *ngFor="let p of replResults" (click)="pickReplacement(r, p)">
+                    <span class="mono">{{ p.productCode }}</span> {{ p.name }} <span class="hint">{{ p.brandName }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <input *ngSwitchDefault type="text" [ngModel]="r.get()" (ngModelChange)="change(r, $event)" />
+            </ng-container>
+          </div>
+        </div>
+        <div class="hint" *ngIf="g.name === 'Tech specs' && view?.techSpecsError">{{ view?.techSpecsError }}</div>
+      </ng-template>
+    </div>
+
+    <div class="empty" *ngIf="!groups.length">Nothing matches "{{ search }}".</div>
+  </ng-container>
+</section>

@@ -17,6 +17,7 @@
 - Replaces the legacy ProdCat and NewCats screens.
 
 ### Product Desk
+- **All fields** (the product page now opens here): every attribute of the product on one page, grouped: status, identity, codes (UPC, EAN, Shopify ids), prices, market prices, supply, size and customs, the B2B product page fields (features, specs, P65, out-of-stock message, FAQ, rebate...), content, tech specs, category, assets, and every other ProductData column, found from the table so new columns appear on their own. Computyme's fields are read only until `SqlIsMaster`. Each person chooses which groups and fields show and their order (saved per person), can show only filled fields, search, see the change log and export. One Save keeps everything; every ProductData change is logged.
 - **Categories:** a picker with the breadcrumb and EGRP; saves through the Category Desk publish, so it's in the history.
 - **Market research** (`AI.MarketResearch`): one-click topics or your own question, answered from the web with sources by Perplexity. Every answer is saved to the product with the model, cost, who and when.
 - **Forecast** (`AI.Forecast`): 3, 6 or 12 months, likely units and an 80% range per month, all countries and per country, charted with the last 24 months of sales. Numbers worked out in the PIV2 back end from Computyme sales history (the most accurate of six standard methods per product, $0); Claude on Bedrock writes the buyer note. Every run is saved and scored against actual sales; accuracy report across products exports to Excel.
@@ -45,10 +46,11 @@ Nothing is dropped, deleted or updated when the scripts run; all are safe to run
 | `05-ai-permissions.sql` | AI permissions |
 | `06-forecast.sql` | `piv2.ProductForecast`, `piv2.SalesMonthly`, `piv2.vMemberCountry`, `piv2.Forecast_*`; grant to read sales |
 | `07-product-assets.sql` | `piv2.Product_Assets` (read only: Shopify fields and feed, images, documents) |
+| `08-product-sheet.sql` | `piv2.ProductSheetField` (labels, groups, locks), `piv2.ProductSheetLog`, `piv2.ProductSheetUserView`, `piv2.ProductSheet_*` |
 
 ## Deploy, in order
 
-1. **SQL in PRO:** `01` to `07`.
+1. **SQL in PRO:** `01` to `08`.
    - `05`: `@ProductRoute` is `/productedit`; change it if the Product Desk route is `/products`.
    - `06`: set `@AppUser` in the last block (the API's database user) so the API can read sales history.
    - Run `01` again if the Vendor Desk's `dbo.VendorBrand` is added later; run `06` again after the Rebate Desk's nightly sales job is installed.

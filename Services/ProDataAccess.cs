@@ -3355,6 +3355,52 @@ GetShopifyGovernanceIssues()
         }
         #endregion
 
+        #region Product sheet
+        public List<ProductSheetField> ProductSheet_Get(int productId, bool sqlIsMaster)
+        {
+            using var conn = GetConnection();
+            return conn.Query<ProductSheetField>("piv2.ProductSheet_Get", new { ProductId = productId, SqlIsMaster = sqlIsMaster },
+                commandType: CommandType.StoredProcedure, commandTimeout: 30).ToList();
+        }
+
+        public int ProductSheet_Save(int productId, string changesJson, string user, bool sqlIsMaster)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<int>("piv2.ProductSheet_Save",
+                new { ProductId = productId, Changes = changesJson, User = user, SqlIsMaster = sqlIsMaster },
+                commandType: CommandType.StoredProcedure, commandTimeout: 30);
+        }
+
+        public List<ProductSheetChangeLog> ProductSheet_History(int productId)
+        {
+            using var conn = GetConnection();
+            return conn.Query<ProductSheetChangeLog>("piv2.ProductSheet_History", new { ProductId = productId },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15).ToList();
+        }
+
+        public string ProductSheet_ViewGet(string user)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<string>("piv2.ProductSheet_ViewGet", new { UserName = user },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
+        public void ProductSheet_ViewSet(string user, string viewJson)
+        {
+            using var conn = GetConnection();
+            conn.Execute("piv2.ProductSheet_ViewSet", new { UserName = user, ViewJson = viewJson },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
+        /* The same call the B2B product page makes for its Technical Specs. */
+        public List<ProductTechSpecRow> Product_TechSpecs(string productCode)
+        {
+            using var conn = GetConnection();
+            return conn.Query<ProductTechSpecRow>("TechSpecs_GetAttributesAndValuesForProduct",
+                new { productCode }, commandType: CommandType.StoredProcedure, commandTimeout: 20).ToList();
+        }
+        #endregion
+
 
     }
 }

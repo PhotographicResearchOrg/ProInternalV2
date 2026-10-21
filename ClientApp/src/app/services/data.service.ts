@@ -60,7 +60,7 @@ import {
   CategoryFilters, CategoryProductPage, CategoryProductQuery, CategoryTree, PublishItem, PublishRequest,
   PublishResult, PublishSummary, RevertConflict
 } from 'src/app/models/category/category-desk.models';
-import { ProductAssetsView } from 'src/app/models/Product/product-assets.models';
+import { ProductAssetsView, ProductSheetView } from 'src/app/models/Product/product-assets.models';
 import { CompetitorPriceResult, ProductLookupResult } from 'src/app/models/ai/ai.models';
 import { AiStatus, AiUsageRow, ForecastAccuracyRow, ForecastRun, ForecastView, ResearchSnapshot } from 'src/app/models/ai/ai.models';
 
@@ -1166,6 +1166,20 @@ export class DataService {
   /** Product Desk · Shopify & assets (read only). */
   productAssets(productId: number): Observable<ProductAssetsView> {
     return this.api.get<ProductAssetsView>(`API/products/${productId}/assets`);
+  }
+
+  /** Product Desk · product sheet: every field of a product on one page. */
+  productSheet(productId: number): Observable<ProductSheetView> {
+    return this.api.get<ProductSheetView>(`API/products/${productId}/sheet`);
+  }
+  productSheetSave(productId: number, changes: { column: string; value: string | null }[]): Observable<{ saved: number }> {
+    return this.api.put<{ saved: number }>(`API/products/${productId}/sheet`, { changes });
+  }
+  productSheetLayout(): Observable<{ viewJson: string | null }> {
+    return this.api.get<{ viewJson: string | null }>(`API/products/sheet/layout`);
+  }
+  productSheetLayoutSave(viewJson: string): Observable<void> {
+    return this.api.put<void>(`API/products/sheet/layout`, { viewJson });
   }
 
   private readonly aiBase = 'API/Ai';

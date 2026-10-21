@@ -283,9 +283,9 @@
         <div class="stat"><div class="k">Available</div><div class="v">{{ shipsDirect ? '—' : (page?.live?.unitsAvailable ?? '—') }}</div></div>
 
         <div class="savebar">
-          <span class="unsaved" *ngIf="dirty"><span class="dot" [style.background]="P.amber"></span> Unsaved changes</span>
-          <button type="button" class="iconbtn" [disabled]="!dirty || saving" (click)="discard()">Discard</button>
-          <button type="button" class="btn-primary" [disabled]="!dirty || saving" (click)="save()">
+          <span class="unsaved" *ngIf="unsaved"><span class="dot" [style.background]="P.amber"></span> Unsaved changes</span>
+          <button type="button" class="iconbtn" [disabled]="!unsaved || saving" (click)="discard()">Discard</button>
+          <button type="button" class="btn-primary" [disabled]="!unsaved || saving" (click)="save()">
             <i class="pi pi-check"></i> {{ saving ? 'Saving...' : 'Save' }}
           </button>
         </div>
@@ -324,6 +324,14 @@
       </div>
 
       <!-- ---------- Overview ---------- -->
+      <!-- ---------- All fields: every attribute on one page ---------- -->
+      <div [hidden]="activeSection !== 'sheet'" class="stack">
+        <app-product-sheet [productId]="productId" [product]="product" [content]="content" [locked]="locked"
+                           [brandOptions]="brandOptions" [statuses]="statuses" [dispositions]="dispositions"
+                           (touched)="touch()" (pendingChange)="sheetPending = $event"
+                           (openSection)="setSection($event)" (openProduct)="open($event)"></app-product-sheet>
+      </div>
+
       <div *ngIf="activeSection === 'overview'" class="stack">
         <div *ngIf="!product.product.forSale" class="warn">
           <i class="pi pi-exclamation-triangle"></i>
