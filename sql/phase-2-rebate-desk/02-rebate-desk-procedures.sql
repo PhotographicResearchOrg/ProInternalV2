@@ -1463,7 +1463,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Batches
     @State    varchar(10) = NULL,      -- LIVE, OFF, MIXED, or NULL for all
     @Page     int = 1,
     @PageSize int = 50,
-    @Months   int = 12                 -- batches running in the last @Months months (or live); 0 = all history,
+    @Months   int = 12,                -- batches running in the last @Months months (or live); 0 = all history
     @Sort     varchar(30) = NULL,      -- column clicked on the desk (NULL = the usual order)
     @Desc     bit = 0
 AS
@@ -1505,8 +1505,8 @@ BEGIN
       FROM b
       LEFT JOIN piv2.RebateUpload u ON u.BatchId = b.BatchId
      CROSS APPLY (SELECT CASE @Sort WHEN 'batchId'      THEN CAST(b.BatchId AS sql_variant)
-                                    WHEN 'vendorName'   THEN CAST(b.VendorName AS sql_variant)
-                                    WHEN 'irTypeName'   THEN CAST(CASE WHEN b.MixedTypes = 1 THEN N'Mixed' ELSE b.IrTypeName END AS sql_variant)
+                                    WHEN 'vendorName'   THEN CAST(CAST(b.VendorName AS nvarchar(400)) AS sql_variant)
+                                    WHEN 'irTypeName'   THEN CAST(CAST(CASE WHEN b.MixedTypes = 1 THEN N'Mixed' ELSE b.IrTypeName END AS nvarchar(400)) AS sql_variant)
                                     WHEN 'programStart' THEN CAST(b.ProgramStart AS sql_variant)
                                     WHEN 'programs'     THEN CAST(b.LivePrograms AS sql_variant)
                                     WHEN 'state'        THEN CAST(CASE WHEN b.LivePrograms = b.Programs THEN 1 WHEN b.LivePrograms = 0 THEN 3 ELSE 2 END AS sql_variant) END AS K) s

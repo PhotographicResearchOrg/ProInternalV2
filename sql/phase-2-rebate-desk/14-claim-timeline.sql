@@ -60,6 +60,9 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_piv2_ClaimLog_Order' AND object_id = OBJECT_ID('piv2.ClaimLog'))
     CREATE INDEX IX_piv2_ClaimLog_Order ON piv2.ClaimLog (OrderId, At);
 GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_piv2_ClaimLog_Process' AND object_id = OBJECT_ID('piv2.ClaimLog'))
+    CREATE INDEX IX_piv2_ClaimLog_Process ON piv2.ClaimLog (ProcessId, Action) WHERE ProcessId IS NOT NULL;
+GO
 
 /* Second strike from the desk: a claim that needed support is declined for good. Same as the
    IR Maintenance "Confirm decline" (dbo.ConfirmDecline), plus who and why. No email is sent. */
@@ -74,6 +77,8 @@ BEGIN
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 50702, 'A reason is required.', 1;
+    IF NULLIF(LTRIM(RTRIM(@Actor)), N'') IS NULL
+        THROW 50703, 'Who is doing this? (no signed-in user)', 1;
     IF OBJECT_ID(N'dbo.ConfirmDecline', N'P') IS NULL
         THROW 50768, 'dbo.ConfirmDecline is not on this database.', 1;
 
@@ -81,11 +86,13 @@ BEGIN
     IF @status IS NULL OR @status <> 3
         THROW 50769, 'Only claims that need support (status 3) can have the decline confirmed.', 1;
 
-    EXEC dbo.ConfirmDecline @OrderId = @OrderId;
+    BEGIN TRAN;
+        EXEC dbo.ConfirmDecline @OrderId = @OrderId;
 
-    INSERT piv2.RebateEvent (Rail, EventType, ClaimId, Actor, Reason, Detail)
-    VALUES ('IR', 'CLAIM_DECLINE_CONFIRMED', @OrderId, @Actor, @Reason,
-            (SELECT @status AS statusWas, 2 AS statusNow FOR JSON PATH, WITHOUT_ARRAY_WRAPPER));
+        INSERT piv2.RebateEvent (Rail, EventType, ClaimId, Actor, Reason, Detail)
+        VALUES ('IR', 'CLAIM_DECLINE_CONFIRMED', @OrderId, @Actor, @Reason,
+                (SELECT @status AS statusWas, 2 AS statusNow FOR JSON PATH, WITHOUT_ARRAY_WRAPPER));
+    COMMIT;
 END
 GO
 
@@ -99,6 +106,8 @@ CREATE OR ALTER PROCEDURE piv2.Claim_FileEvent
 AS
 BEGIN
     SET NOCOUNT ON;
+    IF NULLIF(LTRIM(RTRIM(@Actor)), N'') IS NULL
+        THROW 50703, 'Who is doing this? (no signed-in user)', 1;
     INSERT piv2.RebateEvent (Rail, EventType, ClaimId, Actor, Reason, Detail)
     VALUES ('IR', CASE WHEN @Added = 1 THEN 'CLAIM_FILE_ADDED' ELSE 'CLAIM_FILE_REMOVED' END, @OrderId, @Actor,
             NULLIF(LTRIM(RTRIM(@Reason)), N''), (SELECT @FileName AS fileName FOR JSON PATH, WITHOUT_ARRAY_WRAPPER));
@@ -157,8 +166,8 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    CREATE TABLE #t (At datetime NULL, Seq int NOT NULL, Kind varchar(30) NOT NULL, Actor nvarchar(200) NULL,
-                     Text nvarchar(1000) NOT NULL, Ball varchar(20) NULL, Source varchar(20) NOT NULL, Exact bit NOT NULL DEFAULT (1));
+    CREATE TABLE #t (At datetime NULL, Seq int NOT NULL, Kind varchar(30) NOT NULL, Actor nvarchar(400) NULL,
+                     Text nvarchar(max) NOT NULL, Ball varchar(20) NULL, Source varchar(20) NOT NULL, Exact bit NOT NULL DEFAULT (1));
 
     /* Submitted by the dealer. */
     DECLARE @member int, @memberName nvarchar(200), @submitted datetime, @lines int, @amount decimal(19,2);
@@ -217,11 +226,16 @@ BEGIN
      WHERE l.OrderId = @OrderId AND l.Source = 'PROCESS' AND k0.Kind <> 'CHANGED';
 
     /* Before the log: rebuild what the decision row still shows. */
-    IF @pid IS NOT NULL AND (@logged = 0 OR NOT EXISTS (SELECT 1 FROM piv2.ClaimLog WHERE ProcessId = @pid))
+    IF @pid IS NOT NULL
     BEGIN
-        INSERT #t (At, Seq, Kind, Actor, Text, Ball, Source)
-        VALUES (@opened, 20, 'OPENED', @user, N'Opened for review', 'PRO', 'Decision');
+        /* Opened before the log started (no insert logged for this row). */
+        IF NOT EXISTS (SELECT 1 FROM piv2.ClaimLog WHERE ProcessId = @pid AND Action = 'I')
+            INSERT #t (At, Seq, Kind, Actor, Text, Ball, Source)
+            VALUES (@opened, 20, 'OPENED', @user, N'Opened for review', 'PRO', 'Decision');
+        /* Decided before the log started (the log has no move to this status). */
         IF @status IN (1, 2, 3)
+           AND NOT EXISTS (SELECT 1 FROM piv2.ClaimLog WHERE ProcessId = @pid AND StatusNow = @status
+                                                        AND COALESCE(StatusWas, -1) <> @status)
             INSERT #t (At, Seq, Kind, Actor, Text, Ball, Source)
             VALUES (@decided, 21,
                     CASE @status WHEN 1 THEN 'APPROVED' WHEN 2 THEN 'DECLINED' ELSE 'SUPPORT_ASKED' END, @user,
@@ -267,7 +281,7 @@ BEGIN
                 WHEN 'CLAIM_DECLINE_CONFIRMED' THEN N'Decline confirmed on the desk (second strike)'
                 WHEN 'CLAIM_FILE_ADDED'        THEN N'Support file added on the desk: ' + COALESCE(JSON_VALUE(e.Detail, '$.fileName'), N'')
                 WHEN 'CLAIM_FILE_REMOVED'      THEN N'Support file removed on the desk: ' + COALESCE(JSON_VALUE(e.Detail, '$.fileName'), N'')
-                ELSE REPLACE(LOWER(LEFT(e.EventType, 1)) + LOWER(SUBSTRING(e.EventType, 2, 50)), N'_', N' ') END
+                ELSE REPLACE(UPPER(LEFT(e.EventType, 1)) + LOWER(SUBSTRING(e.EventType, 2, 50)), N'_', N' ') END
              + COALESCE(N' · ' + e.Reason, N''),
            CASE e.EventType WHEN 'CLAIM_RESUBMITTED' THEN 'PRO' WHEN 'CLAIM_DECLINE_CONFIRMED' THEN 'CLOSED' ELSE NULL END, 'Desk'
       FROM piv2.RebateEvent e
@@ -295,10 +309,11 @@ BEGIN
             VALUES (@dmMailed, 61, 'DM_EMAILED', @dmBy, N'Debit memo emailed' + COALESCE(N' to ' + @dmTo, N''), 'VENDOR', 'Debit memo');
     END
 
-    /* Steps with no recorded time go where they happened: after the step before them. */
-    SELECT At, Kind, Actor, Text, Ball, Source, CAST(CASE WHEN At IS NULL THEN 0 ELSE Exact END AS bit) AS Exact
-      FROM #t
-     ORDER BY CASE WHEN At IS NULL THEN 1 ELSE 0 END, At, Seq;
+    /* Steps with no recorded time go where they happened: after the latest timed step that comes before them. */
+    SELECT t.At, t.Kind, t.Actor, t.Text, t.Ball, t.Source, CAST(CASE WHEN t.At IS NULL THEN 0 ELSE t.Exact END AS bit) AS Exact
+      FROM #t t
+     OUTER APPLY (SELECT MAX(x.At) AS Before FROM #t x WHERE t.At IS NULL AND x.At IS NOT NULL AND x.Seq <= t.Seq) b
+     ORDER BY COALESCE(t.At, b.Before, '99991231'), CASE WHEN t.At IS NULL THEN 1 ELSE 0 END, t.Seq;
 
     /* Who has the ball now. */
     DECLARE @hasAr bit = CASE WHEN EXISTS (SELECT 1 FROM #t WHERE Kind = 'CREDITED') THEN 1 ELSE 0 END;

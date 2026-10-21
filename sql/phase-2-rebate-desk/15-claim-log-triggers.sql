@@ -10,11 +10,19 @@
       dbo.trg_piv2_RebateProcess_Log            on dbo.RebateProcess
       dbo.trg_piv2_RebateAdditionalFiles_Log    on dbo.RebateRedeemAdditionalFiles
 
-    They only add a row to piv2.ClaimLog. They do not change, block or
-    return anything: NOCOUNT is on (no extra "rows affected"), the log key
-    is a sequence (no change to @@IDENTITY / SCOPE_IDENTITY for the caller),
-    and an error inside them is swallowed. The ProcessClaim page, the BRM
-    dashboard, the member site and the desk see exactly what they saw.
+    They only add a row to piv2.ClaimLog: NOCOUNT is on (no extra "rows
+    affected"), and the log key is a sequence (no change to @@IDENTITY /
+    SCOPE_IDENTITY for the caller). The insert is kept simple so it has
+    almost nothing that can fail (values are cut to size; no keys or checks).
+    The CATCH is a last resort only: SQL Server can still roll back the
+    caller's statement after an error inside a trigger.
+
+    CHECK BEFORE RUNNING: with any trigger on a table, a statement on it
+    that uses OUTPUT without INTO fails (Msg 334). Entity Framework Core 7+
+    writes that way by default, as does hand-written "OUTPUT inserted.ID".
+    Make sure nothing writes to dbo.RebateProcess or
+    dbo.RebateRedeemAdditionalFiles like that (member site, BRM dashboard,
+    any EF Core app). The ProcessClaim page and the legacy procedures don't.
 
     A trigger has to live in its table's schema, so these two are in dbo.
     To take them out:

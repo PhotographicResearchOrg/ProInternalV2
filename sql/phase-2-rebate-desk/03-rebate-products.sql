@@ -65,14 +65,14 @@ BEGIN
               FROM dbo.RebateCameraModels m
               LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
              OUTER APPLY (SELECT SUM(CASE WHEN x.Expired = 0 THEN 1 ELSE 0 END) AS Live, MAX(x.D) AS LastDate
-                            FROM (SELECT pd.Expired, CAST(pd.ProgramStartWeek AS date) AS D FROM dbo.RebateProgramDetail pd
+                            FROM (SELECT pd.Expired, CAST(pd.ProgramEndWeek AS date) AS D FROM dbo.RebateProgramDetail pd
                                    WHERE @pp = 0 AND pd.ModelID = m.ModelID AND @Sort IN ('programsLive', 'lastProgramDate')
                                   UNION ALL
                                   SELECT pp.Expired, CAST(pp.ProgramDate AS date) FROM dbo.PriceProtectionDetail pp
                                    WHERE @pp = 1 AND pp.ModelID = m.ModelID AND @Sort IN ('programsLive', 'lastProgramDate')) x) pr
-             CROSS APPLY (SELECT CASE @Sort WHEN 'description'     THEN CAST(m.ModelNumber AS sql_variant)
-                                            WHEN 'vendorName'      THEN CAST(v.VendorName AS sql_variant)
-                                            WHEN 'proCodes'        THEN CAST(m.ModelName AS sql_variant)
+             CROSS APPLY (SELECT CASE @Sort WHEN 'description'     THEN CAST(CAST(m.ModelNumber AS nvarchar(400)) AS sql_variant)
+                                            WHEN 'vendorName'      THEN CAST(CAST(v.VendorName AS nvarchar(400)) AS sql_variant)
+                                            WHEN 'proCodes'        THEN CAST(CAST(m.ModelName AS nvarchar(400)) AS sql_variant)
                                             WHEN 'programsLive'    THEN CAST(COALESCE(pr.Live, 0) AS sql_variant)
                                             WHEN 'lastProgramDate' THEN CAST(pr.LastDate AS sql_variant)
                                             WHEN 'stacks'          THEN CAST((SELECT COUNT(*) FROM dbo.RebateQualifiers q

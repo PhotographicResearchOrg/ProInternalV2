@@ -33,7 +33,7 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_Programs
     @Q        nvarchar(100) = NULL,
     @Page     int = 1,
     @PageSize int = 50,
-    @Months   int = 12      -- programs running in the last @Months months (or live); 0 = all history,
+    @Months   int = 12,     -- programs running in the last @Months months (or live); 0 = all history
     @Sort     varchar(30) = NULL,      -- column clicked on the desk (NULL = the usual order)
     @Desc     bit = 0
 AS
@@ -62,9 +62,9 @@ BEGIN
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
       LEFT JOIN dbo.RebateType t ON t.ID = p.IRType
       LEFT JOIN piv2.RebateProgramTerms pt ON pt.ProgramId = p.ProgramID AND pt.MemberAmount = ROUND(p.Reimbursement, 2)
-     CROSS APPLY (SELECT CASE @Sort WHEN 'description'   THEN CAST(m.ModelNumber AS sql_variant)
-                                    WHEN 'vendorName'    THEN CAST(v.VendorName AS sql_variant)
-                                    WHEN 'irTypeName'    THEN CAST(t.Name AS sql_variant)
+     CROSS APPLY (SELECT CASE @Sort WHEN 'description'   THEN CAST(CAST(m.ModelNumber AS nvarchar(400)) AS sql_variant)
+                                    WHEN 'vendorName'    THEN CAST(CAST(v.VendorName AS nvarchar(400)) AS sql_variant)
+                                    WHEN 'irTypeName'    THEN CAST(CAST(t.Name AS nvarchar(400)) AS sql_variant)
                                     WHEN 'startDate'     THEN CAST(p.ProgramStartWeek AS sql_variant)
                                     WHEN 'reimbursement' THEN CAST(CAST(p.Reimbursement AS decimal(19,4)) AS sql_variant)
                                     WHEN 'instantRebate' THEN CAST(CAST(p.InstantRebate AS decimal(19,4)) AS sql_variant)
@@ -256,7 +256,7 @@ CREATE OR ALTER PROCEDURE piv2.PP_Programs
     @Q        nvarchar(100) = NULL,
     @Page     int = 1,
     @PageSize int = 50,
-    @Months   int = 12      -- programs dated in the last @Months months (or live); 0 = all history,
+    @Months   int = 12,     -- programs dated in the last @Months months (or live); 0 = all history
     @Sort     varchar(30) = NULL,      -- column clicked on the desk (NULL = the usual order)
     @Desc     bit = 0
 AS
@@ -278,8 +278,8 @@ BEGIN
       FROM dbo.PriceProtectionDetail p
       JOIN dbo.RebateCameraModels m ON m.ModelID = p.ModelID
       LEFT JOIN dbo.RebateVendors v ON v.VendorID = m.VendorID
-     CROSS APPLY (SELECT CASE @Sort WHEN 'description'    THEN CAST(m.ModelNumber AS sql_variant)
-                                    WHEN 'vendorName'     THEN CAST(v.VendorName AS sql_variant)
+     CROSS APPLY (SELECT CASE @Sort WHEN 'description'    THEN CAST(CAST(m.ModelNumber AS nvarchar(400)) AS sql_variant)
+                                    WHEN 'vendorName'     THEN CAST(CAST(v.VendorName AS nvarchar(400)) AS sql_variant)
                                     WHEN 'programDate'    THEN CAST(p.ProgramDate AS sql_variant)
                                     WHEN 'amount'         THEN CAST(CAST(p.Amount AS decimal(19,4)) AS sql_variant)
                                     WHEN 'newInvoiceCost' THEN CAST(CAST(p.NewInvoiceCost AS decimal(19,4)) AS sql_variant)

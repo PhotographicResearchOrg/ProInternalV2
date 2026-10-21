@@ -238,11 +238,11 @@ BEGIN
                               ELSE 'SUBMITTED' END AS Bucket) bk
      CROSS APPLY (SELECT CASE @Sort WHEN 'orderId'    THEN CAST(c.OrderId AS sql_variant)
                                     WHEN 'memberId'   THEN CAST(c.MemberId AS sql_variant)
-                                    WHEN 'vendorName' THEN CAST(c.VendorName AS sql_variant)
+                                    WHEN 'vendorName' THEN CAST(CAST(c.VendorName AS nvarchar(400)) AS sql_variant)
                                     WHEN 'claimDate'  THEN CAST(c.ClaimDate AS sql_variant)
                                     WHEN 'amount'     THEN CAST(c.Amount AS sql_variant)
                                     WHEN 'bucket'     THEN CAST(bk.Bucket AS sql_variant)
-                                    WHEN 'debitMemo'  THEN CAST(c.DebitMemo AS sql_variant)
+                                    WHEN 'debitMemo'  THEN CAST(CAST(c.DebitMemo AS nvarchar(100)) AS sql_variant)
                                     WHEN 'invoiced'   THEN CAST(c.Invoiced AS sql_variant) END AS K) s
      WHERE @State IS NULL
         OR (@State = 'SUBMITTED' AND COALESCE(c.Status, 0) NOT IN (1, 2, 3))
