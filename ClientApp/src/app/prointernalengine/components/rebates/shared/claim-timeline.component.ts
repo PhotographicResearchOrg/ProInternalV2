@@ -31,6 +31,14 @@ export const BALL_LABELS: Record<string, string> = {
         </li>
       </ol>
       <div class="sub" *ngIf="!loading && !steps.length && !error">Nothing recorded for this claim.</div>
+      <div class="tl-add" *ngIf="canNote">
+        <textarea class="in" rows="2" maxlength="500" [(ngModel)]="note" placeholder="Add a note to this claim (who you spoke to, what's next…)"></textarea>
+        <div class="tl-add-bar">
+          <span class="sub">{{ note.length }}/500 · notes can't be edited, add another to correct one</span>
+          <button type="button" class="btn primary" (click)="addNote()" [disabled]="saving || !note.trim()">
+            <i class="pi" [class.pi-comment]="!saving" [class.pi-spin]="saving" [class.pi-spinner]="saving"></i> {{ saving ? 'Saving…' : 'Add note' }}</button>
+        </div>
+      </div>
     </div>`,
   styleUrls: ['./rebate-desk.shared.scss']
 })
@@ -38,6 +46,10 @@ export class ClaimTimelineComponent implements OnChanges {
   @Input() orderId: number | null = null;
   /* Bump to reload after an action on the claim. */
   @Input() version = 0;
+  /* Show the Add note box. */
+  @Input() canNote = false;
+  note = '';
+  saving = false;
 
   steps: any[] = [];
   now: any = null;
@@ -66,6 +78,17 @@ export class ClaimTimelineComponent implements OnChanges {
     });
   }
 
+  addNote(): void {
+    const text = this.note.trim();
+    if (!text || !this.orderId || this.saving) return;
+    this.saving = true;
+    this.error = '';
+    this.desk.claimNote(this.orderId, text).subscribe({
+      next: () => { this.saving = false; this.note = ''; this.load(); },
+      error: e => { this.saving = false; this.error = apiMessage(e); }
+    });
+  }
+
   ballLabel(b: string | null): string { return b ? (BALL_LABELS[b] ?? b) : ''; }
 
   kindClass(k: string): string {
@@ -74,6 +97,7 @@ export class ClaimTimelineComponent implements OnChanges {
     if (/SUPPORT|BRM/.test(k)) return 'warn';
     if (/APPROV|CREDIT|POSTED|DEBIT|DM_/.test(k)) return 'ok';
     if (/FILE/.test(k)) return 'file';
+    if (/NOTE/.test(k)) return 'note';
     return 'other';
   }
 

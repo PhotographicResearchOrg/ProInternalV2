@@ -515,6 +515,8 @@ table.grid td .btn { white-space: nowrap; }
   li.k-bad::before { border-color: var(--red); background: var(--redSoft); }
   li.k-warn::before { border-color: var(--amber); background: var(--amberSoft); }
   li.k-file::before { border-color: var(--blue); background: var(--blueSoft); }
+  li.k-note::before { border-color: var(--teal); background: var(--tealSoft); }
+  li.k-note .tl-what > div:first-child { background: #f6f8fb; border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; }
   .tl-when { color: var(--sub); font-size: 12px; padding-top: 1px; }
 }
 .tl-note { font-style: italic; }
@@ -601,3 +603,8 @@ tr.expand > td { background: #fafbfd; padding: 12px; }
 /* ---- drawer security: a drawer you may see but not change ---- */
 :host-context(.readonly) .edit-only, .readonly .edit-only { display: none !important; }
 .readonly-note { font-size: 12px; color: var(--sub); display: inline-flex; align-items: center; gap: 6px; }
+
+.tl-add { display: flex; flex-direction: column; gap: 6px; margin-top: 4px;
+  textarea { width: 100%; resize: vertical; font: inherit; font-size: 13px; }
+  .tl-add-bar { display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+}

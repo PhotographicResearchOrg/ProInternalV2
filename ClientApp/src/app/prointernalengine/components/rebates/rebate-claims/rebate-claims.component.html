@@ -110,7 +110,7 @@
 
       <ng-container *ngIf="rail === 'IR'">
         <h3 class="sub" style="margin: 14px 0 8px">Timeline: every step, and who has it now</h3>
-        <app-claim-timeline [orderId]="claim.orderId" [version]="timelineVersion"></app-claim-timeline>
+        <app-claim-timeline [orderId]="claim.orderId" [version]="timelineVersion" [canNote]="true"></app-claim-timeline>
       </ng-container>
       <ng-container *ngIf="rail !== 'IR'">
       <h3 class="sub" style="margin: 14px 0 8px">History</h3>

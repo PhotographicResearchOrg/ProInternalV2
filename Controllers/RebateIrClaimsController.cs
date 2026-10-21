@@ -77,6 +77,12 @@ namespace ProInternal.Controllers
                 return new { steps = sets.ElementAtOrDefault(0) ?? new List<RebateRow>(), now = sets.ElementAtOrDefault(1)?.FirstOrDefault() };
             });
 
+        /* A note on the claim. Anyone who can see the claim may add one (a note changes nothing). */
+        [HttpPost("{orderId:int}/note")]
+        [RequireDrawer("Declines", "Claims", Always = new[] { BrmRoute })]
+        public Task<IActionResult> Note(int orderId, [FromBody] RebateReasonRequest body) =>
+            Act(() => _data.ExecuteAsync("piv2.Claim_Note", new { OrderId = orderId, Note = body?.Reason ?? "", Actor }));
+
         /* Support received: back into the approval queue (dbo.ResubmitRebateOrder, as the BRM dashboard did). */
         [HttpPost("{orderId:int}/resubmit")]
         [RequireDrawer("Declines", Edit = true, Legacy = new[] { RebateDeskController.AccountingPermission }, Always = new[] { BrmRoute })]

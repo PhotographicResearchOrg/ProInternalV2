@@ -114,6 +114,26 @@ BEGIN
 END
 GO
 
+/* A note on a claim from the desk or the BRM dashboard. Kept in piv2.RebateEvent like every other
+   desk action (no new table); it shows in the claim's timeline. */
+CREATE OR ALTER PROCEDURE piv2.Claim_Note
+    @OrderId int,
+    @Note    nvarchar(500),
+    @Actor   nvarchar(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NULLIF(LTRIM(RTRIM(@Note)), N'') IS NULL
+        THROW 50704, 'Write the note first.', 1;
+    IF NULLIF(LTRIM(RTRIM(@Actor)), N'') IS NULL
+        THROW 50703, 'Who is doing this? (no signed-in user)', 1;
+    IF NOT EXISTS (SELECT 1 FROM dbo.RebateRedeem WHERE ORDERID = @OrderId)
+        THROW 50705, 'There is no claim with that number.', 1;
+    INSERT piv2.RebateEvent (Rail, EventType, ClaimId, Actor, Reason)
+    VALUES ('IR', 'CLAIM_NOTE', @OrderId, @Actor, LTRIM(RTRIM(@Note)));
+END
+GO
+
 /* The claims needing support or declined, one row per claim, with their files (the desk's Declines view). */
 CREATE OR ALTER PROCEDURE piv2.Claim_Declines
     @Months int = 12
@@ -281,8 +301,9 @@ BEGIN
                 WHEN 'CLAIM_DECLINE_CONFIRMED' THEN N'Decline confirmed on the desk (second strike)'
                 WHEN 'CLAIM_FILE_ADDED'        THEN N'Support file added on the desk: ' + COALESCE(JSON_VALUE(e.Detail, '$.fileName'), N'')
                 WHEN 'CLAIM_FILE_REMOVED'      THEN N'Support file removed on the desk: ' + COALESCE(JSON_VALUE(e.Detail, '$.fileName'), N'')
+                WHEN 'CLAIM_NOTE'              THEN N'Note: ' + COALESCE(e.Reason, N'')
                 ELSE REPLACE(UPPER(LEFT(e.EventType, 1)) + LOWER(SUBSTRING(e.EventType, 2, 50)), N'_', N' ') END
-             + COALESCE(N' · ' + e.Reason, N''),
+             + CASE WHEN e.EventType = 'CLAIM_NOTE' THEN N'' ELSE COALESCE(N' · ' + e.Reason, N'') END,
            CASE e.EventType WHEN 'CLAIM_RESUBMITTED' THEN 'PRO' WHEN 'CLAIM_DECLINE_CONFIRMED' THEN 'CLOSED' ELSE NULL END, 'Desk'
       FROM piv2.RebateEvent e
      WHERE e.ClaimId = @OrderId AND e.Rail = 'IR';

@@ -156,6 +156,7 @@ export class RebateDeskService {
   declines(months: number): Observable<any[]> { return this.api.get(`${this.ir}/declines${this.q({ months })}`); }
   irClaimLines(orderId: number): Observable<any[]> { return this.api.get(`${this.ir}/${orderId}/lines`); }
   claimTimeline(orderId: number): Observable<{ steps: any[]; now: any }> { return this.api.get(`${this.ir}/${orderId}/timeline`); }
+  claimNote(orderId: number, note: string): Observable<any> { return this.api.post(`${this.ir}/${orderId}/note`, { reason: note }); }
   irResubmit(orderId: number, reason: string): Observable<any> { return this.api.post(`${this.ir}/${orderId}/resubmit`, { reason }); }
   confirmDecline(orderId: number, reason: string): Observable<any> { return this.api.post(`${this.ir}/${orderId}/confirm-decline`, { reason }); }
   addClaimFiles(orderId: number, form: FormData): Observable<{ files: { name: string; url: string }[] }> {
