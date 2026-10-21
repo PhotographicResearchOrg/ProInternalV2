@@ -59,7 +59,7 @@ BEGIN
     SELECT FieldName, NULLIF(LTRIM(RTRIM(FieldValue)), N'') AS FieldValue FROM #fields;
 
     /* 3. images, with the sizes the folder scans found */
-    CREATE TABLE #sizes (ImageName varchar(255), Size varchar(10));
+    CREATE TABLE #sizes (ImageName varchar(255) COLLATE DATABASE_DEFAULT, Size varchar(10) COLLATE DATABASE_DEFAULT);
     BEGIN TRY
     IF OBJECT_ID(N'dbo.ImageList', N'U') IS NOT NULL
         INSERT #sizes EXEC sp_executesql N'SELECT ImageName, ''250'' FROM dbo.ImageList WHERE ProductCode = @c', N'@c varchar(50)', @c = @code;

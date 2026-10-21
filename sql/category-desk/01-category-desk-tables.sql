@@ -94,21 +94,33 @@ GO
    so SQL Server can hash-join it, or seek IVMSTData's index when one product is asked for.
    Comparing two different types (for example a varchar ID to an int ProductCode) would make it
    convert every IVMSTData row and scan it once per product. */
-DECLARE @idType sysname, @idLen smallint, @codeType sysname, @match nvarchar(400);
-SELECT @idType = TYPE_NAME(c.user_type_id), @idLen = c.max_length
+DECLARE @idType sysname, @idLen smallint, @idPrec tinyint, @idScale tinyint, @idColl sysname,
+        @codeType sysname, @codeLen smallint, @len smallint, @match nvarchar(600);
+SELECT @idType = TYPE_NAME(c.user_type_id), @idLen = c.max_length, @idPrec = c.precision, @idScale = c.scale, @idColl = c.collation_name
 FROM sys.columns c WHERE c.object_id = OBJECT_ID(N'dbo.IVMSTData') AND c.name = N'ID';
-SELECT @codeType = TYPE_NAME(c.user_type_id)
+SELECT @codeType = TYPE_NAME(c.user_type_id), @codeLen = c.max_length
 FROM sys.columns c WHERE c.object_id = OBJECT_ID(N'dbo.ProductData') AND c.name = N'ProductCode';
+
+/* Convert to the longer of the two lengths, so a long code is never cut short into a false match. */
+SET @len = CASE WHEN @idLen = -1 OR @codeLen = -1 THEN -1
+                WHEN @codeLen > @idLen THEN @codeLen ELSE @idLen END;
 
 SET @match =
     CASE
         WHEN @idType IS NULL OR @idType = @codeType THEN N'd.ProductCode'
         WHEN @idType IN (N'varchar', N'char')
-            THEN N'CAST(d.ProductCode AS varchar(' + CASE WHEN @idLen = -1 THEN N'max' ELSE CAST(@idLen AS nvarchar(6)) END + N'))'
+            THEN N'CAST(d.ProductCode AS varchar(' + CASE WHEN @len = -1 THEN N'max' ELSE CAST(@len AS nvarchar(6)) END + N'))'
         WHEN @idType IN (N'nvarchar', N'nchar')
-            THEN N'CAST(d.ProductCode AS nvarchar(' + CASE WHEN @idLen = -1 THEN N'max' ELSE CAST(@idLen / 2 AS nvarchar(6)) END + N'))'
+            THEN N'CAST(d.ProductCode AS nvarchar(' + CASE WHEN @len = -1 THEN N'max' ELSE CAST(CASE WHEN @codeLen > @idLen / 2 THEN CASE WHEN @codeLen > 4000 THEN 4000 ELSE @codeLen END ELSE @idLen / 2 END AS nvarchar(6)) END + N'))'
+        WHEN @idType IN (N'decimal', N'numeric')
+            THEN N'TRY_CAST(d.ProductCode AS ' + @idType + N'(' + CAST(@idPrec AS nvarchar(3)) + N',' + CAST(@idScale AS nvarchar(3)) + N'))'
         ELSE N'TRY_CAST(d.ProductCode AS ' + @idType + N')'
     END;
+
+/* IVMSTData is replicated from Computyme and may use another collation: compare in ID's collation
+   (still lets SQL Server seek ID's index). */
+IF @idColl IS NOT NULL AND (@idType IN (N'varchar', N'char', N'nvarchar', N'nchar'))
+    SET @match = @match + N' COLLATE ' + @idColl;
 
 DECLARE @egrpView nvarchar(max) = N'
 CREATE OR ALTER VIEW piv2.vProductEgrp

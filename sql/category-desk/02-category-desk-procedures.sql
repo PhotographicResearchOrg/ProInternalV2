@@ -109,7 +109,6 @@ BEGIN
     INTO #fs_code
     FROM #fs_prod
     GROUP BY ProductCode;
-    CREATE CLUSTERED INDEX IX_fs_code ON #fs_code (ProductCode);
 
     INSERT #state (ProductId, ProductCode, ModelName, BrandId, BrandName, VendorId, VendorName, Egrp,
                    IsDiscontinued, IsForSale, IsPublic, ReplacementCode, EnterDate,
