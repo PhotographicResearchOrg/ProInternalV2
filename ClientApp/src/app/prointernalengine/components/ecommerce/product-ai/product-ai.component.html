@@ -34,6 +34,9 @@
         <i class="pi" [ngClass]="asking === 'OWN' ? 'pi-spin pi-spinner' : 'pi-send'"></i>Ask
       </button>
     </div>
+    <div class="working" *ngIf="asking">
+      <i class="pi pi-spin pi-spinner"></i> Researching on the web. This usually takes 10 to 40 seconds; the answer opens here and is saved to the product.
+    </div>
   </ng-container>
 
   <div class="error" *ngIf="error">{{ error }}</div>

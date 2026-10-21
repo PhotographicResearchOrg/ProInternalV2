@@ -140,3 +140,15 @@
 }
 
 .link { background: none; border: 0; padding: 0; color: #0e7c73; font: inherit; font-weight: 600; cursor: pointer; }
+
+.working {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #5b4bb5;
+  background: #ece9f9;
+  font-weight: 600;
+}
