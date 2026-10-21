@@ -16,9 +16,10 @@ namespace ProInternal.Controllers
      * Instant-rebate claims that need support or were declined: the panel shared by the
      * Rebate Desk (Needs support / declined) and the BRM dashboard.
      *
-     * Reading: Rebates.View, or the /rebatedesk or /BRMdash screen.
-     * Acting (files, back to queue, confirm decline): Rebates.Accounting, or the /BRMdash screen,
-     * so BRMs keep doing on their dashboard what they did before.
+     * Reading: Rebates.View, or the /rebatedesk or /BRMdash screen; with drawer security,
+     * RebateDesk.Declines.View (lines and timeline also Claims or Investigate).
+     * Acting (files, back to queue, confirm decline): RebateDesk.Declines.Edit (Rebates.Accounting
+     * before drawer security), or the /BRMdash screen, so BRMs keep doing what they did before.
      */
     [ApiController]
     [Route("api/rebatedesk/ir")]
@@ -40,6 +41,7 @@ namespace ProInternal.Controllers
 
         /* Claims needing support or declined, one row per claim, with their files. */
         [HttpGet("declines")]
+        [RequireDrawer("Declines", Always = new[] { BrmRoute })]
         public Task<IActionResult> Declines([FromQuery] int months = 12) =>
             Read(async () =>
             {
@@ -57,6 +59,7 @@ namespace ProInternal.Controllers
 
         /* The claim's lines (product, PRO code, serial, week, qty, each, net). */
         [HttpGet("{orderId:int}/lines")]
+        [RequireDrawer("Declines", "Claims", "Investigate", Always = new[] { BrmRoute })]
         public Task<IActionResult> Lines(int orderId) =>
             Read(async () =>
             {
@@ -66,6 +69,7 @@ namespace ProInternal.Controllers
 
         /* Every step on a claim, and who has it now. */
         [HttpGet("{orderId:int}/timeline")]
+        [RequireDrawer("Declines", "Claims", "Investigate", Always = new[] { BrmRoute })]
         public Task<IActionResult> Timeline(int orderId) =>
             Read(async () =>
             {
@@ -75,25 +79,25 @@ namespace ProInternal.Controllers
 
         /* Support received: back into the approval queue (dbo.ResubmitRebateOrder, as the BRM dashboard did). */
         [HttpPost("{orderId:int}/resubmit")]
-        [RequirePermission(RebateDeskController.AccountingPermission, BrmRoute)]
+        [RequireDrawer("Declines", Edit = true, Legacy = new[] { RebateDeskController.AccountingPermission }, Always = new[] { BrmRoute })]
         public Task<IActionResult> Resubmit(int orderId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Claim_Resubmit", new { OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
 
         /* Second strike: declined for good (dbo.ConfirmDecline). */
         [HttpPost("{orderId:int}/confirm-decline")]
-        [RequirePermission(RebateDeskController.AccountingPermission, BrmRoute)]
+        [RequireDrawer("Declines", Edit = true, Legacy = new[] { RebateDeskController.AccountingPermission }, Always = new[] { BrmRoute })]
         public Task<IActionResult> ConfirmDecline(int orderId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Claim_ConfirmDecline", new { OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
 
         /* Support files on the claim. */
         [HttpPost("{orderId:int}/files")]
-        [RequirePermission(RebateDeskController.AccountingPermission, BrmRoute)]
+        [RequireDrawer("Declines", Edit = true, Legacy = new[] { RebateDeskController.AccountingPermission }, Always = new[] { BrmRoute })]
         [RequestSizeLimit(40 * 1024 * 1024)]
         public Task<IActionResult> AddFiles(int orderId, CancellationToken cancellationToken) =>
             Read(async () => await _claims.AddClaimFilesAsync(orderId, (await Request.ReadFormAsync(cancellationToken)).Files, Actor, cancellationToken));
 
         [HttpPost("{orderId:int}/files/remove")]
-        [RequirePermission(RebateDeskController.AccountingPermission, BrmRoute)]
+        [RequireDrawer("Declines", Edit = true, Legacy = new[] { RebateDeskController.AccountingPermission }, Always = new[] { BrmRoute })]
         public Task<IActionResult> RemoveFile(int orderId, [FromBody] RebateClaimFileRequest body) =>
             Act(() => _claims.RemoveClaimFileAsync(orderId, body?.FileName ?? "", Actor, body?.Reason));
 

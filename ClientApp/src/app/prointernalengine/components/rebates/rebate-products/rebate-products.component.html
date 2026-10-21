@@ -8,7 +8,7 @@
       <span class="sub">{{ total }} found</span>
       <span class="grow"></span>
       <button type="button" class="btn ghost" (click)="exportExcel()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button>
-      <button type="button" class="btn primary" (click)="startNew()"><i class="pi pi-plus"></i> New product</button>
+      <button type="button" class="edit-only btn primary" (click)="startNew()"><i class="pi pi-plus"></i> New product</button>
     </div>
     <div class="filters">
       <input class="in" placeholder="Description or PRO code" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
@@ -97,8 +97,8 @@
 
     <div class="actions" style="margin-top: 12px">
       <ng-container *ngIf="detail">
-        <button type="button" class="btn danger" *ngIf="detail.product.isActive" (click)="askActive(false)">Retire</button>
-        <button type="button" class="btn" *ngIf="!detail.product.isActive" (click)="askActive(true)">Reactivate</button>
+        <button type="button" class="edit-only btn danger" *ngIf="detail.product.isActive" (click)="askActive(false)">Retire</button>
+        <button type="button" class="edit-only btn" *ngIf="!detail.product.isActive" (click)="askActive(true)">Reactivate</button>
         <button type="button" class="btn ghost" (click)="showPrograms.emit(detail.product.modelId)"><i class="pi pi-list"></i> Programs</button>
       </ng-container>
     </div>
@@ -107,7 +107,7 @@
       <h3 class="sub" style="margin: 14px 0 6px">Stacks: this product qualifies with</h3>
       <div>
         <span class="chip info" *ngFor="let s of stackEdit">{{ s.description }}
-          <button type="button" (click)="removeStack(s.modelId)" title="Remove">✕</button></span>
+          <button class="edit-only" type="button" (click)="removeStack(s.modelId)" title="Remove">✕</button></span>
         <span class="sub" *ngIf="!stackEdit.length">None.</span>
       </div>
       <div style="margin-top: 6px"><app-rebate-product-picker [rail]="rail" placeholder="Add a stack product" (picked)="addStack($event)"></app-rebate-product-picker></div>
@@ -115,8 +115,8 @@
         <ng-container *ngFor="let s of detail.stacks"><span *ngIf="s.direction === 'IN'" class="chip lock">qualifies this: {{ s.description }}</span></ng-container>
       </div>
       <div class="actions" style="margin-top: 8px" *ngIf="stacksDirty">
-        <button type="button" class="btn ghost" (click)="discard()">Discard</button>
-        <button type="button" class="btn primary" (click)="askStacks()">Save stacks</button>
+        <button type="button" class="edit-only btn ghost" (click)="discard()">Discard</button>
+        <button type="button" class="edit-only btn primary" (click)="askStacks()">Save stacks</button>
       </div>
 
       <h3 class="sub" style="margin: 14px 0 6px">Programs</h3>
@@ -136,8 +136,8 @@
 
     <div class="savebar" *ngIf="dirty || creating">
       <span class="grow">{{ creating ? 'New product' : 'Unsaved changes' }}</span>
-      <button type="button" class="btn ghost" style="color:#fff" (click)="discard()">Discard</button>
-      <button type="button" class="btn primary" (click)="save()" [disabled]="busy || !form.vendorId || !form.description || !form.proCodes">
+      <button type="button" class="edit-only btn ghost" style="color:#fff" (click)="discard()">Discard</button>
+      <button type="button" class="edit-only btn primary" (click)="save()" [disabled]="busy || !form.vendorId || !form.description || !form.proCodes">
         {{ busy ? 'Saving…' : 'Save' }}</button>
     </div>
     <div class="error" style="margin: 10px 0 0" *ngIf="error && !pending && form"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>

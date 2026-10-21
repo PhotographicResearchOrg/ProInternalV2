@@ -43,7 +43,7 @@
         </div>
         <div class="head-actions">
           <button type="button" class="btn ghost" (click)="loadOverview()"><i class="pi pi-refresh"></i> Refresh</button>
-          <button type="button" class="btn primary" (click)="pick('upload')"><i class="pi pi-upload"></i> New upload</button>
+          <button type="button" class="btn primary" *ngIf="access.canEditKey('upload')" (click)="pick('upload')"><i class="pi pi-upload"></i> New upload</button>
         </div>
       </div>
 
@@ -62,7 +62,8 @@
               (click)="$event.stopPropagation(); openUpload(noticeUploadId); notice = ''; noticeUploadId = null">Open upload #{{ noticeUploadId }} to load it</button></div>
     <div class="error" *ngIf="error && !pending"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
 
-    <div class="body">
+    <div class="body" [class.readonly]="!access.canEditKey(view)">
+      <div class="readonly-note" *ngIf="!access.canEditKey(view) && view !== 'overview'"><i class="pi pi-eye"></i> View only: you can see this drawer but not change it.</div>
 
       <!-- ============ Overview ============ -->
       <ng-container *ngIf="view === 'overview'">
@@ -142,17 +143,17 @@
           </div>
 
           <div class="actions">
-            <button type="button" class="btn primary" (click)="loadReady()" [disabled]="busy || !upload.rowsReady">
+            <button type="button" class="edit-only btn primary" (click)="loadReady()" [disabled]="busy || !upload.rowsReady">
               <i class="pi pi-check"></i> {{ busy ? 'Loading…' : 'Load ' + upload.rowsReady + ' ready row(s)' }}</button>
-            <button type="button" class="btn" (click)="createMissing()" *ngIf="upload.rowsCreatable > 0" [disabled]="busy">
+            <button type="button" class="edit-only btn" (click)="createMissing()" *ngIf="upload.rowsCreatable > 0" [disabled]="busy">
               <i class="pi pi-plus"></i> Create {{ upload.rowsCreatable }} new rebate product(s)</button>
             <span class="chip warn" *ngIf="upload.rowsToMap > 0" title="Rebate products already carry these PRO codes: open each row and map it, or create">
               {{ upload.rowsToMap }} row(s) to map</span>
-            <button type="button" class="btn" (click)="remap()" *ngIf="upload.status === 'REVIEW'"><i class="pi pi-table"></i> Change mapping</button>
+            <button type="button" class="edit-only btn" (click)="remap()" *ngIf="upload.status === 'REVIEW'"><i class="pi pi-table"></i> Change mapping</button>
             <button type="button" class="btn ghost" (click)="openFile()"><i class="pi pi-download"></i> Original file</button>
             <button type="button" class="btn ghost" (click)="exportUploadRows()"><i class="pi pi-file-excel"></i> Excel (these rows)</button>
             <span class="grow"></span>
-            <button type="button" class="btn danger" *ngIf="!upload.rowsLoaded && upload.status !== 'CANCELLED'" (click)="pending = { kind: 'cancel-upload' }">Cancel upload</button>
+            <button type="button" class="edit-only btn danger" *ngIf="!upload.rowsLoaded && upload.status !== 'CANCELLED'" (click)="pending = { kind: 'cancel-upload' }">Cancel upload</button>
           </div>
 
           <div class="sub" style="margin-bottom: 6px"><app-rebate-help code="DISPOSITION" label="How rows find their rebate product"></app-rebate-help></div>
@@ -172,8 +173,8 @@
           </div>
           <div class="bulkbar" *ngIf="picked.size">
             <b>{{ picked.size }} ticked</b>
-            <button type="button" class="btn danger" (click)="bulkSkip()"><i class="pi pi-eye-slash"></i> Skip them</button>
-            <button type="button" class="btn" *ngIf="pickedOverlaps.length" (click)="bulkOverlap()">
+            <button type="button" class="edit-only btn danger" (click)="bulkSkip()"><i class="pi pi-eye-slash"></i> Skip them</button>
+            <button type="button" class="edit-only btn" *ngIf="pickedOverlaps.length" (click)="bulkOverlap()">
               <i class="pi pi-forward"></i> Load anyway ({{ pickedOverlaps.length }} overlapping)</button>
             <span class="grow"></span>
             <button type="button" class="btn ghost" (click)="clearTicks()">Clear</button>
@@ -226,8 +227,8 @@
           </div>
           <div class="bulkbar" *ngIf="picked.size">
             <b>{{ picked.size }} ticked</b>
-            <button type="button" class="btn danger" (click)="bulkSkip()"><i class="pi pi-eye-slash"></i> Skip them</button>
-            <button type="button" class="btn" *ngIf="pickedOverlaps.length" (click)="bulkOverlap()">
+            <button type="button" class="edit-only btn danger" (click)="bulkSkip()"><i class="pi pi-eye-slash"></i> Skip them</button>
+            <button type="button" class="edit-only btn" *ngIf="pickedOverlaps.length" (click)="bulkOverlap()">
               <i class="pi pi-forward"></i> Load anyway ({{ pickedOverlaps.length }} overlapping)</button>
             <span class="grow"></span>
             <button type="button" class="btn ghost" (click)="clearTicks()">Clear</button>
@@ -282,7 +283,7 @@
                 <app-rebate-help code="NO_PRODUCT" label="Directions"></app-rebate-help></div>
               <div *ngIf="step1Done && !step1Open" class="rstep-done">
                 <i class="pi pi-check-circle"></i> <span class="mono">{{ row.productCode }}</span> {{ row.productName }}
-                <button type="button" class="btn ghost" style="padding: 2px 10px" (click)="step1Open = true">Change</button>
+                <button type="button" class="edit-only btn ghost" style="padding: 2px 10px" (click)="step1Open = true">Change</button>
               </div>
               <ng-container *ngIf="!step1Done || step1Open">
                 <ng-container *ngIf="candidatesOf(row).length">
@@ -292,7 +293,7 @@
                     <span class="mono">{{ c.code }}</span> {{ c.name }}
                   </label>
                   <div class="actions" style="margin-top: 8px"><span class="grow"></span>
-                    <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">Use this product</button></div>
+                    <button type="button" class="edit-only btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">Use this product</button></div>
                 </ng-container>
                 <ng-container *ngIf="!candidatesOf(row).length">
                   <div class="sub" style="margin-bottom: 6px">Search PRO's catalog for the item on this line.</div>
@@ -320,7 +321,7 @@
                   <div class="actions" style="margin-top: 8px" *ngIf="proHits.length">
                     <span class="grow"></span>
                     <button type="button" class="btn ghost" *ngIf="step1Done" (click)="step1Open = false">Cancel</button>
-                    <button type="button" class="btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">Use this product</button>
+                    <button type="button" class="edit-only btn primary" (click)="useTicked()" [disabled]="busy || !ticked.length">Use this product</button>
                   </div>
                 </ng-container>
               </ng-container>
@@ -333,7 +334,7 @@
               <div class="sub" *ngIf="!step1Done">After the PRO product is known.</div>
               <ng-container *ngIf="step1Done">
                 <div class="sub" style="margin-bottom: 6px" *ngIf="row.modelId">In use: <b>{{ row.modelDescription }}</b>
-                  <span class="chip lock" *ngIf="row.modelChosenBy">picked by {{ row.modelChosenBy }} <button type="button" (click)="pickModel(null)" title="Back to automatic">↺</button></span></div>
+                  <span class="chip lock" *ngIf="row.modelChosenBy">picked by {{ row.modelChosenBy }} <button class="edit-only" type="button" (click)="pickModel(null)" title="Back to automatic">↺</button></span></div>
                 <label class="rchoice" style="gap: 10px">Rebate type
                   <select class="in" style="max-width: 220px" [(ngModel)]="s2Type">
                     <option *ngFor="let t of types" [ngValue]="t.rebateTypeId">{{ t.name }}</option>
@@ -357,7 +358,7 @@
                 <div class="actions" style="margin-top: 8px">
                   <span class="sub grow" *ngIf="!s2Changed">{{ row.modelId ? 'Keep as is, or choose another and apply.' : 'Choose one and apply.' }}</span>
                   <span class="sub grow" *ngIf="s2Changed">{{ s2Type !== effectiveType(row) ? 'Saves the type, then ' : '' }}{{ s2Choice === 'CREATE' ? 'creates the product and uses it.' : 'maps the row to it.' }}</span>
-                  <button type="button" class="btn primary" (click)="applyStep2()" [disabled]="busy || !s2Changed">
+                  <button type="button" class="edit-only btn primary" (click)="applyStep2()" [disabled]="busy || !s2Changed">
                     {{ s2Choice === 'CREATE' ? 'Create and use' : 'Use this product' }}</button>
                 </div>
                 <details style="margin-top: 6px"><summary class="sub">Search any rebate product</summary>
@@ -369,7 +370,7 @@
             <!-- Step 3: the program itself -->
             <div class="rstep">
               <div class="rstep-head"><b>3 · Program details</b><span class="grow"></span>
-                <button type="button" class="btn ghost" style="padding: 2px 10px" (click)="detailsOpen = !detailsOpen">{{ detailsOpen ? 'Close' : 'Edit' }}</button></div>
+                <button type="button" class="edit-only btn ghost" style="padding: 2px 10px" (click)="detailsOpen = !detailsOpen">{{ detailsOpen ? 'Close' : 'Edit' }}</button></div>
               <div class="rstep-sum" *ngIf="!detailsOpen">
                 <span>{{ typeName(effectiveType(row)) || 'No type' }}</span>
                 <span class="mono">{{ row.startDate | date:'MM/dd/yy' }} – {{ row.endDate | date:'MM/dd/yy' }}</span>
@@ -410,19 +411,19 @@
             </div>
 
             <div class="actions" style="margin-top: 12px">
-              <button type="button" class="btn" *ngIf="hasProblem(row, 'OVERLAP') || hasProblem(row, 'OVERLAP_IN_FILE')" (click)="rowLoadAnyway()"><i class="pi pi-forward"></i> Load anyway</button>
-              <button type="button" class="btn danger" (click)="pending = { kind: 'skip', row: row }">Skip row</button>
+              <button type="button" class="edit-only btn" *ngIf="hasProblem(row, 'OVERLAP') || hasProblem(row, 'OVERLAP_IN_FILE')" (click)="rowLoadAnyway()"><i class="pi pi-forward"></i> Load anyway</button>
+              <button type="button" class="edit-only btn danger" (click)="pending = { kind: 'skip', row: row }">Skip row</button>
               <span class="grow"></span>
               <ng-container *ngIf="rowDirty">
-                <button type="button" class="btn ghost" (click)="openRow(row, rowVendorId)">Discard</button>
-                <button type="button" class="btn primary" (click)="saveRow()" [disabled]="busy">Save and check</button>
+                <button type="button" class="edit-only btn ghost" (click)="openRow(row, rowVendorId)">Discard</button>
+                <button type="button" class="edit-only btn primary" (click)="saveRow()" [disabled]="busy">Save and check</button>
               </ng-container>
             </div>
           </ng-container>
 
           <ng-container *ngIf="row.status === 'SKIPPED'">
             <div class="sub">Skipped: {{ row.skipReason }}</div>
-            <div class="actions" style="margin-top: 10px"><button type="button" class="btn" (click)="restoreRow(row)" [disabled]="busy">Restore</button></div>
+            <div class="actions" style="margin-top: 10px"><button type="button" class="edit-only btn" (click)="restoreRow(row)" [disabled]="busy">Restore</button></div>
           </ng-container>
 
           <details style="margin-top: 12px"><summary>As it was in the file</summary>
@@ -493,8 +494,8 @@
               <button type="button" class="icon-btn" (click)="batch = null" title="Close"><i class="pi pi-times"></i></button>
             </div>
             <div class="actions">
-              <button type="button" class="btn" *ngIf="batch.state !== 'LIVE'" (click)="pending = { kind: 'batch-active', batch: batch, active: true }"><i class="pi pi-play"></i> Turn all on</button>
-              <button type="button" class="btn danger" *ngIf="batch.state !== 'OFF'" (click)="pending = { kind: 'batch-active', batch: batch, active: false }"><i class="pi pi-pause"></i> Turn all off</button>
+              <button type="button" class="edit-only btn" *ngIf="batch.state !== 'LIVE'" (click)="pending = { kind: 'batch-active', batch: batch, active: true }"><i class="pi pi-play"></i> Turn all on</button>
+              <button type="button" class="edit-only btn danger" *ngIf="batch.state !== 'OFF'" (click)="pending = { kind: 'batch-active', batch: batch, active: false }"><i class="pi pi-pause"></i> Turn all off</button>
               <button type="button" class="btn ghost" (click)="showPrograms({ batchId: batch.batchId }, 'IR')"><i class="pi pi-list"></i> Manage programs</button>
               <button type="button" class="btn ghost" (click)="exportBatch()"><i class="pi pi-file-excel"></i> Excel</button>
             </div>
@@ -505,8 +506,8 @@
               <label>Claims until <input class="in" type="date" [(ngModel)]="batchDates.expireOn" /></label>
             </div>
             <div class="actions" style="margin-top: 10px" *ngIf="batchDatesDirty">
-              <button type="button" class="btn ghost" (click)="openBatch(batch)">Discard</button>
-              <button type="button" class="btn primary" (click)="pending = { kind: 'batch-dates' }">Save dates</button>
+              <button type="button" class="edit-only btn ghost" (click)="openBatch(batch)">Discard</button>
+              <button type="button" class="edit-only btn primary" (click)="pending = { kind: 'batch-dates' }">Save dates</button>
             </div>
             <div class="tablewrap"><table class="grid" style="margin-top: 12px">
               <thead><tr><th rdSort="description" [rdSortBy]="sorts['bprogs']">Product</th><th class="num" rdSort="reimbursement" [rdSortBy]="sorts['bprogs']">Member</th><th class="num" rdSort="instantRebate" [rdSortBy]="sorts['bprogs']">IR</th><th class="num" rdSort="mapPrice" [rdSortBy]="sorts['bprogs']">MAP</th><th rdSort="startDate" [rdSortBy]="sorts['bprogs']">Dates</th><th rdSort="isLive" [rdSortBy]="sorts['bprogs']">State</th><th></th></tr></thead>
@@ -531,8 +532,8 @@
                       </div>
                       <div class="sub" style="margin: 4px 0 8px">Member gets {{ bMember | currency }} (vendor share + PRO pad).</div>
                       <div class="actions" *ngIf="bAmountsDirty" style="margin-bottom: 10px">
-                        <button type="button" class="btn ghost" (click)="bProg = null; editBatchProgram(p)">Discard</button>
-                        <button type="button" class="btn primary" (click)="pending = { kind: 'bp-amounts' }">Save amounts</button>
+                        <button type="button" class="edit-only btn ghost" (click)="bProg = null; editBatchProgram(p)">Discard</button>
+                        <button type="button" class="edit-only btn primary" (click)="pending = { kind: 'bp-amounts' }">Save amounts</button>
                       </div>
                       <div class="field-grid">
                         <label>Start <input class="in" type="date" [(ngModel)]="bEdit.startDate" /></label>
@@ -540,12 +541,12 @@
                         <label>Claims until <input class="in" type="date" [(ngModel)]="bEdit.expireOn" /></label>
                       </div>
                       <div class="actions" *ngIf="bDatesDirty" style="margin-top: 8px">
-                        <button type="button" class="btn ghost" (click)="bProg = null; editBatchProgram(p)">Discard</button>
-                        <button type="button" class="btn primary" (click)="pending = { kind: 'bp-dates' }">Save dates</button>
+                        <button type="button" class="edit-only btn ghost" (click)="bProg = null; editBatchProgram(p)">Discard</button>
+                        <button type="button" class="edit-only btn primary" (click)="pending = { kind: 'bp-dates' }">Save dates</button>
                       </div>
                       <div class="actions" style="margin-top: 10px">
-                        <button type="button" class="btn" *ngIf="!p.isLive" (click)="pending = { kind: 'bp-active', program: p, active: true }"><i class="pi pi-play"></i> Turn on</button>
-                        <button type="button" class="btn danger" *ngIf="p.isLive" (click)="pending = { kind: 'bp-active', program: p, active: false }"><i class="pi pi-pause"></i> Turn off</button>
+                        <button type="button" class="edit-only btn" *ngIf="!p.isLive" (click)="pending = { kind: 'bp-active', program: p, active: true }"><i class="pi pi-play"></i> Turn on</button>
+                        <button type="button" class="edit-only btn danger" *ngIf="p.isLive" (click)="pending = { kind: 'bp-active', program: p, active: false }"><i class="pi pi-pause"></i> Turn off</button>
                         <span class="grow"></span>
                         <button type="button" class="btn ghost" (click)="showPrograms({ batchId: batch.batchId, programId: p.programId }, 'IR')">Open in Programs</button>
                       </div>
@@ -579,7 +580,7 @@
               <td><span class="chip">{{ t.source }}</span></td>
               <td class="num">{{ t.timesUsed }}</td>
               <td class="sub">{{ t.lastUsedAt | date:'MM/dd/yy' }}</td>
-              <td><button type="button" class="btn ghost" (click)="pending = { kind: 'retire-template', template: t }">Retire</button></td>
+              <td><button type="button" class="edit-only btn ghost" (click)="pending = { kind: 'retire-template', template: t }">Retire</button></td>
             </tr>
             <tr *ngIf="!templates.length"><td colspan="7" class="empty">No saved layouts yet. The first confirmed upload for each vendor creates one.</td></tr>
           </tbody>

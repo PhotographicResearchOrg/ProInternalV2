@@ -78,7 +78,7 @@ namespace ProInternal.Controllers
         /* ================= uploads ================= */
 
         [HttpPost("uploads")]
-        [RequirePermission(UploadPermission)]
+        [RequireDrawer("Uploads", Edit = true, Legacy = new[] { UploadPermission })]
         [RequestSizeLimit(30 * 1024 * 1024)]
         public Task<IActionResult> Upload([FromForm] int vendorId, [FromForm] IFormFile file, CancellationToken cancellationToken) =>
             Read(async () =>
@@ -88,25 +88,27 @@ namespace ProInternal.Controllers
             });
 
         [HttpGet("uploads")]
+        [RequireDrawer("Uploads", "Purgatory")]
         public Task<IActionResult> Uploads([FromQuery] string? status, [FromQuery] int take = 50) =>
             Read(() => _data.QueryAsync("piv2.Rebate_Uploads", new { Status = string.IsNullOrWhiteSpace(status) ? null : status, Take = take }));
 
         [HttpGet("uploads/{uploadId:int}")]
+        [RequireDrawer("Uploads", "Purgatory")]
         public Task<IActionResult> GetUpload(int uploadId) =>
             Read(async () => UploadShape(await _data.QuerySetsAsync("piv2.Rebate_GetUpload", new { UploadId = uploadId })));
 
         [HttpPost("uploads/{uploadId:int}/proposal")]
-        [RequirePermission(UploadPermission)]
+        [RequireDrawer("Uploads", Edit = true, Legacy = new[] { UploadPermission })]
         public Task<IActionResult> Proposal(int uploadId, [FromBody] RebateProposalRequest body, CancellationToken cancellationToken) =>
             Read(() => _uploads.ProposeAsync(uploadId, body ?? new RebateProposalRequest(), cancellationToken));
 
         [HttpPost("uploads/{uploadId:int}/mapping")]
-        [RequirePermission(UploadPermission)]
+        [RequireDrawer("Uploads", Edit = true, Legacy = new[] { UploadPermission })]
         public Task<IActionResult> Mapping(int uploadId, [FromBody] RebateMappingRequest body) =>
             Read(async () => UploadShape(await _uploads.ApplyMappingAsync(uploadId, body, Actor)));
 
         [HttpPost("uploads/{uploadId:int}/load")]
-        [RequirePermission(UploadPermission)]
+        [RequireDrawer("Uploads", "Purgatory", Edit = true, Legacy = new[] { UploadPermission })]
         public Task<IActionResult> Load(int uploadId, [FromBody] RebateLoadRequest? body) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_Load", new
             {
@@ -116,13 +118,13 @@ namespace ProInternal.Controllers
             })).FirstOrDefault());
 
         [HttpPost("uploads/{uploadId:int}/cancel")]
-        [RequirePermission(UploadPermission)]
+        [RequireDrawer("Uploads", Edit = true, Legacy = new[] { UploadPermission })]
         public Task<IActionResult> CancelUpload(int uploadId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_CancelUpload", new { UploadId = uploadId, Actor, Reason = body?.Reason ?? "" }));
 
         /* Creates the rebate products the naming rule set calls for, for this upload's purgatory rows. */
         [HttpPost("uploads/{uploadId:int}/create-products")]
-        [RequirePermission(UploadPermission, ManagePermission)]
+        [RequireDrawer("Uploads", "Purgatory", "Products", Edit = true, Legacy = new[] { UploadPermission, ManagePermission })]
         public Task<IActionResult> CreateMissingProducts(int uploadId, [FromBody] RebateCreateProductsRequest? body) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_CreateMissingProducts", new
             {
@@ -133,6 +135,7 @@ namespace ProInternal.Controllers
 
         /* A short-lived link to the original vendor file on S3. */
         [HttpGet("uploads/{uploadId:int}/file")]
+        [RequireDrawer("Uploads", "Purgatory")]
         public Task<IActionResult> UploadFile(int uploadId) =>
             Read(async () =>
             {
@@ -151,11 +154,12 @@ namespace ProInternal.Controllers
         /* ================= purgatory and rows ================= */
 
         [HttpGet("purgatory")]
+        [RequireDrawer("Purgatory", "Uploads")]
         public Task<IActionResult> Purgatory([FromQuery] int? vendorId) =>
             Read(() => _data.QueryAsync("piv2.Rebate_Purgatory", new { VendorId = vendorId }));
 
         [HttpPut("rows/{rowId:long}")]
-        [RequirePermission(UploadPermission)]
+        [RequireDrawer("Purgatory", "Uploads", Edit = true, Legacy = new[] { UploadPermission })]
         public Task<IActionResult> UpdateRow(long rowId, [FromBody] RebateRowUpdate body) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_UpdateRow", new
             {
@@ -178,25 +182,27 @@ namespace ProInternal.Controllers
 
         /* One row with the file's original line (the purgatory list leaves that out to stay light). */
         [HttpGet("rows/{rowId:long}")]
+        [RequireDrawer("Purgatory", "Uploads")]
         public Task<IActionResult> GetRow(long rowId) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_GetRow", new { RowId = rowId })).FirstOrDefault());
 
         [HttpGet("rows/{rowId:long}/options")]
+        [RequireDrawer("Purgatory", "Uploads")]
         public Task<IActionResult> RowOptions(long rowId) =>
             Read(() => _data.QueryAsync("piv2.Rebate_RowOptions", new { RowId = rowId }));
 
         [HttpPost("rows/{rowId:long}/model")]
-        [RequirePermission(UploadPermission)]
+        [RequireDrawer("Purgatory", "Uploads", Edit = true, Legacy = new[] { UploadPermission })]
         public Task<IActionResult> PickModel(long rowId, [FromBody] RebatePickModelRequest body) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_PickModel", new { RowId = rowId, body?.ModelId, Actor })).FirstOrDefault());
 
         [HttpPost("rows/{rowId:long}/skip")]
-        [RequirePermission(UploadPermission)]
+        [RequireDrawer("Purgatory", "Uploads", Edit = true, Legacy = new[] { UploadPermission })]
         public Task<IActionResult> SkipRow(long rowId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_SkipRow", new { RowId = rowId, Actor, Reason = body?.Reason ?? "" }));
 
         [HttpPost("rows/skip")]
-        [RequirePermission(UploadPermission)]
+        [RequireDrawer("Purgatory", "Uploads", Edit = true, Legacy = new[] { UploadPermission })]
         public Task<IActionResult> SkipRows([FromBody] RebateRowsRequest body) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_SkipRows", new
             {
@@ -207,7 +213,7 @@ namespace ProInternal.Controllers
 
         /* "Load anyway": rows that overlap a live program may load, with a reason. */
         [HttpPost("rows/allow-overlap")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Purgatory", "Uploads", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> AllowOverlap([FromBody] RebateRowsRequest body) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_AllowOverlap", new
             {
@@ -217,18 +223,19 @@ namespace ProInternal.Controllers
             })).FirstOrDefault());
 
         [HttpPost("rows/{rowId:long}/restore")]
-        [RequirePermission(UploadPermission)]
+        [RequireDrawer("Purgatory", "Uploads", Edit = true, Legacy = new[] { UploadPermission })]
         public Task<IActionResult> RestoreRow(long rowId) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_RestoreRow", new { RowId = rowId, Actor }));
 
         /* ================= vendor terms ================= */
 
         [HttpGet("vendors/{vendorId:int}/terms")]
+        [RequireDrawer("Vendors", "PP.Vendors", "Uploads", "Purgatory")]
         public Task<IActionResult> VendorTerms(int vendorId) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_GetVendorTerms", new { VendorId = vendorId })).FirstOrDefault());
 
         [HttpPut("vendors/{vendorId:int}/terms")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Vendors", "PP.Vendors", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> SaveVendorTerms(int vendorId, [FromBody] RebateVendorTermsRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_SaveVendorTerms", new
             {
@@ -246,11 +253,12 @@ namespace ProInternal.Controllers
         /* ================= templates ================= */
 
         [HttpGet("templates")]
+        [RequireDrawer("Templates", "Uploads")]
         public Task<IActionResult> Templates([FromQuery] int? vendorId) =>
             Read(() => _data.QueryAsync("piv2.Rebate_Templates", new { VendorId = vendorId }));
 
         [HttpPost("templates/{templateId:int}/retire")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Templates", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> RetireTemplate(int templateId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_RetireTemplate", new { TemplateId = templateId, Actor, Reason = body?.Reason ?? "" }));
 
@@ -261,6 +269,7 @@ namespace ProInternal.Controllers
         /* ================= batches ================= */
 
         [HttpGet("batches")]
+        [RequireDrawer("Batches", "Programs", "Uploads")]
         public Task<IActionResult> Batches([FromQuery] string? q, [FromQuery] int? vendorId, [FromQuery] string? state,
                                            [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12, [FromQuery] string? sort = null, [FromQuery] bool desc = false) =>
             Read(async () => Paged(await _data.QueryAsync("piv2.Rebate_Batches", new
@@ -276,17 +285,18 @@ namespace ProInternal.Controllers
             })));
 
         [HttpGet("batches/{batchId:int}/programs")]
+        [RequireDrawer("Batches", "Programs")]
         public Task<IActionResult> BatchPrograms(int batchId) =>
             Read(() => _data.QueryAsync("piv2.Rebate_BatchPrograms", new { BatchId = batchId }));
 
         [HttpPost("batches/{batchId:int}/active")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Batches", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> SetBatchActive(int batchId, [FromBody] RebateActiveRequest body) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_SetBatchActive",
                 new { BatchId = batchId, body.Active, Actor, Reason = body.Reason ?? "" })).FirstOrDefault());
 
         [HttpPost("batches/{batchId:int}/dates")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Batches", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> ChangeBatchDates(int batchId, [FromBody] RebateDatesRequest body) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_ChangeBatchDates", new
             {
@@ -301,6 +311,7 @@ namespace ProInternal.Controllers
         /* ================= instant-rebate programs ================= */
 
         [HttpGet("programs")]
+        [RequireDrawer("Programs", "Batches", "Products", "Vendors")]
         public Task<IActionResult> Programs([FromQuery] int? vendorId, [FromQuery] int? modelId, [FromQuery] int? batchId,
                                             [FromQuery] string? state, [FromQuery] string? when, [FromQuery] string? q,
                                             [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12, [FromQuery] string? sort = null, [FromQuery] bool desc = false) =>
@@ -320,7 +331,7 @@ namespace ProInternal.Controllers
             })));
 
         [HttpPost("programs")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Programs", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> AddPrograms([FromBody] RebateAddProgramsRequest body) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_AddPrograms", new
             {
@@ -340,7 +351,7 @@ namespace ProInternal.Controllers
             })).FirstOrDefault());
 
         [HttpPut("programs/{programId:int}/amounts")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Programs", "Batches", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> ChangeAmounts(int programId, [FromBody] RebateAmountsRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_ChangeProgram", new
             {
@@ -354,7 +365,7 @@ namespace ProInternal.Controllers
             }));
 
         [HttpPut("programs/{programId:int}/dates")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Programs", "Batches", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> ChangeProgramDates(int programId, [FromBody] RebateDatesRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_ChangeProgramDates", new
             {
@@ -367,7 +378,7 @@ namespace ProInternal.Controllers
             }));
 
         [HttpPost("programs/{programId:int}/active")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Programs", "Batches", "PP.Programs", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> SetProgramActive(int programId, [FromBody] RebateActiveRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_SetProgramActive",
                 new { ProgramId = programId, body.Active, Actor, Reason = body.Reason ?? "" }));
@@ -390,6 +401,7 @@ namespace ProInternal.Controllers
             })));
 
         [HttpGet("products/{modelId:int}")]
+        [RequireDrawer("Products", "PP.Products", "Programs", "PP.Programs", "Purgatory", "Uploads")]
         public Task<IActionResult> GetProduct(int modelId) =>
             Read(async () =>
             {
@@ -406,7 +418,7 @@ namespace ProInternal.Controllers
 
         /* Uploaders may add a product from purgatory (ForRowId); changing existing products needs Manage. */
         [HttpPost("products")]
-        [RequirePermission(UploadPermission, ManagePermission)]
+        [RequireDrawer("Products", "PP.Products", "Purgatory", "Uploads", Edit = true, Legacy = new[] { UploadPermission, ManagePermission })]
         public Task<IActionResult> AddProduct([FromBody] RebateProductRequest body) =>
             Read(async () =>
             {
@@ -417,7 +429,7 @@ namespace ProInternal.Controllers
             });
 
         [HttpPut("products/{modelId:int}")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Products", "PP.Products", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> ChangeProduct(int modelId, [FromBody] RebateProductRequest body) =>
             Read(async () => (await _data.QueryAsync("piv2.Rebate_SaveProduct", ProductArgs(modelId, body))).First());
 
@@ -434,13 +446,13 @@ namespace ProInternal.Controllers
         };
 
         [HttpPost("products/{modelId:int}/active")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Products", "PP.Products", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> SetProductActive(int modelId, [FromBody] RebateActiveRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_SetProductActive",
                 new { ModelId = modelId, body.Active, Actor, Reason = body.Reason ?? "" }));
 
         [HttpPut("products/{modelId:int}/stacks")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("Products", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> SetStacks(int modelId, [FromBody] RebateStacksRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Rebate_SetStacks", new
             {
@@ -453,6 +465,7 @@ namespace ProInternal.Controllers
         /* ================= price protection ================= */
 
         [HttpGet("pp/programs")]
+        [RequireDrawer("PP.Programs", "PP.Products", "PP.Vendors")]
         public Task<IActionResult> PriceProtectionPrograms([FromQuery] int? vendorId, [FromQuery] int? modelId, [FromQuery] string? state,
                                                            [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? q,
                                                            [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int months = 12, [FromQuery] string? sort = null, [FromQuery] bool desc = false) =>
@@ -472,7 +485,7 @@ namespace ProInternal.Controllers
             })));
 
         [HttpPost("pp/programs")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("PP.Programs", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> AddPriceProtection([FromBody] PriceProtectionProgramRequest body) =>
             Read(async () => (await _data.QueryAsync("piv2.PP_AddProgram", new
             {
@@ -487,7 +500,7 @@ namespace ProInternal.Controllers
             })).FirstOrDefault());
 
         [HttpPut("pp/programs/{programId:int}")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("PP.Programs", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> ChangePriceProtection(int programId, [FromBody] PriceProtectionProgramRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.PP_ChangeProgram", new
             {
@@ -501,7 +514,7 @@ namespace ProInternal.Controllers
             }));
 
         [HttpPost("pp/programs/{programId:int}/active")]
-        [RequirePermission(ManagePermission)]
+        [RequireDrawer("PP.Programs", Edit = true, Legacy = new[] { ManagePermission })]
         public Task<IActionResult> SetPriceProtectionActive(int programId, [FromBody] RebateActiveRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.PP_SetProgramActive",
                 new { ProgramId = programId, body.Active, Actor, Reason = body.Reason ?? "" }));
@@ -509,6 +522,7 @@ namespace ProInternal.Controllers
         /* ================= vendors and liability ================= */
 
         [HttpGet("liability")]
+        [RequireDrawer("Vendors", "PP.Vendors")]
         public Task<IActionResult> Liability([FromQuery] string? rail, [FromQuery] int? vendorId,
                                              [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int months = 12) =>
             Read(async () =>
@@ -532,6 +546,7 @@ namespace ProInternal.Controllers
         /* ================= claims (accounting) ================= */
 
         [HttpGet("claims")]
+        [RequireDrawer("Claims", "PP.Claims", "Investigate", "DebitMemos", "PP.DebitMemos")]
         public Task<IActionResult> Claims([FromQuery] string? rail, [FromQuery] string? q, [FromQuery] int? vendorId, [FromQuery] string? state,
                                           [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 50,
                                           [FromQuery] int months = 12, [FromQuery] int? memberId = null, [FromQuery] int? modelId = null, [FromQuery] string? sort = null, [FromQuery] bool desc = false) =>
@@ -553,6 +568,7 @@ namespace ProInternal.Controllers
             })));
 
         [HttpGet("claims/{rail}/{orderId:int}")]
+        [RequireDrawer("Claims", "PP.Claims", "Investigate", "Declines", "DebitMemos", "PP.DebitMemos")]
         public Task<IActionResult> Claim(string rail, int orderId) =>
             Read(async () =>
             {
@@ -573,23 +589,24 @@ namespace ProInternal.Controllers
             });
 
         [HttpPost("claims/{rail}/{orderId:int}/resend")]
-        [RequirePermission(AccountingPermission)]
+        [RequireDrawer("Claims", "PP.Claims", Edit = true, Legacy = new[] { AccountingPermission })]
         public Task<IActionResult> ResendCredit(string rail, int orderId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Claim_ResendCredit", new { Rail = Rail(rail), OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
 
         /* Status 3 (needs support) back into the approval queue, the same way the BRM dashboard does it. */
         [HttpPost("claims/{rail}/{orderId:int}/resubmit")]
-        [RequirePermission(AccountingPermission)]
+        [RequireDrawer("Claims", "Declines", Edit = true, Legacy = new[] { AccountingPermission })]
         public Task<IActionResult> Resubmit(string rail, int orderId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.Claim_Resubmit", new { OrderId = orderId, Actor, Reason = body?.Reason ?? "" }));
 
         [HttpPost("claims/{rail}/{orderId:int}/invoice")]
-        [RequirePermission(AccountingPermission)]
+        [RequireDrawer("Claims", "PP.Claims", Edit = true, Legacy = new[] { AccountingPermission })]
         public Task<IActionResult> RecreateInvoice(string rail, int orderId, [FromBody] RebateReasonRequest? body) =>
             Read(() => _claims.RecreateInvoiceAsync(rail, orderId, Actor, body?.Reason));
 
         /* The invoice PDF the member site has (reprint). */
         [HttpGet("claims/{rail}/{orderId:int}/invoice")]
+        [RequireDrawer("Claims", "PP.Claims")]
         public async Task<IActionResult> Reprint(string rail, int orderId)
         {
             try
@@ -609,11 +626,13 @@ namespace ProInternal.Controllers
 
         /* The lookup box: claim #, member number or name, rebate product, vendor. */
         [HttpGet("investigate/find")]
+        [RequireDrawer("Investigate", "StockPad", "Claims")]
         public Task<IActionResult> InvestigateFind([FromQuery] string? q) =>
             Read(() => _data.QueryAsync("piv2.Investigate_Find", new { Q = q }));
 
         /* Every member who claimed a product (or a vendor's products), claimed against bought. */
         [HttpGet("investigate/claimants")]
+        [RequireDrawer("Investigate")]
         public Task<IActionResult> InvestigateClaimants([FromQuery] int? modelId, [FromQuery] int? vendorId, [FromQuery] int months = 12) =>
             Read(async () =>
             {
@@ -628,6 +647,7 @@ namespace ProInternal.Controllers
 
         /* One member (and products): bought against claimed, by month, one row per claim, and the flags. */
         [HttpGet("investigate/member/{memberId:int}")]
+        [RequireDrawer("Investigate")]
         public Task<IActionResult> InvestigateMember(int memberId, [FromQuery] string? modelIds, [FromQuery] int months = 12) =>
             Read(async () =>
             {
@@ -656,11 +676,12 @@ namespace ProInternal.Controllers
 
         /* Units a member bought elsewhere before stocking through PRO, counted with PRO purchases when claims are checked. */
         [HttpGet("stockpad")]
+        [RequireDrawer("StockPad", "Investigate")]
         public Task<IActionResult> StockPads([FromQuery] int? memberId, [FromQuery] int? proCode) =>
             Read(() => _data.QueryAsync("piv2.StockPad_List", new { MemberId = memberId, ProCode = proCode }));
 
         [HttpPost("stockpad")]
-        [RequirePermission(AccountingPermission)]
+        [RequireDrawer("StockPad", Edit = true, Legacy = new[] { AccountingPermission })]
         public Task<IActionResult> AddStockPad([FromBody] StockPadRequest body) =>
             Read(async () => (await _data.QueryAsync("piv2.StockPad_Add", new
             {
@@ -668,11 +689,12 @@ namespace ProInternal.Controllers
             })).FirstOrDefault());
 
         [HttpPost("stockpad/{padId:int}/remove")]
-        [RequirePermission(AccountingPermission)]
+        [RequireDrawer("StockPad", Edit = true, Legacy = new[] { AccountingPermission })]
         public Task<IActionResult> RemoveStockPad(int padId, [FromBody] RebateReasonRequest body) =>
             Act(() => _data.ExecuteAsync("piv2.StockPad_Remove", new { PadId = padId, Reason = body?.Reason ?? "", Actor }));
 
         [HttpGet("debitmemos/candidates")]
+        [RequireDrawer("DebitMemos", "PP.DebitMemos")]
         public Task<IActionResult> DebitMemoCandidates([FromQuery] string? rail, [FromQuery] string vendorIds, [FromQuery] DateTime from, [FromQuery] DateTime to) =>
             Read(async () =>
             {
@@ -684,23 +706,25 @@ namespace ProInternal.Controllers
             });
 
         [HttpPost("debitmemos")]
-        [RequirePermission(AccountingPermission)]
+        [RequireDrawer("DebitMemos", "PP.DebitMemos", Edit = true, Legacy = new[] { AccountingPermission })]
         [RequestSizeLimit(40 * 1024 * 1024)]
         public Task<IActionResult> CreateDebitMemo([FromForm] RebateClaimsService.DebitMemoRequest body, CancellationToken cancellationToken) =>
             Read(() => _claims.CreateDebitMemoAsync(body, Request.HasFormContentType ? Request.Form.Files : null, Actor, cancellationToken));
 
         /* Test run: builds and emails everything to the test address; nothing is stamped or recorded. */
         [HttpPost("debitmemos/test")]
-        [RequirePermission(AccountingPermission)]
+        [RequireDrawer("DebitMemos", "PP.DebitMemos", Edit = true, Legacy = new[] { AccountingPermission })]
         [RequestSizeLimit(40 * 1024 * 1024)]
         public Task<IActionResult> TestDebitMemo([FromForm] RebateClaimsService.DebitMemoRequest body, CancellationToken cancellationToken) =>
             Read(() => _claims.TestDebitMemoAsync(body, Request.HasFormContentType ? Request.Form.Files : null, Actor, cancellationToken));
 
         [HttpGet("debitmemos")]
+        [RequireDrawer("DebitMemos", "PP.DebitMemos")]
         public Task<IActionResult> DebitMemos([FromQuery] string? rail, [FromQuery] string? q, [FromQuery] int months = 12) =>
             Read(() => _data.QueryAsync("piv2.Claim_DebitMemos", new { Rail = Rail(rail), Q = q, Take = 200, Months = months }));
 
         [HttpGet("debitmemos/{debitMemoId:int}/csv")]
+        [RequireDrawer("DebitMemos", "PP.DebitMemos")]
         public async Task<IActionResult> DebitMemoCsv(int debitMemoId)
         {
             try
@@ -717,6 +741,7 @@ namespace ProInternal.Controllers
         /* ================= history ================= */
 
         [HttpGet("history")]
+        [RequireDrawer("History", "PP.History", "Batches", "Programs", "Products", "Uploads")]
         public Task<IActionResult> History([FromQuery] string? rail, [FromQuery] int? batchId, [FromQuery] int? programId,
                                            [FromQuery] int? uploadId, [FromQuery] int? modelId, [FromQuery] int take = 200) =>
             Read(() => _data.QueryAsync("piv2.Rebate_History", new

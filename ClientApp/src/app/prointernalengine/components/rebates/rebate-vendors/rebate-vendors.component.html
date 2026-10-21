@@ -81,8 +81,8 @@
     <div class="hint">Vendor SKUs match PRO catalog numbers (CAT_NO) as sent, then ignoring dashes and spaces, then by UPC, in [PRO].dbo.Product. Leave the prefix blank unless this vendor's SKUs differ from PRO's catalog # by a fixed lead-in.</div>
     <div class="actions" style="margin-top: 10px" *ngIf="termsDirty || termsNotice">
       <span class="sub grow">{{ termsNotice }}</span>
-      <button type="button" class="btn ghost" (click)="discardTerms()" *ngIf="termsDirty">Discard</button>
-      <button type="button" class="btn primary" (click)="saveTerms()" *ngIf="termsDirty" [disabled]="termsBusy">Save terms</button>
+      <button type="button" class="edit-only btn ghost" (click)="discardTerms()" *ngIf="termsDirty">Discard</button>
+      <button type="button" class="edit-only btn primary" (click)="saveTerms()" *ngIf="termsDirty" [disabled]="termsBusy">Save terms</button>
     </div>
   </section>
 
@@ -92,7 +92,7 @@
       <span class="sub">liability {{ selected.liability | currency }} · awaiting decision {{ selected.pendingAmount | currency }}</span>
       <span class="sub" *ngIf="detailLoading"><i class="pi pi-spin pi-spinner"></i> working…</span>
       <span class="grow"></span>
-      <button type="button" class="btn primary" *ngIf="selected.liability > 0" (click)="billVendor()" [disabled]="detailLoading"
+      <button type="button" class="edit-only btn primary" *ngIf="selected.liability > 0" (click)="billVendor()" [disabled]="detailLoading"
               title="Open Debit memos with this vendor's unbilled claims"><i class="pi pi-send"></i> Bill vendor (debit memo)</button>
       <button type="button" class="btn ghost" (click)="showPrograms.emit({ vendorId: selected.vendorId })"><i class="pi pi-list"></i> All programs</button>
       <button type="button" class="icon-btn" (click)="selected = null" title="Close"><i class="pi pi-times"></i></button>

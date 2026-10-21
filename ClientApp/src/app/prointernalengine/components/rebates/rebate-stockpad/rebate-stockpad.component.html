@@ -29,7 +29,7 @@
     <label class="wide" style="grid-column: 1 / -1">Reason (required)
       <input class="in" [(ngModel)]="form.reason" placeholder="e.g. Bought 6 direct from Panasonic in March 2026 before opening a PRO account" /></label>
     <div class="actions">
-      <button type="button" class="btn primary" (click)="save()" [disabled]="!canSave">{{ busy ? 'Saving…' : 'Add stock padding' }}</button>
+      <button type="button" class="edit-only btn primary" (click)="save()" [disabled]="!canSave">{{ busy ? 'Saving…' : 'Add stock padding' }}</button>
       <span class="sub">Added by you, today. A change is a new entry; nothing is edited or deleted.</span>
     </div>
   </div>
@@ -68,11 +68,11 @@
         <td class="sub">{{ d.createdAt ? (d.createdAt | date:'MM/dd/yy') : 'old screen' }}{{ d.createdBy ? ' · ' + d.createdBy : '' }}</td>
         <td>
           <ng-container *ngIf="!d.removedAt">
-            <button type="button" class="btn ghost" *ngIf="removing?.padId !== d.padId" (click)="removing = d; removeReason = ''">Remove</button>
+            <button type="button" class="edit-only btn ghost" *ngIf="removing?.padId !== d.padId" (click)="removing = d; removeReason = ''">Remove</button>
             <span *ngIf="removing?.padId === d.padId" class="inline-confirm">
               <input class="in" [(ngModel)]="removeReason" placeholder="Why remove it?" />
-              <button type="button" class="btn" (click)="confirmRemove()" [disabled]="busy || !removeReason.trim()">Remove</button>
-              <button type="button" class="btn ghost" (click)="removing = null">Keep</button>
+              <button type="button" class="edit-only btn" (click)="confirmRemove()" [disabled]="busy || !removeReason.trim()">Remove</button>
+              <button type="button" class="edit-only btn ghost" (click)="removing = null">Keep</button>
             </span>
           </ng-container>
         </td>

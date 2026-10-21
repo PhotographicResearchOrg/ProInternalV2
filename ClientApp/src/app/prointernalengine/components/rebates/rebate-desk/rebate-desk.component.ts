@@ -10,6 +10,7 @@ import { rdSortParams, rdSorts } from '../shared/rebate-sort';
 import { collapseMainMenu } from '../shared/desk-frame';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
 import { BusyService } from 'src/app/services/busy.service';
+import { DeskAccessService } from '../shared/desk-access.service';
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
@@ -150,7 +151,8 @@ export class RebateDeskComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private layout: LayoutService,
-    public net: BusyService) {}
+    public net: BusyService,
+    public access: DeskAccessService) {}
 
   ngOnDestroy(): void { this.restoreMenu(); }
 
@@ -167,8 +169,18 @@ export class RebateDeskComponent implements OnInit, OnDestroy {
 
   /* ---------------- navigation ---------------- */
 
-  get irViews(): RailView[] { return this.views.filter(v => v.group === 'IR'); }
-  get ppViews(): RailView[] { return this.views.filter(v => v.group === 'PP'); }
+  /* Drawers this person may see (Security Administration: RebateDesk.<Drawer>.View / .Edit). */
+  private viewsCache: { key: string; ir: RailView[]; pp: RailView[] } | null = null;
+  private allowedViews(): { ir: RailView[]; pp: RailView[] } {
+    const allowed = this.views.filter(v => this.access.canViewKey(v.key));
+    const key = allowed.map(v => v.key).join(',');
+    if (!this.viewsCache || this.viewsCache.key !== key)
+      this.viewsCache = { key, ir: allowed.filter(v => v.group === 'IR'), pp: allowed.filter(v => v.group === 'PP') };
+    return this.viewsCache;
+  }
+  get irViews(): RailView[] { return this.allowedViews().ir; }
+  get ppViews(): RailView[] { return this.allowedViews().pp; }
+  canOpen(key: string): boolean { return this.access.canViewKey(key); }
   get rail(): Rail { return this.view.startsWith('pp-') ? 'PP' : 'IR'; }
 
   get dirty(): boolean { return this.childDirty || this.rowDirty || this.batchDatesDirty; }
@@ -183,6 +195,10 @@ export class RebateDeskComponent implements OnInit, OnDestroy {
   }
 
   pick(key: ViewKey, keepFilters = false): void {
+    if (!this.canOpen(key)) {
+      this.notice = 'That part of the desk is not open to you. Ask for it in Security Administration.';
+      key = 'overview';
+    }
     if (key !== this.view && !this.leaveOk()) return;
     this.picked = new Set();
     this.pChip = null;

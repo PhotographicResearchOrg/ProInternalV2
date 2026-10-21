@@ -24,7 +24,7 @@
   <div class="hint">The desk finds the header row, then uses this vendor's saved layout if it has seen it before;
     otherwise the AI proposes which column is which and you confirm.</div>
   <div class="actions" style="margin-top: 14px">
-    <button type="button" class="btn primary" (click)="start()" [disabled]="busy || !vendorId || !file">
+    <button type="button" class="edit-only btn primary" (click)="start()" [disabled]="busy || !vendorId || !file">
       <i class="pi pi-upload"></i> {{ busy ? 'Reading the file…' : 'Upload and read' }}
     </button>
   </div>
@@ -115,8 +115,8 @@
   <div class="savebar">
     <span class="grow" *ngIf="missing().length">Still needed: {{ missing().join(', ') }}</span>
     <span class="grow" *ngIf="!missing().length">{{ vendorName || 'Upload ' + uploadId }} · {{ proposal.dataRows }} rows. Next: every row is checked.</span>
-    <button type="button" class="btn ghost" style="color:#fff" (click)="resetAll()" [disabled]="busy">Start over</button>
-    <button type="button" class="btn primary" (click)="apply()" [disabled]="busy || missing().length > 0">
+    <button type="button" class="edit-only btn ghost" style="color:#fff" (click)="resetAll()" [disabled]="busy">Start over</button>
+    <button type="button" class="edit-only btn primary" (click)="apply()" [disabled]="busy || missing().length > 0">
       {{ busy ? 'Checking rows…' : 'Check the rows' }}
     </button>
   </div>

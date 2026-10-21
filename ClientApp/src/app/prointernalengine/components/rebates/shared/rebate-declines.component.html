@@ -28,7 +28,7 @@
         <td class="money">{{ d.total | currency }}</td>
         <td>{{ d.rejectReason }}</td>
         <td class="sub">{{ d.email || d.eMail }}</td>
-        <td *ngIf="declineStatus === 3" (click)="$event.stopPropagation()"><button type="button" class="btn" (click)="pending = { kind: 'resubmit', claim: d }" title="Support received: back into the approval queue"><i class="pi pi-undo"></i> Back to queue</button></td>
+        <td *ngIf="declineStatus === 3" (click)="$event.stopPropagation()"><button type="button" class="edit-only btn" (click)="pending = { kind: 'resubmit', claim: d }" title="Support received: back into the approval queue"><i class="pi pi-undo"></i> Back to queue</button></td>
         <td (click)="$event.stopPropagation()"><button type="button" class="icon-btn" *ngIf="canInvestigate" (click)="investigate.emit({ memberId: +d.memberID })" title="Investigate this member: bought against claimed"><i class="pi pi-search"></i></button></td>
       </tr>
       <tr class="expand" *ngIf="declineOpen?.orderID === d.orderID">
@@ -59,19 +59,19 @@
               <div class="files">
                 <div class="file" *ngFor="let f of d.proof || []">
                   <i class="pi pi-paperclip"></i><a [href]="f.url" target="_blank" rel="noopener" [title]="f.name">{{ f.name }}</a>
-                  <button type="button" class="icon-btn" (click)="pending = { kind: 'remove-file', claim: d, fileName: f.name }" title="Take this file off the claim"><i class="pi pi-times"></i></button>
+                  <button type="button" class="edit-only icon-btn" (click)="pending = { kind: 'remove-file', claim: d, fileName: f.name }" title="Take this file off the claim"><i class="pi pi-times"></i></button>
                 </div>
                 <div class="sub" *ngIf="!(d.proof || []).length">No files on this claim.</div>
               </div>
-              <label class="drop" style="display: block; margin-top: 8px; cursor: pointer" [class.over]="dropOver"
+              <label class="edit-only drop" style="display: block; margin-top: 8px; cursor: pointer" [class.over]="dropOver"
                      (dragover)="$event.preventDefault(); dropOver = true" (dragleave)="dropOver = false"
                      (drop)="$event.preventDefault(); dropOver = false; addDeclineFiles(d, $any($event).dataTransfer?.files)">
                 <input type="file" multiple style="display: none" (change)="addDeclineFiles(d, $any($event.target).files); $any($event.target).value = ''" />
                 <i class="pi pi-upload"></i> {{ uploadingFor === d.orderID ? 'Adding…' : 'Drop the dealer\'s support here, or click to choose files' }}
               </label>
               <div class="actions">
-                <button type="button" class="btn primary" *ngIf="d.status === 3" (click)="pending = { kind: 'resubmit', claim: d }"><i class="pi pi-undo"></i> Back to queue</button>
-                <button type="button" class="btn danger" *ngIf="d.status === 3" (click)="pending = { kind: 'confirm', claim: d }"
+                <button type="button" class="edit-only btn primary" *ngIf="d.status === 3" (click)="pending = { kind: 'resubmit', claim: d }"><i class="pi pi-undo"></i> Back to queue</button>
+                <button type="button" class="edit-only btn danger" *ngIf="d.status === 3" (click)="pending = { kind: 'confirm', claim: d }"
                         title="Second strike: decline for good (no email is sent, as on IR Maintenance)"><i class="pi pi-ban"></i> Confirm decline</button>
                 <button type="button" class="btn ghost" *ngIf="canOpenClaim" (click)="openClaim.emit(+d.orderID)"><i class="pi pi-external-link"></i> Open in Claims</button>
               </div>

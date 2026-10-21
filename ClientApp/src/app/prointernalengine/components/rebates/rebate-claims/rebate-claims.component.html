@@ -61,12 +61,12 @@
     </div>
 
     <div class="actions">
-      <button type="button" class="btn primary" *ngIf="claim.bucket === 'SUPPORT' && rail === 'IR'" (click)="pending = { kind: 'resubmit' }"
+      <button type="button" class="edit-only btn primary" *ngIf="claim.bucket === 'SUPPORT' && rail === 'IR'" (click)="pending = { kind: 'resubmit' }"
               title="The member added the support asked for: back into the approval queue"><i class="pi pi-undo"></i> Send back to queue</button>
-      <button type="button" class="btn" (click)="pending = { kind: 'resend' }"
+      <button type="button" class="edit-only btn" (click)="pending = { kind: 'resend' }"
               [disabled]="(claim.bucket !== 'SENT' && claim.bucket !== 'NOT_IN_AR') || !!detail?.arCredits?.length"
               [title]="detail?.arCredits?.length ? 'AR already shows this credit' : 'Only credits already posted can be re-posted'"><i class="pi pi-replay"></i> Re-post credit</button>
-      <button type="button" class="btn" (click)="pending = { kind: 'invoice' }" [disabled]="!detail?.arCredits?.length"
+      <button type="button" class="edit-only btn" (click)="pending = { kind: 'invoice' }" [disabled]="!detail?.arCredits?.length"
               [title]="detail?.arCredits?.length ? 'Rebuild the member credit invoice from the AR credit' : 'No AR credit yet: there is nothing to build the invoice from'"><i class="pi pi-file-pdf"></i> Recreate invoice</button>
       <button type="button" class="btn ghost" (click)="reprint()" [disabled]="!detail?.arCredits?.length"
               title="Download the member credit invoice that already exists"><i class="pi pi-print"></i> Reprint</button>
@@ -156,7 +156,7 @@
       <label>Decided from <input class="in" type="date" [(ngModel)]="memoFrom" /></label>
       <label>to <input class="in" type="date" [(ngModel)]="memoTo" /></label>
     </div>
-    <div class="actions" style="margin-top: 12px"><button type="button" class="btn primary" (click)="findCandidates()" [disabled]="loading">Find claims</button></div>
+    <div class="actions" style="margin-top: 12px"><button type="button" class="edit-only btn primary" (click)="findCandidates()" [disabled]="loading">Find claims</button></div>
   </section>
 
   <section class="card" *ngIf="candidates.length">
@@ -185,10 +185,10 @@
     </div>
     <div class="savebar">
       <span class="grow">Stamps {{ memo.dm || 'the DM' }} on {{ chosenCount }} claim(s) for {{ chosenTotal | currency }}{{ memo.sendEmail ? ' and emails the vendor' : '' }}.</span>
-      <button type="button" class="btn" (click)="testMemo()" [disabled]="busy || !chosenCount || !testTo.trim()"
+      <button type="button" class="edit-only btn" (click)="testMemo()" [disabled]="busy || !chosenCount || !testTo.trim()"
               title="Builds and emails everything to the test address only. No DM is stamped and nothing is recorded.">
         <i class="pi pi-eye"></i> Test run</button>
-      <button type="button" class="btn primary" (click)="createMemo()" [disabled]="busy || !memo.dm.trim() || !chosenCount || (memo.sendEmail && !memo.emailTo.trim())">
+      <button type="button" class="edit-only btn primary" (click)="createMemo()" [disabled]="busy || !memo.dm.trim() || !chosenCount || (memo.sendEmail && !memo.emailTo.trim())">
         {{ busy ? 'Working…' : 'Create debit memo' }}</button>
     </div>
   </section>

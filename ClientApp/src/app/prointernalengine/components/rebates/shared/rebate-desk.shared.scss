@@ -597,3 +597,7 @@ tr.expand > td { background: #fafbfd; padding: 12px; }
   display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
   color: var(--teal); background: var(--tealSoft); padding: 3px 10px; border-radius: 20px;
 }
+
+/* ---- drawer security: a drawer you may see but not change ---- */
+:host-context(.readonly) .edit-only, .readonly .edit-only { display: none !important; }
+.readonly-note { font-size: 12px; color: var(--sub); display: inline-flex; align-items: center; gap: 6px; }

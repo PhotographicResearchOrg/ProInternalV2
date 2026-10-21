@@ -9,7 +9,7 @@
       <span class="sub">{{ total }} found</span>
       <span class="grow"></span>
       <button type="button" class="btn ghost" (click)="exportExcel()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button>
-      <button type="button" class="btn primary" (click)="startAdd()"><i class="pi pi-plus"></i>
+      <button type="button" class="edit-only btn primary" (click)="startAdd()"><i class="pi pi-plus"></i>
         {{ rail === 'PP' ? 'Add price protection' : 'Add programs' }}</button>
     </div>
 
@@ -99,8 +99,8 @@
     <div class="actions">
       <span class="status" [class.ok]="selected.isLive">{{ selected.isLive ? 'ON for members' : 'OFF' }}</span>
       <span class="grow"></span>
-      <button type="button" class="btn" *ngIf="!selected.isLive" (click)="askActive(selected, true)"><i class="pi pi-play"></i> Turn on</button>
-      <button type="button" class="btn danger" *ngIf="selected.isLive" (click)="askActive(selected, false)"><i class="pi pi-pause"></i> Turn off</button>
+      <button type="button" class="edit-only btn" *ngIf="!selected.isLive" (click)="askActive(selected, true)"><i class="pi pi-play"></i> Turn on</button>
+      <button type="button" class="edit-only btn danger" *ngIf="selected.isLive" (click)="askActive(selected, false)"><i class="pi pi-pause"></i> Turn off</button>
     </div>
 
     <h3 class="sub" style="margin: 6px 0">{{ rail === 'IR' ? 'Amounts' : 'Price protection' }}</h3>
@@ -121,8 +121,8 @@
       </ng-container>
     </div>
     <div class="actions" style="margin-top: 10px" *ngIf="amountsDirty">
-      <button type="button" class="btn ghost" (click)="discard()">Discard</button>
-      <button type="button" class="btn primary" (click)="askAmounts()" [disabled]="datesDirty">Save {{ rail === 'IR' ? 'amounts' : 'changes' }}</button>
+      <button type="button" class="edit-only btn ghost" (click)="discard()">Discard</button>
+      <button type="button" class="edit-only btn primary" (click)="askAmounts()" [disabled]="datesDirty">Save {{ rail === 'IR' ? 'amounts' : 'changes' }}</button>
     </div>
 
     <ng-container *ngIf="rail === 'IR'">
@@ -133,8 +133,8 @@
         <label>Claims until <input class="in" type="date" [(ngModel)]="edit.expireOn" [class.dirty]="edit.expireOn !== (selected.expireOn | slice:0:10)" /></label>
       </div>
       <div class="actions" style="margin-top: 10px" *ngIf="datesDirty">
-        <button type="button" class="btn ghost" (click)="discard()">Discard</button>
-        <button type="button" class="btn primary" (click)="askDates()" [disabled]="amountsDirty">Save dates</button>
+        <button type="button" class="edit-only btn ghost" (click)="discard()">Discard</button>
+        <button type="button" class="edit-only btn primary" (click)="askDates()" [disabled]="amountsDirty">Save dates</button>
       </div>
       <div class="hint" *ngIf="amountsDirty && datesDirty">Amounts and dates are saved separately, one at a time.</div>
     </ng-container>
@@ -190,8 +190,8 @@
     </div>
     <div class="error" style="margin: 12px 0 0" *ngIf="error"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
     <div class="actions" style="margin-top: 14px">
-      <button type="button" class="btn ghost" (click)="adding = false">Cancel</button>
-      <button type="button" class="btn primary" (click)="saveAdd()" [disabled]="busy || !addProduct">{{ busy ? 'Saving…' : 'Save' }}</button>
+      <button type="button" class="edit-only btn ghost" (click)="adding = false">Cancel</button>
+      <button type="button" class="edit-only btn primary" (click)="saveAdd()" [disabled]="busy || !addProduct">{{ busy ? 'Saving…' : 'Save' }}</button>
     </div>
   </section>
 </div>
