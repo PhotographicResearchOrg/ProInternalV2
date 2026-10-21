@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -78,6 +80,39 @@ namespace ProInternal.Helpers.Security
                 catch (JsonException)
                 {
                     /* Unreadable claim: treated as no permission. */
+                }
+            }
+
+            return false;
+        }
+
+        /* True when the user holds any permission whose name starts with the prefix (e.g. "RebateDesk."). */
+        public static bool HasPrefix(ClaimsPrincipal user, string prefix)
+        {
+            if (user?.Identity?.IsAuthenticated != true)
+                return false;
+
+            foreach (var claim in user.FindAll("permissions"))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(claim.Value);
+                    var root = doc.RootElement;
+                    var items = root.ValueKind == JsonValueKind.Array ? root.EnumerateArray().ToList()
+                              : root.ValueKind == JsonValueKind.Object ? new List<JsonElement> { root } : new List<JsonElement>();
+                    foreach (var item in items)
+                    {
+                        if (item.ValueKind != JsonValueKind.Object) continue;
+                        foreach (var field in new[] { "PermissionName", "permissionName" })
+                        {
+                            if (item.TryGetProperty(field, out var v) && v.ValueKind == JsonValueKind.String
+                                && (v.GetString() ?? "").StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                                return true;
+                        }
+                    }
+                }
+                catch (JsonException)
+                {
                 }
             }
 

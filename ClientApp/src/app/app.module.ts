@@ -20,6 +20,7 @@ import { TagModule } from 'primeng/tag';
 import { FileUploadModule } from 'primeng/fileupload';
 import { DataService } from "./services/data.service";
 import { AuthInterceptor } from './services/auth.interceptor';
+import { BusyInterceptor } from './services/busy.service';
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { DashboardAccountingComponent } from './prointernalengine/components/dashboards/accounting/dashboardaccounting.component';
@@ -85,6 +86,12 @@ import { RebateClaimsComponent } from './prointernalengine/components/rebates/re
 import { RebateReasonDialogComponent } from './prointernalengine/components/rebates/shared/reason-dialog.component';
 import { RebateProductPickerComponent } from './prointernalengine/components/rebates/shared/product-picker.component';
 import { RebateHelpComponent } from './prointernalengine/components/rebates/shared/rebate-help.component';
+import { RebateWindowComponent } from './prointernalengine/components/rebates/shared/rebate-window.component';
+import { RebateInvestigateComponent } from './prointernalengine/components/rebates/rebate-investigate/rebate-investigate.component';
+import { RebateStockpadComponent } from './prointernalengine/components/rebates/rebate-stockpad/rebate-stockpad.component';
+import { RebateSortHeaderDirective, RebateSortPipe } from './prointernalengine/components/rebates/shared/rebate-sort';
+import { ClaimTimelineComponent } from './prointernalengine/components/rebates/shared/claim-timeline.component';
+import { RebateDeclinesComponent } from './prointernalengine/components/rebates/shared/rebate-declines.component';
 import { PanelModule } from 'primeng/panel';
 import { BrowserModule } from '@angular/platform-browser';             // <-- add
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'; // <-- add
@@ -133,6 +140,13 @@ import { AccessRulesComponent } from './prointernalengine/components/MemberManag
     RebateReasonDialogComponent,
     RebateProductPickerComponent,
     RebateHelpComponent,
+    RebateWindowComponent,
+    RebateInvestigateComponent,
+    RebateStockpadComponent,
+    RebateSortHeaderDirective,
+    RebateSortPipe,
+    ClaimTimelineComponent,
+    RebateDeclinesComponent,
     ReceivablesComponent,
     AffiliateGridComponent,
     ClientGridComponent,
@@ -221,6 +235,7 @@ import { AccessRulesComponent } from './prointernalengine/components/MemberManag
   providers:
     [
       { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi:true },
+      { provide: HTTP_INTERCEPTORS, useClass: BusyInterceptor, multi: true },
       FileAppService,
       DataService,
       MessageService,

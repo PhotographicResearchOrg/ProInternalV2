@@ -99,6 +99,10 @@ A row with any problem waits in purgatory; nothing is dropped silently. From the
 - **Load anyway** (`Rebates.Manage`): a row that overlaps a live program (or another row of the file) can load with a reason. Its program is recorded in `piv2.RebateOverlapAllowed`, so turning it on later is not blocked. An exact copy of a live program still waits.
 - Lines with no PRO code, SKU, UPC or description, and lines with no rebate, are dropped when the file is mapped.
 
+## Mapping a row to a rebate product
+
+When no rebate product matches the rule-set name, the row lists the rebate products that already carry its PRO code (with their kind: instant rebate, trade-in, bundle, coupon, social), as the legacy screen did. The user maps the row to one of them, or creates a new one; the name it would create is shown for the row's rebate type, and the Rebate type field shows the name for whichever type is chosen. Nothing is mapped automatically when candidates exist; "Create N new rebate products" only covers rows where nothing carries the PRO code yet.
+
 ## Naming rules
 
 `piv2.RebateNamingRule`, one line per rebate type, fixed (no screen; a change is a deliberate SQL update): rebate product name = PRO product name, then " WITH <stack product>" for each stack product when the rule adds stacks, then the suffix. Seeded with the `RebateIrController` rules (IR plain; trade-in "TRADE-IN TRADE-UP"; bundle and free-with-purchase add stacks; coupon "WITH COUPON CODE"; social "WITH SOCIAL MEDIA"). If a rule is ever changed, it applies to uploads checked afterwards; existing rebate products keep their names, so the next file of that type would offer to create new ones. The old (IR) Batch Upload page keeps its built-in rules.

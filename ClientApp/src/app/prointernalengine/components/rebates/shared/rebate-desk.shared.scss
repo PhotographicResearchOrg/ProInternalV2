@@ -40,15 +40,17 @@
 
 .app {
   display: flex;
-  background: var(--canvas);
+  /* The rail's colour runs the full height even while the rail itself stays in view (sticky). */
+  background: linear-gradient(to right, var(--rail) 220px, var(--canvas) 220px);
   color: var(--ink);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  overflow: hidden;
-  min-height: 660px;
-  box-shadow: 0 8px 30px rgba(20, 28, 43, .08);
+  border-radius: 12px;
+  overflow: clip;            /* rounds the corners without breaking the sticky rail */
+  min-height: calc(100vh - 9.5rem);
+  box-shadow: 0 4px 18px rgba(20, 28, 43, .06);
   position: relative;
 }
+.app.brm { background: var(--canvas); }
 
 /* ---- rail ---- */
 .rail {
@@ -59,6 +61,9 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  /* Stays in view while the page scrolls (below the app's top bar). */
+  position: sticky; top: 4.5rem; align-self: flex-start;
+  max-height: calc(100vh - 5rem); overflow-y: auto; scrollbar-width: thin;
 }
 
 .brandmark {
@@ -181,6 +186,7 @@
   display: flex; gap: 8px; align-items: center;
 }
 .notice { background: var(--tealSoft); color: var(--teal); cursor: pointer; }
+.notice.warn-notice { background: #fff4e5; color: #8a4b08; cursor: default; flex-wrap: wrap; }
 .error { background: var(--redSoft); color: var(--red); }
 
 /* ---- body ---- */
@@ -204,6 +210,17 @@
   input { flex: 1; min-width: 220px; }
 }
 
+/* Wide tables scroll sideways inside their card instead of running off the page. */
+.tablewrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+.tablewrap + .tablewrap { margin-top: 12px; }
+/* On a computer a long table stops at the bottom of the screen and scrolls inside, with its header
+   pinned, so the sideways scrollbar is always in view (no scrolling down to find it, then back up). */
+@media (min-width: 901px) {
+  .tablewrap { max-height: calc(100vh - 7rem); overflow: auto; }
+  .tablewrap > table.grid > thead > tr > th { position: sticky; top: 0; z-index: 2; background: var(--card); }
+  .tablewrap .tablewrap { max-height: none; overflow-y: visible; }
+}
+
 /* PrimeFlex also defines .grid (a flex row); keep these real tables. */
 table.grid {
   display: table; margin: 0; flex-wrap: nowrap;
@@ -212,6 +229,12 @@ table.grid {
     text-align: left; font-size: 11px; font-weight: 650; color: var(--faint);
     text-transform: uppercase; letter-spacing: .4px; padding: 6px 8px; border-bottom: 1px solid var(--border);
   }
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { color: var(--ink, #1f2937); }
+  th.sortable::after { content: '\2195'; margin-left: 4px; opacity: .35; font-size: 10px; }
+  th.sortable.asc, th.sortable.desc { color: var(--teal, #0f766e); }
+  th.sortable.asc::after { content: '\25B2'; opacity: 1; }
+  th.sortable.desc::after { content: '\25BC'; opacity: 1; }
   td { padding: 8px; border-bottom: 1px solid var(--borderSoft); vertical-align: top; }
   tr.click { cursor: pointer; }
   tr.click:hover td { background: #f6f8fb; }
@@ -418,3 +441,170 @@ input.in, select.in, textarea.in {
   background: var(--tealSoft); color: var(--ink); font-size: 13px;
 }
 .working { color: var(--sub); font-size: 13px; padding: 10px 0; display: flex; gap: 8px; align-items: center; }
+
+/* ---- debit memo vendor finder ---- */
+.vendor-pick {
+  display: flex; flex-direction: column; gap: 6px;
+  .lbl { font-size: 12px; color: var(--sub); }
+  .vp-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .vp-find { flex: 1 1 260px; min-width: 220px; max-width: 420px; }
+  .vp-find .in { width: 100%; }
+  .vp-parent { flex: 0 1 260px; }
+  .vp-chosen { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .vp-chosen .chip button { border: none; background: none; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 0 0 4px; color: inherit; }
+}
+
+/* ---- row panel steps ---- */
+.rowsteps { margin: 2px 0 10px; }
+.rstep {
+  border: 1px solid var(--borderSoft); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: #fff;
+  &.locked { opacity: .55; }
+  .rstep-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+  .rstep-done { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; i { color: var(--green); } }
+  .rstep-sum { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--sub); b { color: var(--ink); } }
+  .rchoice { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; padding: 4px 0; cursor: pointer; }
+}
+
+/* Investigate: claimed against bought, two bars on one scale */
+.vs { display: flex; flex-direction: column; gap: 3px; min-width: 120px; }
+.vs-bought, .vs-claimed { height: 7px; border-radius: 4px; min-width: 2px; }
+.vs-bought { background: #1d4f91; }
+.vs-claimed { background: #d9822b; }
+.vs-claimed.over { background: #b42318; }
+td.flags .status { display: inline-block; margin: 0 4px 3px 0; white-space: nowrap; }
+
+/* Proof files: one link per file */
+.proof { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.proof a { white-space: nowrap; font-size: 12px; }
+
+/* Investigate: stock padding */
+.padded { color: #1d4f91; cursor: help; white-space: nowrap; }
+.padform { display: grid; grid-template-columns: 2fr 1fr 3fr; gap: 10px; align-items: end; margin: 0 0 12px; }
+.padform label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.padform .actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+.inline-confirm { display: inline-flex; gap: 6px; align-items: center; }
+.inline-confirm .in { width: 200px; }
+@media (max-width: 720px) { .padform { grid-template-columns: 1fr; } }
+
+.padform-title { grid-column: 1 / -1; font-weight: 600; font-size: 13px; }
+tr.padrow > td { background: #f6f9fd; padding: 10px 12px; }
+
+.padded.neg { color: #b42318; }
+
+/* ---- claim timeline (who has the ball) ---- */
+.tl { display: flex; flex-direction: column; gap: 8px; }
+.tl-now .grow { min-width: 200px; }
+table.grid td .btn { white-space: nowrap; }
+.tl-now {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; padding: 8px 10px;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--card);
+  .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--faint); }
+  &.b-dealer { background: var(--amberSoft); border-color: var(--amber); }
+  &.b-pro, &.b-pro_review, &.b-pro_billing, &.b-accounting { background: var(--blueSoft); border-color: var(--blue); }
+  &.b-closed { background: var(--redSoft); border-color: var(--red); }
+  &.b-done, &.b-vendor { background: var(--greenSoft); border-color: var(--green); }
+}
+.tl-steps {
+  list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--border);
+  li { position: relative; display: grid; grid-template-columns: 130px 1fr; gap: 10px; padding: 6px 0; font-size: 13px; }
+  li::before {
+    content: ''; position: absolute; left: -20px; top: 11px; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--card); border: 2px solid var(--faint);
+  }
+  li.k-ok::before { border-color: var(--green); background: var(--greenSoft); }
+  li.k-bad::before { border-color: var(--red); background: var(--redSoft); }
+  li.k-warn::before { border-color: var(--amber); background: var(--amberSoft); }
+  li.k-file::before { border-color: var(--blue); background: var(--blueSoft); }
+  li.k-note::before { border-color: var(--teal); background: var(--tealSoft); }
+  li.k-note .tl-what > div:first-child { background: #f6f8fb; border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; }
+  .tl-when { color: var(--sub); font-size: 12px; padding-top: 1px; }
+}
+.tl-note { font-style: italic; }
+@media (max-width: 720px) {
+  .tl-steps li { grid-template-columns: 1fr; gap: 2px; }
+}
+
+/* ---- declines: one claim opened in place ---- */
+tr.expand > td { background: #fafbfd; padding: 12px; }
+.decl-panel {
+  display: grid; grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.4fr); gap: 16px;
+  h3 { margin: 0 0 6px; font-size: 13px; }
+  .files { display: flex; flex-direction: column; gap: 4px; }
+  .file { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .file a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+  .drop { border: 1px dashed var(--border); border-radius: 8px; padding: 10px; text-align: center; color: var(--sub); font-size: 12px; }
+  .drop.over { border-color: var(--teal); background: var(--tealSoft); }
+  .actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+}
+@media (max-width: 900px) { .decl-panel { grid-template-columns: 1fr; } }
+.decl-lines { margin-bottom: 12px; }
+.decl-lines table.grid td { padding: 5px 8px; }
+.decl-lines .tot td { font-weight: 650; border-bottom: none; }
+
+/* ---- phones and small tablets: look things up comfortably ----
+   The view list becomes one strip you swipe sideways; wide tables scroll sideways inside
+   their card instead of pushing the page; panels stack; filters take the full width. */
+@media (max-width: 900px) {
+  .app { border-radius: 0; border-left: none; border-right: none; min-height: 0; background: var(--canvas); }
+  .rail { position: static; max-height: none; overflow-y: visible; }
+  .rail {
+    flex-direction: row; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: 8px; gap: 4px; align-items: center; scrollbar-width: thin;
+  }
+  .rail .brandmark, .rail .rail-foot { display: none; }
+  .rail .rail-group { padding: 0 4px 0 8px; white-space: nowrap; }
+  .rail .rail-btn { width: auto; flex: 0 0 auto; white-space: nowrap; padding: 7px 10px; }
+  .vhead { padding: 12px 14px 10px; }
+  .vhead-top { flex-wrap: wrap; gap: 10px; }
+  .logo { width: 40px; height: 40px; font-size: 16px; }
+  .vtitle h1 { font-size: 18px; }
+  .head-actions { flex-wrap: wrap; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .body { padding: 10px; gap: 10px; }
+  .card { padding: 12px; border-radius: 10px; }
+  .card-head { flex-wrap: wrap; row-gap: 6px; }
+  .notice, .error { margin: 10px 10px 0; }
+  .drawer { position: static; width: auto; border-left: none; border-top: 1px solid var(--border); box-shadow: none; max-height: none; }
+  .filters > *, .filters .in, .filters select { flex: 1 1 100%; max-width: none !important; min-width: 0; }
+  .field-grid { grid-template-columns: 1fr; }
+  table.grid th { white-space: nowrap; }
+  table.grid td { padding: 7px 6px; }
+  .savebar { flex-wrap: wrap; }
+  .pager { flex-wrap: wrap; }
+  /* An opened claim stays on screen while its table scrolls sideways. */
+  tr.expand > td { padding: 10px 0; }
+  .decl-panel { position: sticky; left: 0; width: calc(100vw - 46px); max-width: 860px; padding: 0 8px; box-sizing: border-box; }
+  .decl-panel .file a { max-width: 60vw; }
+  .tl-now { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 600px) {
+  .stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .stat b { font-size: 17px; }
+  .chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .chips button { flex: 0 0 auto; white-space: nowrap; }
+  .btn { padding: 8px 11px; }
+}
+
+/* ---- working: a server call is in flight ---- */
+.busybar {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px; z-index: 50; overflow: hidden; pointer-events: none;
+  background: var(--tealSoft);
+  &::after {
+    content: ''; position: absolute; top: 0; bottom: 0; width: 35%; background: var(--teal);
+    animation: rd-busy 1.1s ease-in-out infinite;
+  }
+}
+@keyframes rd-busy { 0% { left: -35%; } 100% { left: 100%; } }
+.working {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+  color: var(--teal); background: var(--tealSoft); padding: 3px 10px; border-radius: 20px;
+}
+
+/* ---- drawer security: a drawer you may see but not change ---- */
+:host-context(.readonly) .edit-only, .readonly .edit-only { display: none !important; }
+.readonly-note { font-size: 12px; color: var(--sub); display: inline-flex; align-items: center; gap: 6px; }
+
+.tl-add { display: flex; flex-direction: column; gap: 6px; margin-top: 4px;
+  textarea { width: 100%; resize: vertical; font: inherit; font-size: 13px; }
+  .tl-add-bar { display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+}

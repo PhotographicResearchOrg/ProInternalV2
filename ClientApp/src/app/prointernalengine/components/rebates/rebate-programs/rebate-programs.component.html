@@ -9,13 +9,14 @@
       <span class="sub">{{ total }} found</span>
       <span class="grow"></span>
       <button type="button" class="btn ghost" (click)="exportExcel()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button>
-      <button type="button" class="btn primary" (click)="startAdd()"><i class="pi pi-plus"></i>
+      <button type="button" class="edit-only btn primary" (click)="startAdd()"><i class="pi pi-plus"></i>
         {{ rail === 'PP' ? 'Add price protection' : 'Add programs' }}</button>
     </div>
 
     <div class="filters">
       <input class="in" placeholder="Product, PRO code, vendor{{ rail === 'IR' ? ', program or batch #' : ', program #' }}"
              [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
+      <app-rebate-window [(months)]="filter.months" (monthsChange)="go(1)" *ngIf="!modelId && !batchId"></app-rebate-window>
       <select class="in" style="max-width: 220px" [(ngModel)]="filter.vendorId" (ngModelChange)="go(1)" *ngIf="!modelId">
         <option [ngValue]="null">All vendors</option>
         <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
@@ -42,15 +43,15 @@
       <span class="lbl">Show</span>
       <button type="button" *ngFor="let c of chips" [class.on]="chipOn(c)" (click)="useChip(c)">{{ c.label }}</button>
     </div>
-    <table class="grid">
+    <div class="tablewrap"><table class="grid">
       <thead>
         <tr *ngIf="rail === 'IR'">
-          <th>Product</th><th>Vendor</th><th>Type</th><th>Dates</th>
-          <th class="num">Member</th><th class="num">IR</th><th class="num">MAP</th><th>Batch</th><th>State</th>
+          <th rdSort="description" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Product</th><th rdSort="vendorName" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Vendor</th><th rdSort="irTypeName" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Type</th><th rdSort="startDate" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Dates</th>
+          <th class="num" rdSort="reimbursement" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Member</th><th class="num" rdSort="instantRebate" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">IR</th><th class="num" rdSort="mapPrice" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">MAP</th><th rdSort="batchId" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Batch</th><th rdSort="isLive" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">State</th>
         </tr>
         <tr *ngIf="rail === 'PP'">
-          <th>Product</th><th>Vendor</th><th>Date</th>
-          <th class="num">Credit</th><th class="num">New cost</th><th class="num">New MAP</th><th>State</th>
+          <th rdSort="description" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Product</th><th rdSort="vendorName" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Vendor</th><th rdSort="programDate" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Date</th>
+          <th class="num" rdSort="amount" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">Credit</th><th class="num" rdSort="newInvoiceCost" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">New cost</th><th class="num" rdSort="mapPrice" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">New MAP</th><th rdSort="isLive" [rdSortBy]="sorts['programs']" (rdSortChange)="go(1)">State</th>
         </tr>
       </thead>
       <tbody>
@@ -76,7 +77,7 @@
         <tr *ngIf="!rows.length && !loading"><td colspan="9" class="empty">No programs match.</td></tr>
         <tr *ngIf="loading"><td colspan="9" class="empty">Loading…</td></tr>
       </tbody>
-    </table>
+    </table></div>
     <div class="pager" *ngIf="total > pageSize">
       <button type="button" class="btn ghost" (click)="go(page - 1)" [disabled]="page <= 1">Previous</button>
       <span>Page {{ page }} of {{ pages }}</span>
@@ -98,8 +99,8 @@
     <div class="actions">
       <span class="status" [class.ok]="selected.isLive">{{ selected.isLive ? 'ON for members' : 'OFF' }}</span>
       <span class="grow"></span>
-      <button type="button" class="btn" *ngIf="!selected.isLive" (click)="askActive(selected, true)"><i class="pi pi-play"></i> Turn on</button>
-      <button type="button" class="btn danger" *ngIf="selected.isLive" (click)="askActive(selected, false)"><i class="pi pi-pause"></i> Turn off</button>
+      <button type="button" class="edit-only btn" *ngIf="!selected.isLive" (click)="askActive(selected, true)"><i class="pi pi-play"></i> Turn on</button>
+      <button type="button" class="edit-only btn danger" *ngIf="selected.isLive" (click)="askActive(selected, false)"><i class="pi pi-pause"></i> Turn off</button>
     </div>
 
     <h3 class="sub" style="margin: 6px 0">{{ rail === 'IR' ? 'Amounts' : 'Price protection' }}</h3>
@@ -120,8 +121,8 @@
       </ng-container>
     </div>
     <div class="actions" style="margin-top: 10px" *ngIf="amountsDirty">
-      <button type="button" class="btn ghost" (click)="discard()">Discard</button>
-      <button type="button" class="btn primary" (click)="askAmounts()" [disabled]="datesDirty">Save {{ rail === 'IR' ? 'amounts' : 'changes' }}</button>
+      <button type="button" class="edit-only btn ghost" (click)="discard()">Discard</button>
+      <button type="button" class="edit-only btn primary" (click)="askAmounts()" [disabled]="datesDirty">Save {{ rail === 'IR' ? 'amounts' : 'changes' }}</button>
     </div>
 
     <ng-container *ngIf="rail === 'IR'">
@@ -132,8 +133,8 @@
         <label>Claims until <input class="in" type="date" [(ngModel)]="edit.expireOn" [class.dirty]="edit.expireOn !== (selected.expireOn | slice:0:10)" /></label>
       </div>
       <div class="actions" style="margin-top: 10px" *ngIf="datesDirty">
-        <button type="button" class="btn ghost" (click)="discard()">Discard</button>
-        <button type="button" class="btn primary" (click)="askDates()" [disabled]="amountsDirty">Save dates</button>
+        <button type="button" class="edit-only btn ghost" (click)="discard()">Discard</button>
+        <button type="button" class="edit-only btn primary" (click)="askDates()" [disabled]="amountsDirty">Save dates</button>
       </div>
       <div class="hint" *ngIf="amountsDirty && datesDirty">Amounts and dates are saved separately, one at a time.</div>
     </ng-container>
@@ -156,8 +157,9 @@
       <button type="button" class="icon-btn" (click)="adding = false" title="Close"><i class="pi pi-times"></i></button>
     </div>
     <div class="field-grid">
-      <label class="wide">Product
-        <app-rebate-product-picker [rail]="rail" (picked)="addProduct = $event"></app-rebate-product-picker>
+      <label class="wide">{{ rail === 'PP' ? 'Price-protection product' : 'Rebate product' }} (from the rebate setup, not the PRO catalog)
+        <app-rebate-product-picker [rail]="rail" placeholder="Search rebate products: description or PRO code" (picked)="addProduct = $event"></app-rebate-product-picker>
+        <span class="sub" *ngIf="addProduct">PRO {{ addProduct.proCodes || addProduct.proCodeText }} · {{ addProduct.vendorName }}</span>
       </label>
       <ng-container *ngIf="rail === 'IR'">
         <label>Rebate type
@@ -188,8 +190,8 @@
     </div>
     <div class="error" style="margin: 12px 0 0" *ngIf="error"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
     <div class="actions" style="margin-top: 14px">
-      <button type="button" class="btn ghost" (click)="adding = false">Cancel</button>
-      <button type="button" class="btn primary" (click)="saveAdd()" [disabled]="busy || !addProduct">{{ busy ? 'Saving…' : 'Save' }}</button>
+      <button type="button" class="edit-only btn ghost" (click)="adding = false">Cancel</button>
+      <button type="button" class="edit-only btn primary" (click)="saveAdd()" [disabled]="busy || !addProduct">{{ busy ? 'Saving…' : 'Save' }}</button>
     </div>
   </section>
 </div>

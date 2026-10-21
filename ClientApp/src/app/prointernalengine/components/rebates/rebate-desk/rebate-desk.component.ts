@@ -1,13 +1,20 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { finalize, switchMap } from 'rxjs/operators';
 import { DataService } from 'src/app/services/data.service';
 import { Rail, RebateDeskService, apiMessage, isoDate } from 'src/app/services/rebate-desk.service';
 import { IR_PROGRAM_COLS, UPLOAD_ROW_COLS, col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
+import { DEFAULT_MONTHS, windowStart } from '../shared/rebate-window.component';
+import { rdSortParams, rdSorts } from '../shared/rebate-sort';
+import { collapseMainMenu } from '../shared/desk-frame';
+import { LayoutService } from 'src/app/layout/service/app.layout.service';
+import { BusyService } from 'src/app/services/busy.service';
+import { DeskAccessService } from '../shared/desk-access.service';
 
 type ViewKey =
   | 'overview' | 'upload' | 'uploads' | 'purgatory' | 'programs' | 'batches' | 'products' | 'vendors'
-  | 'templates' | 'claims' | 'debitmemos' | 'declines' | 'history'
+  | 'templates' | 'claims' | 'debitmemos' | 'declines' | 'investigate' | 'stockpad' | 'history'
   | 'pp-programs' | 'pp-products' | 'pp-vendors' | 'pp-claims' | 'pp-debitmemos' | 'pp-history';
 
 interface RailView { key: ViewKey; label: string; icon: string; group: 'IR' | 'PP'; count?: () => number; hot?: boolean; }
@@ -38,8 +45,7 @@ type Pending =
  */
 const HISTORY_COLS = [
   col('When', 'at', 'datetime'), col('Who', 'actor'), col('What', 'eventType'), col('Batch', 'batchId', 'number'),
-  col('Program', 'programId', 'number'), col('Upload', 'uploadId', 'number'), col('Product #', 'modelId', 'number'),
-  col('Product', 'modelDescription', 'text', 40), col('Claim', 'claimId', 'number'), col('Reason', 'reason', 'text', 40),
+  col('Program', 'programId', 'number'), col('Upload', 'uploadId', 'number'), col('Product', 'modelDescription', 'text', 40), col('Claim', 'claimId', 'number'), col('Reason', 'reason', 'text', 40),
   col('Detail', (h: any) => h.detailText ?? (typeof h.detail === 'string' ? h.detail : JSON.stringify(h.detail ?? '')), 'text', 80)
 ];
 
@@ -48,7 +54,15 @@ const HISTORY_COLS = [
   templateUrl: './rebate-desk.component.html',
   styleUrls: ['../shared/rebate-desk.shared.scss']
 })
-export class RebateDeskComponent implements OnInit {
+export class RebateDeskComponent implements OnInit, OnDestroy {
+  private restoreMenu: () => void = () => {};
+  /* Column sorting: one state per table; computed columns sort by these. */
+  readonly sorts = rdSorts();
+  readonly sortSku = (r: any) => r.vendorSku || r.upc || r.proCode || r.productCode;
+  readonly sortModel = (r: any) => r.modelDescription || r.proposedName;
+  readonly sortProblem = (r: any) => (r.problems && r.problems.length ? r.problems[0].message : null);
+  readonly sortOn = (h: any) => h.batchId ?? h.programId ?? h.uploadId ?? h.modelId;
+
   overview: any = {};
 
   readonly views: RailView[] = [
@@ -63,7 +77,9 @@ export class RebateDeskComponent implements OnInit {
     { key: 'templates', label: 'Templates', icon: 'pi pi-table', group: 'IR', count: () => this.overview.templates || 0 },
     { key: 'claims', label: 'Claims', icon: 'pi pi-wallet', group: 'IR' },
     { key: 'debitmemos', label: 'Debit memos', icon: 'pi pi-send', group: 'IR' },
-    { key: 'declines', label: 'Declined claims', icon: 'pi pi-ban', group: 'IR' },
+    { key: 'declines', label: 'Needs support / declined', icon: 'pi pi-ban', group: 'IR' },
+    { key: 'investigate', label: 'Investigate', icon: 'pi pi-search', group: 'IR' },
+    { key: 'stockpad', label: 'Stock padding', icon: 'pi pi-plus-circle', group: 'IR' },
     { key: 'history', label: 'History', icon: 'pi pi-history', group: 'IR' },
     { key: 'pp-programs', label: 'Programs', icon: 'pi pi-list', group: 'PP', count: () => this.overview.priceProtectionLive || 0 },
     { key: 'pp-products', label: 'Products', icon: 'pi pi-tags', group: 'PP' },
@@ -103,7 +119,7 @@ export class RebateDeskComponent implements OnInit {
   newProduct: any = null;
 
   /* ---- batches ---- */
-  batchFilter = { q: '', vendorId: null as number | null, state: 'LIVE' };
+  batchFilter = { q: '', vendorId: null as number | null, state: 'LIVE', months: DEFAULT_MONTHS };
   batches: any[] = [];
   batchTotal = 0;
   batchPage = 1;
@@ -114,29 +130,6 @@ export class RebateDeskComponent implements OnInit {
 
   /* ---- templates, declines, history ---- */
   templates: any[] = [];
-  declines: any[] = [];
-  declineQ = '';
-  declineTake = 100;
-
-  private declineCache: { src: any[]; q: string; out: any[] } | null = null;
-
-  /* Newest first, filtered by the search box; worked out again only when the list or the search changes. */
-  get declinesShown(): any[] {
-    const q = this.declineQ.trim().toLowerCase();
-    if (this.declineCache && this.declineCache.src === this.declines && this.declineCache.q === q) return this.declineCache.out;
-    let out = [...this.declines].sort((a, b) => String(b.processDate ?? '').localeCompare(String(a.processDate ?? '')));
-    if (q) out = out.filter(d => [d.orderID, d.memberID, d.model, d.rejectReason, d.email, d.eMail, d.vendorName]
-      .some(v => v != null && String(v).toLowerCase().includes(q)));
-    this.declineCache = { src: this.declines, q, out };
-    return out;
-  }
-
-  readonly declineCols = [
-    { header: 'Order_ID', field: 'orderID' }, { header: 'Decline_Date', field: 'processDate' },
-    { header: 'IR_Total', field: 'total' }, { header: 'Reject_Reason', field: 'rejectReason' },
-    { header: 'Member', field: 'memberID' }, { header: 'Model', field: 'model' },
-    { header: 'Quantity', field: 'quantity' }, { header: 'EMail', field: 'eMail' }
-  ];
   history: any[] = [];
 
   pending: Pending = null;
@@ -156,9 +149,15 @@ export class RebateDeskComponent implements OnInit {
     private desk: RebateDeskService,
     private data: DataService,
     private route: ActivatedRoute,
-    private router: Router) {}
+    private router: Router,
+    private layout: LayoutService,
+    public net: BusyService,
+    public access: DeskAccessService) {}
+
+  ngOnDestroy(): void { this.restoreMenu(); }
 
   ngOnInit(): void {
+    this.restoreMenu = collapseMainMenu(this.layout);
     this.desk.types().subscribe(t => (this.types = t));
     this.desk.vendors('IR').subscribe(v => (this.vendors = v));
     this.loadOverview();
@@ -170,8 +169,18 @@ export class RebateDeskComponent implements OnInit {
 
   /* ---------------- navigation ---------------- */
 
-  get irViews(): RailView[] { return this.views.filter(v => v.group === 'IR'); }
-  get ppViews(): RailView[] { return this.views.filter(v => v.group === 'PP'); }
+  /* Drawers this person may see (Security Administration: RebateDesk.<Drawer>.View / .Edit). */
+  private viewsCache: { key: string; ir: RailView[]; pp: RailView[] } | null = null;
+  private allowedViews(): { ir: RailView[]; pp: RailView[] } {
+    const allowed = this.views.filter(v => this.access.canViewKey(v.key));
+    const key = allowed.map(v => v.key).join(',');
+    if (!this.viewsCache || this.viewsCache.key !== key)
+      this.viewsCache = { key, ir: allowed.filter(v => v.group === 'IR'), pp: allowed.filter(v => v.group === 'PP') };
+    return this.viewsCache;
+  }
+  get irViews(): RailView[] { return this.allowedViews().ir; }
+  get ppViews(): RailView[] { return this.allowedViews().pp; }
+  canOpen(key: string): boolean { return this.access.canViewKey(key); }
   get rail(): Rail { return this.view.startsWith('pp-') ? 'PP' : 'IR'; }
 
   get dirty(): boolean { return this.childDirty || this.rowDirty || this.batchDatesDirty; }
@@ -186,16 +195,21 @@ export class RebateDeskComponent implements OnInit {
   }
 
   pick(key: ViewKey, keepFilters = false): void {
+    if (!this.canOpen(key)) {
+      this.notice = 'That part of the desk is not open to you. Ask for it in Security Administration.';
+      key = 'overview';
+    }
     if (key !== this.view && !this.leaveOk()) return;
     this.picked = new Set();
     this.pChip = null;
     this.uChip = null;
     this.childDirty = false;
     this.view = key;
+    this.rowTake = 300;
     this.error = '';
     this.row = null;
     this.newProduct = null;
-    if (!keepFilters) { this.programModelId = null; this.programBatchId = null; this.programOpenId = null; this.memoPreset = null; }
+    if (!keepFilters) { this.programModelId = null; this.programBatchId = null; this.programOpenId = null; this.memoPreset = null; this.investigatePreset = null; this.claimsOpenId = null; this.stockPadMember = null; }
     if (key !== 'uploads') this.upload = null;
     if (key !== 'upload') this.remapUploadId = null;
     this.router.navigate([], { queryParams: { view: key }, replaceUrl: true });
@@ -206,7 +220,6 @@ export class RebateDeskComponent implements OnInit {
       case 'purgatory': this.loadPurgatory(); break;
       case 'batches': this.loadBatches(1); break;
       case 'templates': this.desk.templates().subscribe(t => (this.templates = t)); break;
-      case 'declines': this.data.GetDeclinedInstantRebates().subscribe(d => (this.declines = d as any[])); break;
       case 'history': case 'pp-history': this.loadHistory(); break;
     }
   }
@@ -214,6 +227,26 @@ export class RebateDeskComponent implements OnInit {
   noticeUploadId: number | null = null;
 
   memoPreset: { vendorId: number; from: string; to: string } | null = null;
+
+  /* Investigate a claim's member and products (from the claim, or a needs-support / declined row). */
+  investigatePreset: { memberId: number; modelIds?: number[] } | null = null;
+  claimsOpenId: number | null = null;
+  stockPadMember: number | null = null;
+  openStockPad(memberId: number): void {
+    if (!this.leaveOk()) return;
+    this.stockPadMember = memberId;
+    this.pick('stockpad', true);
+  }
+  openClaim(orderId: number): void {
+    if (!this.leaveOk()) return;
+    this.claimsOpenId = orderId;
+    this.pick('claims', true);
+  }
+  investigate(p: { memberId: number; modelIds?: number[] }): void {
+    if (!this.leaveOk()) return;
+    this.investigatePreset = { ...p };
+    this.pick('investigate', true);
+  }
 
   billVendor(p: { vendorId: number; from: string; to: string }, rail: Rail): void {
     if (!this.leaveOk()) return;
@@ -295,7 +328,7 @@ export class RebateDeskComponent implements OnInit {
   async exportBatches(): Promise<void> {
     this.exporting = true;
     try {
-      const rows = await fetchAllPages((page, pageSize) => this.desk.batches({ ...this.batchFilter, page, pageSize }));
+      const rows = await fetchAllPages((page, pageSize) => this.desk.batches({ ...this.batchFilter, ...rdSortParams(this.sorts['batches']), page, pageSize }));
       downloadXlsx('Batches', [{ name: 'Batches', rows, cols: [
         col('Batch', 'batchId', 'number'), col('Vendor', 'vendorName'), col('Type', 'irTypeName'), col('State', 'state'),
         col('Programs', 'programs', 'number'), col('On', 'livePrograms', 'number'), col('Start', 'programStart', 'date'),
@@ -312,13 +345,6 @@ export class RebateDeskComponent implements OnInit {
     ]);
   }
 
-  exportDeclines(): void {
-    downloadXlsx('Declined claims', [{ name: 'Declined', rows: this.declinesShown, cols: [
-      col('Claim', 'orderID', 'number'), col('Declined', 'processDate', 'date'), col('Member', 'memberID', 'number'),
-      col('Vendor', 'vendorName'), col('Product', 'model', 'text', 40), col('Qty', 'quantity', 'number'), col('Amount', 'total', 'money'),
-      col('Reason', 'rejectReason', 'text', 50), col('Email', r => r.email ?? r.eMail)] }]);
-  }
-
   exportTemplates(): void {
     downloadXlsx('Saved vendor layouts', [{ name: 'Layouts', rows: this.templates, cols: [
       col('Template', 'templateId', 'number'), col('Vendor', 'vendorName'), col('Sheet', 'sheetName'), col('Header row', 'headerRow', 'number'),
@@ -331,9 +357,17 @@ export class RebateDeskComponent implements OnInit {
       rows: this.history.map(h => ({ ...h, detailText: this.detailText(h.detail) })) }]);
   }
 
+  /* Big uploads: lists are worked out once per change (not on every screen check) and drawn 300 rows at a time. */
+  rowTake = 300;
+  trackRow = (_: number, r: any) => r.rowId;
+  private frCache: { src: any[]; f: string; c: string | null; out: any[] } | null = null;
   get filteredRows(): any[] {
+    const c = this.frCache;
+    if (c && c.src === this.uploadRows && c.f === this.rowFilter && c.c === this.uChip) return c.out;
     const byStatus = this.rowFilter === 'ALL' ? this.uploadRows : this.uploadRows.filter(r => r.status === this.rowFilter);
-    return this.uChip ? byStatus.filter(r => this.hasProblem(r, this.uChip!)) : byStatus;
+    const out = this.uChip ? byStatus.filter(r => this.hasProblem(r, this.uChip!)) : byStatus;
+    this.frCache = { src: this.uploadRows, f: this.rowFilter, c: this.uChip, out };
+    return out;
   }
 
   /* ---- problem chips and ticked rows (upload review and purgatory) ---- */
@@ -350,19 +384,39 @@ export class RebateDeskComponent implements OnInit {
   };
 
 
+  private chipCache = new WeakMap<any[], { code: string; label: string; count: number }[]>();
   problemChips(rows: any[]): { code: string; label: string; count: number }[] {
+    const hit = this.chipCache.get(rows);
+    if (hit) return hit;
+    const out = this.countProblems(rows);
+    this.chipCache.set(rows, out);
+    return out;
+  }
+  trackChip = (_: number, c: any) => c.code;
+
+  private countProblems(rows: any[]): { code: string; label: string; count: number }[] {
     const n = new Map<string, number>();
     for (const r of rows) for (const p of (r.problems ?? [])) n.set(p.code, (n.get(p.code) ?? 0) + 1);
     return [...n.entries()].map(([code, count]) => ({ code, label: this.problemLabels[code] ?? code, count }))
       .sort((a, b) => b.count - a.count);
   }
 
+  private pgCache: { src: any[]; c: string | null; out: any[] } | null = null;
   get purgatoryShown(): any[] {
-    return this.pChip ? this.purgatory.filter(r => this.hasProblem(r, this.pChip!)) : this.purgatory;
+    const c = this.pgCache;
+    if (c && c.src === this.purgatory && c.c === this.pChip) return c.out;
+    const out = this.pChip ? this.purgatory.filter(r => this.hasProblem(r, this.pChip!)) : this.purgatory;
+    this.pgCache = { src: this.purgatory, c: this.pChip, out };
+    return out;
   }
 
+  private tkCache: { src: any[]; out: any[] } | null = null;
   get tickable(): any[] {
-    return (this.view === 'purgatory' ? this.purgatoryShown : this.filteredRows).filter(r => r.status === 'PURGATORY' || r.status === 'READY' || !r.status);
+    const src = this.view === 'purgatory' ? this.purgatoryShown : this.filteredRows;
+    if (this.tkCache && this.tkCache.src === src) return this.tkCache.out;
+    const out = src.filter(r => r.status === 'PURGATORY' || r.status === 'READY' || !r.status);
+    this.tkCache = { src, out };
+    return out;
   }
 
   tickRow(r: any, on: boolean, e?: Event): void {
@@ -375,12 +429,23 @@ export class RebateDeskComponent implements OnInit {
     this.picked = on ? new Set(this.tickable.map(r => r.rowId)) : new Set();
   }
 
-  get allTicked(): boolean { return this.tickable.length > 0 && this.tickable.every(r => this.picked.has(r.rowId)); }
+  private atCache: { src: any[]; picked: Set<number>; out: boolean } | null = null;
+  get allTicked(): boolean {
+    const src = this.tickable;
+    if (this.atCache && this.atCache.src === src && this.atCache.picked === this.picked) return this.atCache.out;
+    const out = src.length > 0 && src.every(r => this.picked.has(r.rowId));
+    this.atCache = { src, picked: this.picked, out };
+    return out;
+  }
 
   /* Ticked rows that overlap something (the only ones "Load anyway" applies to). */
+  private poCache: { rows: any[]; picked: Set<number>; out: number[] } | null = null;
   get pickedOverlaps(): number[] {
     const rows = this.view === 'purgatory' ? this.purgatory : this.uploadRows;
-    return rows.filter(r => this.picked.has(r.rowId) && (this.hasProblem(r, 'OVERLAP') || this.hasProblem(r, 'OVERLAP_IN_FILE'))).map(r => r.rowId);
+    if (this.poCache && this.poCache.rows === rows && this.poCache.picked === this.picked) return this.poCache.out;
+    const out = rows.filter(r => this.picked.has(r.rowId) && (this.hasProblem(r, 'OVERLAP') || this.hasProblem(r, 'OVERLAP_IN_FILE'))).map(r => r.rowId);
+    this.poCache = { rows, picked: this.picked, out };
+    return out;
   }
 
   bulkSkip(): void { this.pending = { kind: 'bulk-skip', ids: [...this.picked] }; }
@@ -474,11 +539,21 @@ export class RebateDeskComponent implements OnInit {
     if (this.row && this.row.rowId !== r.rowId && !this.leaveOk()) return;
     if (!r.status) r.status = 'PURGATORY';
     this.row = r;
+    this.mapChoice = null;
+    this.step1Open = false;
+    this.step2Open = false;
+    this.detailsOpen = this.hasProblem(r, ...this.valueProblems);
+    this.s2Type = this.effectiveType(r);
+    this.s2Choice = r.modelId ?? null;
+    this.s2Options = [];
+    if (r.productCode) this.desk.rowOptions(r.rowId).subscribe({ next: o => (this.s2Options = o ?? []), error: () => (this.s2Options = []) });
     this.proHits = [];
     this.proErr = '';
     this.proSearched = false;
     this.proQ = r.vendorSku || r.upc || r.description || '';
     this.rowVendorId = vendorId;
+    /* The file's original line is not in the purgatory list: fetch it for this row. */
+    if (r.raw === undefined) this.desk.getRow(r.rowId).subscribe({ next: full => { if (this.row?.rowId === r.rowId) this.row.raw = full?.raw ?? null; }, error: () => {} });
     this.newProduct = null;
     this.ticked = [];
     this.rowEdit = {
@@ -538,11 +613,13 @@ export class RebateDeskComponent implements OnInit {
         const again = p.find(x => x.rowId === was?.rowId);
         if (again) { this.openRow(again, again.vendorId); return; }
         this.row = null;
-        /* Fixed rows leave purgatory: say where they went. */
-        if (was) {
-          this.noticeUploadId = was.uploadId;
-          this.notice = `Row ${was.sourceRow} is fixed and ready. It loads with upload #${was.uploadId}${was.vendorName ? ' (' + was.vendorName + ')' : ''}.`;
-        }
+        if (!was) return;
+        /* A fixed row leaves the purgatory list; keep it open so you see what it resolved to, and say where it loads. */
+        this.noticeUploadId = was.uploadId;
+        this.notice = `Row ${was.sourceRow} is fixed and ready. It loads with upload #${was.uploadId}${was.vendorName ? ' (' + was.vendorName + ')' : ''}.`;
+        this.desk.getRow(was.rowId).subscribe(fixed => {
+          if (fixed && !this.row) this.openRow(fixed, was.vendorId);
+        });
       });
     }
   }
@@ -572,7 +649,7 @@ export class RebateDeskComponent implements OnInit {
     this.error = '';
     this.desk.pickModel(this.row.rowId, p ? p.modelId : null).pipe(finalize(() => (this.busy = false))).subscribe({
       next: r => {
-        this.notice = p ? `Row set to product #${p.modelId}${r?.status === 'READY' ? '; ready to load.' : '.'}` : 'Row handed back to automatic matching.';
+        this.notice = p ? `Row set to ${p.description ?? 'the rebate product'}${r?.status === 'READY' ? '; ready to load.' : '.'}` : 'Row handed back to automatic matching.';
         this.afterRowChange();
       },
       error: err => (this.error = apiMessage(err))
@@ -592,7 +669,7 @@ export class RebateDeskComponent implements OnInit {
     this.desk.addProduct({ ...this.newProduct, forRowId: this.row.rowId }).pipe(finalize(() => (this.busy = false))).subscribe({
       next: r => {
         this.newProduct = null;
-        this.notice = `Product #${r.modelId} added and set on this row.` + (r.unknownProCodes ? ` Not found in PRO products: ${r.unknownProCodes}.` : '');
+        this.notice = `Rebate product added and set on this row.` + (r.unknownProCodes ? ` Not found in PRO products: ${r.unknownProCodes}.` : '');
         this.afterRowChange();
       },
       error: err => (this.error = apiMessage(err))
@@ -601,6 +678,122 @@ export class RebateDeskComponent implements OnInit {
 
   /* Several PRO products matched: the ones ticked, in the order ticked. */
   ticked: string[] = [];
+
+  /* ---- the row panel, one step at a time ---- */
+  step1Open = false;
+  step2Open = false;
+  detailsOpen = false;
+  private readonly valueProblems = ['NO_DATES', 'DATES_REVERSED', 'BAD_REIMBURSEMENT', 'NEGATIVE_AMOUNT', 'NO_TYPE', 'UNKNOWN_TYPE',
+    'NO_STACK', 'STACK_UNKNOWN', 'SEVERAL_PRO_CODES', 'DUPLICATE_IN_FILE', 'OVERLAP_IN_FILE', 'OVERLAP', 'ALREADY_LOADED'];
+
+  get step1Done(): boolean {
+    const r = this.row;
+    return !!r?.productCode && !this.hasProblem(r, 'NO_PRODUCT', 'AMBIGUOUS_PRODUCT', 'SEVERAL_PRO_CODES');
+  }
+
+  get step2Done(): boolean { return !!this.row?.modelId && !this.hasProblem(this.row, 'NO_MODEL', 'MODEL_RETIRED'); }
+
+  /* ---- step 2: map to a rebate product, or create one by the naming convention, for the chosen type ---- */
+  s2Type: number | null = null;
+  s2Choice: number | 'CREATE' | null = null;
+  s2Options: any[] = [];
+
+  /* Rebate products carrying the PRO code; the one in use first. */
+  get s2List(): any[] {
+    const list = [...this.s2Options];
+    const r = this.row;
+    if (r?.modelId && !list.some(o => o.modelId === r.modelId))
+      list.unshift({ modelId: r.modelId, name: r.modelDescription, kind: '', vendor: '', active: true });
+    return list.sort((a, b) => (a.modelId === r?.modelId ? -1 : b.modelId === r?.modelId ? 1 : 0));
+  }
+
+  get s2Name(): string { return this.previewName(this.row, this.s2Type); }
+
+  get s2Changed(): boolean {
+    return this.s2Choice !== null && (this.s2Choice !== this.row?.modelId || this.s2Type !== this.effectiveType(this.row));
+  }
+
+  /* Applies step 2: the type first (it decides the name), then the mapping or the new product. */
+  applyStep2(): void {
+    const r = this.row;
+    if (!r || this.s2Choice === null) return;
+    const typeChanged = this.s2Type !== this.effectiveType(r);
+    const choice = this.s2Choice;
+    this.busy = true;
+    this.error = '';
+    const setType$ = typeChanged
+      ? this.desk.updateRow(r.rowId, { ...this.rowEdit, rebateType: this.s2Type, proPad: this.rowEdit.proPad === '' || this.rowEdit.proPad == null ? null : +this.rowEdit.proPad,
+          startDate: this.rowEdit.startDate || null, endDate: this.rowEdit.endDate || null })
+      : of(null);
+    setType$.pipe(
+      switchMap(() => choice === 'CREATE'
+        ? this.desk.addProduct({ rail: 'IR', vendorId: this.rowVendorId ?? r.vendorId, description: this.s2Name,
+            proCodes: String(r.productCode).split(',')[0], serialNumbersRequired: false, forRowId: r.rowId })
+        : this.desk.pickModel(r.rowId, choice as number)),
+      finalize(() => (this.busy = false))
+    ).subscribe({
+      next: () => {
+        this.notice = choice === 'CREATE' ? `Created "${this.s2Name}" and set it on row ${r.sourceRow}.` : `Row ${r.sourceRow} mapped to ${(this.s2List.find((x: any) => x.modelId === choice)?.name) ?? 'the chosen rebate product'}.`;
+        this.loadOverview();
+        this.afterRowChange();
+      },
+      error: e => (this.error = apiMessage(e))
+    });
+  }
+
+  /* ---- mapping a row to a rebate product (no product by the rule-set name) ---- */
+  mapChoice: number | 'CREATE' | null = null;
+
+  mapCandidates(r: any): any[] {
+    return (r?.problems ?? []).find((p: any) => p.code === 'NO_MODEL')?.candidates ?? [];
+  }
+
+  /* The naming rule set (fixed; same as piv2.RebateNamingRule): suffix, or stack products added with WITH. */
+  private readonly nameRules: { [type: number]: { suffix?: string; stack?: boolean } } = {
+    3: { suffix: 'TRADE-IN TRADE-UP' }, 4: { stack: true }, 5: { suffix: 'WITH COUPON CODE' },
+    6: { suffix: 'WITH SOCIAL MEDIA' }, 7: { stack: true }
+  };
+
+  /* The type the row will load as: its own, or the upload's default. */
+  effectiveType(r: any, edited?: any): number | null {
+    const own = edited !== undefined ? edited : r?.rebateType;
+    return own ?? r?.defaultRebateType ?? this.upload?.defaultRebateType ?? null;
+  }
+
+  /* The rebate product name that Create would use for this row and type. */
+  previewName(r: any, typeId: number | null): string {
+    const base = (r?.productName || '').trim();
+    if (!base) return '';
+    if (typeId === this.effectiveType(r) && r?.proposedName) return r.proposedName;
+    const rule = typeId != null ? this.nameRules[typeId] : undefined;
+    if (rule?.stack) {
+      const stacks = String(r?.stackCodes || r?.stackProduct || '').split(/[,+]/).map(x => x.trim()).filter(x => x);
+      return `${base} ${stacks.length ? stacks.map(x => 'WITH ' + x).join(' ') : 'WITH <stack product>'}`;
+    }
+    return rule?.suffix ? `${base} ${rule.suffix}` : base;
+  }
+
+  useMapChoice(): void {
+    if (this.mapChoice === null || !this.row) return;
+    if (this.mapChoice === 'CREATE') { this.createForRow(); return; }
+    this.pickModel({ modelId: this.mapChoice });
+  }
+
+  /* Creates the one rebate product this row calls for, under the naming convention, and checks again. */
+  createForRow(): void {
+    const uploadId = this.row?.uploadId ?? this.upload?.uploadId;
+    if (!uploadId) return;
+    this.busy = true;
+    this.error = '';
+    this.desk.createMissingProducts(uploadId, [this.row.rowId]).pipe(finalize(() => (this.busy = false))).subscribe({
+      next: r => {
+        this.notice = r.created ? `Created "${this.row?.proposedName}" and set it on this row.` : 'Nothing was created: the row may already have a product.';
+        this.loadOverview();
+        this.afterRowChange();
+      },
+      error: e => (this.error = apiMessage(e))
+    });
+  }
 
   candidatesOf(r: any): any[] {
     return (r?.problems ?? []).find((p: any) => p.code === 'AMBIGUOUS_PRODUCT')?.candidates ?? [];
@@ -631,7 +824,7 @@ export class RebateDeskComponent implements OnInit {
   loadBatches(page: number): void {
     this.batchPage = Math.max(1, page);
     this.loading = true;
-    this.desk.batches({ ...this.batchFilter, page: this.batchPage, pageSize: 50 }).pipe(finalize(() => (this.loading = false)))
+    this.desk.batches({ ...this.batchFilter, ...rdSortParams(this.sorts['batches']), page: this.batchPage, pageSize: 50 }).pipe(finalize(() => (this.loading = false)))
       .subscribe({ next: r => { this.batches = r.rows; this.batchTotal = r.total; }, error: e => (this.error = apiMessage(e)) });
   }
 

@@ -2,6 +2,8 @@ import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/cor
 import { finalize } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage, isoDate } from 'src/app/services/rebate-desk.service';
 import { IR_PROGRAM_COLS, PP_PROGRAM_COLS, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
+import { DEFAULT_MONTHS } from '../shared/rebate-window.component';
+import { rdSortParams, rdSorts } from '../shared/rebate-sort';
 
 type Pending =
   | { kind: 'active'; program: any; active: boolean }
@@ -23,6 +25,7 @@ type Pending =
   styleUrls: ['../shared/rebate-desk.shared.scss']
 })
 export class RebateProgramsComponent implements OnInit, OnChanges {
+  readonly sorts = rdSorts();
   @Input() rail: Rail = 'IR';
   @Input() modelId: number | null = null;
   @Input() batchId: number | null = null;
@@ -32,7 +35,7 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
   vendors: any[] = [];
   types: any[] = [];
 
-  filter = { vendorId: null as number | null, state: 'ON', when: '', q: '', from: '', to: '' };
+  filter = { vendorId: null as number | null, state: 'ON', when: '', q: '', from: '', to: '', months: DEFAULT_MONTHS };
   page = 1;
   pageSize = 50;
   total = 0;
@@ -81,8 +84,8 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
   refresh(): void {
     this.loading = true;
     const f: any = {
-      vendorId: this.filter.vendorId, modelId: this.modelId, state: this.filter.state, q: this.filter.q,
-      page: this.page, pageSize: this.pageSize
+      vendorId: this.filter.vendorId, modelId: this.modelId, state: this.filter.state, q: this.filter.q, months: this.modelId ? 0 : this.filter.months,
+      page: this.page, pageSize: this.pageSize, ...rdSortParams(this.sorts['programs'])
     };
     if (this.rail === 'IR') { f.when = this.filter.when; f.batchId = this.batchId; }
     else { f.from = this.filter.from; f.to = this.filter.to; }
@@ -110,7 +113,7 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
     try {
       const f: any = { vendorId: this.filter.vendorId, modelId: this.modelId, state: this.filter.state, q: this.filter.q };
       if (this.rail === 'IR') { f.when = this.filter.when; f.batchId = this.batchId; } else { f.from = this.filter.from; f.to = this.filter.to; }
-      const rows = await fetchAllPages((page, pageSize) => this.desk.programs(this.rail, { ...f, page, pageSize }), 500);
+      const rows = await fetchAllPages((page, pageSize) => this.desk.programs(this.rail, { ...f, ...rdSortParams(this.sorts['programs']), page, pageSize }), 500);
       downloadXlsx(this.rail === 'PP' ? 'Price-protection programs' : 'Instant-rebate programs',
         [{ name: 'Programs', cols: this.rail === 'PP' ? PP_PROGRAM_COLS : IR_PROGRAM_COLS, rows }]);
     } catch (e) { this.error = apiMessage(e); } finally { this.exporting = false; }
@@ -223,7 +226,7 @@ export class RebateProgramsComponent implements OnInit, OnChanges {
 
   private refreshKeep(programId?: number): void {
     this.loading = true;
-    const f: any = { vendorId: this.filter.vendorId, modelId: this.modelId, state: this.filter.state, q: this.filter.q, page: this.page, pageSize: this.pageSize };
+    const f: any = { vendorId: this.filter.vendorId, modelId: this.modelId, state: this.filter.state, q: this.filter.q, months: this.modelId ? 0 : this.filter.months, page: this.page, pageSize: this.pageSize, ...rdSortParams(this.sorts['programs']) };
     if (this.rail === 'IR') { f.when = this.filter.when; f.batchId = this.batchId; }
     this.desk.programs(this.rail, f).pipe(finalize(() => (this.loading = false))).subscribe(r => {
       this.rows = r.rows;

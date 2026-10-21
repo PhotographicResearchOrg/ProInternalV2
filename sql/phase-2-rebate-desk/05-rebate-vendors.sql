@@ -12,17 +12,20 @@
         price protection  PriceProtectionRedeem + PriceProtectionProcess
 
     Each claim is in one bucket, from its latest process row:
-        SUBMITTED   no decision yet (no process row, or Status not 1 or 2)
-        APPROVED    Status 1, not yet sent to Computyme (ComputymeProcessed empty or 0)
-        SENT        Status 1, ComputymeProcessed = 1
+        SUBMITTED   no decision yet (no process row, or no status yet)
+        SUPPORT     Status 3: needs more information or support from the member
+        APPROVED    Status 1, not posted yet (ComputymeProcessed empty or 0)
+        SENT        Status 1, posted to the GL (ComputymeProcessed = 1)
         DECLINED    Status 2
-    Liability = approved claims (sent to Computyme or not) the vendor has
-    not reimbursed yet, i.e. no debit memo, at the vendor's share. Claims
-    awaiting a decision are shown apart as pending. PRO pad = what members
-    were credited above the vendor's share (combo products): PRO's own
-    cost, never billed. Credited, reimbursed and declined are shown for
-    the chosen period (by decision date). Lines a member saved but never
-    submitted (Saved = 1) are left out.
+    Liability = approved claims (posted or not) with no debit memo, at the
+    vendor's share. Claims awaiting a decision or support are shown apart.
+    PRO pad = what members were credited above the vendor's share: PRO's
+    own cost, never billed. Credited, reimbursed and declined are shown
+    for the chosen period (by decision date). Lines a member saved but
+    never submitted (Saved = 1) are left out.
+
+    Window: only claims from the last @Months months are counted (12 by
+    default, 24 for two years, 0 for all history).
 */
 
 USE PRO_NUKE;
@@ -34,7 +37,8 @@ CREATE OR ALTER PROCEDURE piv2.Rebate_VendorLiability
     @Rail     char(2) = 'IR',
     @VendorId int = NULL,          -- one vendor: adds its products and open claims
     @From     date = NULL,         -- period for credited, reimbursed and declined; default 1 January this year
-    @To       date = NULL
+    @To       date = NULL,
+    @Months   int = 12             -- claims window in months (12 default, 24 = two years); 0 = all history
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -42,7 +46,9 @@ BEGIN
 
     DECLARE @pp int = CASE WHEN UPPER(@Rail) = 'PP' THEN 1 ELSE 0 END;
     DECLARE @today date = CAST(GETDATE() AS date);
+    DECLARE @since date = CASE WHEN @Months > 0 THEN DATEADD(month, -@Months, @today) ELSE '19000101' END;
     SET @From = COALESCE(@From, DATEFROMPARTS(YEAR(@today), 1, 1));
+    IF @From < @since SET @From = @since;
     SET @To = COALESCE(@To, @today);
     DECLARE @toEx datetime = DATEADD(day, 1, CAST(@To AS datetime));
 
@@ -54,22 +60,28 @@ BEGIN
      WHERE m.IsPriceProtection = @pp
        AND (@VendorId IS NULL OR m.VendorID = @VendorId);
 
-    /* ---- latest decision per claim: one pass over the process table ---- */
+    /* ---- claims in the window, then the latest decision for just those ---- */
+    CREATE TABLE #o (OrderId int NOT NULL PRIMARY KEY);
+    IF @pp = 0
+        INSERT #o SELECT DISTINCT r.ORDERID FROM dbo.RebateRedeem r JOIN #m m ON m.ModelId = r.ModelID
+         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL AND r.Date >= @since;
+    ELSE
+        INSERT #o SELECT DISTINCT r.ORDERID FROM dbo.PriceProtectionRedeem r JOIN #m m ON m.ModelId = r.ModelID
+         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL AND r.Date >= @since;
+
     CREATE TABLE #d (OrderId int NOT NULL PRIMARY KEY, Status int NULL, ComputymeProcessed int NULL, DecidedAt datetime NULL, DebitMemo varchar(100) NULL);
     IF @pp = 0
         INSERT #d
-        SELECT OrderID, Status, ComputymeProcessed, timeEnd, NULLIF(LTRIM(RTRIM(DM)), '')
-          FROM (SELECT OrderID, Status, ComputymeProcessed, timeEnd, DM,
-                       ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY ID DESC) AS rn
-                  FROM dbo.RebateProcess WHERE OrderID IS NOT NULL) x
-         WHERE x.rn = 1;
+        SELECT o.OrderId, p.Status, p.ComputymeProcessed, p.timeEnd, NULLIF(LTRIM(RTRIM(p.DM)), '')
+          FROM #o o
+          CROSS APPLY (SELECT TOP (1) x.Status, x.ComputymeProcessed, x.timeEnd, x.DM
+                         FROM dbo.RebateProcess x WHERE x.OrderID = o.OrderId ORDER BY x.ID DESC) p;
     ELSE
         INSERT #d
-        SELECT OrderID, Status, ComputymeProcessed, timeEnd, NULLIF(LTRIM(RTRIM(DM)), '')
-          FROM (SELECT OrderID, Status, ComputymeProcessed, timeEnd, DM,
-                       ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY ID DESC) AS rn
-                  FROM dbo.PriceProtectionProcess WHERE OrderID IS NOT NULL) x
-         WHERE x.rn = 1;
+        SELECT o.OrderId, p.Status, p.ComputymeProcessed, p.timeEnd, NULLIF(LTRIM(RTRIM(p.DM)), '')
+          FROM #o o
+          CROSS APPLY (SELECT TOP (1) x.Status, x.ComputymeProcessed, x.timeEnd, x.DM
+                         FROM dbo.PriceProtectionProcess x WHERE x.OrderID = o.OrderId ORDER BY x.ID DESC) p;
 
     /* ---- claims, one row per claim and product ----
        Amount        what the member was credited
@@ -101,6 +113,7 @@ BEGIN
                SUM(CAST(CASE WHEN tm.ModelId IS NULL THEN COALESCE(r.Net, 0)
                              ELSE COALESCE(vs.VendorShare, r.ReimbursementAmount, 0) * COALESCE(r.Quantity, 0) END AS decimal(19,2))),
                CASE WHEN d.Status = 2 THEN 'DECLINED'
+                    WHEN d.Status = 3 THEN 'SUPPORT'
                     WHEN d.Status = 1 AND COALESCE(d.ComputymeProcessed, 0) = 1 THEN 'SENT'
                     WHEN d.Status = 1 THEN 'APPROVED'
                     ELSE 'SUBMITTED' END,
@@ -117,7 +130,7 @@ BEGIN
                           AND r.Date >= pd.ProgramStartWeek
                           AND r.Date < DATEADD(day, 1, COALESCE(pd.ExpireOn, DATEADD(day, 120, pd.ProgramEndWeek)))
                         ORDER BY pd.ProgramStartWeek DESC, t.UpdatedAt DESC) vs
-         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL
+         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL AND r.Date >= @since
          GROUP BY r.ORDERID, r.ModelID, m.VendorId, d.Status, d.ComputymeProcessed, d.DecidedAt, d.DebitMemo;
     END
     ELSE
@@ -126,6 +139,7 @@ BEGIN
                SUM(CAST(COALESCE(r.Net, 0) AS decimal(19,2))),
                SUM(CAST(COALESCE(r.Net, 0) AS decimal(19,2))),
                CASE WHEN d.Status = 2 THEN 'DECLINED'
+                    WHEN d.Status = 3 THEN 'SUPPORT'
                     WHEN d.Status = 1 AND COALESCE(d.ComputymeProcessed, 0) = 1 THEN 'SENT'
                     WHEN d.Status = 1 THEN 'APPROVED'
                     ELSE 'SUBMITTED' END,
@@ -133,7 +147,7 @@ BEGIN
           FROM dbo.PriceProtectionRedeem r
           JOIN #m m ON m.ModelId = r.ModelID
           LEFT JOIN #d d ON d.OrderId = r.ORDERID
-         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL
+         WHERE COALESCE(r.Saved, 0) = 0 AND r.ORDERID IS NOT NULL AND r.Date >= @since
          GROUP BY r.ORDERID, r.ModelID, m.VendorId, d.Status, d.ComputymeProcessed, d.DecidedAt, d.DebitMemo;
 
     CREATE INDEX IX_claim_vendor ON #claim (VendorId) INCLUDE (Bucket, Amount, VendorAmount, DebitMemo, DecidedAt, ClaimDate, OrderId);
@@ -203,6 +217,8 @@ BEGIN
            COALESCE(cl.UnsentAmount, 0) AS UnsentAmount,
            COALESCE(cl.PendingClaims, 0) AS PendingClaims,
            COALESCE(cl.PendingAmount, 0) AS PendingAmount,
+           COALESCE(cl.SupportClaims, 0) AS SupportClaims,
+           COALESCE(cl.SupportAmount, 0) AS SupportAmount,
            COALESCE(cl.CreditedClaims, 0) AS CreditedClaims,
            COALESCE(cl.CreditedAmount, 0) AS CreditedAmount,
            COALESCE(cl.ReimbursedAmount, 0) AS ReimbursedAmount,
@@ -210,7 +226,7 @@ BEGIN
            COALESCE(cl.DeclinedAmount, 0) AS DeclinedAmount,
            COALESCE(cl.ProPadAmount, 0) AS ProPadAmount,
            cl.OldestUnreimbursed,
-           @From AS PeriodFrom, @To AS PeriodTo
+           @From AS PeriodFrom, @To AS PeriodTo, @since AS WindowFrom
       FROM dbo.RebateVendors v
       LEFT JOIN #v pv ON pv.VendorId = v.VendorID
       OUTER APPLY
@@ -220,6 +236,8 @@ BEGIN
                  SUM(CASE WHEN c.Bucket = 'APPROVED' THEN c.Amount END) AS UnsentAmount,
                  COUNT(DISTINCT CASE WHEN c.Bucket = 'SUBMITTED' THEN c.OrderId END) AS PendingClaims,
                  SUM(CASE WHEN c.Bucket = 'SUBMITTED' THEN c.Amount END) AS PendingAmount,
+                 COUNT(DISTINCT CASE WHEN c.Bucket = 'SUPPORT' THEN c.OrderId END) AS SupportClaims,
+                 SUM(CASE WHEN c.Bucket = 'SUPPORT' THEN c.Amount END) AS SupportAmount,
                  COUNT(DISTINCT CASE WHEN c.Bucket = 'SENT' AND c.DecidedAt >= @From AND c.DecidedAt < @toEx THEN c.OrderId END) AS CreditedClaims,
                  SUM(CASE WHEN c.Bucket = 'SENT' AND c.DecidedAt >= @From AND c.DecidedAt < @toEx THEN c.Amount END) AS CreditedAmount,
                  SUM(CASE WHEN c.Bucket IN ('APPROVED', 'SENT') AND c.DebitMemo IS NOT NULL AND c.DecidedAt >= @From AND c.DecidedAt < @toEx THEN c.VendorAmount END) AS ReimbursedAmount,
@@ -265,12 +283,12 @@ BEGIN
 
     /* ---- 3: the claims behind the liability (not reimbursed), and claims awaiting a decision ---- */
     SELECT TOP (500) c.OrderId, MAX(c.MemberId) AS MemberId, MIN(c.ClaimDate) AS ClaimDate,
-           CASE WHEN MIN(c.Bucket) = 'SUBMITTED' THEN 'SUBMITTED' ELSE MAX(c.Bucket) END AS Bucket,
+           MAX(c.Bucket) AS Bucket,
            SUM(c.Amount) AS Amount, SUM(c.VendorAmount) AS VendorAmount, SUM(c.Quantity) AS Units,
            STRING_AGG(CAST(m.ModelNumber AS nvarchar(max)), N'; ') AS Products
       FROM #claim c
       JOIN dbo.RebateCameraModels m ON m.ModelID = c.ModelId
-     WHERE c.Bucket = 'SUBMITTED' OR (c.Bucket IN ('APPROVED', 'SENT') AND c.DebitMemo IS NULL)
+     WHERE c.Bucket IN ('SUBMITTED', 'SUPPORT') OR (c.Bucket IN ('APPROVED', 'SENT') AND c.DebitMemo IS NULL)
      GROUP BY c.OrderId
      ORDER BY MIN(c.ClaimDate);
 END

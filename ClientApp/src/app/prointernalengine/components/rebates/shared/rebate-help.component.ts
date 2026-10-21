@@ -5,7 +5,7 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
   DISPOSITION: {
     title: 'How a row finds its rebate product',
     steps: [
-      'The vendor SKU (with the vendor\'s catalog prefix), the UPC or the PRO code finds the PRO product.',
+      'Step 1: the line\'s vendor SKU (against PRO\'s catalog #), UPC or PRO code finds the PRO product.',
       'The rebate product name is built from the naming rules: IR = product name; trade-in adds "TRADE-IN TRADE-UP"; bundle and free-with-purchase add "WITH" and the stack product; coupon adds "WITH COUPON CODE"; social adds "WITH SOCIAL MEDIA".',
       'That name finds the rebate product. If none exists yet, use "Create rebate products" at the top of the upload.',
       'Several PRO products fit? Pick the right one and click Use.',
@@ -23,9 +23,10 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
   NO_PRODUCT: {
     title: 'No PRO product matches',
     steps: [
-      'Check the vendor SKU and UPC on the line.',
-      'PRO catalog numbers often carry a prefix (SmallRig: SR_). Set it once in Vendors → this vendor → terms, then the whole file re-matches.',
-      'If the brand ids in the vendor terms are set, the product must be under one of them.',
+      'The line\'s vendor SKU is compared with PRO\'s catalog # (CAT_NO), its UPC with PRO\'s UPC, and a PRO code column with PRO\'s product code.',
+      'Search PRO\'s catalog here by PRO code, catalog #, UPC or part of the name, pick the item and click Use.',
+      'If PRO does not carry the item yet, it has to be added to the catalog first; skip the row for now.',
+      'If the vendor\'s terms list brand ids, only products of those brands are matched.',
       'Or use "Find the PRO product" on the row: search by PRO code, catalog #, UPC or name, tick it and click Use.'
     ]
   },
@@ -36,9 +37,10 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
   NO_MODEL: {
     title: 'No rebate product with this name yet',
     steps: [
-      'The name shown is what the naming rules call for.',
-      'Create it: "Create rebate products" at the top of the upload makes all of them at once, or "Create" on this line.',
-      'Or pick an existing rebate product if it is named differently.'
+      'The name shown is what the naming convention calls for, for this rebate type.',
+      'If rebate products already carry this PRO code, they are listed (with their type): map the row to the right one.',
+      'Otherwise create it under the convention. Changing the rebate type changes the name.',
+      '"Create N new rebate products" at the top of the upload only covers rows where nothing carries the PRO code yet; rows with candidates need a person to map them.'
     ]
   },
   MODEL_RETIRED: {
@@ -51,7 +53,7 @@ export const REBATE_DIRECTIONS: { [code: string]: { title: string; steps: string
   },
   STACK_UNKNOWN: {
     title: 'The stack product is not found',
-    steps: ['Fix the stack PRO code or SKU on the line. The vendor\'s catalog prefix applies to stack SKUs too.']
+    steps: ['Fix the stack product on the line (PRO code, catalog # or UPC) in step 3.']
   },
   NO_DATES: { title: 'Dates are missing', steps: ['Enter start and end on the line, or set the program dates for the whole file when mapping.'] },
   DATES_REVERSED: { title: 'Start is after end', steps: ['Swap or correct the dates on the line.'] },

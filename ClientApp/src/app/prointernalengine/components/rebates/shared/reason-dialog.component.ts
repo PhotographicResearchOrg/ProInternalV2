@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 
 /*
  * Asks for the reason before a change to live rebates (turn off, change a
@@ -41,8 +41,14 @@ export class RebateReasonDialogComponent implements OnChanges {
   reason = '';
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['open'] && this.open && !changes['open'].previousValue) this.reason = '';
+    if (changes['open'] && this.open && !changes['open'].previousValue) {
+      this.reason = '';
+      /* Put the cursor in the reason box so you can type straight away. */
+      setTimeout(() => (this.host.nativeElement.querySelector('textarea') as HTMLTextAreaElement | null)?.focus());
+    }
   }
+
+  constructor(private host: ElementRef<HTMLElement>) {}
 
   confirm(): void {
     if (!this.optional && !this.reason.trim()) return;

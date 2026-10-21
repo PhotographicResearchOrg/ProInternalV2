@@ -3,6 +3,7 @@ import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, finalize, switchMap } from 'rxjs/operators';
 import { Rail, RebateDeskService, apiMessage } from 'src/app/services/rebate-desk.service';
 import { col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
+import { rdSortParams, rdSorts } from '../shared/rebate-sort';
 
 /*
  * Rebate products (RebateCameraModels) on one rail: what members claim
@@ -15,6 +16,7 @@ import { col, downloadXlsx, fetchAllPages } from '../shared/rebate-excel';
   styleUrls: ['../shared/rebate-desk.shared.scss']
 })
 export class RebateProductsComponent implements OnChanges {
+  readonly sorts = rdSorts();
   @Input() rail: Rail = 'IR';
   @Output() dirtyChange = new EventEmitter<boolean>();
   @Output() showPrograms = new EventEmitter<number>();
@@ -56,9 +58,9 @@ export class RebateProductsComponent implements OnChanges {
     this.exporting = true;
     try {
       const rows = await fetchAllPages((page, pageSize) => this.desk.products(this.rail, {
-        vendorId: this.filter.vendorId, q: this.filter.q, active: this.filter.active, page, pageSize }));
+        vendorId: this.filter.vendorId, q: this.filter.q, active: this.filter.active, ...rdSortParams(this.sorts['products']), page, pageSize }));
       downloadXlsx(this.rail === 'PP' ? 'Price-protection products' : 'Rebate products', [{ name: 'Products', rows, cols: [
-        col('Product #', 'modelId', 'number'), col('Description', 'description', 'text', 45), col('Primary PRO code', 'proCodeText'),
+        col('Description', 'description', 'text', 45), col('Primary PRO code', 'proCodeText'),
         col('PRO codes', 'proCodes'), col('Vendor', 'vendorName'), col('Active', 'isActive'), col('Serials required', 'serialNumbersRequired'),
         col('Live programs', 'programsLive', 'number'), col('Last program', 'lastProgramDate', 'date'), col('Stacks', 'stacks', 'number')] }]);
     } catch (e) { this.error = apiMessage(e); } finally { this.exporting = false; }
@@ -85,7 +87,7 @@ export class RebateProductsComponent implements OnChanges {
     this.page = Math.min(Math.max(1, p), this.pages);
     this.loading = true;
     this.desk.products(this.rail, {
-      vendorId: this.filter.vendorId, q: this.filter.q, active: this.filter.active, page: this.page, pageSize: this.pageSize
+      vendorId: this.filter.vendorId, q: this.filter.q, active: this.filter.active, ...rdSortParams(this.sorts['products']), page: this.page, pageSize: this.pageSize
     }).pipe(finalize(() => (this.loading = false)))
       .subscribe({ next: r => { this.rows = r.rows; this.total = r.total; }, error: e => (this.error = apiMessage(e)) });
   }

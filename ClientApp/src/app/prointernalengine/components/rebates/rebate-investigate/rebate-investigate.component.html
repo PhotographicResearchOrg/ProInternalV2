@@ -1,0 +1,215 @@
+<div class="error" style="margin: 0 0 12px" *ngIf="error"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
+
+<section class="card">
+  <div class="card-head"><h2>Investigate</h2><span class="sub">claims against what the member bought from PRO</span><span class="grow"></span>
+    <app-rebate-window [months]="months" (monthsChange)="setWindow($event)"></app-rebate-window></div>
+  <div class="typeahead">
+    <input class="in" placeholder="Claim #, member # or store name, rebate product (description or PRO code), or vendor"
+           [(ngModel)]="q" (ngModelChange)="search($event)" />
+    <div class="options" *ngIf="hits.length || (searching && q)">
+      <div class="opt sub" *ngIf="searching">Searching…</div>
+      <div class="opt" *ngFor="let h of hits" (mousedown)="pick(h)">
+        <span class="chip">{{ h.kind === 'CLAIM' ? 'Claim' : h.kind === 'MEMBER' ? 'Member' : h.kind === 'PRODUCT' ? 'Product' : 'Vendor' }}</span>
+        {{ h.label }}
+      </div>
+    </div>
+  </div>
+  <div class="sub" style="margin-top: 8px" *ngIf="!member && !claimants && !loading">
+    A claim or a member opens their products, bought against claimed. A product or a vendor lists every member who claimed it, the ones that look wrong first.
+  </div>
+  <div class="empty" *ngIf="loading">Loading…</div>
+</section>
+
+<!-- ============ claimants of a product or vendor ============ -->
+<section class="card" *ngIf="claimants && claimantsOf">
+  <div class="card-head"><h2>Who claimed {{ claimantsOf.label }}</h2><span class="sub">{{ claimants.members.length }} members</span><span class="grow"></span>
+    <button type="button" class="btn ghost" (click)="exportClaimants()" [disabled]="!claimants.members.length"><i class="pi pi-file-excel"></i> Excel</button></div>
+  <div class="sub" style="margin: 0 0 8px">Claims and purchases from {{ claimants.about?.windowFrom | date:'MM/dd/yy' }}. Bought includes linked models (successors / predecessors); available adds stock padding. Declined claims are not counted.
+    Sales as of {{ (claimants.about?.salesAsOf | date:'MM/dd/yy h:mm a') || 'never: the nightly sales summary has not run yet' }}.</div>
+  <div class="chips" *ngIf="claimants.codes?.length">
+    <span class="lbl">PRO codes counted</span>
+    <span class="chip" *ngFor="let k of claimants.codes" [class.info]="k.isLinked" [title]="k.productName">
+      {{ k.proCode }}{{ k.isLinked ? ' · linked via ' + k.linkedFrom : '' }}{{ k.productName ? ' · ' + k.productName : '' }}</span>
+  </div>
+  <div class="tablewrap"><table class="grid">
+    <thead><tr><th rdSort="memberId" [rdSortBy]="sorts['who']">Member</th><th class="num" rdSort="claims" [rdSortBy]="sorts['who']">Claims</th><th class="num" rdSort="unitsBought" [rdSortBy]="sorts['who']">Bought</th><th class="num" rdSort="unitsPadded" [rdSortBy]="sorts['who']">Stock padding</th>
+      <th class="num" rdSort="unitsAvailable" [rdSortBy]="sorts['who']">Available</th><th class="num" rdSort="unitsClaimed" [rdSortBy]="sorts['who']">Claimed</th>
+      <th class="num" rdSort="netAvailable" [rdSortBy]="sorts['who']">Net available</th><th class="num" rdSort="claimRatePct" [rdSortBy]="sorts['who']">Claim rate</th>
+      <th class="num" rdSort="amountClaimed" [rdSortBy]="sorts['who']">Claimed $</th><th rdSort="lastClaim" [rdSortBy]="sorts['who']">First / last claim</th><th [rdSort]="sortWhoFlag" [rdSortBy]="sorts['who']">Flags</th></tr></thead>
+    <tbody>
+      <tr *ngFor="let m of claimants.members | rdSort:sorts['who']" class="click" (click)="drill(m)">
+        <td><div class="mono">{{ m.memberId }}</div><div class="sub">{{ m.memberName }}</div></td>
+        <td class="num">{{ m.claims }}</td>
+        <td class="num">{{ m.unitsBought | number:'1.0-0' }}<div class="sub" *ngIf="m.unitsBoughtLinked">{{ m.unitsBoughtLinked | number:'1.0-0' }} via linked</div></td>
+        <td class="num"><span *ngIf="m.unitsPadded" class="padded" [class.neg]="m.unitsPadded < 0" [title]="(m.unitsPadded < 0 ? 'Takes units off. ' : '') + (m.padReasons || '')">{{ m.unitsPadded | number:'1.0-0' }} <i class="pi pi-info-circle"></i></span>
+          <span *ngIf="!m.unitsPadded" class="sub">—</span></td>
+        <td class="num"><b [style.color]="m.unitsAvailable < 0 ? '#b42318' : null">{{ m.unitsAvailable | number:'1.0-0' }}</b></td>
+        <td class="num">{{ m.unitsClaimed }}</td>
+        <td class="num"><b [style.color]="m.netAvailable < 0 ? '#b42318' : '#1f7a4d'">{{ m.netAvailable | number:'1.0-0' }}</b></td>
+        <td class="num">{{ m.claimRatePct != null ? (m.claimRatePct | number:'1.0-1') + '%' : '—' }}</td>
+        <td class="money">{{ m.amountClaimed | currency }}</td>
+        <td class="mono">{{ m.firstClaim | date:'MM/dd/yy' }} – {{ m.lastClaim | date:'MM/dd/yy' }}</td>
+        <td><span class="status bad" *ngIf="m.noPurchaseOnRecord" title="No purchase of these PRO codes from PRO in the member's whole AR history">no PRO purchase on record</span>
+          <span class="status bad" *ngIf="m.claimedMoreThanBought && !m.noPurchaseOnRecord">claimed more than available</span></td>
+      </tr>
+      <tr *ngIf="!claimants.members.length"><td colspan="11" class="empty">Nobody claimed it in this window.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ one member ============ -->
+<ng-container *ngIf="member && memberId">
+  <section class="card">
+    <div class="card-head">
+      <div class="grow"><div class="sub mono">{{ focusLabel ? focusLabel + ' · ' : '' }}member {{ memberId }}</div>
+        <h2>{{ member.about?.memberName || 'Member ' + memberId }}</h2>
+        <div class="sub">Claims and purchases from {{ member.about?.windowFrom | date:'MM/dd/yy' }} ·
+          sales as of {{ (member.about?.salesAsOf | date:'MM/dd/yy h:mm a') || 'never: the nightly sales summary has not run yet' }}</div></div>
+      <div style="width: 340px">
+        <app-rebate-product-picker rail="IR" placeholder="This member and one product: description or PRO code" (picked)="pickProduct($event)"></app-rebate-product-picker>
+      </div>
+      <button type="button" class="btn ghost" *ngIf="modelIds.length" (click)="onlyProduct(null)">All their products</button>
+      <button type="button" class="btn ghost" (click)="openStockPad.emit(memberId!)" title="Add or remove stock padding for this member">Stock padding</button>
+      <button type="button" class="btn ghost" (click)="exportMember()"><i class="pi pi-file-excel"></i> Excel</button>
+    </div>
+
+    <div class="stats" style="grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0 0 12px">
+      <div class="stat"><b>{{ v.totals.unitsBought + v.totals.unitsPadded | number:'1.0-0' }}</b>
+        <span>units available: {{ v.totals.unitsBought | number:'1.0-0' }} bought from PRO{{ v.totals.unitsBoughtLinked ? ' (' + (v.totals.unitsBoughtLinked | number:'1.0-0') + ' via linked models)' : '' }}{{ v.totals.unitsPadded ? ' + ' + (v.totals.unitsPadded | number:'1.0-0') + ' stock padding' : '' }}</span></div>
+      <div class="stat"><b [class.warn]="v.totals.unitsClaimed > v.totals.unitsBought + v.totals.unitsPadded">{{ v.totals.unitsClaimed | number:'1.0-0' }}</b>
+        <span>units claimed{{ v.totals.unitsDeclined ? ' · ' + (v.totals.unitsDeclined | number:'1.0-0') + ' more declined' : '' }}</span></div>
+      <div class="stat"><b [class.warn]="(v.claimRate ?? 0) > 100">{{ v.claimRate != null ? v.claimRate + '%' : '—' }}</b><span>claimed ÷ available</span></div>
+      <div class="stat"><b class="ok">{{ v.totals.approvedAmount | currency:'USD':'symbol':'1.0-0' }}</b><span>approved</span></div>
+      <div class="stat"><b>{{ v.totals.declinedAmount | currency:'USD':'symbol':'1.0-0' }}</b>
+        <span>declined · {{ v.totals.supportAmount | currency:'USD':'symbol':'1.0-0' }} needs support · {{ v.totals.pendingAmount | currency:'USD':'symbol':'1.0-0' }} not decided</span></div>
+    </div>
+
+    <div class="notice warn-notice" *ngIf="v.flagged" style="margin: 0 0 12px; cursor: pointer" (click)="productChip = 'FLAGGED'; recompute()"
+         title="Show only the flagged products">
+      <i class="pi pi-flag"></i>
+      <span><b>{{ v.flagged }} of {{ member.products.length }} products flagged</b> ·
+        {{ v.flagCounts['NONE'] }} with no PRO purchase on record · {{ v.flagCounts['MORE'] }} claimed more than available · {{ v.flagCounts['NOBUY'] }} with claims before any purchase · {{ v.flagCounts['SERIAL'] }} with a repeated serial</span>
+    </div>
+
+    <div style="height: 260px; margin-bottom: 6px" *ngIf="chartData">
+      <p-chart type="bar" [data]="chartData" [options]="chartOptions" height="260px"></p-chart>
+    </div>
+    <div class="empty" *ngIf="!chartData">No purchases or claims in this window.</div>
+    <div style="margin: 0 0 12px" *ngIf="member.purchases.length">
+      <button type="button" class="btn ghost" (click)="showPurchases = !showPurchases">
+        <i class="pi" [ngClass]="showPurchases ? 'pi-chevron-down' : 'pi-chevron-right'"></i> Bought by month ({{ member.purchases.length }} months)</button>
+      <div class="tablewrap"><table class="grid" *ngIf="showPurchases" style="margin-top: 6px; max-width: 420px">
+        <thead><tr><th rdSort="monthStart" [rdSortBy]="sorts['buys']">Month</th><th class="num" rdSort="units" [rdSortBy]="sorts['buys']">Units</th><th class="num" rdSort="amount" [rdSortBy]="sorts['buys']">Amount</th></tr></thead>
+        <tbody><tr *ngFor="let p of member.purchases | rdSort:sorts['buys']"><td class="mono">{{ p.monthStart | date:'MMM yyyy':'UTC' }}</td>
+          <td class="num">{{ p.units | number:'1.0-0' }}</td><td class="money">{{ p.amount | currency }}</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <div class="chips">
+      <span class="lbl">Products</span>
+      <button type="button" *ngFor="let c of productChips" [class.on]="productChip === c.key" (click)="productChip = c.key; productTake = 25; recompute()">{{ c.label }}<b>{{ v.flagCounts[c.key] }}</b></button>
+    </div>
+    <div class="tablewrap"><table class="grid">
+      <thead><tr><th rdSort="description" [rdSortBy]="sorts['products']">Product</th><th class="num" rdSort="unitsBought" [rdSortBy]="sorts['products']">Bought</th><th class="num" rdSort="unitsPadded" [rdSortBy]="sorts['products']">Stock padding</th><th class="num" rdSort="_avail" [rdSortBy]="sorts['products']">Available</th><th class="num" rdSort="unitsClaimed" [rdSortBy]="sorts['products']">Claimed</th><th class="num" [rdSort]="sortNet" [rdSortBy]="sorts['products']">Net available</th><th style="width: 160px" rdSort="_bC" [rdSortBy]="sorts['products']">Claimed against available</th>
+        <th class="num" rdSort="approvedAmount" [rdSortBy]="sorts['products']">Approved</th><th class="num" rdSort="declinedAmount" [rdSortBy]="sorts['products']">Declined</th><th [rdSort]="sortProductFlag" [rdSortBy]="sorts['products']">Flags</th><th></th></tr></thead>
+      <tbody>
+        <ng-container *ngFor="let p of v.products | rdSort:sorts['products'] | slice:0:productTake; trackBy: trackModel">
+        <tr>
+          <td><div>{{ p.description }}</div><div class="sub mono">PRO {{ p.proCodeText }} · {{ p.vendorName }}</div></td>
+          <td class="num">{{ p.unitsBought | number:'1.0-0' }}<div class="sub" *ngIf="p.unitsBoughtLinked">{{ p.unitsBoughtLinked | number:'1.0-0' }} via linked</div></td>
+          <td class="num"><span *ngIf="p.unitsPadded" class="padded" [class.neg]="p.unitsPadded < 0" [title]="(p.unitsPadded < 0 ? 'Takes units off. ' : '') + p.padReasons">{{ p.unitsPadded | number:'1.0-0' }} <i class="pi pi-info-circle"></i></span>
+            <span *ngIf="!p.unitsPadded" class="sub">—</span></td>
+          <td class="num"><b [style.color]="p._avail < 0 ? '#b42318' : null">{{ p._avail | number:'1.0-0' }}</b></td>
+          <td class="num">{{ p.unitsClaimed }}</td>
+          <td class="num"><b [style.color]="-p._over < 0 ? '#b42318' : '#1f7a4d'">{{ -p._over }}</b></td>
+          <td>
+            <div class="vs" [title]="'Available ' + p._avail + ' (bought ' + (+p.unitsBought || 0) + ', padded ' + (+p.unitsPadded || 0) + '), claimed ' + p.unitsClaimed">
+              <div class="vs-bought" [style.width.%]="p._bA"></div>
+              <div class="vs-claimed" [class.over]="p._over > 0" [style.width.%]="p._bC"></div>
+            </div>
+          </td>
+          <td class="money">{{ p.approvedAmount | currency:'USD':'symbol':'1.0-0' }}</td>
+          <td class="money">{{ p.declinedAmount | currency:'USD':'symbol':'1.0-0' }}</td>
+          <td class="flags">
+            <span class="status bad" *ngIf="p.noPurchaseOnRecord" title="No purchase of this product's PRO codes from PRO in the member's whole AR history">no PRO purchase on record</span>
+            <span class="status warn" *ngIf="p.claimsWithNoPurchaseBefore && !p.noPurchaseOnRecord" title="Claim lines with no purchase of this product in or before the claim month">no purchase before · {{ p.claimsWithNoPurchaseBefore }}</span>
+            <span class="status bad" *ngIf="p.repeatedSerials" title="Serial numbers also on another claim">serial · {{ p.repeatedSerials }}</span>
+          </td>
+          <td style="white-space: nowrap"><button type="button" class="icon-btn" *ngIf="modelIds.length !== 1 || modelIds[0] !== p.modelId" (click)="onlyProduct(p.modelId)" title="Show only this product"><i class="pi pi-filter"></i></button></td>
+        </tr>
+        </ng-container>
+        <tr *ngIf="!v.products.length"><td colspan="11" class="empty">No products here.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="pager" *ngIf="v.products.length > productTake">
+      <button type="button" class="btn ghost" (click)="productTake = productTake + 25">Show more ({{ v.products.length - productTake }})</button>
+    </div>
+  </section>
+
+  <!-- ============ linked models ============ -->
+  <section class="card" *ngIf="v.hasLinked">
+    <div class="card-head"><h2>Linked models</h2><span class="sub">discontinued products and their successors (Product.ReplacementCode); their purchases count as bought</span></div>
+    <div class="tablewrap"><table class="grid">
+      <thead><tr><th rdSort="product" [rdSortBy]="sorts['linked']">Rebate product</th><th rdSort="proCode" [rdSortBy]="sorts['linked']">PRO code</th><th rdSort="productName" [rdSortBy]="sorts['linked']">Product</th><th rdSort="isLinked" [rdSortBy]="sorts['linked']">Link</th><th class="num" rdSort="unitsBought" [rdSortBy]="sorts['linked']">Bought</th><th class="num" rdSort="unitsPadded" [rdSortBy]="sorts['linked']">Stock padding</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let k of v.linked | rdSort:sorts['linked']" [class.off]="k.discontinued">
+          <td class="sub">{{ k.product }}</td>
+          <td class="mono">{{ k.proCode }}</td>
+          <td>{{ k.productName }}<div class="sub mono" *ngIf="k.catNo">{{ k.catNo }}</div></td>
+          <td><span class="chip" *ngIf="!k.isLinked">its own code</span>
+            <span class="chip info" *ngIf="k.isLinked">linked via {{ k.linkedFrom }}</span>
+            <span class="chip" *ngIf="k.discontinued">discontinued</span></td>
+          <td class="num">{{ k.unitsBought | number:'1.0-0' }}</td>
+          <td class="num">{{ k.unitsPadded ? (k.unitsPadded | number:'1.0-0') : '—' }}</td>
+        </tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Claims</h2><span class="sub">{{ v.claims.length }} of {{ member.claims.length }}, newest first{{ modelIds.length === 1 ? ' · ' + productName(modelIds[0]) : '' }}</span></div>
+    <div class="chips">
+      <span class="lbl">Show</span>
+      <button type="button" *ngFor="let c of claimChips" [class.on]="claimChip === c.key" (click)="claimChip = c.key; claimTake = 100; recompute()">{{ c.label }}<b>{{ v.chipCounts[c.key] }}</b></button>
+    </div>
+    <div class="tablewrap"><table class="grid">
+      <thead><tr><th rdSort="orderId" [rdSortBy]="sorts['claims']">Claim</th><th rdSort="claimDate" [rdSortBy]="sorts['claims']">Claimed</th><th rdSort="products" [rdSortBy]="sorts['claims']">Product</th><th class="num" rdSort="units" [rdSortBy]="sorts['claims']">Units</th><th class="num" rdSort="amount" [rdSortBy]="sorts['claims']">Amount</th><th rdSort="_label" [rdSortBy]="sorts['claims']">Status</th>
+        <th rdSort="arPostedAt" [rdSortBy]="sorts['claims']">Posted to GL</th><th rdSort="debitMemo" [rdSortBy]="sorts['claims']">Debit memo</th><th [rdSort]="sortProofCount" [rdSortBy]="sorts['claims']">Proof</th><th [rdSort]="sortClaimFlag" [rdSortBy]="sorts['claims']">Flags</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let c of v.claims | rdSort:sorts['claims'] | slice:0:claimTake; trackBy: trackOrder">
+          <td><a class="mono" href="" (click)="$event.preventDefault(); openClaim.emit(c.orderId)" title="Open on the Claims screen">{{ c.orderId }}</a></td>
+          <td class="mono">{{ c.claimDate | date:'MM/dd/yy' }}</td>
+          <td>{{ c.products }}<span class="sub" *ngIf="c.productCount > 1"> ({{ c.productCount }} products)</span></td>
+          <td class="num">{{ c.units }}</td>
+          <td class="money">{{ c.amount | currency }}</td>
+          <td>
+            <span class="status" [class.ok]="c.status === 1" [class.bad]="c.status === 2" [class.warn]="c.status === 3">{{ c._label }}</span>
+            <div class="sub" *ngIf="c.decidedAt">{{ c.decidedAt | date:'MM/dd/yy' }}{{ c.decidedBy ? ' · ' + c.decidedBy : '' }}</div>
+            <div class="sub" *ngIf="c.reason">{{ c.reason }}
+              <ng-container *ngFor="let n of c._refs"> · <a href="" (click)="$event.preventDefault(); openClaim.emit(n)">open {{ n }}</a></ng-container></div>
+          </td>
+          <td>
+            <ng-container *ngIf="c.arInvoice"><span class="mono">inv {{ c.arInvoice }}</span><div class="sub">{{ c.arPostedAt | date:'MM/dd/yy' }}</div></ng-container>
+            <span class="status warn" *ngIf="!c.arInvoice && c.status === 1 && c.markedPosted">not in AR</span>
+            <span class="sub" *ngIf="!c.arInvoice && c.status === 1 && !c.markedPosted">not posted yet</span>
+          </td>
+          <td><span class="chip" *ngIf="c.debitMemo" title="Billed to the vendor on this debit memo">DM {{ c.debitMemo }}</span>
+            <span class="sub" *ngIf="!c.debitMemo && c.status === 1">none</span></td>
+          <td class="proof">
+            <a *ngFor="let f of c.proof" [href]="f.url" target="_blank" rel="noopener" [title]="f.name"><i class="pi pi-paperclip"></i> {{ f.name | slice:0:18 }}{{ f.name.length > 18 ? '…' : '' }}</a>
+            <span class="sub" *ngIf="!c.proof?.length">none</span>
+          </td>
+          <td>
+            <span class="status bad" *ngIf="c.serialAlsoOn" [title]="'Serial ' + c.serials + ' also on ' + c.serialAlsoOn">serial on another claim</span>
+            <div class="sub" *ngIf="c.serialAlsoOn">{{ c.serialAlsoOn }}</div>
+            <span class="status warn" *ngIf="c.linesWithNoPurchaseBefore > 0">no purchase before</span>
+          </td>
+        </tr>
+        <tr *ngIf="!v.claims.length"><td colspan="10" class="empty">No claims here.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="pager" *ngIf="v.claims.length > claimTake">
+      <button type="button" class="btn ghost" (click)="claimTake = claimTake + 100">Show more ({{ v.claims.length - claimTake }})</button>
+    </div>
+  </section>
+</ng-container>

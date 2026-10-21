@@ -1,135 +1,40 @@
-import { ViewChild, Component, OnInit } from '@angular/core';
-import { DeclinedIR } from 'src/app/models/Dashboard/DeclinedIR';
-import { IrDeclinesTableComponent } from 'src/app/prointernalengine/components/shared/ir-declines-table/ir-declines-table.component';
-import { DataService } from 'src/app/services/data.service';
-import { ChangeDetectorRef } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { LayoutService } from 'src/app/layout/service/app.layout.service';
+import { collapseMainMenu } from '../../../rebates/shared/desk-frame';
 import { NotificationService } from 'src/app/services/notification.service';
-import { AppTopbarComponent } from 'src/app/layout/app.topbar.component';
-import { ShippingerrorbrmComponent } from 'src/app/prointernalengine/components/dashboards/BRM/shippingerrorbrm/shippingerrorbrm.component';
+import { BusyService } from 'src/app/services/busy.service';
 
-
+/* The BRM's page: shipping errors, their HubSpot companies, and the instant-rebate claims that need
+   support (the same panel as the Rebate Desk). Picking companies filters the claims to those accounts.
+   After any action on a claim the notification badge is reloaded, as before. */
 @Component({
   selector: 'app-dashboard-brm',
   templateUrl: './dashboard-brm.component.html',
-  styleUrls: ['./dashboard-brm.component.scss']
+  styleUrls: ['../../../rebates/shared/rebate-desk.shared.scss', './dashboard-brm.component.scss']
 })
-export class DashboardBrmComponent implements OnInit {
-
- // @ViewChild('declinesTable') declinesTable!: IrDeclinesTableComponent;
-  @ViewChild('declinesTable', { static: false }) declinesTable!: IrDeclinesTableComponent;
-  @ViewChild('topbar') topbar!: AppTopbarComponent;
-
-  public declinedIRs: DeclinedIR[] = [];
-  public IRDeclinecols: any[] = [];
-  public hubspotAccountNumbers: string[] = [];
+export class DashboardBrmComponent implements OnInit, OnDestroy {
+  private restoreMenu: () => void = () => {};
   public SelectedAccountNumbers: string[] = [];
-  public declinedIRsOriginal: any[] = [];
-  public statusFilter = 3;
   public isHubspotCardCollapsed = true;
   public isShippingCardCollapsed = false;
   public brmShippingErrorCount = 0;
 
+  constructor(private notificationService: NotificationService, private layout: LayoutService, public net: BusyService) {}
 
-  constructor(private dataService: DataService, private cdr: ChangeDetectorRef, private notificationService: NotificationService) { }
+  ngOnInit(): void { this.restoreMenu = collapseMainMenu(this.layout); }
+  ngOnDestroy(): void { this.restoreMenu(); }
 
-  ngOnInit(): void {
-    this.loadDeclinedIRs();
-
-
-
-    this.IRDeclinecols = [
-      { header: 'Program Week', field: 'stringprogramweek' },
-      { header: 'Order_ID', field: 'orderID' },
-      { header: 'Decline_Date', field: 'processDate' },
-      { header: 'IR_Total', field: 'total' },
-      { header: 'Reject_Reason', field: 'rejectReason' },
-      { header: 'Member', field: 'memberID' },
-      { header: 'Model', field: 'model' },
-      { header: 'Quantity', field: 'quantity' },
-      { header: 'EMail', field: 'eMail' },
-      { header: 'Type', field: 'status' }
-    ];
+  onAccountFilter(accountNumbers: string[]): void {
+    this.SelectedAccountNumbers = (accountNumbers || []).map(a => String(a));
   }
 
-  //onSearch(event: Event) {
-  //  this.declinesTable.filterGlobal(event);
-  //}
-
-  onSearch(event: Event) {
-    if (!this.declinesTable) return; // avoid errors if not yet rendered
-
-    this.declinesTable.filterGlobal(event);
+  show(card: 'shipping' | 'companies' | 'declines'): void {
+    if (card === 'shipping') this.isShippingCardCollapsed = false;
+    if (card === 'companies') this.isHubspotCardCollapsed = false;
+    setTimeout(() => document.getElementById('brm-' + card)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
-
-  toggleStatusFilter() {
-    this.statusFilter = this.statusFilter === 3 ? 2 : 3;
-    this.declinedIRs = this.declinedIRsOriginal.filter(ir =>
-      ir.status === this.statusFilter &&
-      (!this.SelectedAccountNumbers.length || this.SelectedAccountNumbers.includes(ir.memberID?.toString()))
-    );
-  }
-
-
-  loadDeclinedIRs(): void {
-    this.dataService.GetDeclinedInstantRebates().subscribe((data) => {
-      this.declinedIRsOriginal = data;
-      this.hubspotAccountNumbers = []; // clear filters on reload
-      this.onAccountFilter([]);        // re-apply type 3 filter
-    });
-  }
-
-
-    ReloadDeclinedIRs(): void {
-      this.dataService.GetDeclinedInstantRebates().subscribe((data) => {
-      this.declinedIRsOriginal = data;
-      this.onAccountFilter(this.SelectedAccountNumbers); //  re-apply previously selected accounts
-    });
-  }
-
-  onAccountFilter(accountNumbers: string[]) {
-   this.SelectedAccountNumbers = accountNumbers;
-    if (!accountNumbers || accountNumbers.length === 0) {
-      this.declinedIRs = this.declinedIRsOriginal.filter(
-        ir => ir.status === this.statusFilter
-      );
-    }
-    else {
-      this.declinedIRs = this.declinedIRsOriginal.filter(
-        ir =>
-          ir.status === this.statusFilter &&
-          accountNumbers.includes(ir.memberID?.toString())
-      );
-    }
-  }
-
-  refreshNotifications(): void
-  {
+  refreshNotifications(): void {
     this.notificationService.load();
-    this.ReloadDeclinedIRs();     
-    this.topbar?.triggerFlashBadge?.(); // safe call if method exists
-  }
-
-
-
-
-
-
-  getFilterKeys(): string[] {
-    return this.declinesTable?.activeFilters
-      ? Object.keys(this.declinesTable.activeFilters)
-      : [];
-  }
-  getFilterDisplay(key: string): string {
-    const filter = this.declinesTable?.activeFilters?.[key];
-    if (!filter) return '';
-
-    if (Array.isArray(filter)) {
-      return filter.map(f => f.value).join(', ');
-    }
-    return (filter as any).value ?? '';
-  }
-  exportData() {
-    this.declinesTable.exportCSV();
   }
 }

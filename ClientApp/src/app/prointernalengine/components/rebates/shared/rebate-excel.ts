@@ -72,8 +72,7 @@ export async function fetchAllPages(load: (page: number, pageSize: number) => Ob
 /* ---- the column lists, shared by every screen that shows the same rows ---- */
 
 export const IR_PROGRAM_COLS: XCol[] = [
-  col('Program #', 'programId', 'number'), col('Batch', 'batchId', 'number'), col('Product #', 'modelId', 'number'),
-  col('Product', 'description', 'text', 40), col('PRO code', r => r.proCodeText ?? r.proCode), col('Vendor', 'vendorName'),
+  col('Program #', 'programId', 'number'), col('Batch', 'batchId', 'number'), col('Product', 'description', 'text', 40), col('PRO code', r => r.proCodeText ?? r.proCode), col('Vendor', 'vendorName'),
   col('Type', 'irTypeName'), col('Start', 'startDate', 'date'), col('End', 'endDate', 'date'), col('Claims until', 'expireOn', 'date'),
   col('Instant rebate', 'instantRebate', 'money'), col('Member amount', 'reimbursement', 'money'),
   col('Vendor share', r => r.vendorShare ?? r.reimbursement, 'money'), col('PRO pad', r => r.proPad ?? 0, 'money'),
@@ -81,7 +80,7 @@ export const IR_PROGRAM_COLS: XCol[] = [
 ];
 
 export const PP_PROGRAM_COLS: XCol[] = [
-  col('Program #', 'programId', 'number'), col('Product #', 'modelId', 'number'), col('Product', 'description', 'text', 40),
+  col('Program #', 'programId', 'number'), col('Product', 'description', 'text', 40),
   col('PRO code', 'proCodeText'), col('Vendor', 'vendorName'), col('Program date', 'programDate', 'date'),
   col('Credit', 'amount', 'money'), col('New invoice cost', 'newInvoiceCost', 'money'), col('New MAP', 'mapPrice', 'money'),
   col('EZPay', 'ezPay', 'money'), col('State', r => (r.isLive ? 'ON' : 'OFF'))
@@ -103,9 +102,15 @@ export const UPLOAD_ROW_COLS: XCol[] = [
 export const CLAIM_COLS: XCol[] = [
   col('Claim', 'orderId', 'number'), col('Member', 'memberId', 'number'), col('Vendor', 'vendorName'),
   col('Submitted', 'claimDate', 'date'), col('Lines', 'lines', 'number'), col('Units', 'units', 'number'),
-  col('Amount', 'amount', 'money'), col('State', 'bucket'), col('Decided', 'decidedAt', 'datetime'), col('Decided by', 'decidedBy'),
-  col('Debit memo', 'debitMemo'), col('Invoice built', 'invoiced'), col('Memo', 'memo')
+  col('Amount', 'amount', 'money'), col('State', r => CLAIM_STATES[r.bucket] ?? r.bucket), col('Decided', 'decidedAt', 'datetime'), col('Decided by', 'decidedBy'),
+  col('Debit memo', 'debitMemo'), col('Member invoice', 'invoiced'), col('Memo', 'memo')
 ];
+
+/* What each claim state is called on screen and in exports. Credits post to the GL through the accounting system. */
+export const CLAIM_STATES: { [bucket: string]: string } = {
+  SUBMITTED: 'Not decided', SUPPORT: 'Needs support', APPROVED: 'Approved, not posted',
+  SENT: 'Posted to GL', NOT_IN_AR: 'Posted, not in AR', DECLINED: 'Declined'
+};
 
 export function problemsText(p: any): string {
   if (!p) return '';

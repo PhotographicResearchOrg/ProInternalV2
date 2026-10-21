@@ -3,7 +3,6 @@ import { ExtraOptions,RouterModule,Routes } from '@angular/router';
 import { AppLayoutComponent } from './layout/app.layout.component';
 import { QtrRebatesComponent } from "src/app/prointernalengine/components/dashboards/qtr-rebates/qtr-rebates.component";
 import { DashboardAccountingComponent } from "src/app/prointernalengine/components/dashboards/accounting/dashboardaccounting.component";
-import { RebatesupportComponent } from "src/app/prointernalengine/components/instantrebate/rebatesupport/rebatesupport.component";
 import { DashboardLandingComponent } from "src/app/prointernalengine/components/dashboards/landing/dashboardlanding.component";
 import { LoginComponent } from "src/app/prointernalengine/components/auth/login/login.component"; 
 import { FileAppComponent } from './prointernalengine/components/apps/file/file.app.component';
@@ -18,8 +17,6 @@ import { GatingComponent } from './prointernalengine/components/Product/Gating/g
 import { VendorSetupComponent } from 'src/app/prointernalengine/components/Vendor/vendor-setup/vendor-setup.component';
 import { ForecastComponent } from './prointernalengine/components/dashboards/accounting/forecast/forecast.component';
 import { PatronageComponent } from './prointernalengine/components/dashboards/patronage/patronage.component';
-import { RebateSetupComponent } from './prointernalengine/components/instantrebate/rebate-setup/rebate-setup.component';
-import { RebateExcelUploaderComponent } from './prointernalengine/components/instantrebate/rebate-excel-uploader/rebate-excel-uploader.component';
 import { EzPaySummary } from './models/accounting/EzPaySummary';
 import { PaymentsComponent } from './prointernalengine/components/dashboards/accounting/payments/payments.component';
 import { HubspotCompanyComponent } from './prointernalengine/components/MemberManagement/hubspot-company/hubspot-company.component';
@@ -60,7 +57,6 @@ const routes: Routes = [
       { path: 'dashboard-accounting', component: DashboardAccountingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting Dashboard' } },
       { path: 'qtr-rebates', component: QtrRebatesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Quarterly Rebates' } },
       { path: 'powerbi', component: PowerbiComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Reporting' } },
-      { path: 'rebatesupport', component: RebatesupportComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Quarterly Rebates' } },
       {
         path: 'apps/files',
         component: FileAppComponent,
@@ -70,9 +66,6 @@ const routes: Routes = [
       { path: 'BRMsetup', component: HubspotCompanyComponent, canActivate: [AuthGuard] },
       { path: 'BRMdash', component: DashboardBrmComponent, canActivate: [AuthGuard] },
       { path: 'security-admin', component: SecurityAdminComponent, canActivate: [AuthGuard] },
-      { path: 'instantrebate', component: RebatesupportComponent, canActivate: [AuthGuard] },
-      { path: 'rebatesetup', component: RebateSetupComponent, canActivate: [AuthGuard] },
-      { path: 'uploadrebates', component: RebateExcelUploaderComponent, canActivate: [AuthGuard] },
       /* The old Rebate Management page is replaced by the Rebate Desk; old links and bookmarks land there. */
       { path: 'rebatemanagement', redirectTo: 'rebatedesk', pathMatch: 'full' },
       { path: 'gating', component: GatingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Product Gating' } },

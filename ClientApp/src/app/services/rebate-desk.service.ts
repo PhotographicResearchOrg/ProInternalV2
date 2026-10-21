@@ -96,6 +96,8 @@ export class RebateDeskService {
   /* ---- purgatory ---- */
   purgatory(vendorId?: number | null): Observable<any[]> { return this.api.get(`${this.base}/purgatory${this.q({ vendorId })}`); }
   updateRow(rowId: number, body: any): Observable<any> { return this.api.put(`${this.base}/rows/${rowId}`, body); }
+  getRow(rowId: number): Observable<any> { return this.api.get(`${this.base}/rows/${rowId}`); }
+  rowOptions(rowId: number): Observable<any[]> { return this.api.get(`${this.base}/rows/${rowId}/options`); }
   pickModel(rowId: number, modelId: number | null): Observable<any> { return this.api.post(`${this.base}/rows/${rowId}/model`, { modelId }); }
   skipRow(rowId: number, reason: string): Observable<any> { return this.api.post(`${this.base}/rows/${rowId}/skip`, { reason }); }
   restoreRow(rowId: number): Observable<any> { return this.api.post(`${this.base}/rows/${rowId}/restore`, {}); }
@@ -136,17 +138,36 @@ export class RebateDeskService {
   setStacks(id: number, stackModelIds: number[], reason: string): Observable<any> { return this.api.put(`${this.base}/products/${id}/stacks`, { stackModelIds, reason }); }
 
   /* ---- vendors and liability ---- */
-  liability(rail: Rail, vendorId?: number | null, from?: string, to?: string): Observable<{ vendors: any[]; products: any[]; openClaims: any[] }> {
-    return this.api.get(`${this.base}/liability${this.q({ rail, vendorId, from, to })}`);
+  liability(rail: Rail, vendorId?: number | null, from?: string, to?: string, months?: number): Observable<{ vendors: any[]; products: any[]; openClaims: any[] }> {
+    return this.api.get(`${this.base}/liability${this.q({ rail, vendorId, from, to, months })}`);
   }
 
   /* ---- claims (accounting) ---- */
   claims(rail: Rail, f: any): Observable<Paged> { return this.api.get(`${this.base}/claims${this.q({ rail, ...f })}`); }
-  claim(rail: Rail, orderId: number): Observable<{ decisions: any[]; lines: any[]; arCredits: any[]; history: any[] }> {
+  claim(rail: Rail, orderId: number): Observable<{ decisions: any[]; lines: any[]; arCredits: any[]; history: any[]; proof?: { name: string; url: string }[] }> {
     return this.api.get(`${this.base}/claims/${rail}/${orderId}`);
   }
   resendCredit(rail: Rail, orderId: number, reason: string): Observable<any> {
     return this.api.post(`${this.base}/claims/${rail}/${orderId}/resend`, { reason });
+  }
+  /* Needs support (status 3) back into the approval queue. */
+  /* ---- instant-rebate claims needing support / declined (shared with the BRM dashboard) ---- */
+  private get ir(): string { return `${this.base}/ir`; }
+  declines(months: number): Observable<any[]> { return this.api.get(`${this.ir}/declines${this.q({ months })}`); }
+  irClaimLines(orderId: number): Observable<any[]> { return this.api.get(`${this.ir}/${orderId}/lines`); }
+  claimTimeline(orderId: number): Observable<{ steps: any[]; now: any }> { return this.api.get(`${this.ir}/${orderId}/timeline`); }
+  claimNote(orderId: number, note: string): Observable<any> { return this.api.post(`${this.ir}/${orderId}/note`, { reason: note }); }
+  irResubmit(orderId: number, reason: string): Observable<any> { return this.api.post(`${this.ir}/${orderId}/resubmit`, { reason }); }
+  confirmDecline(orderId: number, reason: string): Observable<any> { return this.api.post(`${this.ir}/${orderId}/confirm-decline`, { reason }); }
+  addClaimFiles(orderId: number, form: FormData): Observable<{ files: { name: string; url: string }[] }> {
+    return this.api.postMultipartJson(`${this.ir}/${orderId}/files`, form);
+  }
+  removeClaimFile(orderId: number, fileName: string, reason: string): Observable<any> {
+    return this.api.post(`${this.ir}/${orderId}/files/remove`, { fileName, reason });
+  }
+
+  resubmit(rail: Rail, orderId: number, reason: string): Observable<any> {
+    return this.api.post(`${this.base}/claims/${rail}/${orderId}/resubmit`, { reason });
   }
   recreateInvoice(rail: Rail, orderId: number, reason: string): Observable<{ invoiceNumber: string; fileId: number; sharePath?: string; total: number }> {
     return this.api.post(`${this.base}/claims/${rail}/${orderId}/invoice`, { reason });
@@ -158,8 +179,29 @@ export class RebateDeskService {
   createDebitMemo(form: FormData): Observable<{ debitMemoId: number; claims: number; total: number; emailed: boolean; emailError?: string }> {
     return this.api.postMultipartJson(`${this.base}/debitmemos`, form);
   }
-  debitMemos(rail: Rail, q?: string): Observable<any[]> { return this.api.get(`${this.base}/debitmemos${this.q({ rail, q })}`); }
+  /* Test run: emailed to the test address only; nothing stamped. */
+  testDebitMemo(form: FormData): Observable<any> { return this.api.postMultipartJson(`${this.base}/debitmemos/test`, form); }
+  debitMemos(rail: Rail, q?: string, months?: number): Observable<any[]> { return this.api.get(`${this.base}/debitmemos${this.q({ rail, q, months })}`); }
   debitMemoCsv(id: number): Observable<Blob> { return this.api.getBlob(`${this.base}/debitmemos/${id}/csv`); }
+
+  /* ---- investigate ---- */
+  investigateFind(q: string): Observable<any[]> { return this.api.get(`${this.base}/investigate/find${this.q({ q })}`); }
+  investigateClaimants(f: { modelId?: number | null; vendorId?: number | null; months: number }): Observable<{ members: any[]; about: any; codes?: any[] }> {
+    return this.api.get(`${this.base}/investigate/claimants${this.q(f)}`);
+  }
+  investigateMember(memberId: number, modelIds: number[] | null, months: number):
+    Observable<{ products: any[]; months: any[]; claims: any[]; purchases: any[]; about: any; linked: any[]; pads: any[] }> {
+    return this.api.get(`${this.base}/investigate/member/${memberId}${this.q({ modelIds: modelIds?.length ? modelIds.join(',') : null, months })}`);
+  }
+
+  /* ---- stock padding ---- */
+  stockPads(memberId?: number | null, proCode?: number | null): Observable<any[]> {
+    return this.api.get(`${this.base}/stockpad${this.q({ memberId, proCode })}`);
+  }
+  addStockPad(body: { memberId: number; proCode: number; quantity: number; reason: string }): Observable<any> {
+    return this.api.post(`${this.base}/stockpad`, body);
+  }
+  removeStockPad(padId: number, reason: string): Observable<any> { return this.api.post(`${this.base}/stockpad/${padId}/remove`, { reason }); }
 
   /* ---- history ---- */
   history(f: any): Observable<any[]> { return this.api.get(`${this.base}/history${this.q(f)}`); }

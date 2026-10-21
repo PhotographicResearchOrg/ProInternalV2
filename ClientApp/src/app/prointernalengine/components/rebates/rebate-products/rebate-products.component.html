@@ -8,10 +8,10 @@
       <span class="sub">{{ total }} found</span>
       <span class="grow"></span>
       <button type="button" class="btn ghost" (click)="exportExcel()" [disabled]="exporting"><i class="pi pi-file-excel"></i> {{ exporting ? 'Preparing…' : 'Excel' }}</button>
-      <button type="button" class="btn primary" (click)="startNew()"><i class="pi pi-plus"></i> New product</button>
+      <button type="button" class="edit-only btn primary" (click)="startNew()"><i class="pi pi-plus"></i> New product</button>
     </div>
     <div class="filters">
-      <input class="in" placeholder="Description, PRO code or product #" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
+      <input class="in" placeholder="Description or PRO code" [(ngModel)]="filter.q" (ngModelChange)="searchSoon()" (keyup.enter)="go(1)" />
       <select class="in" style="max-width: 220px" [(ngModel)]="filter.vendorId" (ngModelChange)="go(1)">
         <option [ngValue]="null">All vendors</option>
         <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
@@ -28,11 +28,11 @@
       <button type="button" [class.on]="filter.active === 'false'" (click)="filter.active = 'false'; go(1)">Retired</button>
       <button type="button" [class.on]="filter.active === ''" (click)="filter.active = ''; go(1)">All</button>
     </div>
-    <table class="grid">
-      <thead><tr><th>Product</th><th>Vendor</th><th>PRO codes</th><th class="num">Live</th><th>Last program</th><th class="num">Stacks</th></tr></thead>
+    <div class="tablewrap"><table class="grid">
+      <thead><tr><th rdSort="description" [rdSortBy]="sorts['products']" (rdSortChange)="go(1)">Product</th><th rdSort="vendorName" [rdSortBy]="sorts['products']" (rdSortChange)="go(1)">Vendor</th><th rdSort="proCodes" [rdSortBy]="sorts['products']" (rdSortChange)="go(1)">PRO codes</th><th class="num" rdSort="programsLive" [rdSortBy]="sorts['products']" (rdSortChange)="go(1)">Live</th><th rdSort="lastProgramDate" [rdSortBy]="sorts['products']" (rdSortChange)="go(1)">Last program</th><th class="num" rdSort="stacks" [rdSortBy]="sorts['products']" (rdSortChange)="go(1)">Stacks</th></tr></thead>
       <tbody>
         <tr *ngFor="let p of rows" class="click" (click)="open(p.modelId)" [class.sel]="detail?.product.modelId === p.modelId" [class.off]="!p.isActive">
-          <td><div class="rec">{{ p.description }}</div><div class="sub mono">#{{ p.modelId }}<span class="chip bad" *ngIf="!p.isActive" style="margin-left:6px">retired</span></div></td>
+          <td><div class="rec">{{ p.description }}</div><div class="sub" *ngIf="!p.isActive"><span class="chip bad">retired</span></div></td>
           <td>{{ p.vendorName }}</td>
           <td class="mono">{{ p.proCodes || p.proCodeText }}</td>
           <td class="num">{{ p.programsLive }}</td>
@@ -42,7 +42,7 @@
         <tr *ngIf="!rows.length && !loading"><td colspan="6" class="empty">No products match.</td></tr>
         <tr *ngIf="loading"><td colspan="6" class="empty">Loading…</td></tr>
       </tbody>
-    </table>
+    </table></div>
     <div class="pager" *ngIf="total > pageSize">
       <button type="button" class="btn ghost" (click)="go(page - 1)" [disabled]="page <= 1">Previous</button>
       <span>Page {{ page }} of {{ pages }}</span>
@@ -53,7 +53,7 @@
   <section class="card" *ngIf="form">
     <div class="drawer-head">
       <div class="grow">
-        <div class="sub mono" *ngIf="detail">Product #{{ detail.product.modelId }} · {{ rail === 'PP' ? 'price protection' : 'instant rebate' }}</div>
+        <div class="sub" *ngIf="detail">{{ rail === 'PP' ? 'price protection' : 'instant rebate' }}</div>
         <h2>{{ creating ? 'New product' : detail?.product.description }}</h2>
       </div>
       <span class="chip bad" *ngIf="detail && !detail.product.isActive">retired</span>
@@ -97,8 +97,8 @@
 
     <div class="actions" style="margin-top: 12px">
       <ng-container *ngIf="detail">
-        <button type="button" class="btn danger" *ngIf="detail.product.isActive" (click)="askActive(false)">Retire</button>
-        <button type="button" class="btn" *ngIf="!detail.product.isActive" (click)="askActive(true)">Reactivate</button>
+        <button type="button" class="edit-only btn danger" *ngIf="detail.product.isActive" (click)="askActive(false)">Retire</button>
+        <button type="button" class="edit-only btn" *ngIf="!detail.product.isActive" (click)="askActive(true)">Reactivate</button>
         <button type="button" class="btn ghost" (click)="showPrograms.emit(detail.product.modelId)"><i class="pi pi-list"></i> Programs</button>
       </ng-container>
     </div>
@@ -106,8 +106,8 @@
     <ng-container *ngIf="detail">
       <h3 class="sub" style="margin: 14px 0 6px">Stacks: this product qualifies with</h3>
       <div>
-        <span class="chip info" *ngFor="let s of stackEdit">{{ s.description }} (#{{ s.modelId }})
-          <button type="button" (click)="removeStack(s.modelId)" title="Remove">✕</button></span>
+        <span class="chip info" *ngFor="let s of stackEdit">{{ s.description }}
+          <button class="edit-only" type="button" (click)="removeStack(s.modelId)" title="Remove">✕</button></span>
         <span class="sub" *ngIf="!stackEdit.length">None.</span>
       </div>
       <div style="margin-top: 6px"><app-rebate-product-picker [rail]="rail" placeholder="Add a stack product" (picked)="addStack($event)"></app-rebate-product-picker></div>
@@ -115,15 +115,15 @@
         <ng-container *ngFor="let s of detail.stacks"><span *ngIf="s.direction === 'IN'" class="chip lock">qualifies this: {{ s.description }}</span></ng-container>
       </div>
       <div class="actions" style="margin-top: 8px" *ngIf="stacksDirty">
-        <button type="button" class="btn ghost" (click)="discard()">Discard</button>
-        <button type="button" class="btn primary" (click)="askStacks()">Save stacks</button>
+        <button type="button" class="edit-only btn ghost" (click)="discard()">Discard</button>
+        <button type="button" class="edit-only btn primary" (click)="askStacks()">Save stacks</button>
       </div>
 
       <h3 class="sub" style="margin: 14px 0 6px">Programs</h3>
-      <table class="grid">
-        <thead><tr><th>{{ rail === 'PP' ? 'Date' : 'Dates' }}</th><th class="num">{{ rail === 'PP' ? 'Credit' : 'Reimb.' }}</th><th>{{ rail === 'PP' ? '' : 'Type' }}</th><th>State</th></tr></thead>
+      <div class="tablewrap"><table class="grid">
+        <thead><tr><th rdSort="startDate" [rdSortBy]="sorts['progs']">{{ rail === 'PP' ? 'Date' : 'Dates' }}</th><th class="num" rdSort="reimbursement" [rdSortBy]="sorts['progs']">{{ rail === 'PP' ? 'Credit' : 'Reimb.' }}</th><th rdSort="irTypeName" [rdSortBy]="sorts['progs']">{{ rail === 'PP' ? '' : 'Type' }}</th><th rdSort="isLive" [rdSortBy]="sorts['progs']">State</th></tr></thead>
         <tbody>
-          <tr *ngFor="let p of detail.programs | slice:0:12" [class.off]="!p.isLive">
+          <tr *ngFor="let p of detail.programs | rdSort:sorts['progs'] | slice:0:12" [class.off]="!p.isLive">
             <td class="mono">{{ p.startDate | date:'MM/dd/yy' }}<ng-container *ngIf="p.endDate"> – {{ p.endDate | date:'MM/dd/yy' }}</ng-container></td>
             <td class="money">{{ p.reimbursement | currency }}</td>
             <td>{{ p.irTypeName }}</td>
@@ -131,13 +131,13 @@
           </tr>
           <tr *ngIf="!detail.programs.length"><td colspan="4" class="empty">No programs yet.</td></tr>
         </tbody>
-      </table>
+      </table></div>
     </ng-container>
 
     <div class="savebar" *ngIf="dirty || creating">
       <span class="grow">{{ creating ? 'New product' : 'Unsaved changes' }}</span>
-      <button type="button" class="btn ghost" style="color:#fff" (click)="discard()">Discard</button>
-      <button type="button" class="btn primary" (click)="save()" [disabled]="busy || !form.vendorId || !form.description || !form.proCodes">
+      <button type="button" class="edit-only btn ghost" style="color:#fff" (click)="discard()">Discard</button>
+      <button type="button" class="edit-only btn primary" (click)="save()" [disabled]="busy || !form.vendorId || !form.description || !form.proCodes">
         {{ busy ? 'Saving…' : 'Save' }}</button>
     </div>
     <div class="error" style="margin: 10px 0 0" *ngIf="error && !pending && form"><i class="pi pi-exclamation-circle"></i> {{ error }}</div>
