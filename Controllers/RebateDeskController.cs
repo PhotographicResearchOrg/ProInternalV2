@@ -386,6 +386,7 @@ namespace ProInternal.Controllers
         /* ================= products (both rails) ================= */
 
         [HttpGet("products")]
+        [RequireDrawer("Products", "PP.Products", "Programs", "PP.Programs", "Batches", "Purgatory", "Uploads", "Vendors", "PP.Vendors", "Claims", "PP.Claims", "Investigate", "StockPad")]
         public Task<IActionResult> Products([FromQuery] string? rail, [FromQuery] int? vendorId, [FromQuery] string? q,
                                             [FromQuery] bool? active, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? sort = null, [FromQuery] bool desc = false) =>
             Read(async () => Paged(await _data.QueryAsync("piv2.Rebate_Products", new

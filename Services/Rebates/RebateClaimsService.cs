@@ -89,7 +89,10 @@ namespace ProInternal.Services.Rebates
         public async Task<object> AddClaimFilesAsync(int orderId, IFormFileCollection files, string actor, CancellationToken ct)
         {
             if (files == null || files.Count == 0) throw new RebateFileException("Choose at least one file.");
-            var saved = new List<object>();
+
+            /* Check every file first, so a bad one doesn't leave the others half added. */
+            var ready = new List<(IFormFile File, string Name)>();
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var f in files)
             {
                 if (f.Length == 0) continue;
@@ -98,7 +101,13 @@ namespace ProInternal.Services.Rebates
                 if (!ProofTypes.Contains(Path.GetExtension(name)))
                     throw new RebateFileException($"{name}: that kind of file cannot be added as proof.");
                 foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+                if (names.Add(name)) ready.Add((f, name));
+            }
+            if (ready.Count == 0) throw new RebateFileException("Those files are empty.");
 
+            var saved = new List<object>();
+            foreach (var (f, name) in ready)
+            {
                 var path = Path.Combine(ProofShare, $"{orderId}_{name}");
                 await using (var stream = new FileStream(path, FileMode.Create, FileAccess.Write))
                     await f.CopyToAsync(stream, ct);
