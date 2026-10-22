@@ -165,12 +165,6 @@ export class AppMenuComponent implements OnInit {
             label: 'Vendor Management',
             icon: 'pi pi-briefcase',
             items: [
-              can('/cutover') && {
-                label: 'Cutover Map',
-                icon: 'pi pi-map',
-                routerLink: ['/cutover']
-              },
-
               can('/brandvendors') && {
                 label: 'Brands & Vendors',
                 icon: 'pi pi-tags',
@@ -213,13 +207,14 @@ export class AppMenuComponent implements OnInit {
           ]
         },
 
-        {
-          label: 'Integration', icon: 'pi pi-sync',
-          items: [
-            can('/integration') && { label: 'Integration Desk', icon: 'pi pi-sync', routerLink: ['/integration'] }
-          ]
-        },
-
+      ]
+    });
+    /* Admin functions: cutover map and integration */
+    (can('/cutover') || can('/integration')) && rawModel.push({
+      label: 'Admin', icon: 'pi pi-fw pi-cog',
+      items: [
+        can('/cutover') && { label: 'Cutover Map', icon: 'pi pi-map', routerLink: ['/cutover'] },
+        can('/integration') && { label: 'Integration Desk', icon: 'pi pi-sync', routerLink: ['/integration'] }
       ]
     });
     can('ecommerce/new-product') && rawModel.push({ label: 'New Products', icon: 'pi pi-fw pi-plus', routerLink: ['ecommerce/new-product'] });

@@ -220,3 +220,46 @@ export interface ProductClassSaveRequest {
   isActive?: boolean | null;
   ruleRefs?: string | null;
 }
+
+export interface ProductSupplyVendor {
+  productId: number;
+  productCode?: string | null;
+  brandId?: number | null;
+  brandName?: string | null;
+  brandVendorId?: number | null;
+  brandVendorName?: string | null;
+  /** Computyme's actual vendor (IVMST A.VENDOR): who the product is bought from */
+  vendorId?: number | null;
+  vendorName?: string | null;
+  vendorsDiffer: boolean;
+  classNo?: number | null;
+  className?: string | null;
+  /** IVMST field 15: '1' | '2' | '3', blank = not suspended */
+  suspendStatus?: string | null;
+  suspendMeaning?: string | null;
+  isDiscontinued: boolean;
+  inComputyme: boolean;
+}
+
+export interface ProductWarehouseStock {
+  warehouseCode: string;
+  name: string;
+  warehouseType: 'OWN' | '3PL' | 'VENDOR';
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  stockSource: string;
+  onHand?: number | null;
+  shipsDirectMarker: boolean;
+  memberOrdersWaiting?: number | null;
+  onOrder?: number | null;
+  stockDue?: string | null;
+  binPrimary?: string | null;
+  binSecondary?: string | null;
+  hasStockFeed: boolean;
+}
+
+export interface ProductSupply {
+  vendor?: ProductSupplyVendor | null;
+  warehouses: ProductWarehouseStock[];
+}

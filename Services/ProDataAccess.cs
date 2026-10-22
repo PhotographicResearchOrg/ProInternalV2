@@ -3484,6 +3484,18 @@ GetShopifyGovernanceIssues()
             };
         }
 
+        public ProductSupply Product_SupplyInfo(int productId)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.Product_SupplyInfo", new { ProductId = productId },
+                commandType: CommandType.StoredProcedure, commandTimeout: 30);
+            return new ProductSupply
+            {
+                Vendor = multi.ReadFirstOrDefault<ProductSupplyVendor>(),
+                Warehouses = multi.Read<ProductWarehouseStock>().ToList()
+            };
+        }
+
         public List<ProductClassRow> ProductClass_List()
         {
             using var conn = GetConnection();

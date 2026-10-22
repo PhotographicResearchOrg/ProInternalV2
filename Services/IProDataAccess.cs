@@ -405,6 +405,7 @@ GetSellThroughExportData(
         VendorRecord Vendor_ComputymeRecord(int vendorId);
         VendorBilling VendorBilling_Get(int vendorId);
         VendorFulfillment Vendor_Fulfillment(int vendorId);
+        ProductSupply Product_SupplyInfo(int productId);
         List<ProductClassRow> ProductClass_List();
         int ProductClass_Save(ProductClassSaveRequest request, string user);
         #endregion

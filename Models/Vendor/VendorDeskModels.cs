@@ -208,6 +208,54 @@ namespace ProInternal.Models.Vendor
         public List<VendorFulfillmentBrand> Brands { get; set; } = new();
     }
 
+    /* ---------------------------------------------------------- Product supply (piv2.Product_SupplyInfo) */
+
+    public sealed class ProductSupplyVendor
+    {
+        public int ProductId { get; set; }
+        public string ProductCode { get; set; }
+        public int? BrandId { get; set; }
+        public string BrandName { get; set; }
+        public int? BrandVendorId { get; set; }
+        public string BrandVendorName { get; set; }
+        /* Computyme's actual vendor (IVMST A.VENDOR): who the product is bought from */
+        public int? VendorId { get; set; }
+        public string VendorName { get; set; }
+        public bool VendorsDiffer { get; set; }
+        public int? ClassNo { get; set; }
+        public string ClassName { get; set; }
+        /* IVMST field 15: 1 / 2 / 3, blank = not suspended */
+        public string SuspendStatus { get; set; }
+        public string SuspendMeaning { get; set; }
+        public bool IsDiscontinued { get; set; }
+        public bool InComputyme { get; set; }
+    }
+
+    public sealed class ProductWarehouseStock
+    {
+        public string WarehouseCode { get; set; }
+        public string Name { get; set; }
+        public string WarehouseType { get; set; }
+        public string City { get; set; }
+        public string State { get; set; }
+        public string Country { get; set; }
+        public string StockSource { get; set; }
+        public int? OnHand { get; set; }
+        public bool ShipsDirectMarker { get; set; }
+        public int? MemberOrdersWaiting { get; set; }
+        public int? OnOrder { get; set; }
+        public DateTime? StockDue { get; set; }
+        public string BinPrimary { get; set; }
+        public string BinSecondary { get; set; }
+        public bool HasStockFeed { get; set; }
+    }
+
+    public sealed class ProductSupply
+    {
+        public ProductSupplyVendor Vendor { get; set; }
+        public List<ProductWarehouseStock> Warehouses { get; set; } = new();
+    }
+
     /* ---------------------------------------------------------- Product classes (piv2.ProductClass_*) */
 
     public sealed class ProductClassRow

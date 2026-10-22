@@ -20,6 +20,7 @@ namespace ProInternal.Controllers
      *   GET  api/vendordesk/vendors/{vendorId}/record     every APMST field, parsed terms, where the vendor is used (read only)
      *   GET  api/vendordesk/vendors/{vendorId}/billing    Computyme's terms, surcharge and direct-billing programs (read only)
      *   GET  api/vendordesk/vendors/{vendorId}/fulfillment where the vendor's products ship from: PA warehouse, direct, out of stock
+     *   GET  api/vendordesk/products/{productId}/supply  vendor, brand's vendor, class, suspend status, stock by warehouse
      *   GET  api/vendordesk/classes                       product classes
      *   PUT  api/vendordesk/classes                       add or edit a class (ProductClasses.Edit)
      *
@@ -34,6 +35,8 @@ namespace ProInternal.Controllers
         public const string BrandsRoute = "/brandvendors";
         public const string VendorCardRoute = "/vendor-card";
         public const string VendorAccountsRoute = "/accountmanagement";
+        public const string ProductEditRoute = "/productedit";
+        public const string ProductsRoute = "/products";
         public const string CutoverAdmin = "Cutover.Admin";
         public const string BrandsEdit = "Brands.Edit";
         public const string VendorsEdit = "Vendors.Edit";
@@ -130,6 +133,15 @@ namespace ProInternal.Controllers
         public IActionResult Fulfillment(int vendorId)
         {
             return Ok(_db.Vendor_Fulfillment(vendorId));
+        }
+
+        // ------------------------------------------------------------ product supply
+
+        [HttpGet("products/{productId:int}/supply")]
+        [RequirePermission(ProductEditRoute, ProductsRoute, BrandsRoute, VendorCardRoute)]
+        public IActionResult ProductSupply(int productId)
+        {
+            return Ok(_db.Product_SupplyInfo(productId));
         }
 
         // ------------------------------------------------------------ product classes

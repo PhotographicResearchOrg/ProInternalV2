@@ -253,8 +253,9 @@
             <span>{{ product.product.sku }}</span>
             <span *ngIf="product.identifiers.upc">UPC {{ product.identifiers.upc }}</span>
             <span *ngIf="product.identifiers.ean">EAN {{ product.identifiers.ean }}</span>
-            <span class="sans" *ngIf="brand as b">{{ b.name }} · {{ b.vendorName }}</span>
+            <span class="sans" *ngIf="brand as b">{{ b.name }}</span>
           </div>
+          <app-product-supply [productId]="productId"></app-product-supply>
         </div>
         <div class="toggles">
           <div class="togline">
