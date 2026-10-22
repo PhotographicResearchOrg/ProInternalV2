@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 import { HomePin, stablePin } from 'src/app/services/home-pin.service';
 import {
   AccessRule, DOCUMENT_TYPES, MEMBER_TYPES, MemberBrandExclusion, MemberDetail, MemberDocument, MemberGrant, MemberLocation,
-  MemberListItem, MemberMapViolation
+  MemberListItem, MemberMapViolation, MemberShipTos, ShipToCompareRow, ShipToStatus
 } from 'src/app/models/member/member-desk.models';
 
 /** Member Desk: /members (search) and /members/:accountNumber (one member). */
@@ -177,6 +177,7 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
   load(): void {
     if (!this.accountNumber) return;
     this.loading = true;
+    this.loadShipTos();
     this.data.memberGet(this.accountNumber).subscribe({
       next: d => this.setDetail(d),
       error: e => { this.loading = false; this.fail(e); }
@@ -454,6 +455,93 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
   needsMapping(l: MemberLocation): boolean { return l.isActive && !l.isBillTo && this.isShipping(l) && this.shipToCode(l) === null; }
   get unmappedCount(): number { return (this.detail?.locations ?? []).filter(l => this.needsMapping(l)).length; }
 
+  // ------------------------------------------------------------ ship-tos vs Computyme (read only)
+  shipTos: MemberShipTos | null = null;
+  shipTosLoading = false;
+  shipTosError = false;
+  issuesExporting = false;
+
+  private static readonly SHIP_TO_STATUS: Record<ShipToStatus, { text: string; cls: string; hint: string }> = {
+    MATCH:             { text: 'Matches',            cls: 'status-ready',     hint: 'Computyme has the same address.' },
+    DIFFERENT:         { text: 'Different',          cls: 'status-exception', hint: 'Computyme has this code with a different address: orders ship to Computyme\'s.' },
+    NOT_IN_COMPUTYME:  { text: 'Not in Computyme',   cls: 'status-hold',      hint: 'Mapped here, but Computyme has no ship-to with this code.' },
+    ONLY_IN_COMPUTYME: { text: 'Only in Computyme',  cls: 'status-violet',    hint: 'Computyme has this ship-to; nothing here maps to it.' },
+    NO_SQL_DEFAULT:    { text: 'No default here',    cls: 'status-violet',    hint: 'Computyme has a default ship-to; no address here is mapped as 00.' },
+    NOT_MAPPED:        { text: 'Not mapped',         cls: 'status-exception', hint: 'Shipping address with no Computyme ship-to number.' },
+    BAD_CODE:          { text: 'Bad code',           cls: 'status-hold',      hint: 'The mapping\'s code isn\'t a Computyme ship-to number (1-2 digits), e.g. the old screen\'s 99999999.' },
+    DUPLICATE_CODE:    { text: 'Duplicate code',     cls: 'status-hold',      hint: 'Two addresses are mapped to the same code.' },
+    ADDRESS_MISSING:   { text: 'Address missing',    cls: 'status-hold',      hint: 'The mapping points at an address that isn\'t this member\'s.' },
+    ADDRESS_INACTIVE:  { text: 'Address off',        cls: 'status-exception', hint: 'The mapping points at a switched-off address.' },
+    NO_MIRROR:         { text: 'Not checked',        cls: '',                 hint: 'SHIPTO isn\'t mirrored, so ship-tos 01 and up can\'t be checked.' }
+  };
+  shipToStatus(r: ShipToCompareRow) { return MemberDeskComponent.SHIP_TO_STATUS[r.status] ?? { text: r.status, cls: '', hint: '' }; }
+
+  loadShipTos(): void {
+    const acct = this.accountNumber;
+    this.shipTos = null;
+    this.shipTosError = false;
+    if (!acct) return;
+    this.shipTosLoading = true;
+    this.data.memberShipTos(acct).subscribe({
+      next: r => { if (acct === this.accountNumber) { this.shipTos = r; this.shipTosLoading = false; } },
+      error: () => { this.shipTosLoading = false; this.shipTosError = true; }
+    });
+  }
+
+  /** The comparison row for an address on the Locations table. */
+  shipToFor(l: MemberLocation): ShipToCompareRow | undefined {
+    const rows = (this.shipTos?.rows ?? []).filter(r => r.addressId === l.addressId);
+    return rows.find(r => r.status !== 'NOT_MAPPED') ?? rows[0];
+  }
+  /** Computyme ship-tos and broken mappings that have no address row on the table. */
+  get shipToOrphans(): ShipToCompareRow[] {
+    const ids = new Set((this.detail?.locations ?? []).map(l => l.addressId));
+    return (this.shipTos?.rows ?? []).filter(r => r.addressId == null || !ids.has(r.addressId));
+  }
+  get shipToProblemCount(): number {
+    return (this.shipTos?.rows ?? []).filter(r => r.status !== 'MATCH' && r.status !== 'NOT_MAPPED' && r.status !== 'NO_MIRROR').length;
+  }
+  ctyAddress(r: ShipToCompareRow): string {
+    const csz = [r.ctyCity, [r.ctyState, r.ctyZip].filter(x => !!x).join(' ')].filter(x => !!x).join(', ');
+    return [r.ctyStreet, r.ctyStreet2, csz].filter(x => !!x).join(' · ');
+  }
+  sqlAddress(r: ShipToCompareRow): string {
+    const csz = [r.sqlCity, [r.sqlState, r.sqlZip].filter(x => !!x).join(' ')].filter(x => !!x).join(', ');
+    return [r.sqlStreet, r.sqlStreet2, csz].filter(x => !!x).join(' · ');
+  }
+
+  /** Every member: everything that isn't a clean match, as Excel. */
+  exportShipToIssues(): void {
+    this.issuesExporting = true;
+    this.data.memberShipToIssues().subscribe({
+      next: r => {
+        const wb = XLSX.utils.book_new();
+        const label = (s: string) => (MemberDeskComponent.SHIP_TO_STATUS as any)[s]?.text ?? (s === 'WONT_FIT' ? 'Won\'t fit in Computyme' : s);
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+          ['SHIPTO mirror', r.mirror?.mirrorAvailable ? `${r.mirror?.mirrorSource} (${r.mirror?.mirrorShipTos} ship-tos)` : 'Not mirrored: ship-tos 01+ not checked'],
+          [], ['Status', 'Ship-tos', 'Members'],
+          ...r.counts.map(c => [label(c.status), c.shipTos, c.members])
+        ]), 'Summary');
+        XLSX.utils.book_append_sheet(wb, this.sheet(r.rows.map(x => this.shipToSheetRow(x, true))), 'Ship-to issues');
+        XLSX.writeFile(wb, `ShipTo_Check_${this.today()}.xlsx`);
+        this.issuesExporting = false;
+      },
+      error: e => { this.issuesExporting = false; this.fail(e); }
+    });
+  }
+
+  private shipToSheetRow(x: ShipToCompareRow, withMember: boolean): { [k: string]: any } {
+    const row: { [k: string]: any } = {};
+    if (withMember) { row['Account'] = x.accountNumber; row['Member'] = x.memberName; }
+    Object.assign(row, {
+      'Ship-to': x.code ?? '', 'Status': this.shipToStatus(x).text, 'Differs in': x.differences ?? '', "Won't fit in Computyme": x.fitIssues ?? '',
+      'Mapping code as stored': x.codeRaw ?? '', 'SQL address': this.sqlAddress(x), 'SQL country': x.sqlCountry ?? '',
+      'Computyme source': x.computymeSource ?? '', 'Computyme key': x.computymeKey ?? '', 'Computyme name': x.ctyName ?? '',
+      'Computyme address': this.ctyAddress(x), 'UPS zone': x.ctyZone ?? '', 'Address id': x.addressId ?? '', 'Mapping id': x.mapId ?? ''
+    });
+    return row;
+  }
+
   // ------------------------------------------------------------ Excel downloads
   exportList(): void {
     this.exporting = true;
@@ -505,9 +593,16 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
     const d = this.detail;
     if (!d) return;
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, this.sheet(this.filteredLocations.map(l => ({
-      'Ship-to': this.shipToCode(l) ?? '', 'Type': l.addressTypeName, 'Name': l.companyName, 'Address': l.address1, 'Address 2': l.address2,
-      'City': l.city, 'State': l.state, 'Zip': l.zip, 'Country': l.country, 'Bill-to': l.isBillTo ? 'Yes' : '', 'Active': l.isActive ? 'Yes' : 'No' }))), 'Locations');
+    XLSX.utils.book_append_sheet(wb, this.sheet(this.filteredLocations.map(l => {
+      const c = this.shipToFor(l);
+      return {
+        'Ship-to': this.shipToCode(l) ?? '', 'Type': l.addressTypeName, 'Name': l.companyName, 'Address': l.address1, 'Address 2': l.address2,
+        'City': l.city, 'State': l.state, 'Zip': l.zip, 'Country': l.country, 'Bill-to': l.isBillTo ? 'Yes' : '', 'Active': l.isActive ? 'Yes' : 'No',
+        'Computyme': c ? this.shipToStatus(c).text : '', 'Differs in': c?.differences ?? '', "Won't fit in Computyme": c?.fitIssues ?? '',
+        'Computyme address': c ? this.ctyAddress(c) : ''
+      };
+    })), 'Locations');
+    if (this.shipTos) XLSX.utils.book_append_sheet(wb, this.sheet(this.shipTos.rows.map(x => this.shipToSheetRow(x, false))), 'Vs Computyme');
     XLSX.writeFile(wb, `Locations_${d.header.accountNumber}_${this.today()}.xlsx`);
   }
 

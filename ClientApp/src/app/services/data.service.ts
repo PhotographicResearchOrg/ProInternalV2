@@ -56,7 +56,7 @@ import {
   VendorRebatesApi, VendorCustomFieldApi, VendorCustomFieldDefinitionApi, VendorAuditLogEntryApi,
   VendorFileApi, VendorFileCategory, CreateVendorRequest
 } from 'src/app/models/vendor/vendor-card.model';
-import { AccessRule, AccessRuleMember, MemberDetail, MemberListItem } from 'src/app/models/member/member-desk.models';
+import { AccessRule, AccessRuleMember, MemberDetail, MemberListItem, MemberShipTos, ShipToIssues } from 'src/app/models/member/member-desk.models';
 import {
   CategoryFilters, CategoryProductPage, CategoryProductQuery, CategoryTree, PublishItem, PublishRequest,
   PublishResult, PublishSummary, RevertConflict
@@ -1062,6 +1062,13 @@ export class DataService {
 
   memberSearch(term: string): Observable<MemberListItem[]> {
     return this.api.get<MemberListItem[]>(`${this.memberBase}?term=${encodeURIComponent(term ?? '')}`);
+  }
+  /** Ship-tos, SQL vs Computyme (ARMST 00 + SHIPTO mirror 01+). Read only. */
+  memberShipTos(accountNumber: string): Observable<MemberShipTos> {
+    return this.api.get<MemberShipTos>(`${this.memberBase}/${accountNumber}/shiptos`);
+  }
+  memberShipToIssues(): Observable<ShipToIssues> {
+    return this.api.get<ShipToIssues>(`${this.memberBase}/shipto-issues`);
   }
   memberGet(accountNumber: string): Observable<MemberDetail> {
     return this.api.get<MemberDetail>(`${this.memberBase}/${accountNumber}`);

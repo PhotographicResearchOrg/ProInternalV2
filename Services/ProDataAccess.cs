@@ -3105,6 +3105,32 @@ GetShopifyGovernanceIssues()
                        .Select(r => new Dictionary<string, object>((IDictionary<string, object>)r)).ToList();
         }
 
+        /* Ship-tos, SQL vs Computyme (ARMST 00 + SHIPTO mirror 01+). Read only. */
+        public MemberDesk.MemberShipTos MemberShipTo_Compare(string accountNumber)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.MemberShipTo_Compare", new { AccountNumber = accountNumber },
+                                                 commandType: CommandType.StoredProcedure, commandTimeout: 60);
+            return new MemberDesk.MemberShipTos
+            {
+                Mirror = multi.ReadFirstOrDefault<MemberDesk.ShipToMirror>(),
+                Rows   = multi.Read<MemberDesk.ShipToCompareRow>().ToList()
+            };
+        }
+
+        public MemberDesk.ShipToIssues MemberShipTo_Issues()
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.MemberShipTo_Issues",
+                                                 commandType: CommandType.StoredProcedure, commandTimeout: 180);
+            return new MemberDesk.ShipToIssues
+            {
+                Mirror = multi.ReadFirstOrDefault<MemberDesk.ShipToMirror>(),
+                Counts = multi.Read<MemberDesk.ShipToStatusCount>().ToList(),
+                Rows   = multi.Read<MemberDesk.ShipToCompareRow>().ToList()
+            };
+        }
+
         public List<Dictionary<string, object>> AccessRule_ExportMembers()
         {
             using var conn = GetConnection();

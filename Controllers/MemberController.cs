@@ -143,6 +143,14 @@ namespace ProInternal.Controllers
         [HttpGet("export")]
         public ActionResult<List<Dictionary<string, object>>> Export() => _db.Member_Export(_sqlIsMaster);
 
+        // ------------------------------------------------------------ ship-tos vs Computyme (read only)
+
+        [HttpGet("{accountNumber:regex(^\\d{{1,6}}$)}/shiptos")]
+        public ActionResult<MemberShipTos> ShipTos(string accountNumber) => _db.MemberShipTo_Compare(accountNumber);
+
+        [HttpGet("shipto-issues")]
+        public ActionResult<ShipToIssues> ShipToIssues() => _db.MemberShipTo_Issues();
+
         [HttpGet("access-rules/export")]
         public ActionResult<List<Dictionary<string, object>>> ExportRuleMembers() => _db.AccessRule_ExportMembers();
 

@@ -346,6 +346,8 @@ GetSellThroughExportData(
         List<Dictionary<string, object>> Member_Export(bool sqlIsMaster);
         List<Dictionary<string, object>> AccessRule_ExportMembers();
         List<MemberDesk.ProductLookupItem> Product_Lookup(string term);
+        MemberDesk.MemberShipTos MemberShipTo_Compare(string accountNumber);
+        MemberDesk.ShipToIssues MemberShipTo_Issues();
         #endregion
 
         #region Category Desk

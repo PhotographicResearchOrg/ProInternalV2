@@ -307,9 +307,23 @@
           <div class="section-header">
             <div>
               <div class="section-label">Locations</div>
-              <div class="section-subtitle">Ship-to numbers come from our mapping table (AddressShipToMap), not from Computyme: <span class="mono">00</span> is the account's default, <span class="mono">01</span> and up are extra ship-tos. Only shipping addresses are mapped. Read-only until cutover; addresses are edited on the B2B account page.</div>
+              <div class="section-subtitle">Ship-to numbers come from our mapping table (AddressShipToMap): <span class="mono">00</span> is the account's default, <span class="mono">01</span> and up are extra ship-tos. Orders go to Computyme as <span class="mono">account-code</span> and Computyme ships to <em>its own</em> copy of that address (ARMST for 00, SHIPTO for 01+), so the Computyme column checks the two agree. Read-only until cutover; addresses are edited on the B2B account page.</div>
             </div>
-            <button type="button" class="btn btn-secondary" [disabled]="!filteredLocations.length" (click)="exportLocations()"><i class="pi pi-file-excel"></i>Download</button>
+            <div class="toolbar-actions">
+              <button type="button" class="btn btn-secondary" [disabled]="issuesExporting" (click)="exportShipToIssues()"
+                      title="Every member: ship-tos that don't match Computyme, broken mappings, addresses Computyme can't hold">
+                <i class="pi" [class.pi-spin]="issuesExporting" [class.pi-spinner]="issuesExporting" [class.pi-check-square]="!issuesExporting"></i>All members check</button>
+              <button type="button" class="btn btn-secondary" [disabled]="!filteredLocations.length" (click)="exportLocations()"><i class="pi pi-file-excel"></i>Download</button>
+            </div>
+          </div>
+
+          <div class="lock-note" *ngIf="shipTos?.mirror && !shipTos!.mirror!.mirrorAvailable">
+            <i class="pi pi-lock"></i>
+            <span>Computyme's SHIPTO file isn't mirrored yet, so only the default ship-to (00, from ARMST) is checked. Run <span class="mono">sql/member-desk/01-shipto-compare.sql</span> again once it is.</span>
+          </div>
+          <div class="warn-note" *ngIf="shipToProblemCount">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>{{ shipToProblemCount }} ship-to{{ shipToProblemCount === 1 ? '' : 's' }} for this member {{ shipToProblemCount === 1 ? "doesn't" : "don't" }} line up with Computyme. Orders to {{ shipToProblemCount === 1 ? 'it' : 'them' }} ship to the address Computyme has.</span>
           </div>
 
           <div class="desk-toolbar">
@@ -336,7 +350,7 @@
           <div class="panel-table">
             <div class="table-responsive">
               <table class="desk-table compact">
-                <thead><tr><th style="width: 90px">Ship-to</th><th>Location</th><th style="width: 140px">Type</th><th style="width: 200px"></th></tr></thead>
+                <thead><tr><th style="width: 90px">Ship-to</th><th>Location</th><th style="width: 300px"><i class="pi pi-lock owner-lock" title="Computyme's copy (read only)"></i> Computyme</th><th style="width: 140px">Type</th><th style="width: 200px"></th></tr></thead>
                 <tbody>
                   <tr *ngFor="let l of filteredLocations" [class.muted-row]="!l.isActive">
                     <td>
@@ -351,6 +365,18 @@
                         {{ l.city }}, {{ l.state }} {{ l.zip }}<ng-container *ngIf="l.country && l.country !== 'US'"> · {{ l.country }}</ng-container>
                       </div>
                     </td>
+                    <td class="cty-cell">
+                      <ng-container *ngIf="shipToFor(l) as c; else noCompare">
+                        <span class="status-badge" [ngClass]="shipToStatus(c).cls" [title]="shipToStatus(c).hint">{{ shipToStatus(c).text }}</span>
+                        <div class="member-sub" *ngIf="c.ctyStreet || c.ctyCity">{{ ctyAddress(c) }}<ng-container *ngIf="c.ctyZone"> · zone {{ c.ctyZone }}</ng-container></div>
+                        <div class="cty-diff" *ngIf="c.differences">Differs: {{ c.differences }}</div>
+                        <div class="cty-fit" *ngIf="c.fitIssues" title="What Computyme's ship-to record can't hold"><i class="pi pi-info-circle"></i> {{ c.fitIssues }}</div>
+                      </ng-container>
+                      <ng-template #noCompare>
+                        <i class="pi pi-spin pi-spinner faint" *ngIf="shipTosLoading"></i>
+                        <span class="faint" *ngIf="!shipTosLoading">{{ shipTosError ? 'Couldn\'t check' : '—' }}</span>
+                      </ng-template>
+                    </td>
                     <td>{{ l.addressTypeName || 'Other' }}</td>
                     <td class="actions-column">
                       <span class="status-badge status-progress" *ngIf="l.isBillTo">Bill-to</span>
@@ -358,11 +384,37 @@
                       <span class="status-badge" *ngIf="!l.isActive">Inactive</span>
                     </td>
                   </tr>
-                  <tr *ngIf="!filteredLocations.length"><td colspan="4" class="empty-inline">No addresses match.</td></tr>
+                  <tr *ngIf="!filteredLocations.length"><td colspan="5" class="empty-inline">No addresses match.</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
+
+          <ng-container *ngIf="shipToOrphans.length">
+            <div class="section-header" style="margin-top: 22px">
+              <div>
+                <div class="section-label">In Computyme, or mapped, with no address here</div>
+                <div class="section-subtitle">Ship-tos Computyme has that nothing here maps to, and mappings whose address is missing.</div>
+              </div>
+            </div>
+            <div class="panel-table">
+              <div class="table-responsive">
+                <table class="desk-table compact">
+                  <thead><tr><th style="width: 90px">Ship-to</th><th>Computyme has</th><th style="width: 220px">Status</th></tr></thead>
+                  <tbody>
+                    <tr *ngFor="let c of shipToOrphans">
+                      <td><span class="account-number" *ngIf="c.code">{{ c.code }}</span><span class="faint mono" *ngIf="!c.code">{{ c.codeRaw || '—' }}</span></td>
+                      <td>
+                        <div class="member-name">{{ c.ctyName || (c.sqlStreet ? 'Mapping ' + c.mapId : '—') }}</div>
+                        <div class="member-sub">{{ ctyAddress(c) || sqlAddress(c) }}<ng-container *ngIf="c.computymeSource"> · {{ c.computymeSource }}</ng-container></div>
+                      </td>
+                      <td><span class="status-badge" [ngClass]="shipToStatus(c).cls" [title]="shipToStatus(c).hint">{{ shipToStatus(c).text }}</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </ng-container>
         </ng-container>
 
         <!-- ------------------------------------------------ PAYMENT & CREDIT -->

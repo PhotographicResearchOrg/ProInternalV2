@@ -19,7 +19,7 @@ public  class ComputymeOrderAdapter : IComputymeOrderAdapter
         var orderSectionId =GetReference(order, "orderSectionId")?? order.Metadata.OrderNumber ?? order.Metadata.OrderId;
         var submittedBy =GetComputymeExtension(order,"submittedBy");
         var firstLine =string.IsNullOrWhiteSpace(submittedBy)? orderSectionId : $"{orderSectionId}*{submittedBy}";
-        var alternateShipTo =GetComputymeExtension(order,"shipToCode");
+        var alternateShipTo = AlternateShipToCode(order);
         string customerLine;
 
         if (!string.IsNullOrWhiteSpace(alternateShipTo))
@@ -267,6 +267,38 @@ public  class ComputymeOrderAdapter : IComputymeOrderAdapter
             CleanField(
                 address.Email ??
                 order.Customer.Email));
+    }
+
+    /*
+     * Computyme's ship-to code for an extra ship-to (its SHIPTO file, member*code).
+     * The order carries it in references.computymeShipTo (AddressShipToMap.ComputymeShipTo,
+     * set when the order is read back for export); extensions.computyme.shipToCode still wins
+     * if someone sets it on the order. Sent as "account-code", exactly as the old export did.
+     *   blank, 0, 00  -> the account's default ship-to (no suffix)
+     *   1 or 2 digits -> sent as is
+     *   anything else (e.g. the old screen's 99999999 placeholder) -> the order is kicked out,
+     *   because Computyme would not find it and the goods would go to the wrong address.
+     */
+    private static string? AlternateShipToCode(CanonicalOrder order)
+    {
+        var code = GetComputymeExtension(order, "shipToCode") ?? GetReference(order, "computymeShipTo");
+
+        if (string.IsNullOrWhiteSpace(code))
+            return null;
+
+        code = code.Trim();
+
+        if (code.All(c => c == '0'))
+            return null;
+
+        if (code.Length > 2 || !code.All(char.IsDigit))
+        {
+            throw new InvalidOperationException(
+                $"Ship-to code '{code}' for account {order.Customer.CustomerId} is not a Computyme ship-to number " +
+                "(1-2 digits). Fix the ship-to mapping on the Member Desk and resend.");
+        }
+
+        return code;
     }
 
     private static string? GetReference(CanonicalOrder order,string key)

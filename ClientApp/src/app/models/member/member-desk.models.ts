@@ -83,3 +83,19 @@ export const SEGMENT_LABELS: { [k: string]: string } = {
   MEMBER_TYPE: 'Member type', INTERNATIONAL_COUNTRY: 'Billed outside the US',
   NON_NUMERIC_POSTAL: 'Non-numeric postal code', NONE: 'Grant only'
 };
+
+/* ---------- ship-tos: SQL vs Computyme (read only). API: GET api/members/{acct}/shiptos, GET api/members/shipto-issues */
+export type ShipToStatus =
+  'MATCH' | 'DIFFERENT' | 'NOT_IN_COMPUTYME' | 'ONLY_IN_COMPUTYME' | 'NO_SQL_DEFAULT' | 'NOT_MAPPED' |
+  'BAD_CODE' | 'DUPLICATE_CODE' | 'ADDRESS_MISSING' | 'ADDRESS_INACTIVE' | 'NO_MIRROR';
+export interface ShipToMirror { mirrorAvailable: boolean; mirrorSource?: string | null; mirrorShipTos: number; }
+export interface ShipToCompareRow {
+  accountNumber: string; memberName?: string | null; code?: string | null; mapId?: number | null; codeRaw?: string | null;
+  isDefault?: boolean | null; addressId?: number | null; addressActive?: boolean | null; addressTypeName?: string | null;
+  sqlStreet?: string | null; sqlStreet2?: string | null; sqlCity?: string | null; sqlState?: string | null; sqlZip?: string | null; sqlCountry?: string | null;
+  computymeSource?: string | null; computymeKey?: string | null; ctyName?: string | null; ctyStreet?: string | null; ctyStreet2?: string | null;
+  ctyCity?: string | null; ctyState?: string | null; ctyZip?: string | null; ctyZone?: string | null;
+  status: ShipToStatus; differences?: string | null; fitIssues?: string | null;
+}
+export interface MemberShipTos { mirror?: ShipToMirror | null; rows: ShipToCompareRow[]; }
+export interface ShipToIssues { mirror?: ShipToMirror | null; counts: { status: string; shipTos: number; members: number }[]; rows: ShipToCompareRow[]; }

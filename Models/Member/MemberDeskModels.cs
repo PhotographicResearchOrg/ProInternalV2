@@ -351,4 +351,62 @@ namespace ProInternal.Models.Member
     {
         public string Reason { get; set; }
     }
+    // ---------- ship-tos: SQL vs Computyme (read only; piv2.MemberShipTo_Compare / _Issues) ----------
+    public class ShipToMirror
+    {
+        public bool MirrorAvailable { get; set; }
+        public string MirrorSource { get; set; }
+        public int MirrorShipTos { get; set; }
+    }
+
+    public class ShipToCompareRow
+    {
+        public string AccountNumber { get; set; }
+        public string MemberName { get; set; }
+        public string Code { get; set; }
+        public int? MapId { get; set; }
+        public string CodeRaw { get; set; }
+        public bool? IsDefault { get; set; }
+        public int? AddressId { get; set; }
+        public bool? AddressActive { get; set; }
+        public string AddressTypeName { get; set; }
+        public string SqlStreet { get; set; }
+        public string SqlStreet2 { get; set; }
+        public string SqlCity { get; set; }
+        public string SqlState { get; set; }
+        public string SqlZip { get; set; }
+        public string SqlCountry { get; set; }
+        public string ComputymeSource { get; set; }
+        public string ComputymeKey { get; set; }
+        public string CtyName { get; set; }
+        public string CtyStreet { get; set; }
+        public string CtyStreet2 { get; set; }
+        public string CtyCity { get; set; }
+        public string CtyState { get; set; }
+        public string CtyZip { get; set; }
+        public string CtyZone { get; set; }
+        public string Status { get; set; }
+        public string Differences { get; set; }
+        public string FitIssues { get; set; }
+    }
+
+    public class ShipToStatusCount
+    {
+        public string Status { get; set; }
+        public int ShipTos { get; set; }
+        public int Members { get; set; }
+    }
+
+    public class MemberShipTos
+    {
+        public ShipToMirror Mirror { get; set; }
+        public List<ShipToCompareRow> Rows { get; set; } = new();
+    }
+
+    public class ShipToIssues
+    {
+        public ShipToMirror Mirror { get; set; }
+        public List<ShipToStatusCount> Counts { get; set; } = new();
+        public List<ShipToCompareRow> Rows { get; set; } = new();
+    }
 }
