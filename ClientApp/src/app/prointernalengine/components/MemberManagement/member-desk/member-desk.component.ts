@@ -6,6 +6,7 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DataService } from 'src/app/services/data.service';
 import * as XLSX from 'xlsx';
+import { HomePin, stablePin } from 'src/app/services/home-pin.service';
 import {
   AccessRule, DOCUMENT_TYPES, MEMBER_TYPES, MemberBrandExclusion, MemberDetail, MemberDocument, MemberGrant, MemberLocation,
   MemberListItem, MemberMapViolation
@@ -149,6 +150,15 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
 
   // ------------------------------------------------------------ list
   onSearch(term: string): void { this.term = term; this.search$.next(term); }
+  /** "Pin to home": the member on screen, else the desk */
+  get homePin(): HomePin {
+    const h = this.detail?.header;
+    if (this.accountNumber && h?.name) {
+      return stablePin({ id: `member:${h.accountNumber}`, label: h.name, sub: `Member Desk · ${h.accountNumber}`, icon: 'pi pi-id-card', route: `/members/${h.accountNumber}` });
+    }
+    return stablePin({ id: 'members', label: 'Member Desk', sub: 'Account Management', icon: 'pi pi-id-card', route: '/members' });
+  }
+
   open(m: MemberListItem): void { this.router.navigate(['/members', m.accountNumber]); }
   back(): void { this.router.navigate(['/members']); }
 

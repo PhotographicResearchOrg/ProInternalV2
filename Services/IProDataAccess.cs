@@ -407,6 +407,9 @@ GetSellThroughExportData(
         VendorFulfillment Vendor_Fulfillment(int vendorId);
         ProductSupply Product_SupplyInfo(int productId);
         string UserSetting_Get(string user, string key);
+        VendorLogins VendorLogin_List(int vendorId);
+        int VendorLogin_Save(int vendorId, VendorLoginSaveRequest r, string user);
+        void VendorLogin_SetActive(int vendorId, int userId, bool isActive, string user);
         List<WarehouseRow> Warehouse_List();
         WarehouseView Warehouse_Get(string code);
         string Warehouse_Save(string json, string user);

@@ -1,0 +1,73 @@
+<div class="card">
+  <div class="card-h">
+    <h2>Contacts and credit-site logins</h2>
+    <span class="row-acts">
+      <app-owner-mark owner="SQL"></app-owner-mark>
+      <span class="hint">The same people old ProInternal's Vendor Contacts screen edits; notifications use their types.</span>
+      <button class="btn" type="button" (click)="export()" [disabled]="!data"><i class="pi pi-file-excel"></i> Export</button>
+      <button *ngIf="data?.canEdit && !draft" class="btn primary" type="button" (click)="add()"><i class="pi pi-plus"></i> Add contact</button>
+    </span>
+  </div>
+
+  <div *ngIf="loading" class="empty">Loading…</div>
+  <div *ngIf="error" class="err">{{ error }}</div>
+
+  <div class="tablewrap" *ngIf="data && !loading">
+    <table class="vd-grid" *ngIf="shown.length; else nobody">
+      <thead><tr><th>Name</th><th>Type</th><th>Email</th><th>Phone</th><th>Login</th><th>Last login</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let c of shown" [class.off]="!c.isActive">
+          <td><b>{{ name(c) }}</b><div class="muted small" *ngIf="!c.isActive">switched off</div></td>
+          <td class="small">{{ c.contactTypeName || c.contactType }}</td>
+          <td class="small">{{ c.email || '—' }}</td>
+          <td class="small">{{ c.phone || '—' }}<div class="muted" *ngIf="c.phoneAlt">{{ c.phoneAlt }}</div><div class="muted" *ngIf="c.fax">fax {{ c.fax }}</div></td>
+          <td class="small"><span class="mono">{{ c.username || '—' }}</span><div class="muted">{{ c.hasPassword ? 'password set' : 'no password' }}</div></td>
+          <td class="small">{{ c.lastLogin ? (c.lastLogin | date:'MMM d, y') : '—' }}</td>
+          <td class="acts">
+            <ng-container *ngIf="data.canEdit">
+              <button type="button" class="linkbtn" (click)="edit(c)">Edit</button>
+              <button type="button" class="linkbtn" [class.danger]="c.isActive" (click)="toggle(c)">{{ c.isActive ? 'Switch off' : 'Switch on' }}</button>
+            </ng-container>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #nobody><div class="empty">No contacts for this vendor yet.</div></ng-template>
+    <button *ngIf="offCount" type="button" class="linkbtn" (click)="showOff = !showOff">{{ showOff ? 'Hide' : 'Show' }} {{ offCount }} switched-off contact{{ offCount === 1 ? '' : 's' }}</button>
+  </div>
+
+  <div class="cform" *ngIf="draft">
+    <div class="form-grid">
+      <div class="field"><label for="vl-first">First name</label><input id="vl-first" maxlength="50" [(ngModel)]="draft.firstName"></div>
+      <div class="field"><label for="vl-last">Last name</label><input id="vl-last" maxlength="50" [(ngModel)]="draft.lastName"></div>
+      <div class="field"><label for="vl-type">Type</label>
+        <select id="vl-type" [(ngModel)]="draft.contactType"><option *ngFor="let t of data?.types" [ngValue]="t.contactType">{{ t.contactDescription }}</option></select></div>
+      <div class="field"><label for="vl-email">Email</label><input id="vl-email" type="email" maxlength="150" [(ngModel)]="draft.email"></div>
+      <div class="field"><label for="vl-phone">Phone</label><input id="vl-phone" maxlength="50" [(ngModel)]="draft.phone"></div>
+      <div class="field"><label for="vl-alt">Alt phone</label><input id="vl-alt" maxlength="50" [(ngModel)]="draft.phoneAlt"></div>
+      <div class="field"><label for="vl-fax">Fax</label><input id="vl-fax" maxlength="50" [(ngModel)]="draft.fax"></div>
+    </div>
+    <div class="sub-h">Credit-site login</div>
+    <div class="form-grid">
+      <div class="field"><label for="vl-user">Login name</label><input id="vl-user" maxlength="50" [(ngModel)]="draft.username" [placeholder]="draft.userId ? '' : 'Defaults to the vendor number'"></div>
+      <div class="field"><label for="vl-pw">{{ draft.userId ? 'New password' : 'Password' }}</label><input id="vl-pw" type="password" maxlength="100" autocomplete="new-password" [(ngModel)]="draft.password" [placeholder]="draft.userId ? 'Leave empty to keep it' : ''"></div>
+      <div class="field" *ngIf="draft.password"><label for="vl-pw2">Type it again</label><input id="vl-pw2" type="password" maxlength="100" autocomplete="new-password" [(ngModel)]="draft.confirm"></div>
+    </div>
+    <label class="chk"><input type="checkbox" [(ngModel)]="draft.isActive"> Active</label>
+    <div class="err" *ngIf="saveError">{{ saveError }}</div>
+    <div class="row">
+      <button type="button" class="btn primary" [disabled]="saving" (click)="save()">{{ saving ? 'Saving…' : 'Save contact' }}</button>
+      <button type="button" class="btn" (click)="draft = null">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="card" *ngIf="data?.addresses?.length">
+  <div class="card-h"><h2>Addresses on file</h2><span class="hint">From old ProInternal (read only here)</span></div>
+  <div class="tablewrap">
+    <table class="vd-grid">
+      <thead><tr><th>Address</th><th>Type</th><th></th></tr></thead>
+      <tbody><tr *ngFor="let a of data?.addresses"><td>{{ addressText(a) }}</td><td class="small mono">{{ a.addressTypeId }}</td><td><span class="callout green" *ngIf="a.isPrimary">Primary</span></td></tr></tbody>
+    </table>
+  </div>
+</div>

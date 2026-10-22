@@ -1,5 +1,6 @@
 
 <div class="grid">
+  <ng-container *ngIf="only !== 'map'">
   <div class="col-12 md:col-6 lg:col-3">
 
     <div class="dashboard-bucket p-3 surface-card border-round shadow-2 h-full">
@@ -357,6 +358,8 @@
 
 
 
+  </ng-container>
+  <ng-container *ngIf="only !== 'rest'">
   <div class="col-12 lg:col-6">
     <div class="card p-4">
       <div class="flex align-items-center justify-content-between mb-3">
@@ -602,6 +605,7 @@
       </div>
     </div>
   </div>
+  </ng-container>
 
 
 
@@ -610,6 +614,7 @@
 
 
 
+  <ng-container *ngIf="only !== 'map'">
   <div class="col-12">
     <div class="card">
       <div class="text-900 text-xl font-semibold mb-3">Connection Messages</div>
@@ -949,6 +954,7 @@
       </div>
     </div>-->
   </div>
+  </ng-container>
 
 
   <p-sidebar [(visible)]="showDsConfig"

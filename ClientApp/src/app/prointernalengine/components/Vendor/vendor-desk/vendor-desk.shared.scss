@@ -51,7 +51,7 @@
 .chipbtn:focus-visible, .btn:focus-visible, .linkbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 
 .btn { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-.btn.primary { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn.primary { background: var(--teal, #0e7c73); border-color: var(--teal, #0e7c73); color: #fff; }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .linkbtn { border: 0; background: none; color: var(--teal); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 0; }
 
@@ -85,3 +85,13 @@ table.vd-grid .num { text-align: right; font-variant-numeric: tabular-nums; }
   .desk { padding: 12px; border-radius: 0; border-left: 0; border-right: 0; }
   .stat { min-width: 0; flex: 1 1 40%; }
 }
+.row-acts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.cform { margin-top: 12px; padding: 12px; background: #f6f7f9; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
+.sub-h { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--sub); }
+.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--sub); }
+.linkbtn.danger { color: var(--red); }
+td.acts { white-space: nowrap; text-align: right; }
+td.acts .linkbtn + .linkbtn { margin-left: 10px; }
+tr.off td { color: var(--faint); }
+.card + .card { margin-top: 12px; }

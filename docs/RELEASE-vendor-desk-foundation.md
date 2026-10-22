@@ -9,13 +9,15 @@ Cutover map, Brands & vendors (brand ↔ vendor links and product classes), new 
 4. `sql/vendor-desk/04-warehouses.sql`: warehouse setup (address, hours, cut-off, receiving and shipping notes, account number), contacts and a change log.
 5. `sql/home/01-home-layout.sql`: each person's home page (tiles they chose, drawers they pinned).
 6. `sql/category-desk/02-category-desk-procedures.sql` again: publish no longer mistakes an existing category with a negative id (e.g. Bags & Cases) for a new one.
+7. `sql/vendor-desk/05-vendor-contacts.sql`: the Vendor Desk Contacts tab (what old ProInternal's Administration/VendorContacts edited). Adds `piv2.VendorLoginLog` and procedures; edits the same `dbo.VendorUsers` rows the legacy screen and notifications read. Passwords can be set but are never returned; contacts are switched off, never deleted.
 
 If you ran an earlier copy of 01, run it again: the direct-billing split moved onto the existing Terms & Financials split, so `piv2.VendorBillingSplit` and `piv2.VendorBilling_Save` from that copy are no longer used (they can stay; nothing reads them).
 
 The only write to an existing table is `piv2.BrandVendor_Set`. It changes `dbo.Brand.VendorID` for one brand, needs a reason and logs the change. The B2B vendor filter reads that column, so a moved brand shows up under its new vendor there. Nothing is written to EDA.
 
 ## Security Admin
-- Routes to add as menu items: `/cutover` and `/warehouses` (under Admin with the Integration Desk), `/brandvendors` (Brands & vendors, under Vendor Management). `/vendor-card` already exists.
+- Routes to add as menu items: `/cutover` and `/warehouses` (under Admin with the Integration Desk), `/brandvendors` (Brands & vendors, under Vendor Management). `/vendor-card` already exists. `/map-violations` (MAP violations and submitted MAP, under Management › Product Management).
+- Vendor SetUp (`/setup`) is removed from the menu and routes; its "create user" is now the Contacts tab on the Vendor Desk.
 - `Warehouses.Edit` lets someone add warehouses and edit their details and contacts.
 - Grant `Brands.Edit` only to the people who should move brands between vendors (it shows on the B2B site).
 - `Cutover.Admin` changes who is master of a section. Only the people deciding cutover should have it.

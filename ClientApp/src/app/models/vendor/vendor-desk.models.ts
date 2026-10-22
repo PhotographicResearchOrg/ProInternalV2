@@ -335,3 +335,32 @@ export interface WarehouseContact {
 export interface WarehouseLogEntry { id: number; what: string; oldJson?: string | null; newJson?: string | null; changedBy?: string | null; changedAt: string; }
 export interface WarehouseView { warehouse: WarehouseDetail; contacts: WarehouseContact[]; log: WarehouseLogEntry[]; canEdit: boolean; }
 export interface WarehouseList { warehouses: WarehouseRow[]; canEdit: boolean; }
+
+/* ---------------------------------------------------------- Contacts and credit-site logins (dbo.VendorUsers) */
+
+export interface VendorLogin {
+  userId: number;
+  vendorId: number;
+  firstName?: string | null;
+  lastName?: string | null;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  phoneAlt?: string | null;
+  fax?: string | null;
+  isActive: boolean;
+  contactType: number;
+  contactTypeName?: string | null;
+  hasPassword: boolean;
+  lastLogin?: string | null;
+  enterDate?: string | null;
+  updateDate?: string | null;
+}
+export interface VendorLoginLogEntry { id: number; userId: number; action: string; newJson?: string | null; changedBy?: string | null; changedAt: string; }
+export interface VendorContactType { contactType: number; contactDescription: string; }
+export interface VendorAddressRow { addressId: number; address1?: string | null; address2?: string | null; city?: string | null; state?: string | null; zip?: string | null; country?: string | null; addressTypeId: number; isPrimary: boolean; }
+export interface VendorLogins { vendorId: number; contacts: VendorLogin[]; log: VendorLoginLogEntry[]; types: VendorContactType[]; addresses: VendorAddressRow[]; canEdit: boolean; }
+export interface VendorLoginSaveRequest {
+  userId?: number | null; firstName: string; lastName: string; email?: string | null; phone?: string | null; phoneAlt?: string | null;
+  fax?: string | null; contactType: number; isActive: boolean; username?: string | null; password?: string | null;
+}

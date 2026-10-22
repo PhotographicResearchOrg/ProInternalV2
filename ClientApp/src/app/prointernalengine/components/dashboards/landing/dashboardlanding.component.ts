@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
 import { MenuItem } from 'primeng/api';
 import { Subscription, debounceTime, forkJoin } from 'rxjs';
 import { Product } from 'src/app/prointernalengine/api/product';
@@ -34,6 +34,8 @@ import { utils as XLSXUtils, writeFile as XLSXWriteFile, WorkBook } from 'xlsx';
   styleUrls: ['./dashboardlanding.component.scss']
 })
 export class DashboardLandingComponent implements OnInit {
+  /** 'map' = only the MAP violation drawers (MAP Violations screen); 'rest' = everything but them (home > full dashboard) */
+  @Input() only: 'map' | 'rest' | null = null;
 
   accounts: Account[] = [];
   products: Products[] = [];
@@ -128,7 +130,7 @@ export class DashboardLandingComponent implements OnInit {
 
         this.loadSubmittedMapViolations(); 
 
-        this.dataService.getComments().subscribe((data) => {
+        if (this.only !== 'map') this.dataService.getComments().subscribe((data) => {
         
           this.comments = data;
        
@@ -138,6 +140,9 @@ export class DashboardLandingComponent implements OnInit {
       this.dataService.getAccounts().subscribe((resp: any) => {
         this.accounts = resp;
       });
+
+      /* the MAP Violations screen needs only the above */
+      if (this.only === 'map') { return; }
 
       
       this.loadMetrics();

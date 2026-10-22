@@ -1,23 +1,4 @@
 <div class="app">
-  <nav class="rail" aria-label="Home">
-    <div class="brandmark"><span class="box"><i class="pi pi-home"></i></span><span>Home</span></div>
-    <button type="button" class="rail-btn" [class.active]="view === 'today' && !customizing" (click)="view = 'today'; customizing = false">
-      <i class="pi pi-th-large"></i><span class="rl">Today</span>
-    </button>
-    <button type="button" class="rail-btn" [class.active]="customizing" (click)="view = 'today'; startCustomize()">
-      <i class="pi pi-sliders-h"></i><span class="rl">Customize</span>
-    </button>
-    <button type="button" class="rail-btn" [class.active]="view === 'classic'" (click)="view = 'classic'; customizing = false">
-      <i class="pi pi-list"></i><span class="rl">Full dashboard</span>
-    </button>
-
-    <div class="rail-h" *ngIf="pins.length">Pinned</div>
-    <button *ngFor="let p of pins; trackBy: trackPin" type="button" class="rail-btn" (click)="openPin(p)" [title]="p.sub || ''">
-      <i [class]="p.icon || 'pi pi-bookmark'"></i><span class="rl">{{ p.label }}</span>
-    </button>
-    <div class="rail-foot">Pin any drawer from a desk with <b>Pin to home</b>; it shows up here and on Today.</div>
-  </nav>
-
   <div class="col">
     <header class="vhead">
       <div class="vhead-top">
@@ -25,6 +6,11 @@
           <div class="eyebrow">PRO Internal</div>
           <div class="vtitle"><h1>{{ greeting }}</h1></div>
           <div class="vmeta">What needs doing today. Each tile opens the screen that clears it.</div>
+        </div>
+        <div class="row">
+          <button type="button" class="btn" *ngIf="view === 'classic'" (click)="view = 'today'"><i class="pi pi-arrow-left"></i> Back to today</button>
+          <button type="button" class="btn" *ngIf="view === 'today'" (click)="view = 'classic'; customizing = false"><i class="pi pi-list"></i> Full dashboard</button>
+          <button type="button" class="btn" *ngIf="view === 'today' && !customizing" (click)="startCustomize()"><i class="pi pi-sliders-h"></i> Customize</button>
         </div>
       </div>
     </header>
@@ -91,7 +77,7 @@
     </main>
 
     <main *ngIf="view === 'classic'">
-      <app-dashboard-classic></app-dashboard-classic>
+      <app-dashboard-classic only="rest"></app-dashboard-classic>
     </main>
   </div>
 </div>

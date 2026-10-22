@@ -33,7 +33,7 @@ const TILES: TileDef[] = [
   { key: 'sar.queue', label: 'SARs in queue', icon: 'pi pi-inbox', route: null, needs: '/dashboard-landing', source: 'sar', hint: 'PRO hold and member credits' },
   { key: 'ir.queue', label: 'Instant rebates in queue', icon: 'pi pi-ticket', route: '/rebatedesk', source: 'ir', hint: 'Against the rebate alert level' },
   { key: 'comments.open', label: 'Connection comments unanswered', icon: 'pi pi-comments', route: null, needs: '/dashboard-landing', source: 'comments', hint: 'Comments on Connection articles' },
-  { key: 'map.violations', label: 'MAP violations submitted', icon: 'pi pi-exclamation-triangle', route: null, needs: '/dashboard-landing', source: 'map', hint: 'Submitted MAP violations' },
+  { key: 'map.violations', label: 'MAP violations submitted', icon: 'pi pi-exclamation-triangle', route: '/map-violations', source: 'map', hint: 'Submitted MAP violations' },
   { key: 'brands.novendor', label: 'Brands with no vendor', icon: 'pi pi-tags', route: '/brandvendors', source: 'brands', hint: 'Brands not linked to a vendor' },
   { key: 'cutover.computyme', label: 'Sections still on Computyme', icon: 'pi pi-map', route: '/cutover', source: 'cutover', hint: 'From the cutover map' }
 ];

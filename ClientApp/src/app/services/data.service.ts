@@ -1,4 +1,4 @@
-import { CutoverMap, BrandVendorList, BrandVendorHistoryRow, VendorRecord, VendorBilling, VendorFulfillment, ProductSupply, WarehouseList, WarehouseView, WarehouseDetail, WarehouseContact, ProductClassList, ProductClassSaveRequest } from 'src/app/models/vendor/vendor-desk.models';
+import { CutoverMap, BrandVendorList, BrandVendorHistoryRow, VendorRecord, VendorBilling, VendorFulfillment, ProductSupply, WarehouseList, WarehouseView, WarehouseDetail, WarehouseContact, VendorLogins, VendorLoginSaveRequest, ProductClassList, ProductClassSaveRequest } from 'src/app/models/vendor/vendor-desk.models';
 import { Injectable } from "@angular/core";
 import { map } from "rxjs/operators";
 import { switchMap } from 'rxjs';
@@ -1261,6 +1261,15 @@ export class DataService {
   }
   productSupply(productId: number): Observable<ProductSupply> {
     return this.api.get<ProductSupply>(`${this.vendorDeskBase}/products/${productId}/supply`);
+  }
+  vendorLogins(vendorId: number): Observable<VendorLogins> {
+    return this.api.get<VendorLogins>(`${this.vendorDeskBase}/vendors/${vendorId}/logins`);
+  }
+  vendorLoginSave(vendorId: number, body: VendorLoginSaveRequest): Observable<{ userId: number }> {
+    return this.api.put<{ userId: number }>(`${this.vendorDeskBase}/vendors/${vendorId}/logins`, body);
+  }
+  vendorLoginActive(vendorId: number, userId: number, isActive: boolean): Observable<{ saved: boolean }> {
+    return this.api.put<{ saved: boolean }>(`${this.vendorDeskBase}/vendors/${vendorId}/logins/${userId}/active`, { isActive });
   }
   warehouses(): Observable<WarehouseList> {
     return this.api.get<WarehouseList>('API/warehouses');

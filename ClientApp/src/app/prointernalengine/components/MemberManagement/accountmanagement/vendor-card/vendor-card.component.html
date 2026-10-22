@@ -6,6 +6,12 @@
       <span class="box"><i class="pi pi-box"></i></span>
       <span>Vendor Desk</span>
     </div>
+    <div class="switcher">
+      <p-autoComplete [(ngModel)]="switchPick" [suggestions]="switchMatches" (completeMethod)="findVendors($event)" field="label"
+                      (onSelect)="switchTo($event)" placeholder="Find a vendor…" [forceSelection]="true" [delay]="150"
+                      inputId="vendor-switch" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }" appendTo="body"></p-autoComplete>
+      <a class="all-link" routerLink="/accountmanagement"><i class="pi pi-list"></i> All vendors</a>
+    </div>
     <button *ngFor="let n of navSections"
             class="rail-btn" [class.active]="activeSection === n.id"
             (click)="setSection(n.id)">
@@ -65,7 +71,7 @@
       </div>
 
       <div class="stripe">
-        <div class="stat"><div class="k">Payable terms</div><div class="v">{{ terms.paymentTerms || '—' }}</div></div>
+        <div class="stat"><div class="k">Payable terms</div><div class="v">{{ terms.paymentTerms || cty?.termsDescription || '—' }}<i *ngIf="!terms.paymentTerms && cty?.termsDescription" class="pi pi-lock stat-lock" title="From Computyme"></i></div></div>
         <div class="stat"><div class="k">PRO discount</div><div class="v" [style.color]="P.teal">{{ terms.proDiscountPct ?? 0 }}%</div></div>
         <div class="stat"><div class="k">Member discount</div><div class="v" [style.color]="P.violet">{{ terms.memberDiscountPct ?? 0 }}%</div></div>
         <div class="stat"><div class="k">Active contracts</div><div class="v">{{ stats.activeContracts }}</div></div>
@@ -112,11 +118,6 @@
       </div>
 
       <!-- ---------- Terms & Financials ---------- -->
-      <!-- Computyme's terms (locked), compared with the PIV2 cards below -->
-      <div *ngIf="activeSection === 'terms'" class="stack" style="margin-bottom:14px">
-        <app-vendor-record [vendorId]="id" mode="terms" [piv2ProDiscountPct]="terms.proDiscountPct"
-                           [piv2MemberDiscountPct]="terms.memberDiscountPct" [piv2PaymentTerms]="terms.paymentTerms"></app-vendor-record>
-      </div>
       <div *ngIf="activeSection === 'terms'" class="grid fit">
         <section class="card">
           <header class="card-head">
@@ -134,6 +135,16 @@
               <div class="splitstat"><div class="k">Member discount</div><div class="v" [style.color]="P.violet">{{ terms.memberDiscountPct ?? 0 }}%</div><div class="s">off list · standard member</div></div>
             </div>
             <div class="note">Spread: <b>{{ (terms.proDiscountPct ?? 0) - (terms.memberDiscountPct ?? 0) }} pts</b> PRO advantage · applied at cart before promotions</div>
+            <div class="cty" *ngIf="cty as c">
+              <div class="cty-h"><i class="pi pi-lock"></i> In Computyme</div>
+              <div class="field"><span class="k">Cash discount (vendor to PRO)</span><span class="v mono">{{ c.cashDiscountPct != null ? c.cashDiscountPct + '%' : (c.cashDiscountStored || '—') }}</span></div>
+              <div class="field"><span class="k">PRO surcharge, direct-billed</span><span class="v mono">{{ c.surchargeStored || '—' }}<span class="tenths" *ngIf="surchargePct(c.surchargeStored) as t"> = {{ t }}</span></span></div>
+              <div class="field"><span class="k">Surcharge on member's bill</span><span class="v">{{ c.addsSurchargeToMemberBill ? 'Yes' : 'No, recorded only' }}</span></div>
+              <div class="field" *ngFor="let p of ctyPrograms"><span class="k">Extended discount · {{ p.name }}</span><span class="v mono">{{ p.specialDeductionStored || '—' }}</span></div>
+              <div class="cty-warn" *ngIf="c.cashDiscountPct != null && terms.proDiscountPct != null && +c.cashDiscountPct !== +terms.proDiscountPct">
+                <i class="pi pi-exclamation-triangle"></i> PRO discount here is {{ terms.proDiscountPct }}%, Computyme has {{ c.cashDiscountPct }}%
+              </div>
+            </div>
           </div>
         </section>
 
@@ -143,6 +154,13 @@
             <div class="act"><button class="iconbtn" (click)="openEditPayableTerms()"><i class="pi pi-pencil"></i> Edit</button></div>
           </header>
           <div class="card-body">
+            <div class="cty" *ngIf="cty as c">
+              <div class="cty-h"><i class="pi pi-lock"></i> In Computyme</div>
+              <div class="field"><span class="k">Payment terms</span><span class="v strong">{{ c.termsDescription || '—' }}</span></div>
+              <div class="field"><span class="k">As typed</span><span class="v mono">{{ c.dueDaysText || '—' }}</span></div>
+              <div class="field"><span class="k">Early-pay (cash) discount</span><span class="v mono">{{ c.cashDiscountPct != null ? c.cashDiscountPct + '%' : (c.cashDiscountStored || '—') }}</span></div>
+              <div class="cty-warn" *ngIf="!terms.paymentTerms && c.dueDaysText"><i class="pi pi-exclamation-triangle"></i> Not set below yet</div>
+            </div>
             <div class="field"><span class="k">Payment terms</span><span class="v mono strong">{{ terms.paymentTerms || '—' }}</span></div>
             <div class="field"><span class="k">Terms basis</span><span class="v mono">{{ terms.termsBasis || '—' }}</span></div>
             <div class="field"><span class="k">Early-pay discount</span><span class="v mono">{{ terms.earlyPayDiscountText || '—' }}</span></div>
@@ -187,7 +205,9 @@
 
       <!-- ---------- Contacts ---------- -->
       <div *ngIf="activeSection === 'contacts'" class="stack">
-        <div style="display:flex;justify-content:flex-end">
+        <app-vendor-logins [vendorId]="id"></app-vendor-logins>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h3 class="sub-title">Other contacts <span class="hint-inline">(PIV2 only: groups such as Sales or Accounts Payable)</span></h3>
           <button class="iconbtn" (click)="openAddContactGroup()"><i class="pi pi-plus"></i> Add group</button>
         </div>
         <div *ngIf="!contacts.length" class="cf-empty">No contact groups yet. Add a group (e.g. Sales, Accounts Payable) to start adding people.</div>

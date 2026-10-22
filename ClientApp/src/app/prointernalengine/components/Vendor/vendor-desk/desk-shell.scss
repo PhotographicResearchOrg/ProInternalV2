@@ -42,7 +42,7 @@ main { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
 .card-h h2 { margin: 0; font-size: 14.5px; font-weight: 700; }
 .hint { font-size: 12px; color: var(--faint); }
 .btn { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-.btn.primary { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn.primary { background: var(--teal, #0e7c73); border-color: var(--teal, #0e7c73); color: #fff; }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .linkbtn { border: 0; background: none; color: var(--teal); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 0; }
 .linkbtn.danger { color: var(--red); }

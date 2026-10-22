@@ -23,6 +23,7 @@ import {
 
 import { VendorDirectBrand, VendorDirectShipService, VendorDirectVendor } from 'src/app/services/vendor-direct-ship.service';
 import { HomePin, stablePin } from 'src/app/services/home-pin.service';
+import { VendorBillingComputyme, VendorBillingProgram } from 'src/app/models/vendor/vendor-desk.models';
 
 interface NavItem { id: string; label: string; icon: string; }
 interface Tile { id: string; icon: string; title: string; lines: string[]; color: number; }
@@ -268,6 +269,7 @@ export class VendorCardComponent implements OnInit, OnChanges {
       error: () => { this.loading = false; this.showToast('Failed to load vendor'); }
     });
 
+    this.loadComputymeTerms();
     this.loadContacts();
     this.loadContracts();
     this.loadPriceLists();
@@ -578,6 +580,52 @@ export class VendorCardComponent implements OnInit, OnChanges {
   
   // --- nav + toggles ---
   setSection(id: string): void { this.activeSection = id; }
+
+  /* ---- Computyme's terms, shown inside the Terms & Financials cards ---- */
+  cty: VendorBillingComputyme | null = null;
+  ctyPrograms: VendorBillingProgram[] = [];
+
+  private loadComputymeTerms(): void {
+    this.cty = null;
+    this.ctyPrograms = [];
+    this.dataService.vendorBilling(this.id).subscribe({
+      next: b => { this.cty = b?.computyme ?? null; this.ctyPrograms = b?.programs ?? []; },
+      error: () => { this.cty = null; }
+    });
+  }
+
+  /** a stored surcharge read as tenths of a percent (35 = 3.5%) */
+  surchargePct(v: string | null | undefined): string | null {
+    const n = parseFloat(v || '');
+    return isNaN(n) || !Number.isInteger(n) || n === 0 ? null : `${n / 10}%`;
+  }
+
+  /* ---- find another vendor without leaving the desk ---- */
+  switchPick: any = null;
+  switchMatches: { id: number; label: string }[] = [];
+  private switchAll: { id: number; label: string }[] | null = null;
+
+  findVendors(e: { query: string }): void {
+    const q = (e?.query || '').trim().toLowerCase();
+    const run = () => this.switchMatches = (this.switchAll || [])
+      .filter(v => !q || v.label.toLowerCase().includes(q)).slice(0, 25);
+    if (this.switchAll) { run(); return; }
+    this.dataService.getVendors().subscribe({
+      next: list => { this.switchAll = (list || []).map(v => ({ id: +v.id, label: `${v.name} (${v.id})` })).sort((a, b) => a.label.localeCompare(b.label)); run(); },
+      error: () => this.switchMatches = []
+    });
+  }
+
+  switchTo(e: any): void {
+    const pick = e?.value ?? e;
+    const id = Number(pick?.id);
+    this.switchPick = null;
+    if (!id || id === this.id) return;
+    this.router.navigate(['/vendor-card'], { queryParams: { vendorId: id, section: this.activeSection }, replaceUrl: false });
+    this.vendorId = id;
+    this.loadVendorCard();
+    this.loadDirectShip();
+  }
 
   /** "Pin to home" for the drawer on screen */
   get homePin(): HomePin | null {

@@ -1381,3 +1381,18 @@ button:disabled {
     color: var(--ink);
   }
 }
+
+/* ---- vendor switcher (rail) ---- */
+.switcher { display: flex; flex-direction: column; gap: 6px; padding: 0 4px 12px; }
+.switcher .all-link { color: var(--railText); font-size: 12px; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; padding: 2px 6px; }
+.switcher .all-link:hover { color: #fff; }
+:host ::ng-deep .switcher .p-autocomplete-input { background: #1b2538; border: 1px solid var(--railLine); color: #eef2f8; font-size: 12.5px; padding: 7px 9px; border-radius: 8px; }
+
+/* ---- Computyme values inside the Terms & Financials cards ---- */
+.cty { margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 10px; background: #f8f9fb; }
+.cty-h { font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; display: flex; gap: 6px; align-items: center; }
+.cty .tenths { color: var(--faint); font-size: 11px; }
+.cty-warn { margin-top: 6px; font-size: 12px; color: var(--amber); display: flex; gap: 6px; align-items: center; }
+.stat-lock { font-size: 10px; color: var(--faint); margin-left: 6px; }
+.sub-title { margin: 6px 0 0; font-size: 14px; font-weight: 700; color: var(--ink); }
+.hint-inline { font-weight: 500; color: var(--faint); font-size: 12px; }

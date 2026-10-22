@@ -3553,6 +3553,39 @@ GetShopifyGovernanceIssues()
                 commandType: CommandType.StoredProcedure, commandTimeout: 15);
         }
 
+        public VendorLogins VendorLogin_List(int vendorId)
+        {
+            using var conn = GetConnection();
+            var result = new VendorLogins { VendorId = vendorId };
+            using (var multi = conn.QueryMultiple("piv2.VendorLogin_List", new { VendorId = vendorId },
+                       commandType: CommandType.StoredProcedure, commandTimeout: 15))
+            {
+                result.Contacts = multi.Read<VendorLogin>().ToList();
+                result.Log = multi.Read<VendorLoginLogEntry>().ToList();
+            }
+            result.Types = conn.Query<VendorContactType>("piv2.VendorContactType_List", commandType: CommandType.StoredProcedure, commandTimeout: 15).ToList();
+            result.Addresses = conn.Query<VendorAddressRow>("piv2.VendorAddress_List", new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15).ToList();
+            return result;
+        }
+
+        public int VendorLogin_Save(int vendorId, VendorLoginSaveRequest r, string user)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<int>("piv2.VendorLogin_Save", new
+            {
+                r.UserId, VendorId = vendorId, r.FirstName, r.LastName, r.Email, r.Phone, r.PhoneAlt, r.Fax, r.ContactType, r.IsActive,
+                r.Username, Password = string.IsNullOrEmpty(r.Password) ? null : r.Password, User = user
+            }, commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
+        public void VendorLogin_SetActive(int vendorId, int userId, bool isActive, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("piv2.VendorLogin_SetActive", new { UserId = userId, VendorId = vendorId, IsActive = isActive, User = user },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
         public List<ProductClassRow> ProductClass_List()
         {
             using var conn = GetConnection();

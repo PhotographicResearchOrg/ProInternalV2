@@ -157,7 +157,7 @@
 
 <!-- ==================================================== dialogs -->
 <p-dialog [visible]="!!moving" (visibleChange)="!$event && (moving = null)" [modal]="true" [style]="{ width: 'min(520px, 96vw)' }"
-          [header]="moving ? (moving.linkStatus === 'NO_VENDOR' ? 'Set vendor for ' : 'Move ') + moving.brandName : ''" appendTo="body">
+          [header]="moving ? (moving.linkStatus === 'NO_VENDOR' ? 'Set vendor for ' : 'Move ') + moving.brandName : ''">
   <div class="dlg" *ngIf="moving">
     <div class="b2bwarn"><span class="b2b"><i class="pi pi-globe"></i> B2B</span> The site's vendor filter uses this link, so the brand moves there too.</div>
     <div class="field">
@@ -179,7 +179,7 @@
 </p-dialog>
 
 <p-dialog [visible]="!!historyFor" (visibleChange)="!$event && (historyFor = null)" [modal]="true" [style]="{ width: 'min(640px, 96vw)' }"
-          [header]="historyFor ? historyFor.brandName + ' · vendor history' : ''" appendTo="body">
+          [header]="historyFor ? historyFor.brandName + ' · vendor history' : ''">
   <div class="tablewrap" *ngIf="historyFor">
     <table class="vd-grid" *ngIf="history.length; else nohist">
       <thead><tr><th>When</th><th>From</th><th>To</th><th>Why</th><th>Who</th></tr></thead>
@@ -198,7 +198,7 @@
 </p-dialog>
 
 <p-dialog [visible]="!!classDraft" (visibleChange)="!$event && (classDraft = null)" [modal]="true" [style]="{ width: 'min(680px, 96vw)' }"
-          [header]="classDraft?.classNo ? 'Class ' + classDraft?.classNo : 'New product class'" appendTo="body">
+          [header]="classDraft?.classNo ? 'Class ' + classDraft?.classNo : 'New product class'">
   <div class="dlg" *ngIf="classDraft">
     <div class="note" *ngIf="classDraftSource === 'COMPUTYME'">
       <app-owner-mark owner="COMPUTYME"></app-owner-mark>

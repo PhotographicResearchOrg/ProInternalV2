@@ -144,6 +144,7 @@ export class AppMenuComponent implements OnInit {
            [
                can('ecommerce/product-overview') && { label: 'Product Configuration', icon: 'pi pi-sliders-h', routerLink: ['ecommerce/product-overview'] },
                can('/categories') && { label: 'Category Desk', icon: 'pi pi-sitemap', routerLink: ['/categories'] },
+               can('/map-violations') && { label: 'MAP Violations', icon: 'pi pi-exclamation-triangle', routerLink: ['/map-violations'] },
                (can('/gating') || can('/exclusions/group')) &&
               {
                 label: 'Exclusions', icon: 'pi pi-ban',
@@ -171,11 +172,6 @@ export class AppMenuComponent implements OnInit {
                 routerLink: ['/brandvendors']
               },
 
-              can('/setup') && {
-                label: 'Vendor SetUp',
-                icon: 'pi pi-cog',
-                routerLink: ['/setup']
-              },
 
               can('/stock') && {
                 label: 'Stock Submissions',

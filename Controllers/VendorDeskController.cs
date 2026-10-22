@@ -20,6 +20,9 @@ namespace ProInternal.Controllers
      *   GET  api/vendordesk/vendors/{vendorId}/record     every APMST field, parsed terms, where the vendor is used (read only)
      *   GET  api/vendordesk/vendors/{vendorId}/billing    Computyme's terms, surcharge and direct-billing programs (read only)
      *   GET  api/vendordesk/vendors/{vendorId}/fulfillment where the vendor's products ship from: PA warehouse, direct, out of stock
+     *   GET  api/vendordesk/vendors/{vendorId}/logins     contacts and credit-site logins (dbo.VendorUsers), types, addresses
+     *   PUT  api/vendordesk/vendors/{vendorId}/logins     add or change one (Vendors.Edit); passwords are never sent back
+     *   PUT  api/vendordesk/vendors/{vendorId}/logins/{userId}/active   switch one on or off (Vendors.Edit)
      *   GET  api/vendordesk/products/{productId}/supply  vendor, brand's vendor, class, suspend status, stock by warehouse
      *   GET  api/vendordesk/classes                       product classes
      *   PUT  api/vendordesk/classes                       add or edit a class (ProductClasses.Edit)
@@ -133,6 +136,40 @@ namespace ProInternal.Controllers
         public IActionResult Fulfillment(int vendorId)
         {
             return Ok(_db.Vendor_Fulfillment(vendorId));
+        }
+
+        // ------------------------------------------------------------ contacts and logins (dbo.VendorUsers)
+
+        [HttpGet("vendors/{vendorId:int}/logins")]
+        [RequirePermission(VendorCardRoute, VendorAccountsRoute, VendorsEdit)]
+        public IActionResult Logins(int vendorId)
+        {
+            var r = _db.VendorLogin_List(vendorId);
+            r.CanEdit = Can(VendorsEdit);
+            return Ok(r);
+        }
+
+        [HttpPut("vendors/{vendorId:int}/logins")]
+        [RequirePermission(VendorsEdit)]
+        public IActionResult SaveLogin(int vendorId, [FromBody] VendorLoginSaveRequest request)
+        {
+            if (request == null) return BadRequest(new { message = "Nothing to save." });
+            return RunWide(() => new { userId = _db.VendorLogin_Save(vendorId, request, Actor) });
+        }
+
+        public sealed class ActiveBody { public bool IsActive { get; set; } }
+
+        [HttpPut("vendors/{vendorId:int}/logins/{userId:int}/active")]
+        [RequirePermission(VendorsEdit)]
+        public IActionResult SetLoginActive(int vendorId, int userId, [FromBody] ActiveBody body)
+        {
+            return RunWide(() => { _db.VendorLogin_SetActive(vendorId, userId, body?.IsActive ?? true, Actor); return new { saved = true }; });
+        }
+
+        private IActionResult RunWide(Func<object> action)
+        {
+            try { return Ok(action()); }
+            catch (SqlException ex) when (ex.Number >= 50520 && ex.Number < 50570) { return BadRequest(new { message = ex.Message }); }
         }
 
         // ------------------------------------------------------------ product supply

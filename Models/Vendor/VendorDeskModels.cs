@@ -256,6 +256,85 @@ namespace ProInternal.Models.Vendor
         public List<ProductWarehouseStock> Warehouses { get; set; } = new();
     }
 
+    /* ---------------------------------------------------------- Contacts and logins (dbo.VendorUsers, piv2.VendorLogin_*) */
+
+    public sealed class VendorLogin
+    {
+        public int UserId { get; set; }
+        public int VendorId { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Username { get; set; }
+        public string Email { get; set; }
+        public string Phone { get; set; }
+        public string PhoneAlt { get; set; }
+        public string Fax { get; set; }
+        public bool IsActive { get; set; }
+        public int ContactType { get; set; }
+        public string ContactTypeName { get; set; }
+        public bool HasPassword { get; set; }
+        public DateTime? LastLogin { get; set; }
+        public DateTime? EnterDate { get; set; }
+        public DateTime? UpdateDate { get; set; }
+    }
+
+    public sealed class VendorLoginLogEntry
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public string Action { get; set; }
+        public string NewJson { get; set; }
+        public string ChangedBy { get; set; }
+        public DateTime ChangedAt { get; set; }
+    }
+
+    public sealed class VendorContactType
+    {
+        public int ContactType { get; set; }
+        public string ContactDescription { get; set; }
+    }
+
+    public sealed class VendorAddressRow
+    {
+        public int AddressId { get; set; }
+        public string Address1 { get; set; }
+        public string Address2 { get; set; }
+        public string City { get; set; }
+        public string State { get; set; }
+        public string Zip { get; set; }
+        public string Country { get; set; }
+        public int AddressTypeId { get; set; }
+        public bool IsPrimary { get; set; }
+        public DateTime? EnterDate { get; set; }
+        public DateTime? UpdateDate { get; set; }
+    }
+
+    public sealed class VendorLogins
+    {
+        public int VendorId { get; set; }
+        public List<VendorLogin> Contacts { get; set; } = new();
+        public List<VendorLoginLogEntry> Log { get; set; } = new();
+        public List<VendorContactType> Types { get; set; } = new();
+        public List<VendorAddressRow> Addresses { get; set; } = new();
+        public bool CanEdit { get; set; }
+    }
+
+    public sealed class VendorLoginSaveRequest
+    {
+        public int? UserId { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Email { get; set; }
+        public string Phone { get; set; }
+        public string PhoneAlt { get; set; }
+        public string Fax { get; set; }
+        public int ContactType { get; set; }
+        public bool IsActive { get; set; } = true;
+        public string Username { get; set; }
+        /* null or empty = keep the current password */
+        public string Password { get; set; }
+    }
+
     /* ---------------------------------------------------------- Product classes (piv2.ProductClass_*) */
 
     public sealed class ProductClassRow

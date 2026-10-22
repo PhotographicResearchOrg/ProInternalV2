@@ -33,6 +33,7 @@ import { CreditsComponent } from './prointernalengine/components/dashboards/acco
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
+import { MapViolationsComponent } from './prointernalengine/components/dashboards/map-violations/map-violations.component';
 import { WarehouseDeskComponent } from './prointernalengine/components/Vendor/vendor-desk/warehouse-desk.component';
 import { HomeDeskComponent } from './prointernalengine/components/dashboards/home-desk/home-desk.component';
 import { CutoverMapComponent } from './prointernalengine/components/Vendor/vendor-desk/cutover-map.component';
@@ -79,7 +80,6 @@ const routes: Routes = [
       { path: 'patronage', component: PatronageComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Patronage' } },
       { path: 'payments', component: PaymentsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Payments' } },
       { path: 'payment-administration', component: PaymentAdministrationComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Payment Administration' } },
-      { path: 'setup', component: VendorSetupComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor SetUp' } },
       { path: 'exclusions/brand', component: BrandExclusionsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Brand Exclusions' } },
       { path: 'exclusions/group', component: ExclusionGroupsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Exclusion Groups' } },
       { path: 'exclusion/group/company', component: ExclusionGroupCompanyComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Company Exclusion Groups' } },
@@ -93,6 +93,7 @@ const routes: Routes = [
       { path: 'members/:accountNumber', component: MemberDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Member' } },
 
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
+      { path: 'map-violations', component: MapViolationsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'MAP violations' } },
       { path: 'warehouses', component: WarehouseDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Warehouses' } },
       { path: 'cutover', component: CutoverMapComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Cutover map' } },
       { path: 'brandvendors', component: BrandVendorDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Brands & vendors' } },
