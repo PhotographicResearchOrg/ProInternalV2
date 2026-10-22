@@ -31,7 +31,7 @@ const LAYOUT_KEY = 'piv2.productSheet.layout';
 const GROUP_ORDER = [
   'Status', 'Identity', 'Codes', 'Prices', 'Market prices', 'Stock & shipping', 'Supply', 'Size & customs',
   'Reorder & returns', 'B2B product page', 'Content (default language)', 'Tech specs', 'Category',
-  'Other fields', 'Legacy', 'Computyme', 'System'
+  'Other fields', 'Legacy', 'More fields', 'System'
 ];
 
 const LOCK_TEXT: Record<string, string> = {
@@ -219,10 +219,10 @@ export class ProductSheetComponent implements OnInit, OnChanges {
       this.money('Prices', 'Shipping surcharge', () => p.pricing, 'shippingSurcharge'),
 
       this.field('directMode', 'Ships from', 'Supply', 'select', () => p.supply.directMode, v => p.supply.directMode = v, null, [
-        { value: 'MARKER', label: 'Follow Computyme (inventory 9999 = ships direct)' }, { value: 'WAREHOUSE', label: 'Always our warehouse' },
+        { value: 'MARKER', label: 'Follow the inventory marker (9999 = ships direct)' }, { value: 'WAREHOUSE', label: 'Always our warehouse' },
         { value: 'DIRECT', label: 'Always direct from the vendor' }]),
-      this.field('ctActVend', 'Computyme vendor (actual)', 'Supply', 'readonly', () => this.page?.computymeActualVendor || '—', undefined, 'COMPUTYME'),
-      this.field('ctProVendor', 'Computyme vendor (group)', 'Supply', 'readonly', () => this.page?.computymeVendorGroup || '—', undefined, 'COMPUTYME'),
+      this.field('ctActVend', 'Actual vendor', 'Supply', 'readonly', () => this.page?.computymeActualVendor || '—', undefined, 'COMPUTYME'),
+      this.field('ctProVendor', 'Vendor group', 'Supply', 'readonly', () => this.page?.computymeVendorGroup || '—', undefined, 'COMPUTYME'),
       this.field('vendorId', 'Supplying vendor id', 'Supply', 'text', () => p.supply.vendorId, v => p.supply.vendorId = v),
       this.field('dropShip', 'Drop-ship eligible', 'Supply', 'bool', () => p.supply.dropShipEligible, v => p.supply.dropShipEligible = v),
       this.field('specialOrder', 'Special order', 'Supply', 'bool', () => p.supply.specialOrder, v => p.supply.specialOrder = v, L),

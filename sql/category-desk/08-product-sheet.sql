@@ -320,11 +320,11 @@ BEGIN
     SELECT c.Source, c.ColumnName, c.DataType, c.MaxLength, c.Prec, c.Scale, c.IsNullable,
            v.Value,
            dsp.DisplayValue,
-           ISNULL(f.Label, CASE WHEN c.ColumnName IN (N'E_GRP') THEN N'EGRP (Computyme)'
-                                WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 THEN c.ColumnName + N' (Computyme)'
+           ISNULL(f.Label, CASE WHEN c.ColumnName IN (N'E_GRP') THEN N'EGRP'
+                                WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 THEN c.ColumnName
                                 ELSE c.ColumnName END)                    AS Label,
            ISNULL(f.GroupName, CASE WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 THEN N'Category'
-                                    WHEN c.Source = 'Computyme' THEN N'Computyme' ELSE N'Other fields' END) AS GroupName,
+                                    WHEN c.Source = 'Computyme' THEN N'More fields' ELSE N'Other fields' END) AS GroupName,
            ISNULL(f.SortOrder, 500 + c.ColumnId)                          AS SortOrder,
            CASE
                WHEN c.Source = 'Computyme'                            THEN 'COMPUTYME'

@@ -277,7 +277,7 @@
               <span class="track red" [class.on]="isDiscontinued"><span class="knob"></span></span>
               <span class="tlabel" [ngStyle]="{color: isDiscontinued ? P.ink : P.faint}">{{ isDiscontinued ? 'Discontinued' : 'Not discontinued' }}</span>
             </button>
-            <span class="cf-type" *ngIf="locked">Computyme</span>
+            <i class="pi pi-lock lockmark" *ngIf="locked" title="Read only until product data moves to SQL"></i>
           </div>
           <div class="togline repl-line" *ngIf="isDiscontinued">
             <i class="pi pi-arrow-right-arrow-left"></i>
@@ -332,7 +332,7 @@
 
       <div class="lockbar" *ngIf="locked && page && ['identity', 'pricing', 'supply'].includes(activeSection)">
         <i class="pi pi-lock"></i>
-        Fields marked <span class="cf-type">Computyme</span> are still fed by Computyme and cannot be changed here yet.
+        Fields with a <i class="pi pi-lock lockmark"></i> are read only until product data moves to SQL.
       </div>
 
       <!-- problems in the section being viewed -->
@@ -474,7 +474,7 @@
             </label>
             <div class="row2">
               <label class="fld">
-                <span class="lab">Status <span class="cf-type" *ngIf="locked">Computyme</span></span>
+                <span class="lab">Status <i class="pi pi-lock lockmark" *ngIf="locked" title="Read only until product data moves to SQL"></i></span>
                 <select [disabled]="locked" [(ngModel)]="product.product.status" (ngModelChange)="touch()">
                   <option *ngFor="let s of statuses" [ngValue]="s.value">{{ s.label }}</option>
                 </select>
@@ -514,7 +514,7 @@
           <div class="card-body form">
             <p class="muted-p">UPC and EAN are separate. A 3PL or an international partner asks for one or the other by name.</p>
             <label class="fld">
-              <span class="lab">UPC <span class="hint">12 digits</span> <span class="cf-type" *ngIf="locked">Computyme</span></span>
+              <span class="lab">UPC <span class="hint">12 digits</span> <i class="pi pi-lock lockmark" *ngIf="locked" title="Read only until product data moves to SQL"></i></span>
               <input type="text" class="mono" maxlength="12" inputmode="numeric" [disabled]="locked" [(ngModel)]="product.identifiers.upc" (ngModelChange)="touch()">
             </label>
             <label class="fld">
@@ -526,7 +526,7 @@
               <input type="text" class="mono" maxlength="14" inputmode="numeric" [(ngModel)]="product.identifiers.caseGtin" (ngModelChange)="touch()">
             </label>
             <label class="fld">
-              <span class="lab">Vendor catalog number <span class="cf-type" *ngIf="locked">Computyme</span></span>
+              <span class="lab">Vendor catalog number <i class="pi pi-lock lockmark" *ngIf="locked" title="Read only until product data moves to SQL"></i></span>
               <input type="text" class="mono" [disabled]="locked" [(ngModel)]="product.identifiers.vendorCatalogNumber" (ngModelChange)="touch()">
             </label>
           </div>
@@ -646,7 +646,7 @@
           <section class="card">
             <header class="card-head">
               <span class="ci" [ngStyle]="{background: P.amberSoft, color: P.amber}"><i class="pi pi-dollar"></i></span>
-              <h3>{{ countryName(homeCountry) }} <span class="cf-type">home market</span> <span class="cf-type" *ngIf="locked">Computyme</span></h3>
+              <h3>{{ countryName(homeCountry) }} <span class="cf-type">home market</span> <i class="pi pi-lock lockmark" *ngIf="locked" title="Read only until product data moves to SQL"></i></h3>
             </header>
             <div class="card-body">
               <ng-container *ngTemplateOutlet="priceTable; context: { prices: product.pricing, locked: locked }"></ng-container>
@@ -690,7 +690,7 @@
                 <ng-container *ngTemplateOutlet="moneyInput; context: { m: product.pricing.distributorCost, locked: false }"></ng-container>
               </div>
               <div class="fld">
-                <span class="lab">Landed cost <span class="hint">in the warehouse, with freight and duty</span> <span class="cf-type" *ngIf="locked">Computyme</span></span>
+                <span class="lab">Landed cost <span class="hint">in the warehouse, with freight and duty</span> <i class="pi pi-lock lockmark" *ngIf="locked" title="Read only until product data moves to SQL"></i></span>
                 <ng-container *ngTemplateOutlet="moneyInput; context: { m: product.pricing.landedCost, locked: locked }"></ng-container>
               </div>
               <div class="note">Margin on member price: <b>{{ margin }}</b></div>
@@ -811,7 +811,7 @@
 
             <label class="check">
               <input type="checkbox" [disabled]="locked" [(ngModel)]="product.supply.specialOrder" (ngModelChange)="touch()">
-              <span><b>Special order</b> <span class="cf-type" *ngIf="locked">Computyme</span><span class="hint">Not stocked; ordered from the vendor when a dealer orders it.</span></span>
+              <span><b>Special order</b> <i class="pi pi-lock lockmark" *ngIf="locked" title="Read only until product data moves to SQL"></i><span class="hint">Not stocked; ordered from the vendor when a dealer orders it.</span></span>
             </label>
           </div>
         </section>
@@ -827,11 +827,11 @@
             </label>
             <div class="row2">
               <label class="fld">
-                <span class="lab">Order multiple <span class="cf-type" *ngIf="locked">Computyme</span></span>
+                <span class="lab">Order multiple <i class="pi pi-lock lockmark" *ngIf="locked" title="Read only until product data moves to SQL"></i></span>
                 <input type="number" min="1" step="1" [disabled]="locked" [(ngModel)]="product.supply.orderMultiple" (ngModelChange)="touch()">
               </label>
               <label class="fld">
-                <span class="lab">Units per case <span class="cf-type" *ngIf="locked">Computyme</span></span>
+                <span class="lab">Units per case <i class="pi pi-lock lockmark" *ngIf="locked" title="Read only until product data moves to SQL"></i></span>
                 <input type="number" min="1" step="1" [disabled]="locked" [(ngModel)]="product.supply.unitsPerCase" (ngModelChange)="touch()">
               </label>
             </div>
