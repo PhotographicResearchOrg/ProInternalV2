@@ -1,8 +1,8 @@
 # Vendor Desk foundation: release notes
 
-Cutover map, Brands & vendors (brand ↔ vendor links and product classes), and two new Vendor Desk tabs: Vendor record and Direct billing. A Brands tab on the Vendor Desk shows the vendor's brands from `dbo.Brand.VendorID`. Every list exports to Excel.
+Cutover map, Brands & vendors (brand ↔ vendor links and product classes), new Vendor Desk tabs (Vendor record, Brands), Computyme terms on Terms & Financials, where products ship from on Direct Vendor Ship, and vendor, class, status and stock by warehouse on the product page header. Every list exports to Excel.
 
-## Run in PRO (both are non-destructive and safe to run twice)
+## Run in PRO (all are non-destructive and safe to run twice)
 1. `sql/vendor-desk/01-vendor-desk-foundation.sql`: new `piv2` tables, functions and procedures; seeds the cutover map, the APMST field labels and Computyme's product classes (insert-only).
 2. `sql/vendor-desk/02-vendor-desk-permissions.sql`: adds `Cutover.Admin`, `Brands.Edit`, `Vendors.Edit`, `ProductClasses.Edit`.
 3. `sql/vendor-desk/03-product-supply.sql`: `piv2.Warehouse` (seeded with the PA warehouse, Hatboro) and `piv2.Product_SupplyInfo` for the product page header.
