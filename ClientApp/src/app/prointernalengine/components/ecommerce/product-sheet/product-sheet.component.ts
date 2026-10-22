@@ -214,12 +214,17 @@ export class ProductSheetComponent implements OnInit, OnChanges {
       this.money('Prices', 'MAP', () => p.pricing, 'map', L),
       this.money('Prices', 'Consumer retail', () => p.pricing, 'consumerRetail', L),
       this.money('Prices', 'Drop-ship charge', () => p.pricing, 'dropShipCharge', L),
+      /* Client accounts (member type 3) see these on the B2B site, as Warehouse_Search_FIX prices them:
+         member and carton price +5% (not brand 17), drop-ship charge x2. Shown only, never stored. */
+      this.field('clientPrice', 'Client price (member +5%)', 'Prices', 'readonly', () => this.clientPrice(p.pricing?.memberPrice?.amount, p.brandId), undefined, null),
+      this.field('clientCarton', 'Client carton price (+5%)', 'Prices', 'readonly', () => this.clientPrice(p.pricing?.cartonPrice?.amount, p.brandId), undefined, null),
+      this.field('clientDs', 'Client drop-ship charge (x2)', 'Prices', 'readonly', () => this.times(p.pricing?.dropShipCharge?.amount, 2), undefined, null),
       this.money('Prices', 'Distributor cost', () => p.pricing, 'distributorCost'),
       this.money('Prices', 'Landed cost', () => p.pricing, 'landedCost', L),
       this.money('Prices', 'Shipping surcharge', () => p.pricing, 'shippingSurcharge'),
 
       this.field('directMode', 'Ships from', 'Supply', 'select', () => p.supply.directMode, v => p.supply.directMode = v, null, [
-        { value: 'MARKER', label: 'Follow the inventory marker (9999 = direct)' }, { value: 'WAREHOUSE', label: 'Always our warehouse' },
+        { value: 'MARKER', label: 'Follow the inventory marker (99999+ = direct)' }, { value: 'WAREHOUSE', label: 'Always our warehouse' },
         { value: 'DIRECT', label: 'Always direct from the vendor' }]),
       this.field('vendorId', 'Supplying vendor id', 'Supply', 'text', () => p.supply.vendorId, v => p.supply.vendorId = v),
       this.field('dropShip', 'Drop-ship eligible', 'Supply', 'bool', () => p.supply.dropShipEligible, v => p.supply.dropShipEligible = v),
@@ -581,6 +586,18 @@ export class ProductSheetComponent implements OnInit, OnChanges {
   }
 
   when(iso: string): string { return new Date(iso + (iso.endsWith('Z') ? '' : 'Z')).toLocaleString(); }
+
+  /** Member price +5% for client accounts; brand 17 is not marked up (same rule as the B2B site). */
+  private clientPrice(amount: any, brandId: any): string {
+    const n = parseFloat(amount);
+    if (isNaN(n)) { return '—'; }
+    return String(brandId) === '17' ? n.toFixed(2) + ' (no markup for this brand)' : (Math.round(n * 1.05 * 100) / 100).toFixed(2);
+  }
+
+  private times(amount: any, factor: number): string {
+    const n = parseFloat(amount);
+    return isNaN(n) ? '—' : (Math.round(n * factor * 100) / 100).toFixed(2);
+  }
 
   private num(v: any): number | null {
     if (v === '' || v === null || v === undefined) { return null; }
