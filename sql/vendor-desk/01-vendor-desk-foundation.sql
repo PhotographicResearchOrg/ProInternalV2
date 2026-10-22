@@ -23,10 +23,12 @@
       piv2.ParseDueDays          "30DAYS" / "10TH" / "15CM" into structured terms
       piv2.Vendor_ComputymeRecord  every APMST field for one vendor + parsed terms + usage counts
 
-    Direct billing (Computyme values read only; the split is a PIV2 extension)
-      piv2.VendorBillingSplit    per AP vendor: cash discount, PRO share, special deduction, passed to member
-      piv2.VendorBillingSplitLog
-      piv2.VendorBilling_Get, piv2.VendorBilling_Save
+    Computyme terms (read only; shown beside the PIV2 discount split on Terms & Financials)
+      piv2.VendorBilling_Get     APMST cash discount, surcharge, add-to-member-bill flag, parsed due days,
+                                 and the VNMST direct-billing program records for the vendor
+
+    Fulfillment (read only, from dbo.Product: what the B2B site reads)
+      piv2.Vendor_Fulfillment    the vendor's products: stocked in the PA warehouse, shipping direct (99999+), out of stock
 
     Product classes (Computyme's vendor groups 479/497/... locked; new PIV2 classes editable)
       piv2.ProductClass, piv2.ProductClassLog
@@ -92,9 +94,9 @@ USING (VALUES
   NULL, N'dbo.VendorProfile, VendorTerms, VendorCardContact, VendorContract, VendorPriceList, Vendor*Policy', NULL, N'Vendor Desk',
   N'Fill in. Currency per vendor replaces the "Y" suffix on raw costs.', 20),
  ('vendors.directbilling', N'Vendors',  N'Direct billing (member buys direct, PRO bills a surcharge)', 'MIXED',
-  N'Computyme holds the vendor cash discount (APMST PCT), PRO surcharge and the add-to-member-bill flag, and the program records in VNMST. The split PRO keeps vs passes on is a PIV2 extension.',
-  N'APMST PCT / SUR_CHG_PCT / CODE; VNMST (program vendors, APID → APMST); EDI.UPDATE, AR7, UPD.EDICREDITS', N'piv2.VendorBillingSplit', NULL, N'Vendor Desk › Direct billing',
-  N'Confirm the program is still running; define the split per vendor; cut over with member billing (AR).', 30),
+  N'Computyme holds the vendor cash discount (APMST PCT), PRO surcharge, the add-to-member-bill flag and the program records in VNMST. The PRO / member discount split on Terms & Financials is the PIV2 side.',
+  N'APMST PCT / SUR_CHG_PCT / CODE; VNMST (program vendors, APID → APMST); EDI.UPDATE, AR7, UPD.EDICREDITS', N'dbo.VendorTerms (PRO / member discount split)', NULL, N'Vendor Desk › Terms & Financials',
+  N'Confirm the program is still running; set the split per vendor on Terms & Financials; cut over with member billing (AR).', 30),
  ('brands.vendorlink',   N'Brands',     N'Brand → vendor', 'SQL',
   N'Only exists in SQL. dbo.VendorBrand is empty; dbo.Brand.VendorID is the link. Moves are logged.',
   NULL, N'dbo.Brand.VendorID, piv2.BrandVendorHistory', N'Warehouse_Search_FIX vendor filter (Brand.VendorID)', N'Brands & vendors',
@@ -511,53 +513,27 @@ BEGIN
 END
 GO
 
-/* =============================================================== Direct billing */
+/* =============================================================== Computyme terms (shown on Terms & Financials) */
 
-IF OBJECT_ID('piv2.VendorBillingSplit', 'U') IS NULL
-BEGIN
-    CREATE TABLE piv2.VendorBillingSplit
-    (
-        VendorId                 int            NOT NULL CONSTRAINT PK_VendorBillingSplit PRIMARY KEY,   -- AP vendor
-        CashDiscountPct          decimal(7,3)   NULL,   -- what the vendor gives PRO for paying on time
-        ProSharePct              decimal(7,3)   NULL,   -- what PRO keeps (surcharge to the member)
-        SpecialDeductionPct      decimal(7,3)   NULL,
-        PassToMemberPct          decimal(7,3)   NULL,   -- NULL = cash discount − PRO share − special deduction
-        AddSurchargeToMemberBill bit            NULL,
-        EffectiveFrom            date           NULL,
-        Notes                    nvarchar(1000) NULL,
-        UpdatedAt                datetime2(0)   NOT NULL CONSTRAINT DF_VendorBillingSplit_At DEFAULT (SYSUTCDATETIME()),
-        UpdatedBy                nvarchar(150)  NULL
-    );
-END
-GO
-IF OBJECT_ID('piv2.VendorBillingSplitLog', 'U') IS NULL
-BEGIN
-    CREATE TABLE piv2.VendorBillingSplitLog
-    (
-        Id         int IDENTITY(1,1) NOT NULL CONSTRAINT PK_VendorBillingSplitLog PRIMARY KEY,
-        VendorId   int            NOT NULL,
-        OldJson    nvarchar(max)  NULL,
-        NewJson    nvarchar(max)  NULL,
-        ChangedBy  nvarchar(150)  NULL,
-        ChangedAt  datetime2(0)   NOT NULL CONSTRAINT DF_VendorBillingSplitLog_At DEFAULT (SYSUTCDATETIME())
-    );
-END
-GO
-
+/* Read only. The PIV2 discount split lives in dbo.VendorTerms (ProDiscountPct / MemberDiscountPct) on the
+   existing Terms & Financials tab; this returns Computyme's side so the two can be compared. */
 CREATE OR ALTER PROCEDURE piv2.VendorBilling_Get
     @VendorId int
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    /* 1. Computyme's values on the AP vendor, as stored */
+    /* 1. Computyme's values on the AP vendor, as stored, with the due days parsed */
     SELECT TOP (1)
            CAST(a.PCT AS nvarchar(30))         AS CashDiscountStored,
+           TRY_CAST(a.PCT AS decimal(9,3))     AS CashDiscountPct,
            CAST(a.SUR_CHG_PCT AS nvarchar(30)) AS SurchargeStored,
            CAST(a.CODE AS nvarchar(30))        AS SurchargeCodeStored,
            CAST(CASE WHEN LTRIM(RTRIM(CAST(a.CODE AS nvarchar(30)))) = '2' THEN 1 ELSE 0 END AS bit) AS AddsSurchargeToMemberBill,
-           CAST(a.DUE_DAYS AS nvarchar(60))    AS DueDaysText
+           CAST(a.DUE_DAYS AS nvarchar(60))    AS DueDaysText,
+           p.TermsType, p.NetDays, p.DayOfMonth, p.Description AS TermsDescription
     FROM EDA.APMST.APMST a
+    OUTER APPLY piv2.ParseDueDays(CAST(a.DUE_DAYS AS nvarchar(60))) p
     WHERE TRY_CAST(a.ID AS int) = @VendorId;
 
     /* 2. the direct-billing program records (VNMST) that bill through this AP vendor */
@@ -575,62 +551,58 @@ BEGIN
     FROM EDA.VNMST.VNMST n
     WHERE TRY_CAST(n.APID AS int) = @VendorId
     ORDER BY TRY_CAST(n.ID AS int);
-
-    /* 3. the PIV2 split, with what passes to the member worked out */
-    SELECT s.VendorId, s.CashDiscountPct, s.ProSharePct, s.SpecialDeductionPct, s.PassToMemberPct,
-           COALESCE(s.PassToMemberPct,
-                    ISNULL(s.CashDiscountPct, 0) - ISNULL(s.ProSharePct, 0) - ISNULL(s.SpecialDeductionPct, 0)) AS PassToMemberEffectivePct,
-           CAST(CASE WHEN s.PassToMemberPct IS NULL THEN 1 ELSE 0 END AS bit) AS PassToMemberIsCalculated,
-           s.AddSurchargeToMemberBill, s.EffectiveFrom, s.Notes, s.UpdatedAt, s.UpdatedBy
-    FROM piv2.VendorBillingSplit s
-    WHERE s.VendorId = @VendorId;
-
-    SELECT TOP (50) Id, OldJson, NewJson, ChangedBy, ChangedAt
-    FROM piv2.VendorBillingSplitLog WHERE VendorId = @VendorId ORDER BY Id DESC;
 END
 GO
 
-CREATE OR ALTER PROCEDURE piv2.VendorBilling_Save
-    @VendorId                 int,
-    @CashDiscountPct          decimal(7,3) = NULL,
-    @ProSharePct              decimal(7,3) = NULL,
-    @SpecialDeductionPct      decimal(7,3) = NULL,
-    @PassToMemberPct          decimal(7,3) = NULL,
-    @AddSurchargeToMemberBill bit = NULL,
-    @EffectiveFrom            date = NULL,
-    @Notes                    nvarchar(1000) = NULL,
-    @User                     nvarchar(150)
+/* =============================================================== Fulfillment (where a vendor's products ship from) */
+
+/* Read only, from what the B2B site reads (dbo.Product): stocked in the PA warehouse (on hand 1-99998),
+   ships direct from the vendor (the 99999+ marker), or out of stock. 3PL warehouses aren't set up yet.
+   A vendor's products = its brands' products (Brand.VendorID) plus anything Computyme says is bought from it. */
+CREATE OR ALTER PROCEDURE piv2.Vendor_Fulfillment
+    @VendorId int
 AS
 BEGIN
     SET NOCOUNT ON;
-    SET XACT_ABORT ON;
 
-    IF NOT EXISTS (SELECT 1 FROM dbo.Vendor WHERE VendorId = @VendorId)
-        THROW 50527, 'That vendor isn''t in the vendor list.', 1;
-    IF (@CashDiscountPct < 0 OR @CashDiscountPct > 100) OR (@ProSharePct < 0 OR @ProSharePct > 100)
-       OR (@SpecialDeductionPct < 0 OR @SpecialDeductionPct > 100) OR (@PassToMemberPct < 0 OR @PassToMemberPct > 100)
-        THROW 50528, 'Percentages must be between 0 and 100.', 1;
-    IF @PassToMemberPct IS NULL
-       AND ISNULL(@CashDiscountPct, 0) - ISNULL(@ProSharePct, 0) - ISNULL(@SpecialDeductionPct, 0) < 0
-        THROW 50529, 'PRO''s share and the special deduction are more than the cash discount, so the member would pay more than terms. Lower them or set what passes to the member.', 1;
+    IF OBJECT_ID('tempdb..#p') IS NOT NULL DROP TABLE #p;
+    SELECT p.Id AS ProductId, p.BrandId,
+           CAST(CASE WHEN TRY_CAST(b.VendorID AS int) = @VendorId THEN 1 ELSE 0 END AS bit) AS ByBrand,
+           CAST(CASE WHEN TRY_CAST(CAST(i.A_VENDOR AS varchar(30)) AS int) = @VendorId THEN 1 ELSE 0 END AS bit) AS ByActualVendor,
+           CAST(ISNULL(p.IsDiscontinued, 0) AS bit) AS IsDiscontinued,
+           CASE WHEN p.Inventory >= 99999 THEN 'DIRECT'
+                WHEN p.Inventory >= 1 THEN 'WAREHOUSE'
+                ELSE 'NONE' END AS Stock,
+           CAST(ISNULL(p.IsDropShipEligible, 0) AS bit) AS DropShipEligible
+    INTO #p
+    FROM dbo.Product p
+    LEFT JOIN dbo.Brand b ON b.BrandId = p.BrandId
+    LEFT JOIN dbo.IVMSTData i ON i.ID = p.ProductCode
+    WHERE TRY_CAST(b.VendorID AS int) = @VendorId
+       OR TRY_CAST(CAST(i.A_VENDOR AS varchar(30)) AS int) = @VendorId;
 
-    DECLARE @old nvarchar(max) = (SELECT * FROM piv2.VendorBillingSplit WHERE VendorId = @VendorId FOR JSON PATH, WITHOUT_ARRAY_WRAPPER);
+    /* 1. the vendor as a whole (live products only in the stock columns) */
+    SELECT COUNT(*)                                                                 AS Products,
+           SUM(CASE WHEN IsDiscontinued = 0 THEN 1 ELSE 0 END)                       AS LiveProducts,
+           SUM(CASE WHEN IsDiscontinued = 0 AND Stock = 'WAREHOUSE' THEN 1 ELSE 0 END) AS InWarehouse,
+           SUM(CASE WHEN IsDiscontinued = 0 AND Stock = 'DIRECT' THEN 1 ELSE 0 END)    AS ShipsDirect,
+           SUM(CASE WHEN IsDiscontinued = 0 AND Stock = 'NONE' THEN 1 ELSE 0 END)      AS OutOfStock,
+           SUM(CASE WHEN IsDiscontinued = 0 AND DropShipEligible = 1 THEN 1 ELSE 0 END) AS DropShipEligible,
+           SUM(CASE WHEN ByBrand = 0 THEN 1 ELSE 0 END)                              AS FromOtherBrands
+    FROM #p;
 
-    BEGIN TRAN;
-        MERGE piv2.VendorBillingSplit WITH (HOLDLOCK) AS t
-        USING (SELECT @VendorId AS VendorId) s ON t.VendorId = s.VendorId
-        WHEN MATCHED THEN UPDATE SET
-            CashDiscountPct = @CashDiscountPct, ProSharePct = @ProSharePct, SpecialDeductionPct = @SpecialDeductionPct,
-            PassToMemberPct = @PassToMemberPct, AddSurchargeToMemberBill = @AddSurchargeToMemberBill,
-            EffectiveFrom = @EffectiveFrom, Notes = @Notes, UpdatedAt = SYSUTCDATETIME(), UpdatedBy = @User
-        WHEN NOT MATCHED THEN INSERT
-            (VendorId, CashDiscountPct, ProSharePct, SpecialDeductionPct, PassToMemberPct, AddSurchargeToMemberBill, EffectiveFrom, Notes, UpdatedBy)
-            VALUES (@VendorId, @CashDiscountPct, @ProSharePct, @SpecialDeductionPct, @PassToMemberPct, @AddSurchargeToMemberBill, @EffectiveFrom, @Notes, @User);
-
-        INSERT piv2.VendorBillingSplitLog (VendorId, OldJson, NewJson, ChangedBy)
-        VALUES (@VendorId, @old,
-                (SELECT * FROM piv2.VendorBillingSplit WHERE VendorId = @VendorId FOR JSON PATH, WITHOUT_ARRAY_WRAPPER), @User);
-    COMMIT;
+    /* 2. by brand */
+    SELECT x.BrandId, CAST(b.BrandName AS nvarchar(150)) AS BrandName,
+           CAST(MAX(CAST(x.ByBrand AS int)) AS bit) AS BrandOnThisVendor,
+           COUNT(*) AS Products,
+           SUM(CASE WHEN x.IsDiscontinued = 0 THEN 1 ELSE 0 END)                         AS LiveProducts,
+           SUM(CASE WHEN x.IsDiscontinued = 0 AND x.Stock = 'WAREHOUSE' THEN 1 ELSE 0 END) AS InWarehouse,
+           SUM(CASE WHEN x.IsDiscontinued = 0 AND x.Stock = 'DIRECT' THEN 1 ELSE 0 END)    AS ShipsDirect,
+           SUM(CASE WHEN x.IsDiscontinued = 0 AND x.Stock = 'NONE' THEN 1 ELSE 0 END)      AS OutOfStock
+    FROM #p x
+    LEFT JOIN dbo.Brand b ON b.BrandId = x.BrandId
+    GROUP BY x.BrandId, b.BrandName
+    ORDER BY COUNT(*) DESC;
 END
 GO
 

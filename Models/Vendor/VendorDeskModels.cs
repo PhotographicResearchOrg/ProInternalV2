@@ -138,15 +138,20 @@ namespace ProInternal.Models.Vendor
         public VendorRecordUsage Usage { get; set; }
     }
 
-    /* ---------------------------------------------------------- Direct billing (piv2.VendorBilling_*) */
+    /* ---------------------------------------------------------- Computyme terms (piv2.VendorBilling_Get) */
 
     public sealed class VendorBillingComputyme
     {
         public string CashDiscountStored { get; set; }
+        public decimal? CashDiscountPct { get; set; }
         public string SurchargeStored { get; set; }
         public string SurchargeCodeStored { get; set; }
         public bool AddsSurchargeToMemberBill { get; set; }
         public string DueDaysText { get; set; }
+        public string TermsType { get; set; }
+        public int? NetDays { get; set; }
+        public int? DayOfMonth { get; set; }
+        public string TermsDescription { get; set; }
     }
 
     public sealed class VendorBillingProgram
@@ -164,50 +169,43 @@ namespace ProInternal.Models.Vendor
         public string SurchargesStored { get; set; }
     }
 
-    public sealed class VendorBillingSplit
-    {
-        public int VendorId { get; set; }
-        public decimal? CashDiscountPct { get; set; }
-        public decimal? ProSharePct { get; set; }
-        public decimal? SpecialDeductionPct { get; set; }
-        public decimal? PassToMemberPct { get; set; }
-        public decimal? PassToMemberEffectivePct { get; set; }
-        public bool PassToMemberIsCalculated { get; set; }
-        public bool? AddSurchargeToMemberBill { get; set; }
-        public DateTime? EffectiveFrom { get; set; }
-        public string Notes { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-        public string UpdatedBy { get; set; }
-    }
-
-    public sealed class VendorBillingLogEntry
-    {
-        public int Id { get; set; }
-        public string OldJson { get; set; }
-        public string NewJson { get; set; }
-        public string ChangedBy { get; set; }
-        public DateTime ChangedAt { get; set; }
-    }
-
     public sealed class VendorBilling
     {
         public int VendorId { get; set; }
         public VendorBillingComputyme Computyme { get; set; }
         public List<VendorBillingProgram> Programs { get; set; } = new();
-        public VendorBillingSplit Split { get; set; }
-        public List<VendorBillingLogEntry> Log { get; set; } = new();
-        public bool CanEdit { get; set; }
     }
 
-    public sealed class VendorBillingSaveRequest
+    /* ---------------------------------------------------------- Fulfillment (piv2.Vendor_Fulfillment) */
+
+    public sealed class VendorFulfillmentSummary
     {
-        public decimal? CashDiscountPct { get; set; }
-        public decimal? ProSharePct { get; set; }
-        public decimal? SpecialDeductionPct { get; set; }
-        public decimal? PassToMemberPct { get; set; }
-        public bool? AddSurchargeToMemberBill { get; set; }
-        public DateTime? EffectiveFrom { get; set; }
-        public string Notes { get; set; }
+        public int Products { get; set; }
+        public int LiveProducts { get; set; }
+        public int InWarehouse { get; set; }
+        public int ShipsDirect { get; set; }
+        public int OutOfStock { get; set; }
+        public int DropShipEligible { get; set; }
+        public int FromOtherBrands { get; set; }
+    }
+
+    public sealed class VendorFulfillmentBrand
+    {
+        public int? BrandId { get; set; }
+        public string BrandName { get; set; }
+        public bool BrandOnThisVendor { get; set; }
+        public int Products { get; set; }
+        public int LiveProducts { get; set; }
+        public int InWarehouse { get; set; }
+        public int ShipsDirect { get; set; }
+        public int OutOfStock { get; set; }
+    }
+
+    public sealed class VendorFulfillment
+    {
+        public int VendorId { get; set; }
+        public VendorFulfillmentSummary Summary { get; set; }
+        public List<VendorFulfillmentBrand> Brands { get; set; } = new();
     }
 
     /* ---------------------------------------------------------- Product classes (piv2.ProductClass_*) */

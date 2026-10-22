@@ -51,84 +51,114 @@
     </div>
   </ng-container>
 
-  <!-- ==================================================== Direct billing -->
-  <ng-container *ngIf="mode === 'billing' && billing && !loading">
-    <div class="card">
-      <div class="card-h"><h2>How direct billing works</h2><button class="btn" type="button" (click)="exportBilling()"><i class="pi pi-file-excel"></i> Export</button></div>
-      <p class="explain">Members buy from the vendor direct. The vendor ships to the member and bills PRO; PRO bills the member and keeps a share. The vendor's cash discount for paying on time is split between what PRO keeps and what passes on to the member. Member terms work out as: cash discount − PRO share − special deduction.</p>
+  <!-- ==================================================== Terms (Terms & Financials) -->
+  <div class="card cty" *ngIf="mode === 'terms' && billing && !loading">
+    <div class="card-h">
+      <h2>In Computyme</h2>
+      <span class="owners">
+        <app-owner-mark owner="COMPUTYME"></app-owner-mark>
+        <span class="hint">What Computyme bills and pays with today. The cards below are PIV2's.</span>
+        <button class="btn" type="button" (click)="exportTerms()"><i class="pi pi-file-excel"></i> Export</button>
+      </span>
     </div>
 
-    <div class="cols">
-      <div class="card">
-        <div class="card-h"><h2>In Computyme</h2><app-owner-mark owner="COMPUTYME"></app-owner-mark></div>
-        <ng-container *ngIf="billing.computyme; else nocty">
-          <div class="kv">
-            <span class="k">Cash discount (stored)</span><span class="mono">{{ dash(billing.computyme.cashDiscountStored) }}</span>
-            <span class="k">PRO surcharge (stored)</span><span class="mono">{{ dash(billing.computyme.surchargeStored) }}</span>
-            <span class="k">Surcharge on member bill</span><span>{{ billing.computyme.addsSurchargeToMemberBill ? 'Yes (code 2)' : 'No, recorded only' }} <span class="muted mono">code {{ dash(billing.computyme.surchargeCodeStored) }}</span></span>
-            <span class="k">Due days</span><span class="mono">{{ dash(billing.computyme.dueDaysText) }}</span>
-          </div>
-          <div class="muted small">Values are shown exactly as Computyme stores them. The surcharge is kept in tenths of a percent (35 = 3.5%).</div>
-        </ng-container>
-        <ng-template #nocty><div class="empty">Not in Computyme's vendor file.</div></ng-template>
-
-        <h3 class="sub-h">Program records billed through this vendor</h3>
-        <div class="tablewrap" *ngIf="billing.programs.length; else noprog">
-          <table class="vd-grid">
-            <thead><tr><th>Program</th><th>Surcharge</th><th>Special ded.</th><th>Special %</th><th>Admin days</th><th class="num">YTD sales</th><th class="num">Prior year</th></tr></thead>
-            <tbody>
-              <tr *ngFor="let p of billing.programs">
-                <td><span class="mono">{{ p.programNo }}</span> {{ p.name }}</td>
-                <td class="mono">{{ dash(p.surchargeStored) }}</td>
-                <td class="mono">{{ dash(p.specialDeductionStored) }}</td>
-                <td class="mono">{{ dash(p.specialPctStored) }}</td>
-                <td class="mono">{{ dash(p.adminDaysStored) }}</td>
-                <td class="num mono">{{ dash(p.ytdSalesStored) }}</td>
-                <td class="num mono">{{ dash(p.priorYearStored) }}</td>
-              </tr>
-            </tbody>
-          </table>
+    <ng-container *ngIf="billing.computyme as c; else nocty">
+      <div class="cty-grid">
+        <div class="cell">
+          <div class="k">Payment terms</div>
+          <div class="v">{{ c.termsDescription || '—' }}</div>
+          <div class="muted small mono">as typed: {{ dash(c.dueDaysText) }}</div>
+          <span class="callout amber" *ngIf="!piv2PaymentTerms && c.dueDaysText"><i class="pi pi-exclamation-triangle"></i>Not set in PIV2's payable terms</span>
+          <span class="callout grey" *ngIf="piv2PaymentTerms">PIV2: {{ piv2PaymentTerms }}</span>
         </div>
-        <ng-template #noprog><div class="empty">No direct-billing program records point at this vendor.</div></ng-template>
-      </div>
-
-      <div class="card">
-        <div class="card-h"><h2>The split</h2><app-owner-mark owner="EXTENSION"></app-owner-mark></div>
-        <div class="form-grid">
-          <div class="field">
-            <label for="bs-cash">Vendor cash discount %</label>
-            <input id="bs-cash" type="number" step="0.01" min="0" max="100" [(ngModel)]="draft.cashDiscountPct" [disabled]="!billing.canEdit">
-            <button *ngIf="billing.canEdit && billing.computyme?.cashDiscountStored" class="linkbtn" type="button" (click)="takeComputymeDiscount()">Use Computyme's ({{ billing.computyme?.cashDiscountStored }})</button>
-          </div>
-          <div class="field">
-            <label for="bs-pro">PRO keeps %</label>
-            <input id="bs-pro" type="number" step="0.01" min="0" max="100" [(ngModel)]="draft.proSharePct" [disabled]="!billing.canEdit">
-          </div>
-          <div class="field">
-            <label for="bs-ded">Special deduction %</label>
-            <input id="bs-ded" type="number" step="0.01" min="0" max="100" [(ngModel)]="draft.specialDeductionPct" [disabled]="!billing.canEdit">
-          </div>
-          <div class="field">
-            <label for="bs-pass">Passed to the member %</label>
-            <input *ngIf="overridePass" id="bs-pass" type="number" step="0.01" min="0" max="100" [(ngModel)]="draft.passToMemberPct" [disabled]="!billing.canEdit">
-            <div *ngIf="!overridePass" class="calc" [class.neg]="passCalculated < 0">{{ passCalculated }}%</div>
-            <label class="chk"><input type="checkbox" [(ngModel)]="overridePass" [disabled]="!billing.canEdit"> Set it instead of working it out</label>
-          </div>
-          <div class="field">
-            <label for="bs-from">Effective from</label>
-            <input id="bs-from" type="date" [(ngModel)]="draft.effectiveFrom" [disabled]="!billing.canEdit">
-          </div>
+        <div class="cell">
+          <div class="k">Cash discount (vendor to PRO)</div>
+          <div class="v">{{ c.cashDiscountPct != null ? c.cashDiscountPct + '%' : dash(c.cashDiscountStored) }}</div>
+          <span class="callout amber" *ngIf="discountDiffers"><i class="pi pi-exclamation-triangle"></i>PIV2 PRO discount is {{ piv2ProDiscountPct }}%</span>
+          <span class="callout green" *ngIf="!discountDiffers && piv2ProDiscountPct != null && c.cashDiscountPct != null"><i class="pi pi-check"></i>Matches PIV2</span>
         </div>
-        <label class="chk"><input type="checkbox" [(ngModel)]="draft.addSurchargeToMemberBill" [disabled]="!billing.canEdit"> Add PRO's share to the member's bill</label>
-        <div class="field"><label for="bs-notes">Notes</label><textarea id="bs-notes" rows="2" [(ngModel)]="draft.notes" [disabled]="!billing.canEdit"></textarea></div>
-        <div class="muted small">Kept in PIV2 only. Computyme keeps billing from its own values until member billing cuts over; the reconciliation will compare the two.</div>
-        <div class="err" *ngIf="saveError">{{ saveError }}</div>
-        <div class="toolbar" *ngIf="billing.canEdit">
-          <button class="btn primary" type="button" [disabled]="saving" (click)="saveBilling()">{{ saving ? 'Saving…' : 'Save split' }}</button>
-          <span class="callout green" *ngIf="saved"><i class="pi pi-check"></i>Saved</span>
-          <span class="muted small" *ngIf="billing.split?.updatedAt">Last saved {{ billing.split?.updatedAt | date:'MMM d, y h:mm a' }} · {{ billing.split?.updatedBy }}</span>
+        <div class="cell">
+          <div class="k">PRO surcharge on direct-billed invoices</div>
+          <div class="v mono">{{ dash(c.surchargeStored) }}</div>
+          <div class="muted small" *ngIf="tenths(c.surchargeStored) as t">stored in tenths of a percent: {{ t }}</div>
+        </div>
+        <div class="cell">
+          <div class="k">Surcharge added to the member's bill</div>
+          <div class="v">{{ c.addsSurchargeToMemberBill ? 'Yes' : 'No, recorded only' }}</div>
+          <div class="muted small mono">code {{ dash(c.surchargeCodeStored) }}</div>
         </div>
       </div>
+    </ng-container>
+    <ng-template #nocty><div class="empty">This vendor isn't in Computyme's vendor file, so there's nothing to compare.</div></ng-template>
+
+    <ng-container *ngIf="billing.programs.length">
+      <h3 class="sub-h">Direct-billing programs on this vendor</h3>
+      <p class="explain">Members buy from the vendor direct; the vendor bills PRO and PRO bills the member. On those invoices the member's terms are the vendor's terms % less PRO's surcharge less the program's <b>special deduction</b>, an extra percentage Computyme takes off for this program (EDI.UPDATE.25).</p>
+      <div class="tablewrap">
+        <table class="vd-grid">
+          <thead><tr><th>Program</th><th>Surcharge</th><th>Special deduction</th><th>Special %</th><th>Admin days</th><th class="num">YTD sales</th><th class="num">Prior year</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let p of billing.programs">
+              <td><span class="mono">{{ p.programNo }}</span> {{ p.name }}</td>
+              <td class="mono">{{ dash(p.surchargeStored) }}</td>
+              <td class="mono">{{ dash(p.specialDeductionStored) }}</td>
+              <td class="mono">{{ dash(p.specialPctStored) }}</td>
+              <td class="mono">{{ dash(p.adminDaysStored) }}</td>
+              <td class="num mono">{{ dash(p.ytdSalesStored) }}</td>
+              <td class="num mono">{{ dash(p.priorYearStored) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- ==================================================== Fulfillment (Direct Vendor Ship) -->
+  <div class="card" *ngIf="mode === 'fulfillment' && fulfillment && !loading">
+    <div class="card-h">
+      <h2>Where this vendor's products ship from</h2>
+      <span class="owners">
+        <app-owner-mark owner="COMPUTYME" [compact]="true"></app-owner-mark>
+        <span class="hint">Stock as the B2B site sees it: on hand = PA warehouse, 99999+ = ships direct</span>
+        <button class="btn" type="button" (click)="exportFulfillment()"><i class="pi pi-file-excel"></i> Export</button>
+      </span>
     </div>
-  </ng-container>
+
+    <div class="stats" *ngIf="fulfillment.summary as s">
+      <div class="stat"><div class="k">Stocked in PA warehouse</div><div class="v teal">{{ s.inWarehouse | number }}</div></div>
+      <div class="stat"><div class="k">Ships direct from vendor</div><div class="v">{{ s.shipsDirect | number }}</div></div>
+      <div class="stat"><div class="k">Out of stock</div><div class="v amber">{{ s.outOfStock | number }}</div></div>
+      <div class="stat"><div class="k">3PL warehouse</div><div class="v muted">—</div><div class="muted small">not set up yet</div></div>
+      <div class="stat"><div class="k">Live products</div><div class="v">{{ s.liveProducts | number }}</div><div class="muted small">{{ s.products | number }} incl. discontinued</div></div>
+    </div>
+
+    <div class="callout red big-callout" *ngIf="conflicts">
+      <i class="pi pi-exclamation-circle"></i>
+      {{ conflicts }} brand{{ conflicts === 1 ? ' is' : 's are' }} set to ship everything direct, but {{ conflicts === 1 ? 'its' : 'their' }} products are stocked in the PA warehouse. Orders would go to the vendor for stock we hold.
+    </div>
+    <div class="callout amber big-callout" *ngIf="!conflicts && dvsEnabled && fulfillment.summary && fulfillment.summary.inWarehouse > fulfillment.summary.shipsDirect">
+      <i class="pi pi-info-circle"></i>
+      Direct vendor ship is on, but most of this vendor's products are stocked in the PA warehouse.
+    </div>
+
+    <div class="tablewrap" *ngIf="fulfillment.brands.length; else nobrands">
+      <table class="vd-grid">
+        <thead><tr><th>Brand</th><th class="num">Live</th><th class="num">PA warehouse</th><th class="num">Ships direct</th><th class="num">Out of stock</th><th>Direct vendor ship</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let b of fulfillment.brands" [class.bad]="conflict(b)">
+            <td>{{ b.brandName || '—' }}<div class="muted small" *ngIf="!b.brandOnThisVendor">brand is on another vendor; bought here</div></td>
+            <td class="num">{{ b.liveProducts | number }}</td>
+            <td class="num">{{ b.inWarehouse | number }}</td>
+            <td class="num">{{ b.shipsDirect | number }}</td>
+            <td class="num">{{ b.outOfStock | number }}</td>
+            <td>
+              <span class="small">{{ dvsText(b) }}</span>
+              <div *ngIf="conflict(b)"><span class="callout red"><i class="pi pi-exclamation-circle"></i>Stocked in PA</span></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #nobrands><div class="empty">No products point at this vendor.</div></ng-template>
+  </div>
 </div>

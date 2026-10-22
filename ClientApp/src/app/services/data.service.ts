@@ -1,4 +1,4 @@
-import { CutoverMap, BrandVendorList, BrandVendorHistoryRow, VendorRecord, VendorBilling, VendorBillingSaveRequest, ProductClassList, ProductClassSaveRequest } from 'src/app/models/vendor/vendor-desk.models';
+import { CutoverMap, BrandVendorList, BrandVendorHistoryRow, VendorRecord, VendorBilling, VendorFulfillment, ProductClassList, ProductClassSaveRequest } from 'src/app/models/vendor/vendor-desk.models';
 import { Injectable } from "@angular/core";
 import { map } from "rxjs/operators";
 import { switchMap } from 'rxjs';
@@ -1256,8 +1256,8 @@ export class DataService {
   vendorBilling(vendorId: number): Observable<VendorBilling> {
     return this.api.get<VendorBilling>(`${this.vendorDeskBase}/vendors/${vendorId}/billing`);
   }
-  vendorBillingSave(vendorId: number, body: VendorBillingSaveRequest): Observable<VendorBilling> {
-    return this.api.put<VendorBilling>(`${this.vendorDeskBase}/vendors/${vendorId}/billing`, body);
+  vendorFulfillment(vendorId: number): Observable<VendorFulfillment> {
+    return this.api.get<VendorFulfillment>(`${this.vendorDeskBase}/vendors/${vendorId}/fulfillment`);
   }
   productClasses(): Observable<ProductClassList> {
     return this.api.get<ProductClassList>(`${this.vendorDeskBase}/classes`);

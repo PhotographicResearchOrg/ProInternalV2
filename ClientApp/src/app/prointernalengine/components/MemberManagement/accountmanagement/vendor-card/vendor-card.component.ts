@@ -66,7 +66,6 @@ export class VendorCardComponent implements OnInit, OnChanges {
     { id: 'record', label: 'Vendor record', icon: 'pi pi-lock' },
     { id: 'terms', label: 'Terms & Financials', icon: 'pi pi-receipt' },
     { id: 'brandlinks', label: 'Brands', icon: 'pi pi-tag' },
-    { id: 'billing', label: 'Direct billing', icon: 'pi pi-percentage' },
     { id: 'contacts', label: 'Contacts', icon: 'pi pi-users' },
     { id: 'contracts', label: 'Contracts', icon: 'pi pi-file' },
     { id: 'pricelists', label: 'Price Lists', icon: 'pi pi-tags' },

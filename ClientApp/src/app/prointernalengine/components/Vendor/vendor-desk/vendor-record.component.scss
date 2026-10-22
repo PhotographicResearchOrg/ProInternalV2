@@ -18,3 +18,10 @@
 .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--sub); margin: 8px 0; }
 .card .toolbar { margin-top: 10px; }
 @media (max-width: 900px) { .top, .cols { grid-template-columns: 1fr; } }
+.cty-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 18px; }
+.cty-grid .cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.cty-grid .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 700; }
+.cty-grid .v { font-size: 15px; font-weight: 700; }
+.big-callout { white-space: normal; font-size: 12.5px; padding: 8px 10px; margin: 10px 0; display: flex; }
+tr.bad td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+.stat .v.muted { color: var(--faint); }

@@ -18,8 +18,8 @@ namespace ProInternal.Controllers
      *   PUT  api/vendordesk/brands/{brandId}/vendor       move a brand (Brands.Edit) — writes dbo.Brand.VendorID (B2B vendor filter)
      *   GET  api/vendordesk/brands/history[?brandId=&vendorId=]
      *   GET  api/vendordesk/vendors/{vendorId}/record     every APMST field, parsed terms, where the vendor is used (read only)
-     *   GET  api/vendordesk/vendors/{vendorId}/billing    direct billing: Computyme values + the PIV2 split
-     *   PUT  api/vendordesk/vendors/{vendorId}/billing    save the split (Vendors.Edit)
+     *   GET  api/vendordesk/vendors/{vendorId}/billing    Computyme's terms, surcharge and direct-billing programs (read only)
+     *   GET  api/vendordesk/vendors/{vendorId}/fulfillment where the vendor's products ship from: PA warehouse, direct, out of stock
      *   GET  api/vendordesk/classes                       product classes
      *   PUT  api/vendordesk/classes                       add or edit a class (ProductClasses.Edit)
      *
@@ -122,23 +122,14 @@ namespace ProInternal.Controllers
         [RequirePermission(VendorCardRoute, VendorAccountsRoute, VendorsEdit)]
         public IActionResult Billing(int vendorId)
         {
-            var billing = _db.VendorBilling_Get(vendorId);
-            billing.CanEdit = Can(VendorsEdit);
-            return Ok(billing);
+            return Ok(_db.VendorBilling_Get(vendorId));
         }
 
-        [HttpPut("vendors/{vendorId:int}/billing")]
-        [RequirePermission(VendorsEdit)]
-        public IActionResult SaveBilling(int vendorId, [FromBody] VendorBillingSaveRequest request)
+        [HttpGet("vendors/{vendorId:int}/fulfillment")]
+        [RequirePermission(VendorCardRoute, VendorAccountsRoute, BrandsRoute, VendorsEdit)]
+        public IActionResult Fulfillment(int vendorId)
         {
-            if (request == null) return BadRequest(new { message = "Nothing to save." });
-            return Run(() =>
-            {
-                _db.VendorBilling_Save(vendorId, request, Actor);
-                var billing = _db.VendorBilling_Get(vendorId);
-                billing.CanEdit = true;
-                return billing;
-            });
+            return Ok(_db.Vendor_Fulfillment(vendorId));
         }
 
         // ------------------------------------------------------------ product classes

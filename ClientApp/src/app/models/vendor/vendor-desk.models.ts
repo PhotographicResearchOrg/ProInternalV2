@@ -115,10 +115,15 @@ export interface VendorRecord {
 
 export interface VendorBillingComputyme {
   cashDiscountStored?: string | null;
+  cashDiscountPct?: number | null;
   surchargeStored?: string | null;
   surchargeCodeStored?: string | null;
   addsSurchargeToMemberBill: boolean;
   dueDaysText?: string | null;
+  termsType?: VendorRecordTerms['termsType'] | null;
+  netDays?: number | null;
+  dayOfMonth?: number | null;
+  termsDescription?: string | null;
 }
 
 export interface VendorBillingProgram {
@@ -135,46 +140,39 @@ export interface VendorBillingProgram {
   surchargesStored?: string | null;
 }
 
-export interface VendorBillingSplit {
-  vendorId: number;
-  cashDiscountPct?: number | null;
-  proSharePct?: number | null;
-  specialDeductionPct?: number | null;
-  passToMemberPct?: number | null;
-  passToMemberEffectivePct?: number | null;
-  passToMemberIsCalculated: boolean;
-  addSurchargeToMemberBill?: boolean | null;
-  effectiveFrom?: string | null;
-  notes?: string | null;
-  updatedAt?: string | null;
-  updatedBy?: string | null;
-}
-
-export interface VendorBillingLogEntry {
-  id: number;
-  oldJson?: string | null;
-  newJson?: string | null;
-  changedBy?: string | null;
-  changedAt: string;
-}
-
+/** Computyme's terms for the vendor (read only), shown on Terms & Financials beside the PIV2 split. */
 export interface VendorBilling {
   vendorId: number;
   computyme?: VendorBillingComputyme | null;
   programs: VendorBillingProgram[];
-  split?: VendorBillingSplit | null;
-  log: VendorBillingLogEntry[];
-  canEdit: boolean;
 }
 
-export interface VendorBillingSaveRequest {
-  cashDiscountPct?: number | null;
-  proSharePct?: number | null;
-  specialDeductionPct?: number | null;
-  passToMemberPct?: number | null;
-  addSurchargeToMemberBill?: boolean | null;
-  effectiveFrom?: string | null;
-  notes?: string | null;
+export interface VendorFulfillmentSummary {
+  products: number;
+  liveProducts: number;
+  inWarehouse: number;
+  shipsDirect: number;
+  outOfStock: number;
+  dropShipEligible: number;
+  fromOtherBrands: number;
+}
+
+export interface VendorFulfillmentBrand {
+  brandId?: number | null;
+  brandName?: string | null;
+  brandOnThisVendor: boolean;
+  products: number;
+  liveProducts: number;
+  inWarehouse: number;
+  shipsDirect: number;
+  outOfStock: number;
+}
+
+/** Where a vendor's products ship from, from what the B2B site reads (dbo.Product). */
+export interface VendorFulfillment {
+  vendorId: number;
+  summary?: VendorFulfillmentSummary | null;
+  brands: VendorFulfillmentBrand[];
 }
 
 export interface ProductClassRow {

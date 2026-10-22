@@ -111,6 +111,11 @@
       </div>
 
       <!-- ---------- Terms & Financials ---------- -->
+      <!-- Computyme's terms (locked), compared with the PIV2 cards below -->
+      <div *ngIf="activeSection === 'terms'" class="stack" style="margin-bottom:14px">
+        <app-vendor-record [vendorId]="id" mode="terms" [piv2ProDiscountPct]="terms.proDiscountPct"
+                           [piv2MemberDiscountPct]="terms.memberDiscountPct" [piv2PaymentTerms]="terms.paymentTerms"></app-vendor-record>
+      </div>
       <div *ngIf="activeSection === 'terms'" class="grid fit">
         <section class="card">
           <header class="card-head">
@@ -366,6 +371,10 @@
           </div>
         </div>
 
+        <!-- where this vendor's products actually ship from (PA warehouse / direct), checked against the settings below -->
+        <app-vendor-record *ngIf="dvsVendorId || id" [vendorId]="dvsVendorId || id" mode="fulfillment"
+                           [dvsEnabled]="dvs?.enabled" [dvsBrands]="dvsBrands"></app-vendor-record>
+
         <!-- while the card has no real vendor, pick one here -->
         <section class="card" *ngIf="dvsVendors.length">
           <div class="card-body dvs-form">
@@ -509,11 +518,6 @@
       <!-- ---------- Brands (Brand.VendorID: SQL is master, B2B vendor filter) ---------- -->
       <div *ngIf="activeSection === 'brandlinks'" class="stack">
         <app-brand-vendor-desk [vendorId]="id"></app-brand-vendor-desk>
-      </div>
-
-      <!-- ---------- Direct billing (Computyme values + PIV2 split) ---------- -->
-      <div *ngIf="activeSection === 'billing'" class="stack">
-        <app-vendor-record [vendorId]="id" mode="billing"></app-vendor-record>
       </div>
 
       <div *ngIf="activeSection === 'audit'">

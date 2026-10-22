@@ -3467,24 +3467,21 @@ GetShopifyGovernanceIssues()
             {
                 VendorId = vendorId,
                 Computyme = multi.ReadFirstOrDefault<VendorBillingComputyme>(),
-                Programs = multi.Read<VendorBillingProgram>().ToList(),
-                Split = multi.ReadFirstOrDefault<VendorBillingSplit>(),
-                Log = multi.Read<VendorBillingLogEntry>().ToList()
+                Programs = multi.Read<VendorBillingProgram>().ToList()
             };
         }
 
-        public void VendorBilling_Save(int vendorId, VendorBillingSaveRequest r, string user)
+        public VendorFulfillment Vendor_Fulfillment(int vendorId)
         {
             using var conn = GetConnection();
-            conn.Execute("piv2.VendorBilling_Save", new
+            using var multi = conn.QueryMultiple("piv2.Vendor_Fulfillment", new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure, commandTimeout: 60);
+            return new VendorFulfillment
             {
                 VendorId = vendorId,
-                r.CashDiscountPct, r.ProSharePct, r.SpecialDeductionPct, r.PassToMemberPct,
-                r.AddSurchargeToMemberBill,
-                EffectiveFrom = r.EffectiveFrom?.Date,
-                r.Notes,
-                User = user
-            }, commandType: CommandType.StoredProcedure, commandTimeout: 15);
+                Summary = multi.ReadFirstOrDefault<VendorFulfillmentSummary>(),
+                Brands = multi.Read<VendorFulfillmentBrand>().ToList()
+            };
         }
 
         public List<ProductClassRow> ProductClass_List()

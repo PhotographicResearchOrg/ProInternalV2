@@ -396,7 +396,7 @@ GetSellThroughExportData(
 
 
         #region Vendor Desk (cutover map, brand-vendor, vendor record, direct billing, product classes)
-        // piv2.Cutover_*, piv2.BrandVendor_*, piv2.Vendor_ComputymeRecord, piv2.VendorBilling_*, piv2.ProductClass_*
+        // piv2.Cutover_*, piv2.BrandVendor_*, piv2.Vendor_ComputymeRecord, piv2.VendorBilling_Get, piv2.Vendor_Fulfillment, piv2.ProductClass_*
         CutoverMap Cutover_List();
         void Cutover_SetOwner(string sectionKey, string owner, string nextStep, string note, string user);
         List<BrandVendorRow> BrandVendor_List(int? vendorId);
@@ -404,7 +404,7 @@ GetSellThroughExportData(
         List<BrandVendorHistoryRow> BrandVendor_History(int? brandId, int? vendorId);
         VendorRecord Vendor_ComputymeRecord(int vendorId);
         VendorBilling VendorBilling_Get(int vendorId);
-        void VendorBilling_Save(int vendorId, VendorBillingSaveRequest request, string user);
+        VendorFulfillment Vendor_Fulfillment(int vendorId);
         List<ProductClassRow> ProductClass_List();
         int ProductClass_Save(ProductClassSaveRequest request, string user);
         #endregion
