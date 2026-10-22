@@ -62,7 +62,7 @@ export interface ProductAssetsView {
 
 /* ------------------------------------------------------------ product sheet (GET api/products/{id}/sheet) */
 
-export type SheetLock = 'SYSTEM' | 'CATEGORY' | 'SHOPIFY' | 'COMPUTYME' | 'CONTRACT' | null;
+export type SheetLock = 'SYSTEM' | 'CATEGORY' | 'SHOPIFY' | 'MARKETPLACE' | 'COMPUTYME' | 'CONTRACT' | null;
 
 export interface ProductSheetField {
   source: 'ProductData' | 'Computyme';
@@ -73,6 +73,7 @@ export interface ProductSheetField {
   scale: number;
   isNullable: boolean;
   value: string | null;
+  displayValue?: string | null;
   label: string;
   groupName: string;
   sortOrder: number;

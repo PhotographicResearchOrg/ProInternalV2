@@ -347,7 +347,7 @@
       <!-- ---------- All fields: every attribute on one page ---------- -->
       <!-- kept alive (unsaved edits survive switching sections); an inline display wins over .stack's display -->
       <div class="stack" [style.display]="activeSection === 'sheet' ? null : 'none'">
-        <app-product-sheet [productId]="productId" [product]="product" [content]="content" [locked]="locked"
+        <app-product-sheet [productId]="productId" [product]="product" [content]="content" [locked]="locked" [page]="page"
                            [brandOptions]="brandOptions" [statuses]="statuses" [dispositions]="dispositions"
                            (touched)="touch()" (pendingChange)="sheetPending = $event"
                            (openSection)="setSection($event)" (openProduct)="open($event)"

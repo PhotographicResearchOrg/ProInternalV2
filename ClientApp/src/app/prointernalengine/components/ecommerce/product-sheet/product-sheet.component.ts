@@ -31,13 +31,14 @@ const LAYOUT_KEY = 'piv2.productSheet.layout';
 const GROUP_ORDER = [
   'Status', 'Identity', 'Codes', 'Prices', 'Market prices', 'Stock & shipping', 'Supply', 'Size & customs',
   'Reorder & returns', 'B2B product page', 'Content (default language)', 'Tech specs', 'Category',
-  'Other fields', 'Computyme', 'System'
+  'Other fields', 'Legacy', 'Computyme', 'System'
 ];
 
 const LOCK_TEXT: Record<string, string> = {
   COMPUTYME: 'Set in Computyme until product data moves to SQL',
   CATEGORY: 'Change it with the Categories section or the Category Desk',
   SHOPIFY: 'Set by the Shopify sync',
+  MARKETPLACE: 'Set by the marketplace sync',
   SYSTEM: 'Kept by the system',
   CONTRACT: 'Edited in the product fields'
 };
@@ -59,6 +60,8 @@ export class ProductSheetComponent implements OnInit, OnChanges {
   @Input() product: any = null;
   @Input() content: any = null;
   @Input() locked = true;
+  /** The page's product data: Computyme's vendor fields (read only). */
+  @Input() page: any = null;
   @Input() brandOptions: { brandId: any; name?: string; vendorName?: string | null }[] = [];
   @Input() statuses: { value: string; label: string }[] = [];
   @Input() dispositions: { value: string; label: string }[] = [];
@@ -216,7 +219,10 @@ export class ProductSheetComponent implements OnInit, OnChanges {
       this.money('Prices', 'Shipping surcharge', () => p.pricing, 'shippingSurcharge'),
 
       this.field('directMode', 'Ships from', 'Supply', 'select', () => p.supply.directMode, v => p.supply.directMode = v, null, [
-        { value: 'MARKER', label: 'As the inventory marker says' }, { value: 'WAREHOUSE', label: 'Our warehouse' }, { value: 'DIRECT', label: 'Direct from the vendor' }]),
+        { value: 'MARKER', label: 'Follow Computyme (inventory 9999 = ships direct)' }, { value: 'WAREHOUSE', label: 'Always our warehouse' },
+        { value: 'DIRECT', label: 'Always direct from the vendor' }]),
+      this.field('ctActVend', 'Computyme vendor (actual)', 'Supply', 'readonly', () => this.page?.computymeActualVendor || '—', undefined, 'COMPUTYME'),
+      this.field('ctProVendor', 'Computyme vendor (group)', 'Supply', 'readonly', () => this.page?.computymeVendorGroup || '—', undefined, 'COMPUTYME'),
       this.field('vendorId', 'Supplying vendor id', 'Supply', 'text', () => p.supply.vendorId, v => p.supply.vendorId = v),
       this.field('dropShip', 'Drop-ship eligible', 'Supply', 'bool', () => p.supply.dropShipEligible, v => p.supply.dropShipEligible = v),
       this.field('specialOrder', 'Special order', 'Supply', 'bool', () => p.supply.specialOrder, v => p.supply.specialOrder = v, L),
@@ -231,7 +237,7 @@ export class ProductSheetComponent implements OnInit, OnChanges {
       this.field('height', 'Height', 'Size & customs', 'number', () => p.logistics.dimensions.height, v => p.logistics.dimensions.height = this.num(v)),
       this.field('dimUnit', 'Size unit', 'Size & customs', 'select', () => p.logistics.dimensions.unit, v => p.logistics.dimensions.unit = v, null,
         [{ value: 'IN', label: 'in' }, { value: 'CM', label: 'cm' }]),
-      this.field('origin', 'Country of origin', 'Size & customs', 'text', () => p.logistics.countryOfOrigin, v => p.logistics.countryOfOrigin = (v ?? '').toUpperCase()),
+      this.field('origin', 'Country of origin', 'Size & customs', 'text', () => p.logistics.countryOfOrigin, v => p.logistics.countryOfOrigin = (v ?? '').toUpperCase(), L),
       this.field('hs', 'HS codes', 'Size & customs', 'readonly',
         () => (p.logistics.hsCodes ?? []).map((h: any) => `${h.country} ${h.code}`).join(' · ') || '—', undefined, 'CONTRACT'),
       this.field('lithium', 'Contains a lithium battery', 'Size & customs', 'bool', () => !!p.logistics.containsLithiumBattery, v => p.logistics.containsLithiumBattery = v),
@@ -285,15 +291,26 @@ export class ProductSheetComponent implements OnInit, OnChanges {
         const editable = f.source === 'ProductData' && !f.lock;
         return {
           key, label: f.label, group: f.groupName, lock: f.lock, note: f.note, column: f.columnName,
-          kind: editable ? this.kindOf(f) : 'readonly',
+          kind: editable ? this.kindOf(f) : (this.isFlag(f) ? 'bool' : 'readonly'),
           get: () => this.pending.has(f.columnName) ? this.pending.get(f.columnName) : this.display(f)
         } as SheetRow;
       });
   }
 
+  /** Whole-number columns that hold 0 or 1: shown as a switch. */
+  private static readonly FLAG_COLUMNS = new Set(['fastshippingavailable', 'requireserialforsar', 'isgroup', 'isclient', 'hold']);
+
+  private isFlag(f: ProductSheetField): boolean {
+    const t = f.dataType.toLowerCase();
+    if (t === 'bit') { return true; }
+    const intType = ['int', 'smallint', 'tinyint'].includes(t);
+    return intType && (ProductSheetComponent.FLAG_COLUMNS.has(f.columnName.toLowerCase()) || /^is[A-Z]/.test(f.columnName))
+      && (f.value === null || f.value === '0' || f.value === '1');
+  }
+
   private kindOf(f: ProductSheetField): SheetRow['kind'] {
     const t = f.dataType.toLowerCase();
-    if (t === 'bit') { return 'bool'; }
+    if (this.isFlag(f)) { return 'bool'; }
     if (['int', 'bigint', 'smallint', 'tinyint', 'decimal', 'numeric', 'money', 'smallmoney', 'float', 'real'].includes(t)) { return 'number'; }
     if (['date', 'datetime', 'datetime2', 'smalldatetime'].includes(t)) { return 'date'; }
     if (['text', 'ntext'].includes(t) || f.maxLength === -1 || f.maxLength > 400) { return 'textarea'; }
@@ -303,9 +320,11 @@ export class ProductSheetComponent implements OnInit, OnChanges {
   /** A server value as the input shows it: trims float zeros, dates as yyyy-mm-dd, bits as booleans. */
   private display(f: ProductSheetField): any {
     const v = f.value;
-    if (v === null || v === undefined) { return f.dataType === 'bit' ? false : ''; }
+    if (this.isFlag(f)) { return v === '1' || (v ?? '').toLowerCase() === 'true'; }
+    if (v === null || v === undefined) { return ''; }
     const t = f.dataType.toLowerCase();
-    if (t === 'bit') { return v === '1' || v.toLowerCase() === 'true'; }
+    /* a code with a name (category, EGRP): "Name (code)" */
+    if (f.displayValue) { return `${f.displayValue} (${v})`; }
     if (['float', 'real', 'decimal', 'numeric', 'money', 'smallmoney'].includes(t) && v.includes('.')) { return v.replace(/\.?0+$/, ''); }
     if (['date', 'datetime', 'datetime2', 'smalldatetime'].includes(t)) { return v.slice(0, 10); }
     return v;

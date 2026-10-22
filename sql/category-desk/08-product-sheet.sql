@@ -36,7 +36,7 @@ IF OBJECT_ID(N'piv2.ProductSheetField', N'U') IS NULL
         Label       nvarchar(100)  NOT NULL,
         GroupName   nvarchar(60)   NOT NULL,
         SortOrder   int            NOT NULL CONSTRAINT DF_ProductSheetField_Sort DEFAULT 500,
-        Lock        varchar(12)    NULL,          -- SYSTEM | CATEGORY | SHOPIFY | COMPUTYME | CONTRACT | HIDDEN
+        Lock        varchar(12)    NULL,          -- SYSTEM | CATEGORY | SHOPIFY | MARKETPLACE | COMPUTYME | CONTRACT | HIDDEN
         Note        nvarchar(300)  NULL
     );
 GO
@@ -142,6 +142,31 @@ WHEN NOT MATCHED THEN
     INSERT (ColumnName, Label, GroupName, SortOrder, Lock, Note) VALUES (s.ColumnName, s.Label, s.GroupName, s.SortOrder, s.Lock, s.Note);
 GO
 
+/* ---------------------------------------------------------------- 2026-10-22: clearer labels and groups
+   Applied only where the row still has the label first written above, so your own edits are kept. */
+MERGE piv2.ProductSheetField AS t
+USING (VALUES
+    (N'ASIN',                        N'Amazon ASIN',                   N'Codes',             50,  'MARKETPLACE', N'Set by the Amazon Seller Central sync (Shopify database script)')
+) AS s (ColumnName, Label, GroupName, SortOrder, Lock, Note)
+ON t.ColumnName = s.ColumnName
+WHEN NOT MATCHED THEN
+    INSERT (ColumnName, Label, GroupName, SortOrder, Lock, Note) VALUES (s.ColumnName, s.Label, s.GroupName, s.SortOrder, s.Lock, s.Note);
+
+UPDATE f SET Label = n.Label, GroupName = n.GroupName, SortOrder = n.SortOrder, Note = n.Note
+FROM piv2.ProductSheetField f
+JOIN (VALUES
+    (N'IsGroup',                       N'Group product',              N'Group flag (legacy)',                 N'Legacy',  10, N'Set to 1 by the old vendor product import (Rokinon); not used by the B2B site pages'),
+    (N'IsClient',                      N'Client product',             N'Client flag (legacy)',                N'Legacy',  20, NULL),
+    (N'SupplementalShippingSku',       N'Supplemental shipping SKU',  N'Supplemental shipping SKU (legacy)',  N'Legacy',  30, N'From the old direct-ship vendor program; not shown on the B2B site'),
+    (N'SupplementalShippingProductId', N'Supplemental shipping product', N'Supplemental shipping product (legacy)', N'Legacy', 40, N'From the old direct-ship vendor program; not shown on the B2B site'),
+    (N'SupplementalShippingCost',      N'Supplemental shipping cost', N'Vendor cost for the old direct-ship program (legacy)', N'Legacy', 50, N'The old Rokinon program used it as the vendor''s cost (less 9%); not a shipping charge'),
+    (N'P65',                           N'Prop 65 warning',            N'Prop 65 text (product export)',       N'B2B product page', 30, N'Text sent in the product XML export; the yes/no warning is under Size & customs'),
+    (N'FastShippingAvailable',         N'Air shipping available',     N'Air shipping available',              N'Stock & shipping', 40, N'1 = air shipping offered on the B2B site (Air Available), 0 = ground only')
+) AS n (ColumnName, OldLabel, Label, GroupName, SortOrder, Note)
+  ON n.ColumnName = f.ColumnName
+WHERE f.Label = n.OldLabel;
+GO
+
 /* ---------------------------------------------------------------- a column as text
    The same text for showing a value and for logging it: dates ISO 8601 (style 126), money with 4 decimals
    (style 2), floats as plain decimals when they fit, else full precision (style 3). */
@@ -231,10 +256,75 @@ BEGIN
     END CATCH
     END
 
+    /* names for codes: categories by name, EGRP with Computyme's description */
+    CREATE TABLE #disp (Source varchar(12), ColumnName sysname COLLATE DATABASE_DEFAULT, DisplayValue nvarchar(400));
+
+    INSERT #disp (Source, ColumnName, DisplayValue)
+    SELECT v.Source, v.ColumnName, LTRIM(RTRIM(k.CatName))
+    FROM #val v
+    JOIN dbo.Category k ON k.CatId = TRY_CAST(v.Value AS int)
+    WHERE v.ColumnName IN (N'TopCatId', N'CatId', N'SubCatId') AND TRY_CAST(v.Value AS int) > 0;
+
+    /* Computyme's group columns (EGRP and any other GRP/GROUP column on IVMSTData), read only, under Category */
+    DECLARE @code nvarchar(100) = (SELECT LTRIM(RTRIM(CAST(ProductCode AS nvarchar(100)))) FROM dbo.ProductData WHERE Id = @ProductId);
+    DECLARE @idType nvarchar(200) =
+        (SELECT TYPE_NAME(c.system_type_id)
+                + CASE WHEN TYPE_NAME(c.system_type_id) IN (N'varchar', N'char') THEN N'(' + CASE WHEN c.max_length = -1 THEN N'max' ELSE CAST(c.max_length AS nvarchar(6)) END + N')'
+                       WHEN TYPE_NAME(c.system_type_id) IN (N'nvarchar', N'nchar') THEN N'(' + CASE WHEN c.max_length = -1 THEN N'max' ELSE CAST(c.max_length / 2 AS nvarchar(6)) END + N')'
+                       WHEN TYPE_NAME(c.system_type_id) IN (N'decimal', N'numeric') THEN N'(' + CAST(c.precision AS nvarchar(3)) + N',' + CAST(c.scale AS nvarchar(3)) + N')'
+                       ELSE N'' END
+         FROM sys.columns c WHERE c.object_id = OBJECT_ID(N'dbo.IVMSTData') AND c.name = N'ID');
+
+    SET @list = NULL;
+    SELECT @list = STRING_AGG(CAST(N'(N' + QUOTENAME(c.name, '''') + N', ' + piv2.ProductSheet_TextExpr(QUOTENAME(c.name), TYPE_NAME(c.system_type_id)) + N')' AS nvarchar(max)), N', ')
+    FROM sys.columns c
+    WHERE c.object_id = OBJECT_ID(N'dbo.IVMSTData')
+      AND (c.name LIKE N'%GRP%' OR c.name LIKE N'%GROUP%')
+      AND TYPE_NAME(c.system_type_id) NOT IN (N'image', N'varbinary', N'binary', N'xml', N'sql_variant', N'timestamp')
+      AND NOT EXISTS (SELECT 1 FROM #col x WHERE x.ColumnName = c.name COLLATE DATABASE_DEFAULT);
+
+    IF @list IS NOT NULL AND @idType IS NOT NULL AND @code IS NOT NULL
+    BEGIN
+    BEGIN TRY
+        /* the code is converted to ID's own type as a parameter, so ID's index can be used */
+        SET @sql = N'SELECT ''Computyme'', v.c, v.v FROM (SELECT TOP (1) * FROM dbo.IVMSTData WHERE ID = @c) x CROSS APPLY (VALUES ' + @list + N') v (c, v)';
+        DECLARE @sqlParams nvarchar(300) = N'@c ' + @idType;
+        INSERT #val EXEC sp_executesql @sql, @sqlParams, @c = @code;
+
+        INSERT #col (Source, ColumnName, DataType, MaxLength, Prec, Scale, IsNullable, IsReadOnlyType, ColumnId)
+        SELECT 'Computyme', c.name, TYPE_NAME(c.system_type_id), c.max_length, c.precision, c.scale, c.is_nullable, 1,
+               900 + ROW_NUMBER() OVER (ORDER BY c.column_id)                  -- 901-999 marks Computyme's group columns
+        FROM sys.columns c
+        WHERE c.object_id = OBJECT_ID(N'dbo.IVMSTData')
+          AND EXISTS (SELECT 1 FROM #val v WHERE v.Source = 'Computyme' AND v.ColumnName = c.name COLLATE DATABASE_DEFAULT)
+          AND NOT EXISTS (SELECT 1 FROM #col x WHERE x.ColumnName = c.name COLLATE DATABASE_DEFAULT);
+    END TRY
+    BEGIN CATCH
+        SET @list = NULL;          -- IVMSTData can't be read for this product: its group columns are left out
+    END CATCH
+    END
+
+    /* EGRP's description from Computyme's list (piv2.ComputymeEgroups) */
+    BEGIN TRY
+        INSERT #disp (Source, ColumnName, DisplayValue)
+        EXEC sp_executesql N'
+            SELECT v.Source, v.ColumnName, CAST(e.DESC_C AS nvarchar(400))
+            FROM #val v
+            JOIN piv2.ComputymeEgroups e ON TRY_CAST(e.ID AS int) = TRY_CAST(v.Value AS int)
+            WHERE v.ColumnName IN (N''egrp'', N''E_GRP'') AND TRY_CAST(v.Value AS int) IS NOT NULL;';
+    END TRY
+    BEGIN CATCH
+        SET @list = NULL;          -- the EGROUPS synonym isn't readable: EGRP shows as a number
+    END CATCH
+
     SELECT c.Source, c.ColumnName, c.DataType, c.MaxLength, c.Prec, c.Scale, c.IsNullable,
            v.Value,
-           ISNULL(f.Label, c.ColumnName)                                  AS Label,
-           ISNULL(f.GroupName, CASE WHEN c.Source = 'Computyme' THEN N'Computyme' ELSE N'Other fields' END) AS GroupName,
+           dsp.DisplayValue,
+           ISNULL(f.Label, CASE WHEN c.ColumnName IN (N'E_GRP') THEN N'EGRP (Computyme)'
+                                WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 THEN c.ColumnName + N' (Computyme)'
+                                ELSE c.ColumnName END)                    AS Label,
+           ISNULL(f.GroupName, CASE WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 THEN N'Category'
+                                    WHEN c.Source = 'Computyme' THEN N'Computyme' ELSE N'Other fields' END) AS GroupName,
            ISNULL(f.SortOrder, 500 + c.ColumnId)                          AS SortOrder,
            CASE
                WHEN c.Source = 'Computyme'                            THEN 'COMPUTYME'
@@ -245,6 +335,7 @@ BEGIN
            f.Note
     FROM #col c
     LEFT JOIN #val v ON v.Source = c.Source AND v.ColumnName = c.ColumnName
+    LEFT JOIN #disp dsp ON dsp.Source = c.Source AND dsp.ColumnName = c.ColumnName
     LEFT JOIN piv2.ProductSheetField f ON f.ColumnName = c.ColumnName COLLATE DATABASE_DEFAULT
     WHERE ISNULL(f.Lock, '') <> 'HIDDEN'
     ORDER BY GroupName, SortOrder, c.ColumnName;
@@ -326,6 +417,7 @@ BEGIN
                                              WHEN 'CATEGORY'  THEN N'change it with the Categories section or the Category Desk'
                                              WHEN 'SHOPIFY'   THEN N'set by the Shopify sync'
                                              WHEN 'CONTRACT'  THEN N'edit it in the product fields above'
+                                             WHEN 'MARKETPLACE' THEN N'set by the marketplace sync'
                                              ELSE N'kept by the system' END, N').')
     FROM #chg x WHERE x.Lock IS NOT NULL;
     IF @msg IS NOT NULL THROW 50464, @msg, 1;

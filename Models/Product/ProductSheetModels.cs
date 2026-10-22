@@ -15,10 +15,12 @@ namespace ProInternal.Models.Products
         public byte Scale { get; set; }
         public bool IsNullable { get; set; }
         public string Value { get; set; }
+        /* A name for a code: the category's name, EGRP's description. */
+        public string DisplayValue { get; set; }
         public string Label { get; set; }
         public string GroupName { get; set; }
         public int SortOrder { get; set; }
-        /* SYSTEM | CATEGORY | SHOPIFY | COMPUTYME | CONTRACT, or null when editable */
+        /* SYSTEM | CATEGORY | SHOPIFY | MARKETPLACE | COMPUTYME | CONTRACT, or null when editable */
         public string Lock { get; set; }
         public string Note { get; set; }
     }
