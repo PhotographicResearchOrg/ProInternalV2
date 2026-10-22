@@ -277,7 +277,8 @@ export class ProductSheetComponent implements OnInit, OnChanges {
   /** Columns the product contract already shows (from Computyme's feed or ProductData): not repeated. */
   private static readonly SHOWN_ABOVE = new Set([
     'retail', 'cartonpricingretail', 'authorizedprice', 'map', 'cust_retail', 'ds_chg', 'upc', 'cat_no', 'multiple', 'carton',
-    'isdiscontinued', 'modelname', 'brandid', 'isforsale', 'replacementcode', 'isdropshipelibible', 'productcode'
+    'isdiscontinued', 'modelname', 'brandid', 'isforsale', 'replacementcode', 'isdropshipelibible', 'productcode',
+    'mult', 'in_case', 'specorder', 'id'
   ]);
 
   /** Every ProductData column the contract doesn't cover, and Computyme's columns, from the server. */

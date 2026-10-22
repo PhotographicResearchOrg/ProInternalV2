@@ -146,7 +146,25 @@ GO
    Applied only where the row still has the label first written above, so your own edits are kept. */
 MERGE piv2.ProductSheetField AS t
 USING (VALUES
-    (N'ASIN',                        N'Amazon ASIN',                   N'Codes',             50,  'MARKETPLACE', N'Set by the Amazon Seller Central sync (Shopify database script)')
+    (N'ASIN',                        N'Amazon ASIN',                   N'Codes',             50,  'MARKETPLACE', N'Set by the Amazon Seller Central sync (Shopify database script)'),
+    -- Computyme (IVMSTData): read only until product data moves to SQL
+    (N'NET_1',                       N'Price 1',                       N'Prices',            100, 'COMPUTYME', NULL),
+    (N'NET_2',                       N'Price 2',                       N'Prices',            110, 'COMPUTYME', NULL),
+    (N'NET_3',                       N'Price 3',                       N'Prices',            120, 'COMPUTYME', NULL),
+    (N'PCT',                         N'PCT',                           N'Prices',            130, 'COMPUTYME', NULL),
+    (N'LastCost',                    N'Last cost',                     N'Prices',            140, 'COMPUTYME', NULL),
+    (N'onOrder',                     N'On order',                      N'Stock & shipping',  5,   'COMPUTYME', NULL),
+    (N'A_VENDOR',                    N'Actual vendor',                 N'Supply',            100, 'COMPUTYME', NULL),
+    (N'vend',                        N'Vendor group',                  N'Supply',            110, 'COMPUTYME', NULL),
+    (N'E_GRP',                       N'EGRP',                          N'Category',          40,  'COMPUTYME', NULL),
+    (N'DESC_C',                      N'Description in Computyme',      N'Identity',          90,  'COMPUTYME', NULL),
+    (N'L_REQ',                       N'L_REQ',                         N'More fields',       10,  'COMPUTYME', NULL),
+    (N'DISPLAY',                     N'DISPLAY',                       N'More fields',       20,  'COMPUTYME', NULL),
+    (N'status',                      N'Computyme status',              N'Status',            60,  'COMPUTYME', NULL),
+    -- shown already in the product fields: not repeated
+    (N'MULT',                        N'Order multiple',                N'Stock & shipping',  20,  'CONTRACT',  NULL),
+    (N'IN_CASE',                     N'Units per case',                N'Stock & shipping',  25,  'CONTRACT',  NULL),
+    (N'SpecOrder',                   N'Special order',                 N'Supply',            30,  'CONTRACT',  NULL)
 ) AS s (ColumnName, Label, GroupName, SortOrder, Lock, Note)
 ON t.ColumnName = s.ColumnName
 WHEN NOT MATCHED THEN
@@ -263,10 +281,10 @@ BEGIN
     SELECT v.Source, v.ColumnName, LTRIM(RTRIM(k.CatName))
     FROM #val v
     JOIN dbo.Category k ON k.CatId = TRY_CAST(v.Value AS int)
-    WHERE v.ColumnName IN (N'TopCatId', N'CatId', N'SubCatId') AND TRY_CAST(v.Value AS int) > 0;
+    WHERE v.ColumnName IN (N'TopCatId', N'CatId', N'SubCatId') AND TRY_CAST(v.Value AS int) <> 0;      -- ids can be negative
 
-    /* Computyme's group columns (EGRP and any other GRP/GROUP column on IVMSTData) under Category, and its vendor
-       columns (ACTVEND, PROVENDOR...) under Supply; read only */
+    /* Every IVMSTData column the page doesn't already have (prices 1-3, last cost, vendors, EGRP...), read only;
+       labels and groups from piv2.ProductSheetField */
     DECLARE @code nvarchar(100) = (SELECT LTRIM(RTRIM(CAST(ProductCode AS nvarchar(100)))) FROM dbo.ProductData WHERE Id = @ProductId);
     DECLARE @idType nvarchar(200) =
         (SELECT TYPE_NAME(c.system_type_id)
@@ -280,7 +298,6 @@ BEGIN
     SELECT @list = STRING_AGG(CAST(N'(N' + QUOTENAME(c.name, '''') + N', ' + piv2.ProductSheet_TextExpr(QUOTENAME(c.name), TYPE_NAME(c.system_type_id)) + N')' AS nvarchar(max)), N', ')
     FROM sys.columns c
     WHERE c.object_id = OBJECT_ID(N'dbo.IVMSTData')
-      AND (c.name LIKE N'%GRP%' OR c.name LIKE N'%GROUP%' OR c.name LIKE N'%VEND%')
       AND TYPE_NAME(c.system_type_id) NOT IN (N'image', N'varbinary', N'binary', N'xml', N'sql_variant', N'timestamp')
       AND NOT EXISTS (SELECT 1 FROM #col x WHERE x.ColumnName = c.name COLLATE DATABASE_DEFAULT);
 
@@ -333,10 +350,11 @@ BEGIN
                                 WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 THEN c.ColumnName
                                 ELSE c.ColumnName END)                    AS Label,
            ISNULL(f.GroupName, CASE WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 AND c.ColumnName LIKE N'%VEND%' THEN N'Supply'
-                                    WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 THEN N'Category'
+                                    WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 AND (c.ColumnName LIKE N'%GRP%' OR c.ColumnName LIKE N'%GROUP%') THEN N'Category'
                                     WHEN c.Source = 'Computyme' THEN N'More fields' ELSE N'Other fields' END) AS GroupName,
            ISNULL(f.SortOrder, 500 + c.ColumnId)                          AS SortOrder,
            CASE
+               WHEN f.Lock = 'CONTRACT'                               THEN 'CONTRACT'      -- shown in the product fields; the page doesn't repeat it
                WHEN c.Source = 'Computyme'                            THEN 'COMPUTYME'
                WHEN c.IsReadOnlyType = 1                              THEN 'SYSTEM'
                WHEN f.Lock = 'COMPUTYME' AND @SqlIsMaster = 1         THEN NULL
