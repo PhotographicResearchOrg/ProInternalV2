@@ -36,7 +36,7 @@ IF OBJECT_ID(N'piv2.ProductSheetField', N'U') IS NULL
         Label       nvarchar(100)  NOT NULL,
         GroupName   nvarchar(60)   NOT NULL,
         SortOrder   int            NOT NULL CONSTRAINT DF_ProductSheetField_Sort DEFAULT 500,
-        Lock        varchar(12)    NULL,          -- SYSTEM | CATEGORY | SHOPIFY | MARKETPLACE | COMPUTYME | CONTRACT | HIDDEN
+        Lock        varchar(12)    NULL,          -- SYSTEM | CATEGORY | SHOPIFY | MARKETPLACE | COMPUTYME | VIEW | CONTRACT | HIDDEN
         Note        nvarchar(300)  NULL
     );
 GO
@@ -183,6 +183,30 @@ JOIN (VALUES
 ) AS n (ColumnName, OldLabel, Label, GroupName, SortOrder, Note)
   ON n.ColumnName = f.ColumnName
 WHERE f.Label = n.OldLabel;
+
+/* 2026-10-22: columns the B2B product view (dbo.Product) works out itself. ProductData's copy isn't what the
+   site uses, so the sheet shows the view's value, read only (Lock VIEW). */
+UPDATE f SET Lock = 'VIEW', Label = n.Label, GroupName = n.GroupName, Note = n.Note
+FROM piv2.ProductSheetField f
+JOIN (VALUES
+    (N'FastShippingAvailable', N'Air shipping available', N'Stock & shipping',
+         N'Worked out by the product view: ground only for vendor 479 and EGRP 17, 18 and 76; air for everything else'),
+    (N'IsGroup',               N'Group product (kit)',     N'Identity',
+         N'Worked out by the product view: yes when the product has items in ProductGroupProduct'),
+    (N'hold',                  N'Hold',                    N'Status',
+         N'From Computyme (IVMST HOLD)')
+) AS n (ColumnName, Label, GroupName, Note) ON n.ColumnName = f.ColumnName
+WHERE ISNULL(f.Lock, '') <> 'HIDDEN';
+
+UPDATE f SET Label = n.Label, Note = n.Note
+FROM piv2.ProductSheetField f
+JOIN (VALUES
+    (N'NET_1', N'Price 1 (member price before uplift)',            N'Member price = price 1 + price 1 × PCT/10'),
+    (N'NET_2', N'Price 2 (carton price before uplift)',            N'Carton price = price 2 + price 2 × PCT/10'),
+    (N'NET_3', N'Price 3 (authorized dealer price before uplift)', N'Authorized dealer price = price 3 + price 3 × PCT/10'),
+    (N'PCT',   N'PCT (price uplift)',                              N'Applied to prices 1-3, drop-ship charge and last cost: price × PCT/10')
+) AS n (ColumnName, Label, Note) ON n.ColumnName = f.ColumnName
+WHERE f.Label IN (N'Price 1', N'Price 2', N'Price 3', N'PCT');
 GO
 
 /* ---------------------------------------------------------------- a column as text
@@ -229,6 +253,7 @@ BEGIN
            c.column_id
     FROM sys.columns c
     WHERE c.object_id = OBJECT_ID(N'dbo.ProductData')
+      AND NOT EXISTS (SELECT 1 FROM piv2.ProductSheetField vf WHERE vf.ColumnName = c.name COLLATE DATABASE_DEFAULT AND vf.Lock = 'VIEW')
       AND TYPE_NAME(c.user_type_id) NOT IN (N'geography', N'geometry', N'hierarchyid')
       AND TYPE_NAME(c.system_type_id) NOT IN (N'image', N'varbinary', N'binary', N'xml', N'sql_variant', N'timestamp');
 
@@ -446,6 +471,7 @@ BEGIN
                                              WHEN 'SHOPIFY'   THEN N'set by the Shopify sync'
                                              WHEN 'CONTRACT'  THEN N'edit it in the product fields above'
                                              WHEN 'MARKETPLACE' THEN N'set by the marketplace sync'
+                                             WHEN 'VIEW'      THEN N'worked out by the product view; the B2B site doesn''t use this copy'
                                              ELSE N'kept by the system' END, N').')
     FROM #chg x WHERE x.Lock IS NOT NULL;
     IF @msg IS NOT NULL THROW 50464, @msg, 1;

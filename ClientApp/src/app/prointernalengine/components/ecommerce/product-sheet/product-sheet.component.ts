@@ -39,6 +39,7 @@ const LOCK_TEXT: Record<string, string> = {
   CATEGORY: 'Change it with the Categories section or the Category Desk',
   SHOPIFY: 'Set by the Shopify sync',
   MARKETPLACE: 'Set by the marketplace sync',
+  VIEW: 'Worked out by the product view (what the B2B site uses)',
   SYSTEM: 'Kept by the system',
   CONTRACT: 'Edited in the product fields'
 };

@@ -62,7 +62,7 @@ export interface ProductAssetsView {
 
 /* ------------------------------------------------------------ product sheet (GET api/products/{id}/sheet) */
 
-export type SheetLock = 'SYSTEM' | 'CATEGORY' | 'SHOPIFY' | 'MARKETPLACE' | 'COMPUTYME' | 'CONTRACT' | null;
+export type SheetLock = 'SYSTEM' | 'CATEGORY' | 'SHOPIFY' | 'MARKETPLACE' | 'COMPUTYME' | 'VIEW' | 'CONTRACT' | null;
 
 export interface ProductSheetField {
   source: 'ProductData' | 'Computyme';
