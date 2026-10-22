@@ -219,7 +219,7 @@ export class ProductSheetComponent implements OnInit, OnChanges {
       this.money('Prices', 'Shipping surcharge', () => p.pricing, 'shippingSurcharge'),
 
       this.field('directMode', 'Ships from', 'Supply', 'select', () => p.supply.directMode, v => p.supply.directMode = v, null, [
-        { value: 'MARKER', label: 'Follow the inventory marker (9999 = ships direct)' }, { value: 'WAREHOUSE', label: 'Always our warehouse' },
+        { value: 'MARKER', label: 'Follow the inventory marker (9999 = direct)' }, { value: 'WAREHOUSE', label: 'Always our warehouse' },
         { value: 'DIRECT', label: 'Always direct from the vendor' }]),
       this.field('ctActVend', 'Actual vendor', 'Supply', 'readonly', () => this.page?.computymeActualVendor || '—', undefined, 'COMPUTYME'),
       this.field('ctProVendor', 'Vendor group', 'Supply', 'readonly', () => this.page?.computymeVendorGroup || '—', undefined, 'COMPUTYME'),
