@@ -24,8 +24,9 @@
       DIFFERENT          both sides have the code, the address differs (Differences says where)
       NOT_IN_COMPUTYME   mapped in SQL, Computyme has no record for that code
       ONLY_IN_COMPUTYME  Computyme has the code, nothing in SQL maps to it
-      NO_SQL_DEFAULT     Computyme has a default ship-to, SQL has no default (00) mapping
-      NOT_MAPPED         active shipping address in SQL with no ship-to number
+      NOT_MAPPED         active shipping address in SQL with no ship-to number that isn't Computyme's 00 address
+    No 00 mapping = billing and shipping are the same: the bill-to address is compared with Computyme's 00
+    (ARMST ship street, or the main address when that's blank), and needs no ship-to number.
       BAD_CODE           mapping's code isn't 1-2 digits (e.g. the old screen's 99999999 placeholder)
       DUPLICATE_CODE     two mappings share one code for the member
       ADDRESS_MISSING    mapping points at an address that isn't this member's (or doesn't exist)
@@ -177,7 +178,51 @@ FROM piv2.vComputymeShipTo s
 WHERE s.AccountNo IS NOT NULL AND s.Code <> N'00';
 GO
 
-/* ------------------------------------------------ SQL vs Computyme, one row per ship-to */
+/* ------------------------------------------------ what differs between two addresses (NULL = same) */
+CREATE OR ALTER FUNCTION piv2.fnAddrDiff
+    (@SqlStreet nvarchar(200), @SqlCity nvarchar(200), @SqlState nvarchar(200), @SqlZip nvarchar(200),
+     @CtyStreet nvarchar(200), @CtyCity nvarchar(200), @CtyState nvarchar(200), @CtyZip nvarchar(200))
+RETURNS nvarchar(100)
+AS
+BEGIN
+    DECLARE @ks nvarchar(400) = ISNULL(piv2.fnAddrKey(@SqlStreet), N''), @kcs nvarchar(400) = ISNULL(piv2.fnAddrKey(@CtyStreet), N''),
+            @kc nvarchar(400) = ISNULL(piv2.fnAddrKey(@SqlCity), N''),   @kcc nvarchar(400) = ISNULL(piv2.fnAddrKey(@CtyCity), N''),
+            @zs nvarchar(20) = CASE WHEN @SqlZip LIKE '[0-9][0-9][0-9][0-9][0-9]%' THEN LEFT(@SqlZip, 5)
+                                    ELSE ISNULL(REPLACE(REPLACE(UPPER(@SqlZip), N' ', N''), N'-', N''), N'') END,
+            @zc nvarchar(20) = CASE WHEN @CtyZip LIKE '[0-9][0-9][0-9][0-9][0-9]%' THEN LEFT(@CtyZip, 5)
+                                    ELSE ISNULL(REPLACE(REPLACE(UPPER(@CtyZip), N' ', N''), N'-', N''), N'') END;
+    /* Computyme cuts street at 25 and city at 15: a cut-off copy still counts as the same */
+    RETURN NULLIF(CONCAT_WS(N', ',
+             CASE WHEN NOT (@ks = @kcs OR (LEN(@CtyStreet) >= 24 AND @kcs <> N'' AND @ks LIKE @kcs + N'%')) THEN N'street' END,
+             CASE WHEN NOT (@kc = @kcc OR (LEN(@CtyCity)   >= 14 AND @kcc <> N'' AND @kc LIKE @kcc + N'%')) THEN N'city' END,
+             CASE WHEN ISNULL(UPPER(LTRIM(RTRIM(@SqlState))), N'') <> ISNULL(UPPER(LTRIM(RTRIM(@CtyState))), N'') THEN N'state' END,
+             CASE WHEN @zs <> @zc THEN N'ZIP' END), N'');
+END
+GO
+
+/* ------------------------------------------------ what Computyme's ship-to record can't hold (NULL = fits) */
+CREATE OR ALTER FUNCTION piv2.fnShipToFit
+    (@Street nvarchar(200), @Street2 nvarchar(200), @City nvarchar(200), @Zip nvarchar(200), @Country nvarchar(200))
+RETURNS nvarchar(200)
+AS
+BEGIN
+    RETURN NULLIF(CONCAT_WS(N' · ',
+             CASE WHEN NULLIF(LTRIM(RTRIM(@Street2)), N'') IS NOT NULL THEN N'line 2 not kept' END,
+             CASE WHEN LEN(@Street) > 25 THEN N'street over 25' END,
+             CASE WHEN LEN(@City) > 15 THEN N'city over 15' END,
+             CASE WHEN LEN(@City) + LEN(@Zip) + 5 > 25 THEN N'"City, ST ZIP" over 25' END,
+             CASE WHEN UPPER(ISNULL(LTRIM(RTRIM(@Country)), N'')) NOT IN (N'', N'US', N'USA', N'UNITED STATES', N'CA', N'CAN', N'CANADA')
+                  THEN N'country not supported' END,
+             CASE WHEN @Zip NOT LIKE '[0-9][0-9][0-9][0-9][0-9]'
+                   AND @Zip NOT LIKE '[0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]'
+                   AND UPPER(@Zip) NOT LIKE '[A-Z][0-9][A-Z]%[0-9][A-Z][0-9]' THEN N'ZIP format' END), N'');
+END
+GO
+
+/* ------------------------------------------------ SQL vs Computyme, one row per ship-to
+   A member with no 00 mapping ships to its billing address: Computyme's 00 is the ARMST ship street,
+   or the main address when that's blank. So the bill-to address is compared as 00, and a shipping
+   address that is the same as Computyme's 00 needs no ship-to number. */
 CREATE OR ALTER FUNCTION piv2.fnMemberShipToCompare (@AccountNumber varchar(50))
 RETURNS TABLE
 AS
@@ -214,6 +259,9 @@ mapx AS (
 ),
 cty AS (
     SELECT c.* FROM piv2.vComputymeShipToAll c JOIN mem m ON m.AccountNo = c.AccountNo
+),
+cty00 AS (
+    SELECT c.* FROM cty c WHERE c.Code = N'00'
 )
 /* 1. every mapping */
 SELECT m.AccountNumber, m.Company AS MemberName, x.Code, x.MapId, x.CodeRaw, x.IsDefaultShipTo AS IsDefault,
@@ -230,63 +278,62 @@ SELECT m.AccountNumber, m.Company AS MemberName, x.Code, x.MapId, x.CodeRaw, x.I
             WHEN ct.AccountNo IS NULL                                 THEN 'NOT_IN_COMPUTYME'
             WHEN cmp.Differences IS NOT NULL                          THEN 'DIFFERENT'
             ELSE 'MATCH' END AS varchar(20)) AS Status,
-       cmp.Differences, fit.FitIssues
+       cmp.Differences,
+       CASE WHEN a.AddressId IS NOT NULL THEN piv2.fnShipToFit(a.Address1, a.Address2, a.City, a.Zip, a.Country) END AS FitIssues
 FROM mapx x
 JOIN mem m ON m.AccountNo = x.AccountNo
 CROSS JOIN piv2.vComputymeShipToMirror mir
 LEFT JOIN addr a ON a.AddressId = x.AddressId AND a.AccountNo = x.AccountNo
 OUTER APPLY (SELECT TOP (1) c.* FROM cty c WHERE c.AccountNo = x.AccountNo AND c.Code = x.Code
              ORDER BY CASE c.SourceName WHEN N'SHIPTO' THEN 1 ELSE 0 END) ct
-CROSS APPLY (SELECT ISNULL(piv2.fnAddrKey(a.Address1), N'') AS S, ISNULL(piv2.fnAddrKey(ct.Street), N'') AS C) ks
-CROSS APPLY (SELECT ISNULL(piv2.fnAddrKey(a.City), N'') AS S, ISNULL(piv2.fnAddrKey(ct.City), N'') AS C) kc
-CROSS APPLY (SELECT CASE WHEN a.Zip  LIKE '[0-9][0-9][0-9][0-9][0-9]%' THEN LEFT(a.Zip, 5)
-                         ELSE ISNULL(REPLACE(REPLACE(UPPER(a.Zip), N' ', N''), N'-', N''), N'') END AS S,
-                    CASE WHEN ct.Zip LIKE '[0-9][0-9][0-9][0-9][0-9]%' THEN LEFT(ct.Zip, 5)
-                         ELSE ISNULL(REPLACE(REPLACE(UPPER(ct.Zip), N' ', N''), N'-', N''), N'') END AS C) kz
-CROSS APPLY (
-    SELECT CASE WHEN a.AddressId IS NULL OR ct.AccountNo IS NULL THEN NULL ELSE
-           NULLIF(CONCAT_WS(N', ',
-             CASE WHEN NOT (ks.S = ks.C OR (LEN(ct.Street) >= 24 AND ks.S LIKE ks.C + N'%')) THEN N'street' END,
-             CASE WHEN NOT (kc.S = kc.C OR (LEN(ct.City)   >= 14 AND kc.S LIKE kc.C + N'%')) THEN N'city' END,
-             CASE WHEN ISNULL(UPPER(LTRIM(RTRIM(a.State))), N'') <> ISNULL(UPPER(ct.State), N'') THEN N'state' END,
-             CASE WHEN kz.S <> kz.C THEN N'ZIP' END), N'') END AS Differences
-) cmp
-CROSS APPLY (
-    SELECT CASE WHEN a.AddressId IS NULL THEN NULL ELSE NULLIF(CONCAT_WS(N' · ',
-             CASE WHEN NULLIF(LTRIM(RTRIM(a.Address2)), '') IS NOT NULL THEN N'line 2 not kept' END,
-             CASE WHEN LEN(a.Address1) > 25 THEN N'street over 25' END,
-             CASE WHEN LEN(a.City) > 15 THEN N'city over 15' END,
-             CASE WHEN LEN(a.City) + LEN(a.Zip) + 5 > 25 THEN N'"City, ST ZIP" over 25' END,
-             CASE WHEN UPPER(ISNULL(LTRIM(RTRIM(a.Country)), '')) NOT IN ('', 'US', 'USA', 'UNITED STATES', 'CA', 'CAN', 'CANADA')
-                  THEN N'country not supported' END,
-             CASE WHEN a.Zip NOT LIKE '[0-9][0-9][0-9][0-9][0-9]'
-                   AND a.Zip NOT LIKE '[0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]'
-                   AND UPPER(a.Zip) NOT LIKE '[A-Z][0-9][A-Z]%[0-9][A-Z][0-9]' THEN N'ZIP format' END), N'') END AS FitIssues
-) fit
+CROSS APPLY (SELECT CASE WHEN a.AddressId IS NOT NULL AND ct.AccountNo IS NOT NULL
+                         THEN piv2.fnAddrDiff(a.Address1, a.City, a.State, a.Zip, ct.Street, ct.City, ct.State, ct.Zip) END AS Differences) cmp
 
 UNION ALL
-/* 2. active shipping addresses with no ship-to number */
-SELECT m.AccountNumber, m.Company, NULL, NULL, NULL, CAST(0 AS bit),
+/* 2. no 00 mapping: the bill-to address is the default ship-to (billing and shipping the same) */
+SELECT m.AccountNumber, m.Company, '00', NULL, NULL, CAST(1 AS bit),
        a.AddressId, a.IsActive, a.AddressTypeName,
        a.Address1, a.Address2, a.City, a.State, a.Zip, a.Country,
-       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-       'NOT_MAPPED', NULL, NULL
+       c.SourceName, c.ComputymeKey, c.Name, c.Street, c.Street2, c.City, c.State, c.Zip, c.Zone,
+       CAST(CASE WHEN c.AccountNo IS NULL THEN 'NOT_IN_COMPUTYME'
+                 WHEN d.Differences IS NOT NULL THEN 'DIFFERENT' ELSE 'MATCH' END AS varchar(20)),
+       d.Differences,
+       piv2.fnShipToFit(a.Address1, a.Address2, a.City, a.Zip, a.Country)
+FROM mem m
+JOIN addr a ON a.AccountNo = m.AccountNo AND a.AddressId = m.BillAddressId
+LEFT JOIN cty00 c ON c.AccountNo = m.AccountNo
+CROSS APPLY (SELECT CASE WHEN c.AccountNo IS NOT NULL
+                         THEN piv2.fnAddrDiff(a.Address1, a.City, a.State, a.Zip, c.Street, c.City, c.State, c.Zip) END AS Differences) d
+WHERE NOT EXISTS (SELECT 1 FROM map p WHERE p.AccountNo = m.AccountNo AND p.Code = '00')
+
+UNION ALL
+/* 3. active shipping addresses with no ship-to number: fine when they are Computyme's 00 address, else NOT_MAPPED */
+SELECT m.AccountNumber, m.Company, CASE WHEN same.Yes = 1 THEN '00' END, NULL, NULL, CAST(0 AS bit),
+       a.AddressId, a.IsActive, a.AddressTypeName,
+       a.Address1, a.Address2, a.City, a.State, a.Zip, a.Country,
+       c.SourceName, c.ComputymeKey, c.Name, c.Street, c.Street2, c.City, c.State, c.Zip, c.Zone,
+       CAST(CASE WHEN same.Yes = 1 THEN 'MATCH' ELSE 'NOT_MAPPED' END AS varchar(20)), NULL,
+       CASE WHEN same.Yes = 1 THEN piv2.fnShipToFit(a.Address1, a.Address2, a.City, a.Zip, a.Country) END
 FROM addr a
 JOIN mem m ON m.AccountNo = a.AccountNo
+LEFT JOIN cty00 c ON c.AccountNo = a.AccountNo
+CROSS APPLY (SELECT CASE WHEN c.AccountNo IS NOT NULL
+                          AND piv2.fnAddrDiff(a.Address1, a.City, a.State, a.Zip, c.Street, c.City, c.State, c.Zip) IS NULL
+                         THEN 1 ELSE 0 END AS Yes) same
 WHERE a.IsActive = 1 AND a.IsShipping = 1 AND a.IsBillTo = 0
   AND NOT EXISTS (SELECT 1 FROM map p WHERE p.AccountNo = a.AccountNo AND p.AddressId = a.AddressId)
 
 UNION ALL
-/* 3. Computyme ship-tos nothing in SQL maps to */
-SELECT m.AccountNumber, m.Company, c.Code, NULL, NULL, CAST(CASE WHEN c.Code = N'00' THEN 1 ELSE 0 END AS bit),
+/* 4. Computyme ship-tos 01+ nothing in SQL maps to */
+SELECT m.AccountNumber, m.Company, c.Code, NULL, NULL, CAST(0 AS bit),
        NULL, NULL, NULL,
        NULL, NULL, NULL, NULL, NULL, NULL,
        c.SourceName, c.ComputymeKey, c.Name, c.Street, c.Street2, c.City, c.State, c.Zip, c.Zone,
-       CASE WHEN c.Code = N'00' THEN 'NO_SQL_DEFAULT' ELSE 'ONLY_IN_COMPUTYME' END, NULL, NULL
+       'ONLY_IN_COMPUTYME', NULL, NULL
 FROM cty c
 JOIN mem m ON m.AccountNo = c.AccountNo
-WHERE NOT EXISTS (SELECT 1 FROM map p WHERE p.AccountNo = c.AccountNo AND p.Code = c.Code)
-  AND (c.Code <> N'00' OR NULLIF(c.Street, N'') IS NOT NULL);
+WHERE c.Code <> N'00'
+  AND NOT EXISTS (SELECT 1 FROM map p WHERE p.AccountNo = c.AccountNo AND p.Code = c.Code);
 GO
 
 /* ------------------------------------------------ Member Desk › Locations */

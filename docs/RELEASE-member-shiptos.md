@@ -32,11 +32,13 @@ SQL addresses are edited on the B2B site and never reach Computyme, so the two c
   | Address missing / Address off | The mapping points at a missing or switched-off address. |
   | Not mapped | Shipping address with no ship-to number. |
 
+  **Billing and shipping the same:** a member with no `00` mapping needs no ship-to number. Its bill-to address is compared with Computyme's default (the ARMST ship street, or the main address when that's blank), and a shipping address that's the same as that default isn't flagged as "Not mapped".
+
   It also notes what Computyme can't hold: address line 2, a street over 25 characters, a city over 15, "City, ST ZIP" over 25, and anything outside the US and Canada.
 - **All members check** downloads every mismatch across all members as Excel.
 - **API:** `GET api/members/{account}/shiptos` and `GET api/members/shipto-issues` on the existing MemberController. No new permission is needed.
 - **Order export fix:** the Computyme order file now sends `account-code` for extra ship-tos.
-  - The canonical export read the code from a field nothing filled in, so every order would have gone to the default ship-to. It now reads `references.computymeShipTo`.
+  - The canonical export read the code from a field nothing filled in, so orders with an alternate ship-to would have gone to the default address. Orders with no alternate were never affected. It now reads `references.computymeShipTo`.
   - A code that isn't 1-2 digits (for example `99999999`) now kicks the order out to review instead of shipping it to the wrong place.
   - Blank, `0` and `00` still mean the default ship-to.
 

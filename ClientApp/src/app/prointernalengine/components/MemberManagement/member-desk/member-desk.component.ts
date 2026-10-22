@@ -432,7 +432,10 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
   /** Computyme ship-to code: 00 = the default address in ARMST, 01+ = extra ship-tos from the mapping table. */
   shipToCode(l: MemberLocation): string | null {
     if (l.computymeShipTo !== null && l.computymeShipTo !== undefined) return String(l.computymeShipTo).padStart(2, '0');
-    return l.isDefaultShipTo ? '00' : null;
+    if (l.isDefaultShipTo) return '00';
+    /* No 00 mapping: billing and shipping are the same, so the bill-to address (or a shipping address
+       identical to Computyme's default) is ship-to 00 and needs no number. */
+    return this.shipToFor(l)?.code === '00' ? '00' : null;
   }
   get locationTypes(): { name: string; count: number }[] {
     const all = (this.detail?.locations ?? []).filter(l => this.showInactiveLocations || l.isActive);
@@ -452,7 +455,11 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
   /** Only shipping addresses go to Computyme as ship-tos; stores and private/user addresses never do. */
   isShipping(l: MemberLocation): boolean { return /ship/i.test(l.addressTypeName || ''); }
   /** An active shipping address with no row in AddressShipToMap (so no Computyme ship-to number). */
-  needsMapping(l: MemberLocation): boolean { return l.isActive && !l.isBillTo && this.isShipping(l) && this.shipToCode(l) === null; }
+  needsMapping(l: MemberLocation): boolean {
+    if (!(l.isActive && !l.isBillTo && this.isShipping(l) && this.shipToCode(l) === null)) return false;
+    const c = this.shipTos ? this.shipToFor(l) : undefined;
+    return !c || c.status === 'NOT_MAPPED';
+  }
   get unmappedCount(): number { return (this.detail?.locations ?? []).filter(l => this.needsMapping(l)).length; }
 
   // ------------------------------------------------------------ ship-tos vs Computyme (read only)
@@ -466,8 +473,7 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
     DIFFERENT:         { text: 'Different',          cls: 'status-exception', hint: 'Computyme has this code with a different address: orders ship to Computyme\'s.' },
     NOT_IN_COMPUTYME:  { text: 'Not in Computyme',   cls: 'status-hold',      hint: 'Mapped here, but Computyme has no ship-to with this code.' },
     ONLY_IN_COMPUTYME: { text: 'Only in Computyme',  cls: 'status-violet',    hint: 'Computyme has this ship-to; nothing here maps to it.' },
-    NO_SQL_DEFAULT:    { text: 'No default here',    cls: 'status-violet',    hint: 'Computyme has a default ship-to; no address here is mapped as 00.' },
-    NOT_MAPPED:        { text: 'Not mapped',         cls: 'status-exception', hint: 'Shipping address with no Computyme ship-to number.' },
+    NOT_MAPPED:        { text: 'Not mapped',         cls: 'status-exception', hint: 'Shipping address with no Computyme ship-to number, and not the same as the default (00).' },
     BAD_CODE:          { text: 'Bad code',           cls: 'status-hold',      hint: 'The mapping\'s code isn\'t a Computyme ship-to number (1-2 digits), e.g. the old screen\'s 99999999.' },
     DUPLICATE_CODE:    { text: 'Duplicate code',     cls: 'status-hold',      hint: 'Two addresses are mapped to the same code.' },
     ADDRESS_MISSING:   { text: 'Address missing',    cls: 'status-hold',      hint: 'The mapping points at an address that isn\'t this member\'s.' },

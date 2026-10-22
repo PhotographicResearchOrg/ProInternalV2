@@ -86,7 +86,7 @@ export const SEGMENT_LABELS: { [k: string]: string } = {
 
 /* ---------- ship-tos: SQL vs Computyme (read only). API: GET api/members/{acct}/shiptos, GET api/members/shipto-issues */
 export type ShipToStatus =
-  'MATCH' | 'DIFFERENT' | 'NOT_IN_COMPUTYME' | 'ONLY_IN_COMPUTYME' | 'NO_SQL_DEFAULT' | 'NOT_MAPPED' |
+  'MATCH' | 'DIFFERENT' | 'NOT_IN_COMPUTYME' | 'ONLY_IN_COMPUTYME' | 'NOT_MAPPED' |
   'BAD_CODE' | 'DUPLICATE_CODE' | 'ADDRESS_MISSING' | 'ADDRESS_INACTIVE' | 'NO_MIRROR';
 export interface ShipToMirror { mirrorAvailable: boolean; mirrorSource?: string | null; mirrorShipTos: number; }
 export interface ShipToCompareRow {
