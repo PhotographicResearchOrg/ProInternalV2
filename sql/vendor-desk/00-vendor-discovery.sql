@@ -9,8 +9,8 @@
                           Field 12 APID points at the AP vendor.
       EDA APMST.APMST     AP vendor (who we pay). Products point at it (IVMST A.VENDOR, field 37).
       EDA VENDXREF        PRO vendor -> AP vendor cross reference (AVEND). Used by IPBILL.
-      PRO dbo.Vendor      PIV2 vendor grid (ids assumed = APMST ids; new ones < 9000, 9999 = PRO).
-      PRO dbo.Brand       Brand.VendorID (one vendor per brand), and dbo.VendorBrand (by brand name).
+      PRO PRO.dbo.Vendor      PIV2 vendor grid (ids assumed = APMST ids; new ones < 9000, 9999 = PRO).
+      PRO PRO.dbo.Brand       Brand.VendorID (one vendor per brand), and PRO.dbo.VendorBrand (by brand name).
 
     Results:
       1. Which EDA vendor/PO files exist, row counts and columns
@@ -18,6 +18,7 @@
       3. Disagreements: each kind of mismatch with a count, then the rows
       4. Brand <-> vendor: Brand.VendorID vs VendorBrand
 */
+USE PRO;   -- every PRO object below is also written PRO.dbo.*, so it works from any database
 SET NOCOUNT ON;
 
 /* ---------- 1. EDA files ---------- */
@@ -127,17 +128,17 @@ END
 IF OBJECT_ID('tempdb..#prodvend') IS NOT NULL DROP TABLE #prodvend;
 SELECT TRY_CAST(i.vend AS int) AS ProVend, TRY_CAST(i.A_VENDOR AS int) AS AVend, i.status
 INTO #prodvend
-FROM dbo.IVMSTData i;
+FROM PRO.dbo.IVMSTData i;
 
 IF OBJECT_ID('tempdb..#ids') IS NOT NULL DROP TABLE #ids;
 SELECT Id INTO #ids FROM (
-    SELECT VendorId AS Id FROM dbo.Vendor
+    SELECT VendorId AS Id FROM PRO.dbo.Vendor
     UNION SELECT Id FROM #vn UNION SELECT ApId FROM #vn WHERE ApId IS NOT NULL
     UNION SELECT Id FROM #ap
     UNION SELECT Id FROM #vx UNION SELECT AVend FROM #vx WHERE AVend IS NOT NULL
     UNION SELECT ProVend FROM #prodvend WHERE ProVend IS NOT NULL
     UNION SELECT AVend FROM #prodvend WHERE AVend IS NOT NULL
-    UNION SELECT TRY_CAST(VendorID AS int) FROM dbo.Brand WHERE TRY_CAST(VendorID AS int) IS NOT NULL
+    UNION SELECT TRY_CAST(VendorID AS int) FROM PRO.dbo.Brand WHERE TRY_CAST(VendorID AS int) IS NOT NULL
 ) u;
 
 IF OBJECT_ID('tempdb..#matrix') IS NOT NULL DROP TABLE #matrix;
@@ -155,12 +156,12 @@ SELECT i.Id,
        (SELECT COUNT(*) FROM #prodvend p WHERE p.ProVend = i.Id AND ISNULL(p.status,'') <> '3') AS LiveProductsAsProVendor,
        (SELECT COUNT(*) FROM #prodvend p WHERE p.AVend = i.Id)                                AS ProductsAsActualVendor,
        (SELECT COUNT(DISTINCT p.AVend) FROM #prodvend p WHERE p.ProVend = i.Id)               AS DistinctActualVendors,
-       (SELECT COUNT(*) FROM dbo.Brand b WHERE TRY_CAST(b.VendorID AS int) = i.Id)            AS BrandsByBrandVendorID,
-       (SELECT COUNT(*) FROM dbo.VendorBrand vb WHERE vb.VendorId = i.Id)                      AS BrandsByVendorBrand,
+       (SELECT COUNT(*) FROM PRO.dbo.Brand b WHERE TRY_CAST(b.VendorID AS int) = i.Id)            AS BrandsByBrandVendorID,
+       (SELECT COUNT(*) FROM PRO.dbo.VendorBrand vb WHERE vb.VendorId = i.Id)                      AS BrandsByVendorBrand,
        vn.Pct AS VnmstPct, ap.DueDays AS ApmstDueDays, ap.NotInUse AS ApmstNotInUse
 INTO #matrix
 FROM #ids i
-LEFT JOIN dbo.Vendor v ON v.VendorId = i.Id
+LEFT JOIN PRO.dbo.Vendor v ON v.VendorId = i.Id
 LEFT JOIN #vn vn ON vn.Id = i.Id
 LEFT JOIN #ap ap ON ap.Id = i.Id
 LEFT JOIN #vx vx ON vx.Id = i.Id;
@@ -223,13 +224,13 @@ SELECT '4. brand vendor links' AS Result,
          WHEN SUM(CASE WHEN vb.VendorId = TRY_CAST(b.VendorID AS int) THEN 1 ELSE 0 END) = 0 THEN 'DISAGREE'
          WHEN COUNT(vb.VendorId) > 1 THEN 'VendorBrand has several vendors'
          ELSE 'agree' END AS Status,
-       (SELECT COUNT(*) FROM dbo.ProductData d WHERE d.BrandId = b.BrandId) AS Products
-FROM dbo.Brand b
-LEFT JOIN dbo.VendorBrand vb ON vb.BrandName COLLATE DATABASE_DEFAULT = b.BrandName COLLATE DATABASE_DEFAULT
+       (SELECT COUNT(*) FROM PRO.dbo.ProductData d WHERE d.BrandId = b.BrandId) AS Products
+FROM PRO.dbo.Brand b
+LEFT JOIN PRO.dbo.VendorBrand vb ON vb.BrandName COLLATE DATABASE_DEFAULT = b.BrandName COLLATE DATABASE_DEFAULT
 GROUP BY b.BrandId, b.BrandName, b.VendorID
 ORDER BY CASE WHEN SUM(CASE WHEN vb.VendorId = TRY_CAST(b.VendorID AS int) THEN 1 ELSE 0 END) = 0 AND COUNT(vb.VendorId) > 0 THEN 0 ELSE 1 END, b.BrandName;
 
-SELECT '4b. VendorBrand names with no dbo.Brand' AS Result, vb.VendorId, vb.BrandName
-FROM dbo.VendorBrand vb
-WHERE NOT EXISTS (SELECT 1 FROM dbo.Brand b WHERE b.BrandName COLLATE DATABASE_DEFAULT = vb.BrandName COLLATE DATABASE_DEFAULT)
+SELECT '4b. VendorBrand names with no PRO.dbo.Brand' AS Result, vb.VendorId, vb.BrandName
+FROM PRO.dbo.VendorBrand vb
+WHERE NOT EXISTS (SELECT 1 FROM PRO.dbo.Brand b WHERE b.BrandName COLLATE DATABASE_DEFAULT = vb.BrandName COLLATE DATABASE_DEFAULT)
 ORDER BY vb.VendorId, vb.BrandName;
