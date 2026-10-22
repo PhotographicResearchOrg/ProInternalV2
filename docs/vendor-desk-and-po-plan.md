@@ -26,11 +26,16 @@ VNMST and APMST ids never collide (3 vs 4 digits), which is why Computyme gets a
 
 ## The cutover pattern
 
-New table `piv2.CutoverPiece` (Piece, Piv2IsMaster, SwitchedAt, SwitchedBy, Note), one row per piece, changed only in Security Admin and logged. `Product:SqlIsMaster` stays as it is for the product fields.
+The **Cutover map** (`/cutover`, table `piv2.CutoverSection`) lists every section of the business with its master: **Computyme master** (lock, read only in PIV2), **SQL master** (edited in PIV2), **PIV2 extension** (exists only in PIV2) or **Mixed**. Sections the B2B site reads are tagged. Changing a section's master needs the `Cutover.Admin` permission and a reason, and is logged. `Product:SqlIsMaster` stays as it is for the product fields.
 
 - **Before the switch:** PIV2 reads Computyme through the EDA mirror. Computyme-owned fields show the lock. Fields PIV2 owns are editable from day one.
 - **Reconcile:** PIV2 compares SQL with Computyme and lists every mismatch for a person to decide; nothing is overwritten automatically in either direction.
 - **The switch:** that comparison is the check before the flip. A section moves to SQL only when SQL matches Computyme: one-time copy into the PIV2 tables, flip the row, logged with who and why. Where Computyme still reads the data (warehouse, billing, AP), PIV2 sends it back through the outbox until that consumer is cut over too.
+
+## Core rules to keep in view
+- **Suspend status (IVMST field 15)** is core. 1 = suspended, 2 = suspended with no stock or vendor orders but members waiting, 3 = suspended and nothing left anywhere (IV15.04). Order entry, order changes, billing and receiving recalculate it as stock runs out (IV3, IV5, IV7, IV.UPD.SCANORD, UPD.WEBORDERS), and suspended products can't be ordered beyond what's available. Status 3 is the B2B site's Discontinued, and the site then shows the replacement product. B2B-critical: cut over with order entry, not before.
+- **The Member Desk** sits on the same pattern: member accounts (ARMST) are Computyme master and the Member Desk adds PIV2 fields. It's on the cutover map and isn't being changed in this work.
+- **Exports:** every list in these screens exports to Excel.
 
 ## Pieces, in order
 
@@ -49,6 +54,7 @@ Keyed on the AP vendor number.
 | Name, addresses (main, payment, rep), phones, emails, dealer number, due days, PCT, surcharge %, surcharge-to-member flag (APMST 29), not-in-use | Computyme (locked) |
 | Currency, structured payment terms, contacts, contracts, price lists, freight/shipping/return policies, brands, notes | PIV2 |
 | Direct-billing program (from VNMST): program number, surcharge %, special deduction, admin days, PRO terms | Computyme (locked) until AR/billing cuts over |
+| Direct-billing split: vendor cash discount, what PRO keeps, special deduction, what passes to the member | PIV2 extension (defined per vendor) |
 
 - Terms: APMST due days are free text ("30DAYS", "10TH"; IV46.12, IV45.09). Parse into net days or day-of-month, keep the original text beside it, flag anything that doesn't parse.
 - Currency is per vendor and replaces the "Y" suffix on costs (D_IVMST.02–.04). Rates come from the Product Desk exchange-rate table (pulled by button, accepted before use, overrides audited).
@@ -91,17 +97,29 @@ Payments, the 2% special discount (AP.SEL.INVSPC) and its reversal (AP10) stay i
 - Yen and dollars added into one total (IV46.PROD.23).
 - CHANGE.VNORD can overwrite the vendor on every order-number record when nothing matches (CHANGE.VNORD.03/.04). Check it before anyone runs it again.
 
-## Decisions needed
-1. **Suggested quantity:** which method do the buyers trust? IV21 (last year's remaining months, growth capped at 2×), DH1 (last year, uncapped) or the dictionary's MIN.STK (YTD/10 × months of supply)? Nothing in BP calls IV21 or DH1. Default if no answer: MIN.STK with on-order fixed and case rounding.
-2. **PO numbers while both systems issue them:** Computyme takes the next number from CONTROL `IVPO`. Proposal: PIV2 issues from its own block (e.g. 900000+) so they can't collide.
+## Decided
+- **Suggested quantity:** show Computyme's rule highlighted with its inputs, let the buyer change the inputs or the quantity, and put the forecast and market research beside it.
+- **PO numbers:** PIV2 will issue from its own block when POs cut over. Nothing is renumbered: old Computyme POs keep their numbers, and on cutover day Computyme stops issuing.
+- **POs are not cut over yet.** PIV2 shows Computyme's POs and the suggested order only.
+- **Direct billing:** the split (what PRO keeps, what cash discount passes on) is defined at the vendor level in PIV2.
+
+## Decisions still open
+1. **Which suggested-quantity rule to show first:** IV21 (last year's remaining months, growth capped at 2×), DH1 (last year, uncapped) or the dictionary's MIN.STK (YTD/10 × months of supply). Nothing in BP calls IV21 or DH1. Default: MIN.STK with on-order fixed and case rounding.
+2. **Is the direct-billing program still running?** VNMST has ~46 program vendors but VENDORD holds only 160 records.
 3. **Getting PIV2 POs and new vendors into Computyme** until receiving and AP move: a small Computyme staging program that reads the outbox (needs a UniVerse developer), or keyed in by hand from a PIV2 print.
 4. **Which programs are live:** IV.MNT.PROD.N vs IV.MNT.PROD, IV.ORD.REC.N vs IV.ORD.REC, DH1/IV19/IV20, and whether IV52/IV54 are off the menus (VOC / PRO.MENU export).
 5. **Hard-coded numbers to explain:** vendors 497, 569, 1322 (skipped in member-by-vendor totals; 1322 looks like PRO's warehouse), 992 dated orders, product 555, members 1000 / 1819 / 1846 / 9985.
 6. **ProMaster brand:** stays on PIV2 vendor 1 "PRO", or an AP vendor?
 
-## Build order
-1. `sql/vendor-desk/01`: `piv2.CutoverPiece`, `piv2.BrandVendorHistory`, `piv2.ProductClass` (seeded from today's hard-coded values), `piv2.VendorProgram` view over VNMST, a vendor read view over APMST + PIV2, terms parser. Non-destructive.
-2. Vendor Desk screens: lock icons, brand moves, program tab, work list.
-3. Category Desk vendor resolution through `Brand.VendorID`.
-4. `sql/vendor-desk/02`: PO tables and the suggestion procedure; product Order section; per-vendor draft POs.
-5. Outbox to Computyme for POs (after decision 3).
+## Built (2026-10-22, branch feature/category-desk)
+- `sql/vendor-desk/00`: read-only vendor discovery (run; results above).
+- `sql/vendor-desk/01` and `02`: cutover map, brand ↔ vendor history and reconciliation, vendor record from APMST with parsed terms, direct-billing split, product classes, permissions. Non-destructive.
+- Screens: **Cutover map** (`/cutover`), **Brands & vendors** (`/brandvendors`: brands with callouts for no vendor, not a payable vendor and products bought from another vendor; product classes), and Vendor Desk tabs **Vendor record**, **Brands**, **Direct billing**. Master marks and legend on every screen; Excel export on every list.
+- Rules list: `docs/computyme-rules/` (367 programs, 1,567 rules, tracker workbook) and full extractions in `docs/extracted-rules/`.
+
+## Build order from here
+1. Product page: suspend status 1/2/3 with its meaning, and a read-only **Order** section (Computyme's open POs, on-order, due dates, suggested order with its rule and inputs, forecast beside it).
+2. Category Desk vendor resolution through `Brand.VendorID`.
+3. Reconciliation reports per section (SQL vs Computyme), the check before any switch.
+4. PO tables and per-vendor draft POs, when POs cut over.
+5. Outbox to Computyme for POs and new vendors (after decision 3).
