@@ -124,6 +124,7 @@ import { OwnerMarkComponent, OwnerLegendComponent } from './prointernalengine/co
 import { CutoverMapComponent } from './prointernalengine/components/Vendor/vendor-desk/cutover-map.component';
 import { BrandVendorDeskComponent } from './prointernalengine/components/Vendor/vendor-desk/brand-vendor-desk.component';
 import { VendorRecordComponent } from './prointernalengine/components/Vendor/vendor-desk/vendor-record.component';
+import { HomeDeskComponent } from './prointernalengine/components/dashboards/home-desk/home-desk.component';
 import { ProductSupplyComponent } from './prointernalengine/components/Vendor/vendor-desk/product-supply.component';
 import { ProductSheetComponent } from './prointernalengine/components/ecommerce/product-sheet/product-sheet.component';
 import { SheetOptionPipe } from './prointernalengine/components/ecommerce/product-sheet/sheet-option.pipe';
@@ -146,6 +147,7 @@ import { SheetOptionPipe } from './prointernalengine/components/ecommerce/produc
       BrandVendorDeskComponent,
       VendorRecordComponent,
       ProductSupplyComponent,
+      HomeDeskComponent,
       SheetOptionPipe,
     OrdersComponent,
     EdiManagementComponent,

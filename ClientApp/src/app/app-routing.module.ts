@@ -33,6 +33,7 @@ import { CreditsComponent } from './prointernalengine/components/dashboards/acco
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
+import { HomeDeskComponent } from './prointernalengine/components/dashboards/home-desk/home-desk.component';
 import { CutoverMapComponent } from './prointernalengine/components/Vendor/vendor-desk/cutover-map.component';
 import { BrandVendorDeskComponent } from './prointernalengine/components/Vendor/vendor-desk/brand-vendor-desk.component';
 import { VendorCardComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-card/vendor-card.component';
@@ -56,7 +57,7 @@ const routes: Routes = [
     component: AppLayoutComponent,
     canActivate: [AuthGuard],
     children: [
-      { path: 'dashboard-landing', component: DashboardLandingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'PRO Dashboard' } },
+      { path: 'dashboard-landing', component: HomeDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'PRO Dashboard' } },
       { path: 'dashboard-accounting', component: DashboardAccountingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting Dashboard' } },
       { path: 'qtr-rebates', component: QtrRebatesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Quarterly Rebates' } },
       { path: 'powerbi', component: PowerbiComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Reporting' } },

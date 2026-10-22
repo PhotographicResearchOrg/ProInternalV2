@@ -36,7 +36,18 @@ namespace ProInternal.Controllers
             using (var conn = new SqlConnection(connStr))
             {
                 await conn.OpenAsync();
-                var cmd = new SqlCommand("SELECT TOP 5 comment, author_name, avatarUrl, author_email, created_at, updated_at, article_name, excerpt, published_at FROM AuditComments", conn);
+                /* AuditComments can hold the same comment more than once (it was showing twice on the dashboard):
+                   keep one row per comment (latest update wins) and show the 5 newest. Read only. */
+                var cmd = new SqlCommand(@"
+                    SELECT TOP 5 comment, author_name, avatarUrl, author_email, created_at, updated_at, article_name, excerpt, published_at
+                    FROM (
+                        SELECT c.*, ROW_NUMBER() OVER (
+                                   PARTITION BY c.author_email, c.article_name, CAST(c.comment AS nvarchar(4000)), c.created_at
+                                   ORDER BY c.updated_at DESC) AS rn
+                        FROM AuditComments c
+                    ) x
+                    WHERE x.rn = 1
+                    ORDER BY x.created_at DESC", conn);
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     while (await reader.ReadAsync())

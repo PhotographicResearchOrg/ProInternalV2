@@ -21,7 +21,7 @@ import { ProductSupply } from 'src/app/models/vendor/vendor-desk.models';
       </span>
       <span class="it" [class.warn]="v.suspendStatus === '1' || v.suspendStatus === '2'" [class.bad]="v.suspendStatus === '3'" *ngIf="v.suspendStatus"
             [pTooltip]="v.suspendMeaning || ''" tooltipPosition="bottom">
-        <i class="pi pi-pause-circle"></i><span class="k">Suspended</span><span class="val">{{ v.suspendStatus }}</span>
+        <i class="pi pi-ban"></i><span class="k">Suspended</span><span class="val">{{ v.suspendStatus }}</span>
       </span>
       <ng-container *ngFor="let w of supply?.warehouses">
         <span class="it stock" [pTooltip]="w.name + (w.city ? ', ' + w.city + (w.state ? ' ' + w.state : '') : '')" tooltipPosition="bottom">

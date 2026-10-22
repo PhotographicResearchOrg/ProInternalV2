@@ -1,0 +1,62 @@
+<div class="home">
+  <header class="head">
+    <div>
+      <div class="eyebrow">PRO Internal</div>
+      <h1>{{ greeting }}</h1>
+      <div class="sub">What needs doing today. Each tile opens the screen that clears it.</div>
+    </div>
+    <div class="acts">
+      <button type="button" class="btn" (click)="startCustomize()" *ngIf="!customizing"><i class="pi pi-sliders-h"></i> Customize</button>
+    </div>
+  </header>
+
+  <!-- ============================================ customize -->
+  <section class="panel" *ngIf="customizing">
+    <div class="panel-h">
+      <h2>Your tiles</h2>
+      <span class="hint">Tick what you want, use the arrows to order it. Only tiles for screens you can open are listed.</span>
+    </div>
+    <ul class="picks">
+      <li *ngFor="let d of draft; let i = index" [class.off]="!d.on">
+        <label class="pick">
+          <input type="checkbox" [(ngModel)]="d.on" [id]="'tile-' + d.key">
+          <span class="pl">{{ label(d.key) }}</span>
+          <span class="ph">{{ hint(d.key) }}</span>
+        </label>
+        <span class="ord">
+          <button type="button" class="ib" [disabled]="i === 0" (click)="move(i, -1)" aria-label="Move up"><i class="pi pi-arrow-up"></i></button>
+          <button type="button" class="ib" [disabled]="i === draft.length - 1" (click)="move(i, 1)" aria-label="Move down"><i class="pi pi-arrow-down"></i></button>
+        </span>
+      </li>
+    </ul>
+    <div class="err" *ngIf="error">{{ error }}</div>
+    <div class="row">
+      <button type="button" class="btn primary" [disabled]="saving" (click)="saveCustomize()">{{ saving ? 'Saving…' : 'Save' }}</button>
+      <button type="button" class="btn" (click)="customizing = false">Cancel</button>
+      <button type="button" class="linkbtn" [disabled]="saving" (click)="resetCustomize()">Back to the default set</button>
+    </div>
+  </section>
+
+  <!-- ============================================ tiles -->
+  <div class="tiles" *ngIf="tiles.length; else none">
+    <button type="button" class="tile" *ngFor="let t of tiles; trackBy: trackTile" [ngClass]="'tone-' + t.tone" (click)="open(t)">
+      <span class="t-top"><i [class]="t.def.icon"></i><span class="t-label">{{ t.def.label }}</span><i class="pi pi-arrow-right go"></i></span>
+      <span class="t-value" [class.loading]="t.loading">{{ t.value }}</span>
+      <span class="t-sub">{{ t.sub }}</span>
+    </button>
+  </div>
+  <ng-template #none>
+    <div class="panel empty">No tiles to show. Choose some with <b>Customize</b>, or ask for access to the screens they open in Security Admin.</div>
+  </ng-template>
+
+  <!-- ============================================ the classic dashboard (MAP violations, product data issues, PO sync…) -->
+  <div class="classic-bar">
+    <button type="button" class="linkbtn" (click)="showClassic = !showClassic">
+      <i class="pi" [ngClass]="showClassic ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
+      {{ showClassic ? 'Hide' : 'Show' }} the full dashboard: MAP violations, Connection comments, product data issues, PO sync
+    </button>
+  </div>
+  <div id="classic" *ngIf="showClassic">
+    <app-dashboard-classic></app-dashboard-classic>
+  </div>
+</div>

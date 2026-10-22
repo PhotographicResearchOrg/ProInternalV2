@@ -29,6 +29,7 @@ import { utils as XLSXUtils, writeFile as XLSXWriteFile, WorkBook } from 'xlsx';
 
 
 @Component({
+  selector: 'app-dashboard-classic',
   templateUrl: './dashboardlanding.component.html',
   styleUrls: ['./dashboardlanding.component.scss']
 })

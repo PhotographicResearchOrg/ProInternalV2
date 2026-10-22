@@ -3496,6 +3496,20 @@ GetShopifyGovernanceIssues()
             };
         }
 
+        public string UserSetting_Get(string user, string key)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<string>("piv2.UserSetting_Get", new { UserName = user, SettingKey = key },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
+        public void UserSetting_Set(string user, string key, string json)
+        {
+            using var conn = GetConnection();
+            conn.Execute("piv2.UserSetting_Set", new { UserName = user, SettingKey = key, Json = json },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
         public List<ProductClassRow> ProductClass_List()
         {
             using var conn = GetConnection();

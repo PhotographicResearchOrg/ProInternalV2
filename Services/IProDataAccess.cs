@@ -406,6 +406,8 @@ GetSellThroughExportData(
         VendorBilling VendorBilling_Get(int vendorId);
         VendorFulfillment Vendor_Fulfillment(int vendorId);
         ProductSupply Product_SupplyInfo(int productId);
+        string UserSetting_Get(string user, string key);
+        void UserSetting_Set(string user, string key, string json);
         List<ProductClassRow> ProductClass_List();
         int ProductClass_Save(ProductClassSaveRequest request, string user);
         #endregion
