@@ -170,7 +170,7 @@ SELECT '2. identity matrix' AS Result, * FROM #matrix ORDER BY Id;
 
 /* ---------- 3. disagreements ---------- */
 IF OBJECT_ID('tempdb..#issues') IS NOT NULL DROP TABLE #issues;
-CREATE TABLE #issues (Issue varchar(80), Id int, Detail nvarchar(400));
+CREATE TABLE #issues (Issue varchar(100), Id int, Detail nvarchar(max));
 
 INSERT #issues SELECT 'VNMST APID differs from VENDXREF AVEND', Id, CONCAT('APID ', VnmstApId, ' vs AVEND ', XrefAVend)
 FROM #matrix WHERE InVNMST = 1 AND InVENDXREF = 1 AND ISNULL(VnmstApId,-1) <> ISNULL(XrefAVend,-1);
@@ -193,9 +193,9 @@ FROM #prodvend p WHERE p.AVend IS NOT NULL AND NOT EXISTS (SELECT 1 FROM #ap a W
 GROUP BY p.AVend;
 
 INSERT #issues SELECT 'Product actual vendor differs from its PRO vendor''s APID', p.ProVend,
-       CONCAT(COUNT(*), ' products; PRO vendor APID ', MAX(vn.ApId), ', product actual vendors: ',
-              STRING_AGG(CAST(p.AVend AS varchar(20)), ',') WITHIN GROUP (ORDER BY p.AVend))
-FROM (SELECT DISTINCT ProVend, AVend FROM #prodvend) p
+       CONCAT(SUM(p.Products), ' products; PRO vendor APID ', MAX(vn.ApId), '; actual vendors (products): ',
+              STRING_AGG(CAST(CONCAT(p.AVend, ' (', p.Products, ')') AS nvarchar(max)), ', ') WITHIN GROUP (ORDER BY p.Products DESC))
+FROM (SELECT ProVend, AVend, COUNT(*) AS Products FROM #prodvend GROUP BY ProVend, AVend) p
 JOIN #vn vn ON vn.Id = p.ProVend
 WHERE p.AVend IS NOT NULL AND vn.ApId IS NOT NULL AND p.AVend <> vn.ApId
 GROUP BY p.ProVend;
@@ -218,7 +218,7 @@ SELECT '3b. disagreements' AS Result, Issue, Id, Detail FROM #issues ORDER BY Is
 /* ---------- 4. brand <-> vendor ---------- */
 SELECT '4. brand vendor links' AS Result,
        b.BrandId, b.BrandName, TRY_CAST(b.VendorID AS int) AS BrandVendorID,
-       STRING_AGG(CAST(vb.VendorId AS varchar(20)), ',') AS VendorBrandVendorIds,
+       STRING_AGG(CAST(vb.VendorId AS varchar(max)), ',') AS VendorBrandVendorIds,
        CASE
          WHEN COUNT(vb.VendorId) = 0 THEN 'only Brand.VendorID'
          WHEN SUM(CASE WHEN vb.VendorId = TRY_CAST(b.VendorID AS int) THEN 1 ELSE 0 END) = 0 THEN 'DISAGREE'
