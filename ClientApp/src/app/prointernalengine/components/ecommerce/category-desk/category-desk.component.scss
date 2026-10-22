@@ -25,12 +25,29 @@
 
 .tree-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin-bottom: 10px;
 
-  .tree-search { flex: 1; }
+  .tree-search { flex: 1 1 140px; min-width: 0; }
+  .tree-search input {
+    width: 100%;
+    min-width: 0;
+    height: 32px;
+    padding: 0 10px;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid #d9dee6;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+    &:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(14, 124, 115, 0.11); }
+  }
 }
+
+.tree-card { min-width: 0; }
 
 .tree-list {
   flex: 1;
@@ -61,6 +78,34 @@
   .lock-icon { font-size: 11px; color: var(--amber); }
   .tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tree-count { font-size: 11.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
+}
+
+/* active / inactive product counts: two right-aligned columns */
+.tree-row, .tree-head {
+  .tree-count { flex: none; width: 52px; text-align: right; }
+  .active-n { color: var(--ink); font-weight: 600; }
+  .inactive-n { color: var(--faint); font-weight: 400; }
+  .zero { color: #c3c9d2; font-weight: 400; }
+}
+.tree-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 8px 0 28px;
+  background: #f3f5f8;
+  border-bottom: 1px solid var(--line);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sub);
+
+  .tree-name { flex: 1; }
+  .tree-count, .active-n, .inactive-n { font-size: 10.5px; font-weight: 650; color: var(--sub); }
 }
 
 .rename-input {

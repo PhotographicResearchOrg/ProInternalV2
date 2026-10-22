@@ -83,6 +83,11 @@
       </div>
 
       <div class="tree-list" role="tree">
+        <div class="tree-head" aria-hidden="true">
+          <span class="tree-name">Category</span>
+          <span class="tree-count active-n" title="Active products: what the B2B site shows">Active</span>
+          <span class="tree-count inactive-n" title="Inactive (discontinued) products: still in the category, not shown on the B2B site">Inactive</span>
+        </div>
         <div *ngFor="let r of rows; trackBy: trackRow"
              class="tree-row" role="treeitem"
              [class.selected]="r.cat.catId === selectedId"
@@ -107,7 +112,8 @@
                    (keydown.enter)="commitRename()" (keydown.escape)="renamingId = null" (blur)="commitRename()" autofocus />
           </ng-template>
           <i class="pi pi-eye-slash faint" *ngIf="!r.cat.visible" title="Hidden"></i>
-          <span class="tree-count" [title]="r.active + ' active of ' + r.total">{{ r.total | number }}</span>
+          <span class="tree-count active-n" [class.zero]="!r.active" [title]="(r.active | number) + ' active products (on the B2B site)'">{{ r.active | number }}</span>
+          <span class="tree-count inactive-n" [class.zero]="r.total === r.active" [title]="((r.total - r.active) | number) + ' inactive (discontinued) products'">{{ (r.total - r.active) | number }}</span>
         </div>
         <div class="empty-inline" *ngIf="!rows.length">{{ treeView === 'empty' ? 'No empty categories.' : treeView === 'hidden' ? 'No hidden categories.' : treeFilter ? 'No category matches.' : 'No categories yet.' }}</div>
       </div>
