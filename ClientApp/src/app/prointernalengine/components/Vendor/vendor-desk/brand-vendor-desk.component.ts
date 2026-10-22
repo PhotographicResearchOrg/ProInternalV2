@@ -2,12 +2,11 @@ import { Component, Input, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { DataService } from 'src/app/services/data.service';
 import {
-  BrandVendorHistoryRow, BrandVendorRow, ProductClassRow, ProductClassSaveRequest
-} from 'src/app/models/vendor/vendor-desk.models';
+  BrandVendorHistoryRow, BrandVendorRow, ProductClassRow, ProductClassSaveRequest, brandLikelyRetired } from 'src/app/models/vendor/vendor-desk.models';
 import { exportWorkbook } from './desk-export';
 import { HomePin, stablePin } from 'src/app/services/home-pin.service';
 
-type BrandFilter = 'all' | 'novendor' | 'notap' | 'elsewhere' | 'ok';
+type BrandFilter = 'all' | 'novendor' | 'notap' | 'elsewhere' | 'ok' | 'retired';
 interface VendorOption { id: number; label: string; }
 
 /** Brands & vendors: which vendor each brand belongs to (SQL is master: dbo.Brand.VendorID, read by the
@@ -63,7 +62,7 @@ export class BrandVendorDeskComponent implements OnInit {
     const tab = this.route.snapshot?.queryParamMap?.get('tab');
     if (tab === 'classes' && !this.vendorId) this.tab = 'classes';
     const f = this.route.snapshot?.queryParamMap?.get('filter') as BrandFilter | null;
-    if (f && ['all', 'novendor', 'notap', 'elsewhere', 'ok'].includes(f)) this.filter = f;
+    if (f && ['all', 'novendor', 'notap', 'elsewhere', 'ok', 'retired'].includes(f)) this.filter = f;
     this.loadBrands();
     this.data.getVendors().subscribe({
       next: list => {
@@ -98,11 +97,14 @@ export class BrandVendorDeskComponent implements OnInit {
   count(f: BrandFilter): number { return this.brands.filter(b => this.matches(b, f)).length; }
 
   private matches(b: BrandVendorRow, f: BrandFilter): boolean {
+    const retired = brandLikelyRetired(b);
     switch (f) {
-      case 'novendor': return b.linkStatus === 'NO_VENDOR';
-      case 'notap': return b.linkStatus === 'NOT_AP_VENDOR' || b.linkStatus === 'UNKNOWN_VENDOR';
-      case 'elsewhere': return b.boughtElsewhere > 0;
-      case 'ok': return b.linkStatus === 'OK' && b.boughtElsewhere === 0;
+      /* problems only count brands that still sell: a brand with nothing live is most likely retired */
+      case 'novendor': return !retired && b.linkStatus === 'NO_VENDOR';
+      case 'notap': return !retired && (b.linkStatus === 'NOT_AP_VENDOR' || b.linkStatus === 'UNKNOWN_VENDOR');
+      case 'elsewhere': return !retired && b.boughtElsewhere > 0;
+      case 'ok': return !retired && b.linkStatus === 'OK' && b.boughtElsewhere === 0;
+      case 'retired': return retired;
       default: return true;
     }
   }
@@ -114,6 +116,11 @@ export class BrandVendorDeskComponent implements OnInit {
     this.shown = this.brands.filter(b => this.matches(b, this.filter) &&
       (!q || b.brandName.toLowerCase().includes(q) || (b.vendorName || '').toLowerCase().includes(q) ||
         String(b.vendorId ?? '').includes(q) || (b.actualVendors || '').toLowerCase().includes(q)));
+  }
+
+  retired(b: BrandVendorRow): boolean { return brandLikelyRetired(b); }
+  retiredText(b: BrandVendorRow): string {
+    return b.products ? `Likely retired · all ${b.products.toLocaleString()} discontinued` : 'Likely retired · no products';
   }
 
   statusText(b: BrandVendorRow): string {
@@ -212,7 +219,8 @@ export class BrandVendorDeskComponent implements OnInit {
   private brandRow(b: BrandVendorRow): Record<string, unknown> {
     return {
       'Brand id': b.brandId, Brand: b.brandName, 'Vendor id': b.vendorId ?? '', Vendor: b.vendorName || '',
-      Check: this.statusText(b), 'Bought from another vendor': b.boughtElsewhere, 'Live products': b.liveProducts,
+      Check: this.statusText(b), 'Likely retired': this.retired(b) ? (b.products ? 'Yes: all discontinued' : 'Yes: no products') : '',
+      'Bought from another vendor': b.boughtElsewhere, 'Live products': b.liveProducts,
       Products: b.products, 'Bought from (Computyme)': b.actualVendors || '',
       'Last moved': b.lastMovedAt || '', 'Moved by': b.lastMovedBy || ''
     };
@@ -241,7 +249,7 @@ export class BrandVendorDeskComponent implements OnInit {
       return stablePin({ id: 'brands:classes', label: 'Product classes', sub: 'Brands & vendors', icon: 'pi pi-tags', route: '/brandvendors', query: { tab: 'classes' } });
     }
     const names: Record<BrandFilter, string> = { all: 'All brands', novendor: 'Brands with no vendor', notap: 'Brands on a vendor we can\'t pay',
-      elsewhere: 'Brands bought from another vendor', ok: 'Brands where all agree' };
+      elsewhere: 'Brands bought from another vendor', ok: 'Brands where all agree', retired: 'Likely retired brands' };
     return stablePin({ id: `brands:${this.filter}`, label: names[this.filter], sub: 'Brands & vendors', icon: 'pi pi-tags',
       route: '/brandvendors', query: { filter: this.filter }, metric: this.filter === 'novendor' ? 'brands.novendor' : null });
   }

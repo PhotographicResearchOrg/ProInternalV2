@@ -31,6 +31,7 @@
         <button class="stat btn" type="button" [class.on]="filter === 'notap'" (click)="setFilter('notap')"><div class="k">Not a payable vendor</div><div class="v red">{{ count('notap') }}</div></button>
         <button class="stat btn" type="button" [class.on]="filter === 'elsewhere'" (click)="setFilter('elsewhere')"><div class="k">Bought from another vendor</div><div class="v amber">{{ count('elsewhere') }}</div></button>
         <button class="stat btn" type="button" [class.on]="filter === 'ok'" (click)="setFilter('ok')"><div class="k">All agree</div><div class="v teal">{{ count('ok') }}</div></button>
+        <button class="stat btn" type="button" [class.on]="filter === 'retired'" (click)="setFilter('retired')" title="Nothing live: no products, or every product discontinued. Left out of the counts above."><div class="k">Likely retired</div><div class="v muted">{{ count('retired') }}</div></button>
       </div>
 
       <div class="toolbar" style="margin-top:10px">
@@ -60,7 +61,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let b of shown; trackBy: trackBrand" [class.bad]="b.linkStatus !== 'OK'">
+            <tr *ngFor="let b of shown; trackBy: trackBrand" [class.bad]="b.linkStatus !== 'OK' && !retired(b)" [class.retired]="retired(b)">
               <td><div class="bname">{{ b.brandName }}</div><div class="muted small mono">#{{ b.brandId }}</div></td>
               <td *ngIf="!vendorId">
                 <ng-container *ngIf="b.vendorId != null; else none">
@@ -70,10 +71,13 @@
               </td>
               <td>
                 <div class="checks">
-                  <span class="callout" [ngClass]="b.linkStatus === 'OK' ? 'green' : 'red'">
+                  <span class="callout grey" *ngIf="retired(b)" title="Nothing live, so the vendor link doesn't matter on the B2B site. Probably a retired brand or vendor.">
+                    <i class="pi pi-moon"></i>{{ retiredText(b) }}
+                  </span>
+                  <span class="callout" *ngIf="!retired(b) || b.linkStatus === 'OK'" [ngClass]="b.linkStatus === 'OK' ? 'green' : 'red'">
                     <i class="pi" [ngClass]="b.linkStatus === 'OK' ? 'pi-check' : 'pi-exclamation-circle'"></i>{{ statusText(b) }}
                   </span>
-                  <span class="callout amber" *ngIf="b.boughtElsewhere > 0"
+                  <span class="callout amber" *ngIf="b.boughtElsewhere > 0 && !retired(b)"
                         pTooltip="These products' actual vendor in Computyme isn't the brand's vendor. Can be right (bought through a distributor) or a sign the brand points at the wrong vendor."
                         tooltipPosition="top">
                     <i class="pi pi-exclamation-triangle"></i>{{ b.boughtElsewhere }} of {{ b.products }} bought from another vendor
@@ -97,7 +101,7 @@
         </table>
         <div class="empty" *ngIf="!shown.length">No brands match.</div>
       </div>
-      <div class="hint small" style="margin-top:8px">Live = not discontinued in Computyme (status 3). Products are counted from ProductData by brand.</div>
+      <div class="hint small" style="margin-top:8px">Live = not discontinued in Computyme (status 3). Products are counted from ProductData by brand. A brand with nothing live is shown as likely retired and left out of the problem counts.</div>
     </div>
   </ng-container>
 

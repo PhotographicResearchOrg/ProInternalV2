@@ -59,6 +59,10 @@ export interface BrandVendorRow {
   lastMovedBy?: string | null;
 }
 
+/** A brand with nothing live (no products, or every product discontinued) is most likely retired,
+ *  so a missing or odd vendor link on it isn't a problem to fix. */
+export function brandLikelyRetired(b: Pick<BrandVendorRow, 'liveProducts'>): boolean { return (b.liveProducts ?? 0) === 0; }
+
 export interface BrandVendorList {
   brands: BrandVendorRow[];
   canEdit: boolean;

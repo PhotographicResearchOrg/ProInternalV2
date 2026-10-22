@@ -18,3 +18,6 @@ tr.inactive { opacity: .6; }
 
 .head-acts { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 @media (max-width: 640px) { .head-acts { align-items: flex-start; } }
+.stat .v.muted { color: var(--sub, #6b778a); }
+tr.retired td { color: var(--sub, #6b778a); }
+tr.retired .bname { font-weight: 500; }

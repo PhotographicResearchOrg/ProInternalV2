@@ -34,7 +34,7 @@ const TILES: TileDef[] = [
   { key: 'ir.queue', label: 'Instant rebates in queue', icon: 'pi pi-ticket', route: '/rebatedesk', source: 'ir', hint: 'Against the rebate alert level' },
   { key: 'comments.open', label: 'Connection comments unanswered', icon: 'pi pi-comments', route: null, needs: '/dashboard-landing', source: 'comments', hint: 'Comments on Connection articles' },
   { key: 'map.violations', label: 'MAP violations submitted', icon: 'pi pi-exclamation-triangle', route: '/map-violations', source: 'map', hint: 'Submitted MAP violations' },
-  { key: 'brands.novendor', label: 'Brands with no vendor', icon: 'pi pi-tags', route: '/brandvendors', source: 'brands', hint: 'Brands not linked to a vendor' },
+  { key: 'brands.novendor', label: 'Brands with no vendor', icon: 'pi pi-tags', route: '/brandvendors', source: 'brands', hint: 'Brands with live products not linked to a vendor (likely retired brands left out)' },
   { key: 'cutover.computyme', label: 'Sections still on Computyme', icon: 'pi pi-map', route: '/cutover', source: 'cutover', hint: 'From the cutover map' }
 ];
 const DEFAULT_TILES = ['orders.onhold', 'orders.open', 'edi.open', 'ship.errors', 'sar.queue', 'ir.queue', 'comments.open', 'brands.novendor'];
@@ -119,7 +119,7 @@ export class HomeDeskComponent implements OnInit {
       case 'ir.queue': { const v = n(i?.irsInQueue), th = n(i?.threshold); set(v, v ? ago(i?.oldestInQueue) : 'All clear', v != null && th != null && v >= th ? 'bad' : v ? 'warn' : 'ok'); break; }
       case 'comments.open': { const v = n(c?.unresponded); set(v, v ? 'waiting for a reply' : 'All answered', v ? 'warn' : 'ok'); break; }
       case 'map.violations': { const v = Array.isArray(r.map) ? r.map.length : null; set(v, 'submitted', 'none'); break; }
-      case 'brands.novendor': { const b = r.brands?.brands; const v = Array.isArray(b) ? b.filter((x: any) => x.linkStatus === 'NO_VENDOR').length : null; set(v, v ? 'link them on Brands & vendors' : 'Every brand has a vendor', v ? 'bad' : 'ok'); break; }
+      case 'brands.novendor': { const b = r.brands?.brands; const v = Array.isArray(b) ? b.filter((x: any) => x.linkStatus === 'NO_VENDOR' && (x.liveProducts ?? 0) > 0).length : null; set(v, v ? 'link them on Brands & vendors' : 'Every brand has a vendor', v ? 'bad' : 'ok'); break; }
       case 'cutover.computyme': { const sec = r.cutover?.sections; const v = Array.isArray(sec) ? sec.filter((x: any) => x.owner === 'COMPUTYME').length : null; set(v, Array.isArray(sec) ? `of ${sec.length} sections` : '', 'none'); break; }
     }
   }
