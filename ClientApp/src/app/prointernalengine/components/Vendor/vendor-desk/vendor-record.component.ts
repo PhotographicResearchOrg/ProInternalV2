@@ -123,7 +123,7 @@ export class VendorRecordComponent implements OnChanges {
         'Computyme cash discount': c?.cashDiscountStored || '', 'PIV2 PRO discount %': this.piv2ProDiscountPct ?? '', 'PIV2 member discount %': this.piv2MemberDiscountPct ?? '',
         'PRO surcharge (stored)': c?.surchargeStored || '', 'Surcharge on member bill': c?.addsSurchargeToMemberBill ? 'Yes' : 'No' }] },
       { name: 'Direct-billing programs', rows: b.programs.map(p => ({ Program: p.programNo ?? '', Name: p.name || '', 'Surcharge (stored)': p.surchargeStored || '',
-          'Special deduction': p.specialDeductionStored || '', 'Special %': p.specialPctStored || '', 'Admin days': p.adminDaysStored || '',
+          'Extended discount (special deduction)': p.specialDeductionStored || '', 'Special %': p.specialPctStored || '', 'Admin days': p.adminDaysStored || '',
           FTR: p.ftrStored || '', 'YTD sales': p.ytdSalesStored || '', 'Prior year': p.priorYearStored || '' })) }
     ]);
   }

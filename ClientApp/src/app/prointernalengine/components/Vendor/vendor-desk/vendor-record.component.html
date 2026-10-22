@@ -93,10 +93,10 @@
 
     <ng-container *ngIf="billing.programs.length">
       <h3 class="sub-h">Direct-billing programs on this vendor</h3>
-      <p class="explain">Members buy from the vendor direct; the vendor bills PRO and PRO bills the member. On those invoices the member's terms are the vendor's terms % less PRO's surcharge less the program's <b>special deduction</b>, an extra percentage Computyme takes off for this program (EDI.UPDATE.25).</p>
+      <p class="explain">Members buy from the vendor direct; the vendor bills PRO and PRO bills the member. On those invoices the member's terms are the vendor's terms % less PRO's surcharge less the <b>extended discount</b> (Computyme calls it the special deduction). Extended discounts are given bill by bill; the value here is what Computyme applies to invoices billed electronically for this program (EDI.UPDATE.25).</p>
       <div class="tablewrap">
         <table class="vd-grid">
-          <thead><tr><th>Program</th><th>Surcharge</th><th>Special deduction</th><th>Special %</th><th>Admin days</th><th class="num">YTD sales</th><th class="num">Prior year</th></tr></thead>
+          <thead><tr><th>Program</th><th>Surcharge</th><th>Extended discount</th><th>Special %</th><th>Admin days</th><th class="num">YTD sales</th><th class="num">Prior year</th></tr></thead>
           <tbody>
             <tr *ngFor="let p of billing.programs">
               <td><span class="mono">{{ p.programNo }}</span> {{ p.name }}</td>

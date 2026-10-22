@@ -94,6 +94,8 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
   previewExpanded = new Set<number>();
   selectedId: number | null = null;
   treeFilter = '';
+  /** which categories the tree shows: all, only empty ones (shown but no active products), or only hidden ones */
+  treeView: 'all' | 'empty' | 'hidden' = 'all';
   renamingId: number | null = null;
   renameText = '';
   dragCatId: number | null = null;
@@ -375,14 +377,20 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
 
   private buildRows(): void {
     const out: TreeRow[] = [];
-    const filter = this.treeFilter.trim().toLowerCase();
+    const text = this.treeFilter.trim().toLowerCase();
+    const filter = !!text || this.treeView !== 'all';
     const matches = new Set<number>();
     if (filter) {
       /* keep matching categories and every category above them */
       const all = new Set<number>([...this.base.keys(), ...this.draftCats.keys()]);
       all.forEach(id => {
         const c = this.cat(id);
-        if (c && c.name.toLowerCase().includes(filter)) {
+        if (!c || c.catId === this.rootId || this.draftCats.get(id)?.deleted) { return; }
+        const byText = !text || c.name.toLowerCase().includes(text);
+        const byView = this.treeView === 'all'
+          || (this.treeView === 'empty' && this.effectiveVisible(id) && this.rolled(id, true) === 0)
+          || (this.treeView === 'hidden' && !c.visible);
+        if (byText && byView) {
           let p: Cat | null = c;
           let guard = 0;
           while (p && guard++ < 40) { matches.add(p.catId); p = this.cat(p.parentCatId); }
@@ -437,6 +445,12 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
   }
 
   onTreeFilter(): void { this.buildRows(); }
+
+  /** show only empty or only hidden categories (click again, or All, to show everything) */
+  setTreeView(view: 'all' | 'empty' | 'hidden'): void {
+    this.treeView = this.treeView === view ? 'all' : view;
+    this.buildRows();
+  }
 
   select(id: number): void {
     this.selectedId = id;

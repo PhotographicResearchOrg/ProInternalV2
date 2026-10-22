@@ -300,3 +300,9 @@
   .cat-workspace { grid-template-columns: 1fr; }
   .tree-card { position: static; max-height: 520px; }
 }
+
+.tree-views { display: inline-flex; border: 1px solid #d9dee6; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.tree-views .tv { border: 0; background: #fff; font: inherit; font-size: 12px; padding: 5px 9px; color: #5c6b81; cursor: pointer; }
+.tree-views .tv + .tv { border-left: 1px solid #d9dee6; }
+.tree-views .tv.on { background: #1a2434; color: #fff; }
+.tree-views .tv:focus-visible { outline: 2px solid #0e7c73; outline-offset: -2px; }

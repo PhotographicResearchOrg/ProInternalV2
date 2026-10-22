@@ -42,7 +42,7 @@
       <div class="summary-value">{{ summary.suspect | number }}</div>
       <div class="summary-sub">Hidden, missing, wrong EGRP or on a parent</div>
     </div>
-    <div class="summary-card">
+    <div class="summary-card" [class.active-card]="treeView === 'empty'" (click)="setTreeView('empty')" title="Show only these on the tree">
       <div class="summary-label">Empty (hidden on B2B)</div>
       <div class="summary-value">{{ summary.visibleEmpty | number }}</div>
       <div class="summary-sub">Shown categories with no active products</div>
@@ -71,6 +71,11 @@
         <span class="input-with-icon tree-search">
           <i class="pi pi-search"></i>
           <input type="text" placeholder="Find a category" [(ngModel)]="treeFilter" (ngModelChange)="onTreeFilter()" />
+        </span>
+        <span class="tree-views" role="group" aria-label="Show">
+          <button type="button" class="tv" [class.on]="treeView === 'all'" (click)="setTreeView('all')">All</button>
+          <button type="button" class="tv" [class.on]="treeView === 'empty'" (click)="setTreeView('empty')" title="Shown categories with no active products: the B2B site hides them">Empty</button>
+          <button type="button" class="tv" [class.on]="treeView === 'hidden'" (click)="setTreeView('hidden')" title="Categories switched off">Hidden</button>
         </span>
         <button type="button" class="row-action" title="Expand all" (click)="expandAll(true)"><i class="pi pi-plus"></i></button>
         <button type="button" class="row-action" title="Collapse all" (click)="expandAll(false)"><i class="pi pi-minus"></i></button>
@@ -103,7 +108,7 @@
           <i class="pi pi-eye-slash faint" *ngIf="!r.cat.visible" title="Hidden"></i>
           <span class="tree-count" [title]="r.active + ' active of ' + r.total">{{ r.total | number }}</span>
         </div>
-        <div class="empty-inline" *ngIf="!rows.length">{{ treeFilter ? 'No category matches.' : 'No categories yet.' }}</div>
+        <div class="empty-inline" *ngIf="!rows.length">{{ treeView === 'empty' ? 'No empty categories.' : treeView === 'hidden' ? 'No hidden categories.' : treeFilter ? 'No category matches.' : 'No categories yet.' }}</div>
       </div>
 
       <div class="tree-footer" *ngIf="canEdit">
