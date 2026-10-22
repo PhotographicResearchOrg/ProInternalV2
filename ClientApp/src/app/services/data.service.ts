@@ -1164,8 +1164,8 @@ export class DataService {
 
   //region Product AI  (API: AiController, api/ai)
   /** Product Desk · Shopify & assets (read only). */
-  productAssets(productId: number): Observable<ProductAssetsView> {
-    return this.api.get<ProductAssetsView>(`API/products/${productId}/assets`);
+  productAssets(productId: number, summary = false): Observable<ProductAssetsView> {
+    return this.api.get<ProductAssetsView>(`API/products/${productId}/assets${summary ? '?summary=true' : ''}`);
   }
 
   /** Product Desk · product sheet: every field of a product on one page. */

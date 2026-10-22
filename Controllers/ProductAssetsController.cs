@@ -13,7 +13,7 @@ namespace ProInternal.Controllers
     /*
      * Product Desk · Shopify & assets (read only).
      *
-     *   GET api/products/{id}/assets
+     *   GET api/products/{id}/assets[?summary=true]   summary: skips the Shopify governance and taxonomy lists (all products)
      *
      * Shopify: every ProductData column about Shopify (ShopifyProdID, ShopifyVariantID, ...) and the
      * product's dbo.productlastchanged feed (what was sent to Shopify, when, and Shopify's answer).
@@ -45,7 +45,7 @@ namespace ProInternal.Controllers
         }
 
         [HttpGet("{productId:int}/assets")]
-        public ActionResult<ProductAssetsView> Get(int productId)
+        public ActionResult<ProductAssetsView> Get(int productId, [FromQuery] bool summary = false)
         {
             var view = _db.Product_Assets(productId);
             if (view == null) return NotFound(new { message = "That product doesn't exist." });
@@ -65,7 +65,8 @@ namespace ProInternal.Controllers
             }
 
             /* Shopify governance issues and taxonomy audit (the Marketing screens' procedures), for this product */
-            if (long.TryParse(view.ProductCode, out var code))
+            /* The governance and taxonomy procedures return every product; read them only for the full view. */
+            if (!summary && long.TryParse(view.ProductCode, out var code))
             {
                 try
                 {

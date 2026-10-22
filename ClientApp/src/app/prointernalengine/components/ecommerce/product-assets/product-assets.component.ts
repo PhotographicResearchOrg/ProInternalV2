@@ -41,7 +41,7 @@ export class ProductAssetsComponent implements OnChanges {
     this.error = null;
     if (!id) { return; }
     this.loading = true;
-    this.data.productAssets(id).subscribe({
+    this.data.productAssets(id, this.compact).subscribe({
       next: v => { this.view = v; this.loading = false; },
       error: (e: HttpErrorResponse) => { this.loading = false; this.error = e?.error?.message || 'Couldn\'t load Shopify and assets.'; }
     });

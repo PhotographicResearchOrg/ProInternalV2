@@ -255,7 +255,7 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
     { id: 'reorder', label: 'Reorder', icon: 'pi pi-refresh' },
     { id: 'logistics', label: 'Size & Customs', icon: 'pi pi-box' }
   ];
-  showClassic = false;
+  showClassic = true;
   /* The All fields groups showing, for the rail's jump links. */
   sheetGroups: string[] = [];
 

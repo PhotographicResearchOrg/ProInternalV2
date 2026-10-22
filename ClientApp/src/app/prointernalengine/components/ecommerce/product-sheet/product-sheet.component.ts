@@ -30,7 +30,7 @@ const LAYOUT_KEY = 'piv2.productSheet.layout';
 /** Groups in their default order; anything else follows alphabetically. */
 const GROUP_ORDER = [
   'Status', 'Identity', 'Codes', 'Prices', 'Market prices', 'Stock & shipping', 'Supply', 'Size & customs',
-  'Reorder & returns', 'B2B product page', 'Content (default language)', 'Languages', 'Tech specs', 'Category', 'Assets',
+  'Reorder & returns', 'B2B product page', 'Content (default language)', 'Tech specs', 'Category',
   'Other fields', 'Computyme', 'System'
 ];
 
@@ -134,7 +134,7 @@ export class ProductSheetComponent implements OnInit, OnChanges {
   /** Re-filter and re-group (search, layout, only-filled). */
   recompute(): void {
     this.groupsView = this.buildGroups();
-    this.groupNamesAll = this.orderedGroupNames([...new Set([...this.allRows.map(r => r.group), 'Languages', 'Assets'])]);
+    this.groupNamesAll = this.orderedGroupNames([...new Set(this.allRows.map(r => r.group))]);
     const names = this.groupsView.map(g => g.name);
     Promise.resolve().then(() => this.groupsChange.emit(names));
   }
@@ -364,9 +364,9 @@ export class ProductSheetComponent implements OnInit, OnChanges {
       if (!byGroup.has(r.group)) { byGroup.set(r.group, []); }
       byGroup.get(r.group)!.push(r);
     }
-    return this.orderedGroupNames([...byGroup.keys(), 'Languages', 'Assets'])
+    return this.orderedGroupNames([...byGroup.keys()])
       .filter(g => term || !this.layout.hiddenGroups.includes(g))
-      .filter(g => (g === 'Assets' || g === 'Languages') ? !term && (g === 'Assets' || !!this.content) : byGroup.has(g))
+      .filter(g => byGroup.has(g))
       .map(g => ({ name: g, rows: byGroup.get(g) ?? [] }));
   }
 

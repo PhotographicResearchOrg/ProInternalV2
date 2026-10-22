@@ -47,7 +47,7 @@
             <button type="button" [disabled]="i === groupNamesAll.length - 1" (click)="moveGroup(g, 1)" title="Move down"><i class="pi pi-arrow-down"></i></button>
           </span>
         </div>
-        <div class="lg-fields" *ngIf="g !== 'Assets' && g !== 'Languages' && !layout.hiddenGroups.includes(g)">
+        <div class="lg-fields" *ngIf="!layout.hiddenGroups.includes(g)">
           <label class="chk small" *ngFor="let r of rowsOf(g)">
             <input type="checkbox" [checked]="!layout.hiddenFields.includes(r.key)" (change)="toggleField(r.key)" /> {{ r.label }}
           </label>
@@ -77,46 +77,9 @@
     <div class="sh-group" *ngFor="let g of groupsView; trackBy: trackGroup" [id]="anchor(g.name)">
       <div class="g-head">
         {{ g.name }}
-        <ng-container *ngIf="g.name === 'Languages'">
-          <button type="button" class="link small" *ngIf="canTranslate" [disabled]="translatingAny" (click)="translateMissing.emit()">
-            <i class="pi" [ngClass]="translatingAny ? 'pi-spin pi-spinner' : 'pi-language'"></i> Translate missing languages</button>
-          <button type="button" class="link small" (click)="openSection.emit('content')"><i class="pi pi-plus"></i> Add or remove languages</button>
-        </ng-container>
       </div>
 
-      <ng-container *ngIf="g.name === 'Languages'">
-        <div class="langs">
-          <div class="lang" *ngFor="let l of otherLocales">
-            <div class="lang-head">
-              <strong>{{ localeName(l.locale) }}</strong> <span class="hint">{{ l.locale }}</span>
-              <span class="badge ai" *ngIf="l.translation?.method === 'AI' && !l.translation?.reviewed">AI, not reviewed</span>
-              <span class="badge ok" *ngIf="l.translation?.method === 'AI' && l.translation?.reviewed">AI, reviewed</span>
-              <span class="spacer"></span>
-              <label class="chk small" *ngIf="l.translation?.method === 'AI'">
-                <input type="checkbox" [checked]="!!l.translation?.reviewed" (change)="markReviewed(l, $any($event.target).checked)" /> Reviewed
-              </label>
-              <button type="button" class="tbtn small" *ngIf="canTranslate" [disabled]="translating.has(l.locale)" (click)="translateLocale.emit(l.locale)">
-                <i class="pi" [ngClass]="translating.has(l.locale) ? 'pi-spin pi-spinner' : 'pi-language'"></i>
-                {{ translating.has(l.locale) ? 'Translating…' : 'Translate' }}</button>
-            </div>
-            <div class="sh-grid">
-              <div class="f"><span class="lab">Name</span>
-                <input type="text" [ngModel]="l.name" (ngModelChange)="setLocale(l, 'name', $event)" [disabled]="!canEdit" /></div>
-              <div class="f"><span class="lab">Short description</span>
-                <input type="text" [ngModel]="l.shortDescription" (ngModelChange)="setLocale(l, 'shortDescription', $event)" [disabled]="!canEdit" /></div>
-              <div class="f wide"><span class="lab">Description</span>
-                <textarea rows="3" [ngModel]="l.description" (ngModelChange)="setLocale(l, 'description', $event)" [disabled]="!canEdit"></textarea></div>
-            </div>
-          </div>
-          <div class="empty" *ngIf="!otherLocales.length">Only {{ localeName(content?.defaultLocale) }} so far. Translate missing languages fills the ones the product's markets need.</div>
-        </div>
-      </ng-container>
-
-      <ng-container *ngIf="g.name === 'Assets' || g.name === 'Languages'; else fieldGrid">
-        <app-product-assets *ngIf="g.name === 'Assets'" [productId]="productId" [compact]="true" (openFull)="openSection.emit('assets')"></app-product-assets>
-      </ng-container>
-
-      <ng-template #fieldGrid>
+      <ng-container>
         <div class="sh-grid">
           <div class="f" *ngFor="let r of g.rows; trackBy: trackRow"
                [class.wide]="r.kind === 'textarea' || r.kind === 'replacement'" [class.changed]="isChanged(r)" [class.locked]="isReadonly(r)">
@@ -164,7 +127,7 @@
           </div>
         </div>
         <div class="hint" *ngIf="g.name === 'Tech specs' && view?.techSpecsError">{{ view?.techSpecsError }}</div>
-      </ng-template>
+      </ng-container>
     </div>
 
     <div class="empty" *ngIf="!groupsView.length">Nothing matches "{{ search }}".</div>

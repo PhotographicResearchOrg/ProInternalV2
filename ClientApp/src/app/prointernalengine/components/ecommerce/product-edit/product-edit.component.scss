@@ -2161,3 +2161,21 @@ input[type='date'] {
 @media (max-width: 820px) {
   .rail-jump { display: none; }
 }
+
+/* ---- the rail stays in view while a long page (All fields) scrolls ---- */
+.app {
+  overflow: clip;                                   /* clips the corners without becoming a scroll box, so sticky works */
+  background: linear-gradient(to right, var(--rail) 220px, var(--canvas) 220px);
+}
+
+.rail {
+  position: sticky;
+  top: 64px;                                        /* below the app's top bar */
+  align-self: flex-start;
+  max-height: calc(100vh - 72px);
+  overflow-y: auto;
+}
+
+@media (max-width: 820px) {
+  .app { background: linear-gradient(to right, var(--rail) 60px, var(--canvas) 60px); }
+}
