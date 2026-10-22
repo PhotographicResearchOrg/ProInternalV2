@@ -265,7 +265,8 @@ BEGIN
     JOIN dbo.Category k ON k.CatId = TRY_CAST(v.Value AS int)
     WHERE v.ColumnName IN (N'TopCatId', N'CatId', N'SubCatId') AND TRY_CAST(v.Value AS int) > 0;
 
-    /* Computyme's group columns (EGRP and any other GRP/GROUP column on IVMSTData), read only, under Category */
+    /* Computyme's group columns (EGRP and any other GRP/GROUP column on IVMSTData) under Category, and its vendor
+       columns (ACTVEND, PROVENDOR...) under Supply; read only */
     DECLARE @code nvarchar(100) = (SELECT LTRIM(RTRIM(CAST(ProductCode AS nvarchar(100)))) FROM dbo.ProductData WHERE Id = @ProductId);
     DECLARE @idType nvarchar(200) =
         (SELECT TYPE_NAME(c.system_type_id)
@@ -279,7 +280,7 @@ BEGIN
     SELECT @list = STRING_AGG(CAST(N'(N' + QUOTENAME(c.name, '''') + N', ' + piv2.ProductSheet_TextExpr(QUOTENAME(c.name), TYPE_NAME(c.system_type_id)) + N')' AS nvarchar(max)), N', ')
     FROM sys.columns c
     WHERE c.object_id = OBJECT_ID(N'dbo.IVMSTData')
-      AND (c.name LIKE N'%GRP%' OR c.name LIKE N'%GROUP%')
+      AND (c.name LIKE N'%GRP%' OR c.name LIKE N'%GROUP%' OR c.name LIKE N'%VEND%')
       AND TYPE_NAME(c.system_type_id) NOT IN (N'image', N'varbinary', N'binary', N'xml', N'sql_variant', N'timestamp')
       AND NOT EXISTS (SELECT 1 FROM #col x WHERE x.ColumnName = c.name COLLATE DATABASE_DEFAULT);
 
@@ -304,6 +305,14 @@ BEGIN
     END CATCH
     END
 
+    /* vendor numbers with the vendor's name */
+    INSERT #disp (Source, ColumnName, DisplayValue)
+    SELECT v.Source, v.ColumnName, LTRIM(RTRIM(vn.Name))
+    FROM #val v
+    JOIN dbo.Vendor vn ON vn.VendorId = TRY_CAST(v.Value AS int)
+    WHERE v.ColumnName LIKE N'%VEND%' AND TRY_CAST(v.Value AS int) IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM #disp d WHERE d.Source = v.Source AND d.ColumnName = v.ColumnName);
+
     /* EGRP's description from Computyme's list (piv2.ComputymeEgroups) */
     BEGIN TRY
         INSERT #disp (Source, ColumnName, DisplayValue)
@@ -323,7 +332,8 @@ BEGIN
            ISNULL(f.Label, CASE WHEN c.ColumnName IN (N'E_GRP') THEN N'EGRP'
                                 WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 THEN c.ColumnName
                                 ELSE c.ColumnName END)                    AS Label,
-           ISNULL(f.GroupName, CASE WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 THEN N'Category'
+           ISNULL(f.GroupName, CASE WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 AND c.ColumnName LIKE N'%VEND%' THEN N'Supply'
+                                    WHEN c.Source = 'Computyme' AND c.ColumnId BETWEEN 900 AND 999 THEN N'Category'
                                     WHEN c.Source = 'Computyme' THEN N'More fields' ELSE N'Other fields' END) AS GroupName,
            ISNULL(f.SortOrder, 500 + c.ColumnId)                          AS SortOrder,
            CASE

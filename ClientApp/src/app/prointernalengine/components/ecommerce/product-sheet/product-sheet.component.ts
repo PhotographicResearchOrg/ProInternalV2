@@ -221,8 +221,6 @@ export class ProductSheetComponent implements OnInit, OnChanges {
       this.field('directMode', 'Ships from', 'Supply', 'select', () => p.supply.directMode, v => p.supply.directMode = v, null, [
         { value: 'MARKER', label: 'Follow the inventory marker (9999 = direct)' }, { value: 'WAREHOUSE', label: 'Always our warehouse' },
         { value: 'DIRECT', label: 'Always direct from the vendor' }]),
-      this.field('ctActVend', 'Actual vendor', 'Supply', 'readonly', () => this.page?.computymeActualVendor || '—', undefined, 'COMPUTYME'),
-      this.field('ctProVendor', 'Vendor group', 'Supply', 'readonly', () => this.page?.computymeVendorGroup || '—', undefined, 'COMPUTYME'),
       this.field('vendorId', 'Supplying vendor id', 'Supply', 'text', () => p.supply.vendorId, v => p.supply.vendorId = v),
       this.field('dropShip', 'Drop-ship eligible', 'Supply', 'bool', () => p.supply.dropShipEligible, v => p.supply.dropShipEligible = v),
       this.field('specialOrder', 'Special order', 'Supply', 'bool', () => p.supply.specialOrder, v => p.supply.specialOrder = v, L),
