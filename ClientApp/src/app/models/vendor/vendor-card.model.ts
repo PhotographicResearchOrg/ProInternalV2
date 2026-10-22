@@ -165,7 +165,8 @@ export interface VendorPolicies {
 
 /* The vendor's rebates, read from the Rebate Desk (managed there, read-only here). */
 export interface VendorRebatesApi {
-  linked: { vendorId: number; vendorName: string; rail: 'IR' | 'PP'; isActive: boolean }[];
+  /** linkedBy: AP = RebateVendors.APMSTID is this vendor; BRAND = no AP link, matched through the rebate vendor's brands */
+  linked: { vendorId: number; vendorName: string; rail: 'IR' | 'PP'; isActive: boolean; linkedBy?: 'AP' | 'BRAND' }[];
   programs: {
     rail: 'IR' | 'PP'; programId: number; batchId?: number; modelId: number; description: string; proCode: string;
     typeName: string; startDate: string; endDate?: string; instantRebate?: number; memberAmount: number; mapPrice?: number;

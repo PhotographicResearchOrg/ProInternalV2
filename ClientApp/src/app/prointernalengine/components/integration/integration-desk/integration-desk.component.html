@@ -38,6 +38,7 @@
           </div>
         </div>
         <div class="head-actions">
+          <app-home-pin [pin]="homePin"></app-home-pin>
           <button type="button" class="btn ghost" (click)="refresh()" [disabled]="loading"><i class="pi pi-refresh"></i> Refresh</button>
           <button type="button" class="btn primary" (click)="dispatchNow()" [disabled]="acting"><i class="pi pi-send"></i> Send now</button>
         </div>

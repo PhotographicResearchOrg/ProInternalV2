@@ -6,10 +6,11 @@
   <header class="vhead">
     <div class="vhead-top">
       <span class="logo"><i class="pi pi-box"></i></span>
-      <div style="min-width:0;flex:1">
+      <div class="vtitle-block" style="min-width:0;flex:1">
         <h1>Vendors</h1>
         <div class="vsub">Manufacturers and suppliers on the PRO platform. Select a vendor to open its card.</div>
       </div>
+      <app-home-pin [pin]="homePin"></app-home-pin>
       <button class="iconbtn" (click)="exportVendors()" [disabled]="exporting">
         <i [class]="exporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"></i> Export
       </button>

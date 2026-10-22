@@ -1,0 +1,5 @@
+
+@media (max-width: 760px) {
+  :host ::ng-deep .p-tabview .p-tabview-panels { padding: 10px 0 0; }
+  :host ::ng-deep .p-tabview .p-tabview-nav li .p-tabview-nav-link { padding: 10px 12px; }
+}

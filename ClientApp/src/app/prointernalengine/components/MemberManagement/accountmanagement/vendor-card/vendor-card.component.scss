@@ -1396,3 +1396,45 @@ button:disabled {
 .stat-lock { font-size: 10px; color: var(--faint); margin-left: 6px; }
 .sub-title { margin: 6px 0 0; font-size: 14px; font-weight: 700; color: var(--ink); }
 .hint-inline { font-weight: 500; color: var(--faint); font-size: 12px; }
+
+/* brand family (dbo.Brand.VendorID) */
+.bf-list { margin: 0 0 12px; border: 1px solid #eef1f5; border-radius: 8px; }
+.bf-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 13px; }
+.bf-row + .bf-row { border-top: 1px solid #f1f3f6; }
+.bf-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bf-warn { color: #a15c07; font-size: 12px; }
+.bf-n { font-size: 12px; }
+.bf-n .faint { color: #8a97ab; }
+.bf-retired { padding: 6px 10px; border-top: 1px solid #f1f3f6; font-size: 12px; color: #8a97ab; }
+
+/* ---- phone: the rail becomes a search box over a row of section chips; everything stacks ---- */
+@media (max-width: 760px) {
+  .app { flex-direction: column; min-height: 0; border-radius: 12px; }
+  .rail {
+    display: block; width: auto; padding: 10px 10px 8px;
+    white-space: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
+  .brandmark, .rail-foot { display: none !important; }
+  .switcher {
+    position: sticky; left: 0; white-space: normal; padding: 0 0 8px;
+    flex-direction: row; align-items: center; gap: 8px;
+  }
+  :host ::ng-deep .switcher .p-autocomplete { flex: 1; min-width: 0; }
+  .switcher .all-link { flex: none; }
+  .rail-btn {
+    display: inline-flex; width: auto; justify-content: flex-start; gap: 6px;
+    margin-right: 4px; padding: 7px 10px; font-size: 12.5px;
+    span { display: inline !important; }
+  }
+  .vhead { padding: 14px 14px 12px; }
+  .vhead-top { flex-wrap: wrap; gap: 12px; }
+  .logo { width: 42px; height: 42px; }
+  .toggles { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; gap: 10px 16px; padding: 10px 12px; }
+  .stripe { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; }
+  .stripe .stat:first-child { grid-column: 1 / -1; }
+  .stat .v { font-size: 15px; word-break: break-word; }
+  main { padding: 12px 10px 16px; }
+  .tiles { grid-template-columns: 1fr; gap: 10px; }
+  .card { overflow-x: auto; }
+}

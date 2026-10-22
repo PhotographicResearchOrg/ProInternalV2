@@ -76,7 +76,7 @@
         <div class="stat"><div class="k">Member discount</div><div class="v" [style.color]="P.violet">{{ terms.memberDiscountPct ?? 0 }}%</div></div>
         <div class="stat"><div class="k">Active contracts</div><div class="v">{{ stats.activeContracts }}</div></div>
         <div class="stat"><div class="k">Price lists</div><div class="v">{{ stats.priceListCount }}</div></div>
-        <div class="stat"><div class="k">Contacts</div><div class="v">{{ stats.contactCount }}</div></div>
+        <div class="stat"><div class="k">Contacts</div><div class="v">{{ contactTotal || stats.contactCount }}</div></div>
         <div class="stat"><div class="k">Last change</div><div class="v">{{ timeAgo(stats.lastChangeAt) }}</div></div>
       </div>
     </header>
@@ -189,12 +189,22 @@
         <section class="card">
           <header class="card-head">
             <span class="ci"><i class="pi pi-building"></i></span><h3>Brand family & catalog</h3>
-            <div class="act"><button class="iconbtn" (click)="openAddBrand()"><i class="pi pi-plus"></i> Add brand</button></div>
+            <div class="act"><button class="iconbtn" (click)="setSection('brandlinks')" title="Move brands to or from this vendor on the Brands tab"><i class="pi pi-arrow-right-arrow-left"></i> Manage brands</button></div>
           </header>
           <div class="card-body">
-            <div class="vbrands" style="margin:0 0 12px">
-              <span *ngFor="let b of brands; let i = index" class="badge" [ngStyle]="{color: brand(i).fg, background: brand(i).bg}">{{ b }}</span>
+            <p class="muted-p">The brands that point at this vendor (the B2B site's vendor filter uses this link). Live / all products per brand.</p>
+            <div class="bf-list" *ngIf="brandRows.length; else noBrandRows">
+              <div class="bf-row" *ngFor="let b of liveBrands">
+                <span class="bf-name">{{ b.brandName }}</span>
+                <i class="pi pi-exclamation-triangle bf-warn" *ngIf="brandBoughtElsewhere(b)"
+                   [title]="b.boughtElsewhere + ' of ' + b.products + ' bought from another vendor in Computyme: ' + (b.actualVendors || '')"></i>
+                <span class="bf-n mono">{{ b.liveProducts | number }}<span class="faint"> / {{ b.products | number }}</span></span>
+              </div>
+              <div class="bf-retired" *ngIf="retiredBrands.length" title="Nothing live: no products, or all discontinued">
+                <i class="pi pi-moon"></i> Likely retired: {{ retiredBrandNames }}
+              </div>
             </div>
+            <ng-template #noBrandRows><div class="cf-empty" style="margin-bottom:12px">No brands point at this vendor. Use Manage brands to move one here.</div></ng-template>
             <div class="field"><span class="k">Primary category</span><span class="v">{{ terms.primaryCategory || '—' }}</span></div>
             <div class="field"><span class="k">Country of origin</span><span class="v">{{ terms.countryOfOrigin || '—' }}</span></div>
           </div>

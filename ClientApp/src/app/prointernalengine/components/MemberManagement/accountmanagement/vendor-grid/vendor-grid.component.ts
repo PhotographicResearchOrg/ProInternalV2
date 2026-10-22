@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { DataService } from 'src/app/services/data.service';
 import { Vendor } from 'src/app/models/accounts/vendor';
+import { HomePin, stablePin } from 'src/app/services/home-pin.service';
 import { MessageService } from 'primeng/api';
 import { Router } from '@angular/router';
 import { CreateVendorRequest, VendorContactRole } from 'src/app/models/vendor/vendor-card.model';
@@ -59,6 +60,9 @@ export class VendorGridComponent implements OnInit {
     { fg: '#a15c07', bg: '#fbeecb' },
     { fg: '#1d4ed8', bg: '#dce8fd' }
   ];
+
+  /** "Pin to home": Vendor Accounts */
+  readonly homePin: HomePin = stablePin({ id: 'vendors', label: 'Vendor Accounts', sub: 'Vendor Management', icon: 'pi pi-box', route: '/accountmanagement' });
 
   constructor(
     private dataService: DataService,

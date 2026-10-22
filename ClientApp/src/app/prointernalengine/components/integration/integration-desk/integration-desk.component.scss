@@ -320,3 +320,27 @@ pre {
   .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .drawer { position: absolute; right: 0; top: 0; bottom: 0; box-shadow: -10px 0 30px rgba(20, 28, 43, .12); }
 }
+
+/* ---- phone / narrow: the rail becomes a row of chips, everything stacks ---- */
+@media (max-width: 760px) {
+  .app { flex-direction: column; min-height: 0; border-radius: 12px; }
+  .rail {
+    width: auto; flex-direction: row; gap: 6px; padding: 10px; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
+  .brandmark, .rail-foot { display: none; }
+  .rail-btn { flex: none; width: auto; white-space: nowrap; padding: 7px 10px; }
+  .vhead { padding: 14px 14px 12px; }
+  .vhead-top { flex-wrap: wrap; gap: 10px; }
+  .vhead-top .logo { display: none; }
+  .head-actions { width: 100%; flex-wrap: wrap; }
+  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .stat { padding: 8px; }
+  .body { padding: 12px 10px 16px; }
+  .card { padding: 12px; overflow-x: auto; }
+  .grid { min-width: 520px; }
+  .filters input { min-width: 0; flex: 1 1 100%; }
+  .filters select { flex: 1 1 45%; }
+  .drawer { position: fixed; inset: 0; width: auto; max-height: none; z-index: 1000; border-left: 0; }
+}

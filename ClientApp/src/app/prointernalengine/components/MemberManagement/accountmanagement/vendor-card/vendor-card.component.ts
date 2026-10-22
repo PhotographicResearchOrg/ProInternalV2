@@ -23,7 +23,7 @@ import {
 
 import { VendorDirectBrand, VendorDirectShipService, VendorDirectVendor } from 'src/app/services/vendor-direct-ship.service';
 import { HomePin, stablePin } from 'src/app/services/home-pin.service';
-import { VendorBillingComputyme, VendorBillingProgram } from 'src/app/models/vendor/vendor-desk.models';
+import { BrandVendorRow, VendorBillingComputyme, VendorBillingProgram, VendorLogin, brandLikelyRetired } from 'src/app/models/vendor/vendor-desk.models';
 
 interface NavItem { id: string; label: string; icon: string; }
 interface Tile { id: string; icon: string; title: string; lines: string[]; color: number; }
@@ -62,6 +62,10 @@ export class VendorCardComponent implements OnInit, OnChanges {
   vendor = { name: '', legal: '', id: '', acct: '', initials: '', rep: '' };
 
   brands: string[] = [];
+  /** the brand family as the B2B site sees it: dbo.Brand.VendorID (Brands & vendors) */
+  brandRows: BrandVendorRow[] = [];
+  /** dbo.VendorUsers: the contacts and credit-site logins (Contacts tab) */
+  logins: VendorLogin[] = [];
 
   navSections: NavItem[] = [
     { id: 'overview', label: 'Overview', icon: 'pi pi-th-large' },
@@ -257,7 +261,11 @@ export class VendorCardComponent implements OnInit, OnChanges {
         this.brands = card.brands || [];
         /* the brand family comes from dbo.Brand.VendorID (what the B2B site uses); VendorBrand is empty */
         this.dataService.brandVendors(this.id).subscribe({
-          next: r => { if (r?.brands?.length) this.brands = r.brands.map(b => b.brandName); }
+          next: r => {
+            this.brandRows = r?.brands ?? [];
+            if (this.brandRows.length) this.brands = this.brandRows.map(b => b.brandName);
+            this.buildOverviewTiles();
+          }
         });
         this.live = card.isActive;
         this.onWeb = card.onWeb;
@@ -270,6 +278,7 @@ export class VendorCardComponent implements OnInit, OnChanges {
     });
 
     this.loadComputymeTerms();
+    this.loadLogins();
     this.loadContacts();
     this.loadContracts();
     this.loadPriceLists();
@@ -589,10 +598,29 @@ export class VendorCardComponent implements OnInit, OnChanges {
     this.cty = null;
     this.ctyPrograms = [];
     this.dataService.vendorBilling(this.id).subscribe({
-      next: b => { this.cty = b?.computyme ?? null; this.ctyPrograms = b?.programs ?? []; },
+      next: b => { this.cty = b?.computyme ?? null; this.ctyPrograms = b?.programs ?? []; this.buildOverviewTiles(); },
       error: () => { this.cty = null; }
     });
   }
+
+  private loadLogins(): void {
+    this.logins = [];
+    this.dataService.vendorLogins(this.id).subscribe({
+      next: r => { this.logins = r?.contacts ?? []; this.buildOverviewTiles(); },
+      error: () => { this.logins = []; }
+    });
+  }
+
+  /** contacts in total: the vendor's contacts and logins (VendorUsers, active) plus PIV2 contact groups */
+  get contactTotal(): number {
+    return this.logins.filter(l => l.isActive).length + this.contacts.reduce((a, g) => a + g.people.length, 0);
+  }
+
+  /* ---- brand family (dbo.Brand.VendorID) ---- */
+  get liveBrands(): BrandVendorRow[] { return this.brandRows.filter(b => !brandLikelyRetired(b)); }
+  get retiredBrands(): BrandVendorRow[] { return this.brandRows.filter(b => brandLikelyRetired(b)); }
+  get retiredBrandNames(): string { return this.retiredBrands.map(r => r.brandName).join(', '); }
+  brandBoughtElsewhere(b: BrandVendorRow): boolean { return !brandLikelyRetired(b) && b.boughtElsewhere > 0; }
 
   /** a stored surcharge read as tenths of a percent (35 = 3.5%) */
   surchargePct(v: string | null | undefined): string | null {
@@ -1129,21 +1157,49 @@ export class VendorCardComponent implements OnInit, OnChanges {
     const activeRebates = this.rebates.filter(r => r.state === 'RUNNING');
     const scheduledRebates = this.rebates.filter(r => r.state === 'UPCOMING');
 
+    /* Terms: PIV2's own terms, else what Computyme has (read only) */
+    const c = this.cty;
+    const ctyTerms = c ? [c.termsDescription, c.cashDiscountPct != null ? `${c.cashDiscountPct}% cash discount` : null].filter(Boolean).join(' · ') : '';
+    const termsLine = [this.terms.paymentTerms, this.terms.earlyPayDiscountText].filter(Boolean).join(' · ')
+      || (ctyTerms ? `${ctyTerms} (Computyme)` : 'Terms not set');
+    const surcharge = c ? this.surchargePct(c.surchargeStored) : null;
+    const mismatch = c?.cashDiscountPct != null && this.terms.proDiscountPct != null && +c.cashDiscountPct !== +this.terms.proDiscountPct;
+
+    /* Contacts: VendorUsers (contacts and credit-site logins) plus PIV2 contact groups */
+    const activeLogins = this.logins.filter(l => l.isActive);
+    const withLogin = activeLogins.filter(l => l.hasPassword).length;
+    const loginNames = activeLogins.slice(0, 2).map(l =>
+      `${l.contactTypeName || 'Contact'}: ${[l.firstName, l.lastName].filter(Boolean).join(' ') || l.email || l.username}`);
+    const contactLines = [
+      this.contactTotal
+        ? `${this.contactTotal} contact${this.contactTotal === 1 ? '' : 's'} · ${withLogin} with a credit-site login`
+        : 'No contacts yet',
+      ...loginNames,
+      ...primaryByGroup.slice(0, Math.max(0, 2 - loginNames.length)).map(x => `${x.group}: ${x.person.name}`)
+    ];
+
     this.overviewTiles = [
       {
         id: 'terms', icon: 'pi pi-receipt', title: 'Terms & Financials', color: 0,
         lines: [
-          [this.terms.paymentTerms, this.terms.earlyPayDiscountText].filter(Boolean).join(' · ') || 'Terms not set',
-          `PRO ${this.terms.proDiscountPct ?? 0}% / Member ${this.terms.memberDiscountPct ?? 0}%`,
-          [this.terms.fobPoint, this.terms.currency].filter(Boolean).join(' · ') || '—'
+          termsLine,
+          `PRO ${this.terms.proDiscountPct ?? 0}% / Member ${this.terms.memberDiscountPct ?? 0}%` + (mismatch ? ` · Computyme has ${c!.cashDiscountPct}%` : ''),
+          [surcharge ? `PRO surcharge ${surcharge}` : null, this.terms.fobPoint, this.terms.currency].filter(Boolean).join(' · ') || '—'
         ]
       },
       {
         id: 'contacts', icon: 'pi pi-users', title: 'Contacts', color: 1,
+        lines: contactLines
+      },
+      {
+        id: 'brandlinks', icon: 'pi pi-building', title: 'Brands', color: 2,
         lines: [
-          `${totalContacts} people across ${this.contacts.length} roles`,
-          ...primaryByGroup.slice(0, 2).map(x => `${x.group}: ${x.person.name}`)
-        ]
+          this.brandRows.length
+            ? `${this.liveBrands.length} selling · ${this.retiredBrands.length} likely retired`
+            : 'No brands point at this vendor',
+          this.liveBrands.slice(0, 4).map(b => b.brandName).join(', ') || '—',
+          this.brandRows.some(b => this.brandBoughtElsewhere(b)) ? 'Some products bought from another vendor' : ''
+        ].filter(Boolean)
       },
       {
         id: 'contracts', icon: 'pi pi-file', title: 'Contracts', color: 3,
@@ -1173,7 +1229,11 @@ export class VendorCardComponent implements OnInit, OnChanges {
         lines: [
           `${activeRebates.length} running · ${scheduledRebates.length} starting later`,
           this.rebateSummary.liability ? `Liability ${this.rebateSummary.liability.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} not billed` : 'No liability',
-          this.rebateLinked.length ? '' : 'Not linked to a rebate vendor'
+          this.rebateLinked.length
+            ? (this.rebateLinked.some(l => l.linkedBy === 'BRAND')
+                ? `Matched by brand: ${this.rebateLinked.map(l => l.vendorName).join(', ')}`
+                : `Rebate vendor: ${this.rebateLinked.map(l => l.vendorName).join(', ')}`)
+            : 'Not linked: set this AP vendor on the Rebate Desk vendor'
         ].filter(Boolean)
       }
     ];

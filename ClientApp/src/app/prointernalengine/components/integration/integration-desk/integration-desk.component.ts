@@ -1,3 +1,4 @@
+import { HomePin, stablePin } from 'src/app/services/home-pin.service';
 import { Component, HostListener, OnInit } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 import {
@@ -82,6 +83,9 @@ export class IntegrationDeskComponent implements OnInit {
   notice = '';
 
   constructor(private integration: IntegrationService) {}
+
+  /** "Pin to home": the Integration Desk */
+  readonly homePin: HomePin = stablePin({ id: 'integration', label: 'Integration Desk', sub: 'Admin', icon: 'pi pi-sync', route: '/integration' });
 
   ngOnInit(): void {
     this.refresh();
