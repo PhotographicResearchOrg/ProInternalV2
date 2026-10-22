@@ -29,7 +29,8 @@ VNMST and APMST ids never collide (3 vs 4 digits), which is why Computyme gets a
 New table `piv2.CutoverPiece` (Piece, Piv2IsMaster, SwitchedAt, SwitchedBy, Note), one row per piece, changed only in Security Admin and logged. `Product:SqlIsMaster` stays as it is for the product fields.
 
 - **Before the switch:** PIV2 reads Computyme through the EDA mirror. Computyme-owned fields show the lock. Fields PIV2 owns are editable from day one.
-- **The switch:** one-time copy into the PIV2 tables, flip the row. Where Computyme still reads the data (warehouse, billing, AP), PIV2 sends it back through the outbox until that consumer is cut over too.
+- **Reconcile:** PIV2 compares SQL with Computyme and lists every mismatch for a person to decide; nothing is overwritten automatically in either direction.
+- **The switch:** that comparison is the check before the flip. A section moves to SQL only when SQL matches Computyme: one-time copy into the PIV2 tables, flip the row, logged with who and why. Where Computyme still reads the data (warehouse, billing, AP), PIV2 sends it back through the outbox until that consumer is cut over too.
 
 ## Pieces, in order
 

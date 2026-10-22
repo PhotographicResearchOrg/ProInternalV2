@@ -501,6 +501,21 @@
       </div>
 
       <!-- ---------- Audit ---------- -->
+      <!-- ---------- Vendor record (Computyme's vendor file, read only) ---------- -->
+      <div *ngIf="activeSection === 'record'" class="stack">
+        <app-vendor-record [vendorId]="id" mode="record"></app-vendor-record>
+      </div>
+
+      <!-- ---------- Brands (Brand.VendorID: SQL is master, B2B vendor filter) ---------- -->
+      <div *ngIf="activeSection === 'brandlinks'" class="stack">
+        <app-brand-vendor-desk [vendorId]="id"></app-brand-vendor-desk>
+      </div>
+
+      <!-- ---------- Direct billing (Computyme values + PIV2 split) ---------- -->
+      <div *ngIf="activeSection === 'billing'" class="stack">
+        <app-vendor-record [vendorId]="id" mode="billing"></app-vendor-record>
+      </div>
+
       <div *ngIf="activeSection === 'audit'">
         <section class="card">
           <header class="card-head">

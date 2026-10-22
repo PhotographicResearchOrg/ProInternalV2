@@ -120,6 +120,10 @@ import { ProductAiComponent } from './prointernalengine/components/ecommerce/pro
 import { ProductForecastComponent } from './prointernalengine/components/ecommerce/product-forecast/product-forecast.component';
 import { ProductAssetsComponent } from './prointernalengine/components/ecommerce/product-assets/product-assets.component';
 import { ProductLookupComponent } from './prointernalengine/components/ecommerce/product-lookup/product-lookup.component';
+import { OwnerMarkComponent, OwnerLegendComponent } from './prointernalengine/components/Vendor/vendor-desk/owner-mark.component';
+import { CutoverMapComponent } from './prointernalengine/components/Vendor/vendor-desk/cutover-map.component';
+import { BrandVendorDeskComponent } from './prointernalengine/components/Vendor/vendor-desk/brand-vendor-desk.component';
+import { VendorRecordComponent } from './prointernalengine/components/Vendor/vendor-desk/vendor-record.component';
 import { ProductSheetComponent } from './prointernalengine/components/ecommerce/product-sheet/product-sheet.component';
 import { SheetOptionPipe } from './prointernalengine/components/ecommerce/product-sheet/sheet-option.pipe';
 
@@ -135,6 +139,11 @@ import { SheetOptionPipe } from './prointernalengine/components/ecommerce/produc
       ProductAssetsComponent,
       ProductLookupComponent,
       ProductSheetComponent,
+      OwnerMarkComponent,
+      OwnerLegendComponent,
+      CutoverMapComponent,
+      BrandVendorDeskComponent,
+      VendorRecordComponent,
       SheetOptionPipe,
     OrdersComponent,
     EdiManagementComponent,

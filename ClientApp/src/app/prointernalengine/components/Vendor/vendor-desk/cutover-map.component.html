@@ -1,0 +1,108 @@
+<div class="desk">
+  <div class="desk-head">
+    <div>
+      <h1>Cutover map</h1>
+      <div class="sub">Every section of the business and who is master of it today. Computyme ends up running warehouse distribution only; everything else moves to PIV2 one section at a time. Sections the B2B site reads are marked, because nothing there moves without a check.</div>
+    </div>
+    <app-owner-legend></app-owner-legend>
+  </div>
+
+  <div class="card how">
+    <div class="card-h"><h2>How a section cuts over</h2></div>
+    <ol class="steps">
+      <li><b>Show it as it is.</b> While Computyme is master, PIV2 reads it from the EDA mirror and shows it locked. Nothing is written back.</li>
+      <li><b>Extend it.</b> Anything Computyme doesn't have is added in PIV2 as an extension, so the work starts before the switch.</li>
+      <li><b>Reconcile.</b> PIV2 compares SQL with Computyme and lists every mismatch for a person to decide. Nothing is overwritten automatically in either direction.</li>
+      <li><b>Flip only when they match.</b> That comparison is the check before the switch: the section moves to SQL only when SQL matches Computyme, and the change is logged here with who and why.</li>
+      <li><b>Keep Computyme fed.</b> Where Computyme still reads the data (warehouse, billing, payables), PIV2 sends it back until that part moves too.</li>
+    </ol>
+  </div>
+
+  <div class="stats">
+    <button class="stat btn" *ngFor="let o of owners" [class.on]="ownerFilter === o" (click)="setOwnerFilter(o)" type="button">
+      <div class="k"><app-owner-mark [owner]="o" [compact]="true"></app-owner-mark> {{ ownerInfo[o].label }}</div>
+      <div class="v">{{ count(o) }}</div>
+    </button>
+    <button class="stat btn" [class.on]="b2bOnly" (click)="b2bOnly = !b2bOnly; regroup()" type="button">
+      <div class="k"><span class="b2b"><i class="pi pi-globe"></i> B2B</span> site reads it</div>
+      <div class="v">{{ b2bCount }}</div>
+    </button>
+  </div>
+
+  <div class="toolbar">
+    <input id="cutover-search" class="search" type="search" placeholder="Search sections, files, tables…" [(ngModel)]="search" (ngModelChange)="regroup()">
+    <button class="btn" type="button" (click)="export()" [disabled]="!map"><i class="pi pi-file-excel"></i> Export</button>
+    <button class="btn" type="button" (click)="showLog = !showLog"><i class="pi pi-history"></i> {{ showLog ? 'Hide' : 'Show' }} changes</button>
+  </div>
+
+  <div *ngIf="loading" class="empty">Loading…</div>
+  <div *ngIf="error" class="err">{{ error }}</div>
+
+  <div class="card" *ngIf="showLog && map">
+    <div class="card-h"><h2>Owner changes</h2><span class="hint">Most recent first</span></div>
+    <div class="tablewrap">
+      <table class="vd-grid" *ngIf="map.log.length; else nolog">
+        <thead><tr><th>When</th><th>Section</th><th>From</th><th>To</th><th>Why</th><th>Who</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let l of map.log">
+            <td class="small">{{ l.changedAt | date:'MMM d, y h:mm a' }}</td>
+            <td>{{ l.name || l.sectionKey }}</td>
+            <td><app-owner-mark *ngIf="l.oldOwner" [owner]="l.oldOwner"></app-owner-mark></td>
+            <td><app-owner-mark [owner]="l.newOwner"></app-owner-mark></td>
+            <td class="small">{{ l.note }}</td>
+            <td class="small">{{ l.changedBy }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #nolog><div class="empty">No owner changes yet.</div></ng-template>
+    </div>
+  </div>
+
+  <div class="area" *ngFor="let g of groups">
+    <div class="area-h">{{ g.area }}</div>
+    <div class="sections">
+      <div class="card sec" *ngFor="let s of g.sections; trackBy: trackKey" [ngClass]="'own-' + s.owner">
+        <div class="sec-top">
+          <div class="sec-name">{{ s.name }}</div>
+          <app-owner-mark [owner]="s.owner"></app-owner-mark>
+        </div>
+        <div class="sec-sum" *ngIf="s.summary">{{ s.summary }}</div>
+        <dl class="facts">
+          <ng-container *ngIf="s.computymeSource"><dt><i class="pi pi-lock"></i> Computyme</dt><dd class="mono">{{ s.computymeSource }}</dd></ng-container>
+          <ng-container *ngIf="s.sqlObjects"><dt><i class="pi pi-database"></i> SQL / PIV2</dt><dd class="mono">{{ s.sqlObjects }}</dd></ng-container>
+          <ng-container *ngIf="s.b2BReads"><dt><span class="b2b"><i class="pi pi-globe"></i> B2B reads</span></dt><dd class="mono">{{ s.b2BReads }}</dd></ng-container>
+          <ng-container *ngIf="s.pivScreen"><dt><i class="pi pi-desktop"></i> Screen</dt><dd>{{ s.pivScreen }}</dd></ng-container>
+          <ng-container *ngIf="s.nextStep"><dt><i class="pi pi-arrow-right"></i> Next</dt><dd>{{ s.nextStep }}</dd></ng-container>
+        </dl>
+        <div class="sec-foot">
+          <span class="muted small">Updated {{ s.updatedAt | date:'MMM d, y' }}{{ s.updatedBy ? ' · ' + s.updatedBy : '' }}</span>
+          <button *ngIf="map?.canEdit && editing !== s.sectionKey" class="linkbtn" type="button" (click)="startEdit(s)">Change owner</button>
+        </div>
+
+        <div class="edit" *ngIf="editing === s.sectionKey">
+          <div class="field">
+            <label for="owner-{{ s.sectionKey }}">Master</label>
+            <select id="owner-{{ s.sectionKey }}" [(ngModel)]="draft.owner">
+              <option *ngFor="let o of owners" [ngValue]="o">{{ ownerInfo[o].label }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="next-{{ s.sectionKey }}">Next step</label>
+            <input id="next-{{ s.sectionKey }}" [(ngModel)]="draft.nextStep">
+          </div>
+          <div class="field">
+            <label for="note-{{ s.sectionKey }}">Why (kept in the change log)</label>
+            <textarea id="note-{{ s.sectionKey }}" rows="2" [(ngModel)]="draft.note"></textarea>
+            <div class="help" *ngIf="s.b2BReads">The B2B site reads this section. Check it there before and after.</div>
+          </div>
+          <div class="err" *ngIf="saveError">{{ saveError }}</div>
+          <div class="toolbar">
+            <button class="btn primary" type="button" [disabled]="saving" (click)="save(s)">{{ saving ? 'Saving…' : 'Save' }}</button>
+            <button class="btn" type="button" (click)="cancelEdit()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="empty" *ngIf="!loading && map && !groups.length">No sections match.</div>
+</div>

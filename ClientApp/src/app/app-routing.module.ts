@@ -33,6 +33,8 @@ import { CreditsComponent } from './prointernalengine/components/dashboards/acco
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
+import { CutoverMapComponent } from './prointernalengine/components/Vendor/vendor-desk/cutover-map.component';
+import { BrandVendorDeskComponent } from './prointernalengine/components/Vendor/vendor-desk/brand-vendor-desk.component';
 import { VendorCardComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-card/vendor-card.component';
 import { VendorCustomFieldsComponent } from './prointernalengine/components/MemberManagement/accountmanagement/vendor-custom-fields/vendor-custom-fields.component';
 import { PaymentAdministrationComponent } from './prointernalengine/components/dashboards/accounting/payment-administration/payment-administration.component';
@@ -89,6 +91,8 @@ const routes: Routes = [
       { path: 'members/:accountNumber', component: MemberDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Member' } },
 
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
+      { path: 'cutover', component: CutoverMapComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Cutover map' } },
+      { path: 'brandvendors', component: BrandVendorDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Brands & vendors' } },
       { path: 'vendor-card', component: VendorCardComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor' } },
       { path: 'vendor-custom-fields', component: VendorCustomFieldsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor Custom Fields' } },
       { path: 'shippingerror', component: ShippingerrorsComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Shipping Errors' } },

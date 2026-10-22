@@ -165,6 +165,18 @@ export class AppMenuComponent implements OnInit {
             label: 'Vendor Management',
             icon: 'pi pi-briefcase',
             items: [
+              can('/cutover') && {
+                label: 'Cutover Map',
+                icon: 'pi pi-map',
+                routerLink: ['/cutover']
+              },
+
+              can('/brandvendors') && {
+                label: 'Brands & Vendors',
+                icon: 'pi pi-tags',
+                routerLink: ['/brandvendors']
+              },
+
               can('/setup') && {
                 label: 'Vendor SetUp',
                 icon: 'pi pi-cog',

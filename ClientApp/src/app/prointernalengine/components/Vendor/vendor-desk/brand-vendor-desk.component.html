@@ -1,0 +1,231 @@
+<div [class.desk]="!vendorId">
+  <div class="desk-head" *ngIf="!vendorId">
+    <div>
+      <h1>Brands &amp; vendors</h1>
+      <div class="sub">Which vendor each brand belongs to, checked against who Computyme says each product is actually bought from. The brand's vendor drives the B2B site's vendor filter.</div>
+    </div>
+    <app-owner-legend></app-owner-legend>
+  </div>
+
+  <div class="tabs" *ngIf="!vendorId" role="tablist">
+    <button type="button" role="tab" class="tab" [class.on]="tab === 'brands'" [attr.aria-selected]="tab === 'brands'" (click)="tab = 'brands'">Brands</button>
+    <button type="button" role="tab" class="tab" [class.on]="tab === 'classes'" [attr.aria-selected]="tab === 'classes'" (click)="tab = 'classes'">Product classes</button>
+  </div>
+
+  <!-- ==================================================== Brands -->
+  <ng-container *ngIf="tab === 'brands'">
+    <div class="card">
+      <div class="card-h">
+        <h2>{{ vendorId ? 'Brands on this vendor' : 'Brand → vendor' }}</h2>
+        <span class="owners">
+          <app-owner-mark owner="SQL"></app-owner-mark>
+          <span class="hint">Brand's vendor: SQL is master</span>
+          <app-owner-mark owner="COMPUTYME" [compact]="true"></app-owner-mark>
+          <span class="hint">"Bought from": each product's actual vendor in Computyme</span>
+        </span>
+      </div>
+
+      <div class="stats" *ngIf="!vendorId">
+        <button class="stat btn" type="button" [class.on]="filter === 'all'" (click)="setFilter('all')"><div class="k">All brands</div><div class="v">{{ count('all') }}</div></button>
+        <button class="stat btn" type="button" [class.on]="filter === 'novendor'" (click)="setFilter('novendor')"><div class="k">No vendor</div><div class="v red">{{ count('novendor') }}</div></button>
+        <button class="stat btn" type="button" [class.on]="filter === 'notap'" (click)="setFilter('notap')"><div class="k">Not a payable vendor</div><div class="v red">{{ count('notap') }}</div></button>
+        <button class="stat btn" type="button" [class.on]="filter === 'elsewhere'" (click)="setFilter('elsewhere')"><div class="k">Bought from another vendor</div><div class="v amber">{{ count('elsewhere') }}</div></button>
+        <button class="stat btn" type="button" [class.on]="filter === 'ok'" (click)="setFilter('ok')"><div class="k">All agree</div><div class="v teal">{{ count('ok') }}</div></button>
+      </div>
+
+      <div class="toolbar" style="margin-top:10px">
+        <input id="brand-search" class="search" type="search" placeholder="Search brand or vendor…" [(ngModel)]="search" (ngModelChange)="applyFilter()">
+        <button class="btn" type="button" (click)="exportBrands()" [disabled]="!brands.length"><i class="pi pi-file-excel"></i> Export</button>
+        <ng-container *ngIf="vendorId && canEditBrands">
+          <p-dropdown inputId="add-brand" [options]="allBrands" optionLabel="brandName" optionValue="brandId" [(ngModel)]="addBrandId"
+                      [filter]="true" filterBy="brandName" placeholder="Move a brand to this vendor…" [style]="{ minWidth: '240px' }" appendTo="body"></p-dropdown>
+          <button class="btn" type="button" [disabled]="!addBrandId" (click)="addBrandToVendor()"><i class="pi pi-arrow-down"></i> Move here</button>
+        </ng-container>
+      </div>
+
+      <div *ngIf="brandsLoading" class="empty">Loading…</div>
+      <div *ngIf="brandsError" class="err">{{ brandsError }}</div>
+
+      <div class="tablewrap" *ngIf="!brandsLoading && !brandsError">
+        <table class="vd-grid">
+          <thead>
+            <tr>
+              <th>Brand</th>
+              <th *ngIf="!vendorId">Vendor</th>
+              <th>Check</th>
+              <th class="num">Products</th>
+              <th>Bought from (Computyme)</th>
+              <th>Last moved</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let b of shown; trackBy: trackBrand" [class.bad]="b.linkStatus !== 'OK'">
+              <td><div class="bname">{{ b.brandName }}</div><div class="muted small mono">#{{ b.brandId }}</div></td>
+              <td *ngIf="!vendorId">
+                <ng-container *ngIf="b.vendorId != null; else none">
+                  <div>{{ b.vendorName || '—' }}</div><div class="muted small mono">{{ b.vendorId }}</div>
+                </ng-container>
+                <ng-template #none><span class="muted">—</span></ng-template>
+              </td>
+              <td>
+                <div class="checks">
+                  <span class="callout" [ngClass]="b.linkStatus === 'OK' ? 'green' : 'red'">
+                    <i class="pi" [ngClass]="b.linkStatus === 'OK' ? 'pi-check' : 'pi-exclamation-circle'"></i>{{ statusText(b) }}
+                  </span>
+                  <span class="callout amber" *ngIf="b.boughtElsewhere > 0"
+                        pTooltip="These products' actual vendor in Computyme isn't the brand's vendor. Can be right (bought through a distributor) or a sign the brand points at the wrong vendor."
+                        tooltipPosition="top">
+                    <i class="pi pi-exclamation-triangle"></i>{{ b.boughtElsewhere }} of {{ b.products }} bought from another vendor
+                  </span>
+                </div>
+              </td>
+              <td class="num">{{ b.liveProducts | number }}<span class="muted"> / {{ b.products | number }}</span></td>
+              <td class="small bought">{{ b.actualVendors || '—' }}</td>
+              <td class="small">
+                <ng-container *ngIf="b.lastMovedAt; else never">{{ b.lastMovedAt | date:'MMM d, y' }}<div class="muted">{{ b.lastMovedBy }}</div></ng-container>
+                <ng-template #never><span class="muted">—</span></ng-template>
+              </td>
+              <td class="actions">
+                <button *ngIf="canEditBrands" class="linkbtn" type="button" (click)="startMove(b)">
+                  {{ b.linkStatus === 'NO_VENDOR' ? 'Set vendor' : 'Move' }}
+                </button>
+                <button class="linkbtn muted-link" type="button" (click)="openHistory(b)">History</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="empty" *ngIf="!shown.length">No brands match.</div>
+      </div>
+      <div class="hint small" style="margin-top:8px">Live = not discontinued in Computyme (status 3). Products are counted from ProductData by brand.</div>
+    </div>
+  </ng-container>
+
+  <!-- ==================================================== Product classes -->
+  <ng-container *ngIf="tab === 'classes' && !vendorId">
+    <div class="card">
+      <div class="card-h">
+        <h2>Product classes</h2>
+        <span class="toolbar">
+          <button class="btn" type="button" (click)="exportClasses()" [disabled]="!classes.length"><i class="pi pi-file-excel"></i> Export</button>
+          <button *ngIf="canEditClasses" class="btn primary" type="button" (click)="newClass()"><i class="pi pi-plus"></i> New class</button>
+        </span>
+      </div>
+      <div class="note">
+        <app-owner-mark owner="MIXED"></app-owner-mark>
+        <span>Computyme's "vendor group" on each product (479, 497, 992 …) is a class, not a vendor. The rules Computyme hard-codes against those numbers are written down here and stay locked. New classes are PIV2 extensions; products keep their Computyme class until product maintenance cuts over, so a new class can't be put on a product yet.</span>
+      </div>
+
+      <div *ngIf="classesLoading" class="empty">Loading…</div>
+      <div *ngIf="classesError" class="err">{{ classesError }}</div>
+
+      <div class="tablewrap" *ngIf="!classesLoading && !classesError">
+        <table class="vd-grid">
+          <thead>
+            <tr>
+              <th>Class</th><th></th><th class="num">Products</th><th class="num">Vendors</th>
+              <th class="num">Terms</th><th class="num">Prompt pay</th><th class="num">Net/net</th>
+              <th>Dating</th><th>Fast shipping</th><th>Rules</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of classes; trackBy: trackClass" [class.inactive]="!c.isActive">
+              <td>
+                <div class="bname"><span class="mono">{{ c.classNo }}</span> {{ c.name }}</div>
+                <div class="muted small" *ngIf="c.computymeName && c.computymeName !== c.name">Computyme: {{ c.computymeName }}</div>
+                <div class="muted small" *ngIf="c.description">{{ c.description }}</div>
+                <span class="callout amber" *ngIf="c.notDescribed"><i class="pi pi-question-circle"></i>In use in Computyme, not described yet</span>
+              </td>
+              <td><app-owner-mark [owner]="c.source === 'PIV2' ? 'EXTENSION' : 'COMPUTYME'" [compact]="true"></app-owner-mark></td>
+              <td class="num">{{ c.liveProducts | number }}<span class="muted"> / {{ c.products | number }}</span></td>
+              <td class="num">{{ c.vendors | number }}</td>
+              <td class="num">{{ pct(c.termsPct) }}</td>
+              <td class="num">{{ pct(c.promptPayPct) }}</td>
+              <td class="num small">{{ factor(c.netNetFactor) }}<div class="muted">{{ factor(c.netNet6Factor) }} · {{ factor(c.ralNetFactor) }}</div></td>
+              <td>{{ yesNo(c.hasDating) }}</td>
+              <td>{{ yesNo(c.fastShipping) }}</td>
+              <td class="small mono">{{ c.ruleRefs || '—' }}</td>
+              <td class="actions"><button *ngIf="canEditClasses" class="linkbtn" type="button" (click)="editClass(c)">{{ c.notDescribed ? 'Describe' : 'Edit' }}</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint small" style="margin-top:8px">Net/net columns: NETNET · DNETNET · RALNET factors on surcharged price 1 (D_IVMST.20–.22). Terms and prompt pay: TERMS2 and PTERMS (D_IVMST.24–.25).</div>
+    </div>
+  </ng-container>
+</div>
+
+<!-- ==================================================== dialogs -->
+<p-dialog [visible]="!!moving" (visibleChange)="!$event && (moving = null)" [modal]="true" [style]="{ width: 'min(520px, 96vw)' }"
+          [header]="moving ? (moving.linkStatus === 'NO_VENDOR' ? 'Set vendor for ' : 'Move ') + moving.brandName : ''" appendTo="body">
+  <div class="dlg" *ngIf="moving">
+    <div class="b2bwarn"><span class="b2b"><i class="pi pi-globe"></i> B2B</span> The site's vendor filter uses this link, so the brand moves there too.</div>
+    <div class="field">
+      <label for="move-vendor">Vendor</label>
+      <p-dropdown inputId="move-vendor" [options]="vendorOptions" optionLabel="label" optionValue="id" [(ngModel)]="moveVendorId"
+                  [filter]="true" filterBy="label" [showClear]="true" placeholder="Pick a vendor" [style]="{ width: '100%' }" appendTo="body"></p-dropdown>
+      <div class="help">Now: {{ vendorLabel(moving.vendorId) }}<ng-container *ngIf="suggestedVendor(moving) as s"> · most of its products are bought from <button class="linkbtn" type="button" (click)="moveVendorId = s">{{ vendorLabel(s) }}</button></ng-container></div>
+    </div>
+    <div class="field">
+      <label for="move-reason">Why</label>
+      <textarea id="move-reason" rows="2" [(ngModel)]="moveReason" placeholder="e.g. Brand now bought direct from the manufacturer"></textarea>
+    </div>
+    <div class="err" *ngIf="moveError">{{ moveError }}</div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button class="btn" type="button" (click)="moving = null">Cancel</button>
+    <button class="btn primary" type="button" [disabled]="moveSaving" (click)="saveMove()">{{ moveSaving ? 'Saving…' : (moveVendorId == null ? 'Clear vendor' : 'Save') }}</button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog [visible]="!!historyFor" (visibleChange)="!$event && (historyFor = null)" [modal]="true" [style]="{ width: 'min(640px, 96vw)' }"
+          [header]="historyFor ? historyFor.brandName + ' · vendor history' : ''" appendTo="body">
+  <div class="tablewrap" *ngIf="historyFor">
+    <table class="vd-grid" *ngIf="history.length; else nohist">
+      <thead><tr><th>When</th><th>From</th><th>To</th><th>Why</th><th>Who</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let h of history">
+          <td class="small">{{ h.changedAt | date:'MMM d, y h:mm a' }}</td>
+          <td class="small">{{ vendorLabel(h.oldVendorId) }}</td>
+          <td class="small">{{ vendorLabel(h.newVendorId) }}</td>
+          <td class="small">{{ h.reason }}</td>
+          <td class="small">{{ h.changedBy }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #nohist><div class="empty">No moves recorded since history started.</div></ng-template>
+  </div>
+</p-dialog>
+
+<p-dialog [visible]="!!classDraft" (visibleChange)="!$event && (classDraft = null)" [modal]="true" [style]="{ width: 'min(680px, 96vw)' }"
+          [header]="classDraft?.classNo ? 'Class ' + classDraft?.classNo : 'New product class'" appendTo="body">
+  <div class="dlg" *ngIf="classDraft">
+    <div class="note" *ngIf="classDraftSource === 'COMPUTYME'">
+      <app-owner-mark owner="COMPUTYME"></app-owner-mark>
+      <span>Computyme applies this class's rules. You can name and describe it; the rule values stay as Computyme has them until product maintenance cuts over.</span>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label for="cls-name">Name</label><input id="cls-name" [(ngModel)]="classDraft.name"></div>
+      <div class="field"><label for="cls-code">Short code</label><input id="cls-code" [(ngModel)]="classDraft.shortCode"></div>
+    </div>
+    <div class="field"><label for="cls-desc">Description</label><textarea id="cls-desc" rows="2" [(ngModel)]="classDraft.description"></textarea></div>
+    <div class="form-grid">
+      <div class="field"><label for="cls-terms">Terms %</label><input id="cls-terms" type="number" step="0.01" [(ngModel)]="classDraft.termsPct" [disabled]="classDraftSource === 'COMPUTYME'"></div>
+      <div class="field"><label for="cls-pp">Prompt pay %</label><input id="cls-pp" type="number" step="0.01" [(ngModel)]="classDraft.promptPayPct" [disabled]="classDraftSource === 'COMPUTYME'"></div>
+      <div class="field"><label for="cls-nn">Net/net factor</label><input id="cls-nn" type="number" step="0.001" [(ngModel)]="classDraft.netNetFactor" [disabled]="classDraftSource === 'COMPUTYME'"></div>
+      <div class="field"><label for="cls-nn6">6% net/net factor</label><input id="cls-nn6" type="number" step="0.001" [(ngModel)]="classDraft.netNet6Factor" [disabled]="classDraftSource === 'COMPUTYME'"></div>
+      <div class="field"><label for="cls-ral">RAL net/net factor</label><input id="cls-ral" type="number" step="0.001" [(ngModel)]="classDraft.ralNetFactor" [disabled]="classDraftSource === 'COMPUTYME'"></div>
+    </div>
+    <div class="toolbar">
+      <label class="chk"><input type="checkbox" [(ngModel)]="classDraft.hasDating" [disabled]="classDraftSource === 'COMPUTYME'"> Dating terms</label>
+      <label class="chk"><input type="checkbox" [(ngModel)]="classDraft.fastShipping" [disabled]="classDraftSource === 'COMPUTYME'"> Fast shipping allowed</label>
+      <label class="chk" *ngIf="classDraftSource === 'PIV2'"><input type="checkbox" [(ngModel)]="classDraft.isActive"> Active</label>
+    </div>
+    <div class="field"><label for="cls-refs">Rule references</label><input id="cls-refs" [(ngModel)]="classDraft.ruleRefs" placeholder="e.g. D_IVMST.24"></div>
+    <div class="err" *ngIf="classError">{{ classError }}</div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button class="btn" type="button" (click)="classDraft = null">Cancel</button>
+    <button class="btn primary" type="button" [disabled]="classSaving" (click)="saveClass()">{{ classSaving ? 'Saving…' : 'Save' }}</button>
+  </ng-template>
+</p-dialog>

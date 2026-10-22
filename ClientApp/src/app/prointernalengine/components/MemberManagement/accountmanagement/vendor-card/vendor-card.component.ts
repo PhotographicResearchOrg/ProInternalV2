@@ -63,7 +63,10 @@ export class VendorCardComponent implements OnInit, OnChanges {
 
   navSections: NavItem[] = [
     { id: 'overview', label: 'Overview', icon: 'pi pi-th-large' },
+    { id: 'record', label: 'Vendor record', icon: 'pi pi-lock' },
     { id: 'terms', label: 'Terms & Financials', icon: 'pi pi-receipt' },
+    { id: 'brandlinks', label: 'Brands', icon: 'pi pi-tag' },
+    { id: 'billing', label: 'Direct billing', icon: 'pi pi-percentage' },
     { id: 'contacts', label: 'Contacts', icon: 'pi pi-users' },
     { id: 'contracts', label: 'Contracts', icon: 'pi pi-file' },
     { id: 'pricelists', label: 'Price Lists', icon: 'pi pi-tags' },
@@ -234,7 +237,7 @@ export class VendorCardComponent implements OnInit, OnChanges {
 	this.loadDirectShip();
   }
 
-  private get id(): number {
+  get id(): number {
     return typeof this.vendorId === 'string' ? +this.vendorId : this.vendorId;
   }
 
@@ -248,6 +251,10 @@ export class VendorCardComponent implements OnInit, OnChanges {
           acct: card.accountNumber || '', initials: this.initials(card.name), rep: card.repName || ''
         };
         this.brands = card.brands || [];
+        /* the brand family comes from dbo.Brand.VendorID (what the B2B site uses); VendorBrand is empty */
+        this.dataService.brandVendors(this.id).subscribe({
+          next: r => { if (r?.brands?.length) this.brands = r.brands.map(b => b.brandName); }
+        });
         this.live = card.isActive;
         this.onWeb = card.onWeb;
         this.terms = card.terms || { vendorId: this.id };

@@ -1,3 +1,4 @@
+import { CutoverMap, BrandVendorList, BrandVendorHistoryRow, VendorRecord, VendorBilling, VendorBillingSaveRequest, ProductClassList, ProductClassSaveRequest } from 'src/app/models/vendor/vendor-desk.models';
 import { Injectable } from "@angular/core";
 import { map } from "rxjs/operators";
 import { switchMap } from 'rxjs';
@@ -1228,9 +1229,41 @@ export class DataService {
   }
   //endregion
 
+  //region Vendor Desk foundation  (API: VendorDeskController, api/vendordesk)
+  private readonly vendorDeskBase = 'API/vendordesk';
 
-
-
+  cutoverMap(): Observable<CutoverMap> {
+    return this.api.get<CutoverMap>(`${this.vendorDeskBase}/cutover`);
+  }
+  cutoverSetOwner(sectionKey: string, body: { owner: string; nextStep?: string | null; note: string }): Observable<CutoverMap> {
+    return this.api.put<CutoverMap>(`${this.vendorDeskBase}/cutover/${encodeURIComponent(sectionKey)}`, body);
+  }
+  brandVendors(vendorId?: number | null): Observable<BrandVendorList> {
+    return this.api.get<BrandVendorList>(`${this.vendorDeskBase}/brands${vendorId ? `?vendorId=${vendorId}` : ''}`);
+  }
+  brandVendorMove(brandId: number, vendorId: number | null, reason: string): Observable<{ brandId: number; vendorId: number | null }> {
+    return this.api.put<{ brandId: number; vendorId: number | null }>(`${this.vendorDeskBase}/brands/${brandId}/vendor`, { vendorId, reason });
+  }
+  brandVendorHistory(brandId?: number | null, vendorId?: number | null): Observable<BrandVendorHistoryRow[]> {
+    const q: string[] = [];
+    if (brandId) q.push(`brandId=${brandId}`);
+    if (vendorId) q.push(`vendorId=${vendorId}`);
+    return this.api.get<BrandVendorHistoryRow[]>(`${this.vendorDeskBase}/brands/history${q.length ? '?' + q.join('&') : ''}`);
+  }
+  vendorRecord(vendorId: number): Observable<VendorRecord> {
+    return this.api.get<VendorRecord>(`${this.vendorDeskBase}/vendors/${vendorId}/record`);
+  }
+  vendorBilling(vendorId: number): Observable<VendorBilling> {
+    return this.api.get<VendorBilling>(`${this.vendorDeskBase}/vendors/${vendorId}/billing`);
+  }
+  vendorBillingSave(vendorId: number, body: VendorBillingSaveRequest): Observable<VendorBilling> {
+    return this.api.put<VendorBilling>(`${this.vendorDeskBase}/vendors/${vendorId}/billing`, body);
+  }
+  productClasses(): Observable<ProductClassList> {
+    return this.api.get<ProductClassList>(`${this.vendorDeskBase}/classes`);
+  }
+  productClassSave(body: ProductClassSaveRequest): Observable<{ classNo: number }> {
+    return this.api.put<{ classNo: number }>(`${this.vendorDeskBase}/classes`, body);
+  }
+  //endregion
 }
-
-

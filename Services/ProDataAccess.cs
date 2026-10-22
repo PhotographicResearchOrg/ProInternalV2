@@ -3402,5 +3402,107 @@ GetShopifyGovernanceIssues()
         #endregion
 
 
+
+        #region Vendor Desk (cutover map, brand-vendor, vendor record, direct billing, product classes)
+        public CutoverMap Cutover_List()
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.Cutover_List", commandType: CommandType.StoredProcedure, commandTimeout: 15);
+            return new CutoverMap
+            {
+                Sections = multi.Read<CutoverSection>().ToList(),
+                Log = multi.Read<CutoverLogEntry>().ToList()
+            };
+        }
+
+        public void Cutover_SetOwner(string sectionKey, string owner, string nextStep, string note, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("piv2.Cutover_SetOwner",
+                new { SectionKey = sectionKey, Owner = owner, NextStep = nextStep, Note = note, User = user },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
+        public List<BrandVendorRow> BrandVendor_List(int? vendorId)
+        {
+            using var conn = GetConnection();
+            return conn.Query<BrandVendorRow>("piv2.BrandVendor_List", new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure, commandTimeout: 60).ToList();
+        }
+
+        public void BrandVendor_Set(int brandId, int? vendorId, string reason, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("piv2.BrandVendor_Set", new { BrandId = brandId, VendorId = vendorId, Reason = reason, User = user },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
+        public List<BrandVendorHistoryRow> BrandVendor_History(int? brandId, int? vendorId)
+        {
+            using var conn = GetConnection();
+            return conn.Query<BrandVendorHistoryRow>("piv2.BrandVendor_History", new { BrandId = brandId, VendorId = vendorId },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15).ToList();
+        }
+
+        public VendorRecord Vendor_ComputymeRecord(int vendorId)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.Vendor_ComputymeRecord", new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure, commandTimeout: 30);
+            return new VendorRecord
+            {
+                VendorId = vendorId,
+                Fields = multi.Read<VendorRecordField>().ToList(),
+                Terms = multi.ReadFirstOrDefault<VendorRecordTerms>(),
+                Usage = multi.ReadFirstOrDefault<VendorRecordUsage>()
+            };
+        }
+
+        public VendorBilling VendorBilling_Get(int vendorId)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.VendorBilling_Get", new { VendorId = vendorId },
+                commandType: CommandType.StoredProcedure, commandTimeout: 30);
+            return new VendorBilling
+            {
+                VendorId = vendorId,
+                Computyme = multi.ReadFirstOrDefault<VendorBillingComputyme>(),
+                Programs = multi.Read<VendorBillingProgram>().ToList(),
+                Split = multi.ReadFirstOrDefault<VendorBillingSplit>(),
+                Log = multi.Read<VendorBillingLogEntry>().ToList()
+            };
+        }
+
+        public void VendorBilling_Save(int vendorId, VendorBillingSaveRequest r, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("piv2.VendorBilling_Save", new
+            {
+                VendorId = vendorId,
+                r.CashDiscountPct, r.ProSharePct, r.SpecialDeductionPct, r.PassToMemberPct,
+                r.AddSurchargeToMemberBill,
+                EffectiveFrom = r.EffectiveFrom?.Date,
+                r.Notes,
+                User = user
+            }, commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
+        public List<ProductClassRow> ProductClass_List()
+        {
+            using var conn = GetConnection();
+            return conn.Query<ProductClassRow>("piv2.ProductClass_List", commandType: CommandType.StoredProcedure, commandTimeout: 60).ToList();
+        }
+
+        public int ProductClass_Save(ProductClassSaveRequest r, string user)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<int>("piv2.ProductClass_Save", new
+            {
+                r.ClassNo, r.Name, r.ShortCode, r.Description, r.TermsPct, r.PromptPayPct, r.NetNetFactor,
+                r.NetNet6Factor, r.RalNetFactor, r.HasDating, r.FastShipping, IsActive = r.IsActive ?? true, r.RuleRefs,
+                User = user
+            }, commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+        #endregion
     }
 }
