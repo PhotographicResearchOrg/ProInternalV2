@@ -10,6 +10,7 @@
       <div class="subtitle">The categories members see on the WH page, and where every product sits. Changes are a draft until you publish.</div>
     </div>
     <div class="header-actions">
+      <app-home-pin [pin]="homePin"></app-home-pin>
       <ng-container *ngIf="canEdit">
         <button type="button" class="btn btn-secondary" [disabled]="!canUndo" (click)="undo()" title="Undo (Ctrl+Z)"><i class="pi pi-undo"></i>Undo</button>
         <button type="button" class="btn btn-secondary icon-only" [disabled]="!canRedo" (click)="redo()" title="Redo (Ctrl+Y)" aria-label="Redo"><i class="pi pi-refresh"></i></button>

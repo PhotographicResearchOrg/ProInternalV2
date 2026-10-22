@@ -5,6 +5,7 @@ import {
   BrandVendorHistoryRow, BrandVendorRow, ProductClassRow, ProductClassSaveRequest
 } from 'src/app/models/vendor/vendor-desk.models';
 import { exportWorkbook } from './desk-export';
+import { HomePin, stablePin } from 'src/app/services/home-pin.service';
 
 type BrandFilter = 'all' | 'novendor' | 'notap' | 'elsewhere' | 'ok';
 interface VendorOption { id: number; label: string; }
@@ -61,6 +62,8 @@ export class BrandVendorDeskComponent implements OnInit {
   ngOnInit(): void {
     const tab = this.route.snapshot?.queryParamMap?.get('tab');
     if (tab === 'classes' && !this.vendorId) this.tab = 'classes';
+    const f = this.route.snapshot?.queryParamMap?.get('filter') as BrandFilter | null;
+    if (f && ['all', 'novendor', 'notap', 'elsewhere', 'ok'].includes(f)) this.filter = f;
     this.loadBrands();
     this.data.getVendors().subscribe({
       next: list => {
@@ -230,6 +233,17 @@ export class BrandVendorDeskComponent implements OnInit {
       'RAL net/net': c.ralNetFactor ?? '', Dating: this.yesNo(c.hasDating), 'Fast shipping': this.yesNo(c.fastShipping),
       Active: c.isActive ? 'Yes' : 'No', Rules: c.ruleRefs || '', 'Not described': c.notDescribed ? 'Yes' : ''
     })) }]);
+  }
+
+  /** "Pin to home": the brand list as filtered, or the classes tab */
+  get homePin(): HomePin {
+    if (this.tab === 'classes') {
+      return stablePin({ id: 'brands:classes', label: 'Product classes', sub: 'Brands & vendors', icon: 'pi pi-tags', route: '/brandvendors', query: { tab: 'classes' } });
+    }
+    const names: Record<BrandFilter, string> = { all: 'All brands', novendor: 'Brands with no vendor', notap: 'Brands on a vendor we can\'t pay',
+      elsewhere: 'Brands bought from another vendor', ok: 'Brands where all agree' };
+    return stablePin({ id: `brands:${this.filter}`, label: names[this.filter], sub: 'Brands & vendors', icon: 'pi pi-tags',
+      route: '/brandvendors', query: { filter: this.filter }, metric: this.filter === 'novendor' ? 'brands.novendor' : null });
   }
 
   trackBrand = (_: number, b: BrandVendorRow) => b.brandId;

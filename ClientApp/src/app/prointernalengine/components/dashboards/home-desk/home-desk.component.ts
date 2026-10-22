@@ -4,7 +4,7 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { DataService } from 'src/app/services/data.service';
 import { AuthService } from 'src/app/services/auth.service';
-import { ApiService } from 'src/app/services/api.service';
+import { HomePin, HomePinService } from 'src/app/services/home-pin.service';
 
 type Tone = 'ok' | 'warn' | 'bad' | 'none';
 type Source = 'orders' | 'sar' | 'edi' | 'ir' | 'ship' | 'comments' | 'map' | 'brands' | 'cutover';
@@ -21,7 +21,6 @@ interface TileDef {
   hint: string;
 }
 interface TileView { def: TileDef; value: string; sub: string; tone: Tone; loading: boolean; }
-interface Layout { tiles: string[]; }
 
 /* Every tile there is. One default set for everyone; each person picks and orders their own. */
 const TILES: TileDef[] = [
@@ -44,7 +43,7 @@ const DEFAULT_TILES = ['orders.onhold', 'orders.open', 'edi.open', 'ship.errors'
 @Component({
   selector: 'app-home-desk',
   templateUrl: './home-desk.component.html',
-  styleUrls: ['./home-desk.component.scss']
+  styleUrls: ['../../Vendor/vendor-desk/desk-shell.scss', './home-desk.component.scss']
 })
 export class HomeDeskComponent implements OnInit {
   available: TileDef[] = [];
@@ -56,8 +55,11 @@ export class HomeDeskComponent implements OnInit {
   error = '';
   showClassic = false;
   greeting = '';
+  pins: HomePin[] = [];
+  view: 'today' | 'classic' = 'today';
+  metrics: Record<string, TileView> = {};
 
-  constructor(private data: DataService, private auth: AuthService, private api: ApiService, private router: Router) { }
+  constructor(private data: DataService, private auth: AuthService, private pinsSvc: HomePinService, private router: Router) { }
 
   ngOnInit(): void {
     const h = new Date().getHours();
@@ -66,23 +68,26 @@ export class HomeDeskComponent implements OnInit {
     const can = (r: string) => allowed.has(r.toLowerCase()) || allowed.has(r.replace(/^\//, '').toLowerCase());
     this.available = TILES.filter(t => can(t.route || t.needs || '/dashboard-landing'));
 
-    this.api.get<{ json: string | null }>('API/home/layout').pipe(catchError(() => of({ json: null })))
-      .subscribe(r => {
-        let keys = DEFAULT_TILES;
-        try { const l: Layout | null = r?.json ? JSON.parse(r.json) : null; if (l?.tiles?.length) keys = l.tiles; } catch { /* default */ }
-        this.apply(keys);
-      });
+    this.pinsSvc.load(true).subscribe(l => {
+      this.pins = l.pins || [];
+      this.apply(l.tiles?.length ? l.tiles : DEFAULT_TILES);
+    });
   }
 
   private apply(keys: string[]): void {
     const byKey = new Map(this.available.map(t => [t.key, t]));
     this.chosen = keys.filter(k => byKey.has(k));
     this.tiles = this.chosen.map(k => ({ def: byKey.get(k)!, value: '…', sub: '', tone: 'none', loading: true }));
-    this.load();
+    /* pins that show a number reuse the tile's figures */
+    const extra = this.pins.map(p => p.metric).filter((m): m is string => !!m && !this.chosen.includes(m) && byKey.has(m));
+    const hidden = extra.map(k => ({ def: byKey.get(k)!, value: '…', sub: '', tone: 'none' as Tone, loading: true }));
+    this.metrics = {};
+    [...this.tiles, ...hidden].forEach(t => this.metrics[t.def.key] = t);
+    this.load([...this.tiles, ...hidden]);
   }
 
-  private load(): void {
-    const need = new Set(this.tiles.map(t => t.def.source));
+  private load(all: TileView[]): void {
+    const need = new Set(all.map(t => t.def.source));
     const safe = <T>(o: any) => (o as any).pipe(catchError(() => of(null as T | null)));
     const calls: Record<string, any> = {};
     if (need.has('orders')) calls['orders'] = safe(this.data.getOrderMetrics());
@@ -95,7 +100,7 @@ export class HomeDeskComponent implements OnInit {
     if (need.has('brands')) calls['brands'] = safe(this.data.brandVendors(null));
     if (need.has('cutover')) calls['cutover'] = safe(this.data.cutoverMap());
     if (!Object.keys(calls).length) return;
-    forkJoin(calls).subscribe((r: any) => this.tiles.forEach(t => this.fill(t, r)));
+    forkJoin(calls).subscribe((r: any) => all.forEach(t => this.fill(t, r)));
   }
 
   private fill(t: TileView, r: any): void {
@@ -120,8 +125,26 @@ export class HomeDeskComponent implements OnInit {
   }
 
   open(t: TileView): void {
-    if (t.def.route) this.router.navigateByUrl(t.def.route.replace(/^\//, '/'));
-    else { this.showClassic = true; setTimeout(() => document.getElementById('classic')?.scrollIntoView({ behavior: 'smooth' }), 50); }
+    if (t.def.route) this.router.navigateByUrl(t.def.route);
+    else this.view = 'classic';
+  }
+
+  openPin(p: HomePin): void {
+    this.router.navigate([p.route], { queryParams: p.query || undefined });
+  }
+
+  unpin(p: HomePin, e?: Event): void {
+    e?.stopPropagation();
+    this.pinsSvc.unpin(p.id).subscribe(() => this.pins = this.pins.filter(x => x.id !== p.id));
+  }
+
+  movePin(i: number, d: number): void {
+    const j = i + d;
+    if (j < 0 || j >= this.pins.length) return;
+    const next = [...this.pins];
+    [next[i], next[j]] = [next[j], next[i]];
+    this.pins = next;
+    this.pinsSvc.save({ tiles: this.chosen, pins: next }).subscribe();
   }
 
   /* ------------------------------------------------------------ customize */
@@ -149,7 +172,7 @@ export class HomeDeskComponent implements OnInit {
     const keys = this.draft.filter(x => x.on).map(x => x.key);
     if (!keys.length) { this.error = 'Pick at least one tile.'; return; }
     this.saving = true;
-    this.api.put<{ saved: boolean }>('API/home/layout', { json: JSON.stringify({ tiles: keys } as Layout) }).subscribe({
+    this.pinsSvc.save({ tiles: keys, pins: this.pins }).subscribe({
       next: () => { this.saving = false; this.customizing = false; this.apply(keys); },
       error: e => { this.saving = false; this.error = e?.error?.message || 'Couldn\'t save your tiles.'; }
     });
@@ -157,11 +180,12 @@ export class HomeDeskComponent implements OnInit {
 
   resetCustomize(): void {
     this.saving = true;
-    this.api.delete<{ saved: boolean }>('API/home/layout').subscribe({
+    this.pinsSvc.save({ tiles: null, pins: this.pins }).subscribe({
       next: () => { this.saving = false; this.customizing = false; this.apply(DEFAULT_TILES); },
       error: e => { this.saving = false; this.error = e?.error?.message || 'Couldn\'t reset.'; }
     });
   }
 
   trackTile = (_: number, t: TileView) => t.def.key;
+  trackPin = (_: number, p: HomePin) => p.id;
 }

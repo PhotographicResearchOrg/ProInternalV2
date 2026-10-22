@@ -1,62 +1,97 @@
-<div class="home">
-  <header class="head">
-    <div>
-      <div class="eyebrow">PRO Internal</div>
-      <h1>{{ greeting }}</h1>
-      <div class="sub">What needs doing today. Each tile opens the screen that clears it.</div>
-    </div>
-    <div class="acts">
-      <button type="button" class="btn" (click)="startCustomize()" *ngIf="!customizing"><i class="pi pi-sliders-h"></i> Customize</button>
-    </div>
-  </header>
-
-  <!-- ============================================ customize -->
-  <section class="panel" *ngIf="customizing">
-    <div class="panel-h">
-      <h2>Your tiles</h2>
-      <span class="hint">Tick what you want, use the arrows to order it. Only tiles for screens you can open are listed.</span>
-    </div>
-    <ul class="picks">
-      <li *ngFor="let d of draft; let i = index" [class.off]="!d.on">
-        <label class="pick">
-          <input type="checkbox" [(ngModel)]="d.on" [id]="'tile-' + d.key">
-          <span class="pl">{{ label(d.key) }}</span>
-          <span class="ph">{{ hint(d.key) }}</span>
-        </label>
-        <span class="ord">
-          <button type="button" class="ib" [disabled]="i === 0" (click)="move(i, -1)" aria-label="Move up"><i class="pi pi-arrow-up"></i></button>
-          <button type="button" class="ib" [disabled]="i === draft.length - 1" (click)="move(i, 1)" aria-label="Move down"><i class="pi pi-arrow-down"></i></button>
-        </span>
-      </li>
-    </ul>
-    <div class="err" *ngIf="error">{{ error }}</div>
-    <div class="row">
-      <button type="button" class="btn primary" [disabled]="saving" (click)="saveCustomize()">{{ saving ? 'Saving…' : 'Save' }}</button>
-      <button type="button" class="btn" (click)="customizing = false">Cancel</button>
-      <button type="button" class="linkbtn" [disabled]="saving" (click)="resetCustomize()">Back to the default set</button>
-    </div>
-  </section>
-
-  <!-- ============================================ tiles -->
-  <div class="tiles" *ngIf="tiles.length; else none">
-    <button type="button" class="tile" *ngFor="let t of tiles; trackBy: trackTile" [ngClass]="'tone-' + t.tone" (click)="open(t)">
-      <span class="t-top"><i [class]="t.def.icon"></i><span class="t-label">{{ t.def.label }}</span><i class="pi pi-arrow-right go"></i></span>
-      <span class="t-value" [class.loading]="t.loading">{{ t.value }}</span>
-      <span class="t-sub">{{ t.sub }}</span>
+<div class="app">
+  <nav class="rail" aria-label="Home">
+    <div class="brandmark"><span class="box"><i class="pi pi-home"></i></span><span>Home</span></div>
+    <button type="button" class="rail-btn" [class.active]="view === 'today' && !customizing" (click)="view = 'today'; customizing = false">
+      <i class="pi pi-th-large"></i><span class="rl">Today</span>
     </button>
-  </div>
-  <ng-template #none>
-    <div class="panel empty">No tiles to show. Choose some with <b>Customize</b>, or ask for access to the screens they open in Security Admin.</div>
-  </ng-template>
-
-  <!-- ============================================ the classic dashboard (MAP violations, product data issues, PO sync…) -->
-  <div class="classic-bar">
-    <button type="button" class="linkbtn" (click)="showClassic = !showClassic">
-      <i class="pi" [ngClass]="showClassic ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
-      {{ showClassic ? 'Hide' : 'Show' }} the full dashboard: MAP violations, Connection comments, product data issues, PO sync
+    <button type="button" class="rail-btn" [class.active]="customizing" (click)="view = 'today'; startCustomize()">
+      <i class="pi pi-sliders-h"></i><span class="rl">Customize</span>
     </button>
-  </div>
-  <div id="classic" *ngIf="showClassic">
-    <app-dashboard-classic></app-dashboard-classic>
+    <button type="button" class="rail-btn" [class.active]="view === 'classic'" (click)="view = 'classic'; customizing = false">
+      <i class="pi pi-list"></i><span class="rl">Full dashboard</span>
+    </button>
+
+    <div class="rail-h" *ngIf="pins.length">Pinned</div>
+    <button *ngFor="let p of pins; trackBy: trackPin" type="button" class="rail-btn" (click)="openPin(p)" [title]="p.sub || ''">
+      <i [class]="p.icon || 'pi pi-bookmark'"></i><span class="rl">{{ p.label }}</span>
+    </button>
+    <div class="rail-foot">Pin any drawer from a desk with <b>Pin to home</b>; it shows up here and on Today.</div>
+  </nav>
+
+  <div class="col">
+    <header class="vhead">
+      <div class="vhead-top">
+        <div style="min-width:0;flex:1">
+          <div class="eyebrow">PRO Internal</div>
+          <div class="vtitle"><h1>{{ greeting }}</h1></div>
+          <div class="vmeta">What needs doing today. Each tile opens the screen that clears it.</div>
+        </div>
+      </div>
+    </header>
+
+    <main *ngIf="view === 'today'">
+      <!-- ============================================ customize -->
+      <section class="card" *ngIf="customizing">
+        <div class="card-h">
+          <h2>Your tiles</h2>
+          <span class="hint">Tick what you want and order it with the arrows. Only tiles for screens you can open are listed.</span>
+        </div>
+        <ul class="picks">
+          <li *ngFor="let d of draft; let i = index" [class.off]="!d.on">
+            <label class="pick">
+              <input type="checkbox" [(ngModel)]="d.on" [id]="'tile-' + d.key">
+              <span class="pl">{{ label(d.key) }}</span>
+              <span class="ph">{{ hint(d.key) }}</span>
+            </label>
+            <span class="ord">
+              <button type="button" class="ib" [disabled]="i === 0" (click)="move(i, -1)" aria-label="Move up"><i class="pi pi-arrow-up"></i></button>
+              <button type="button" class="ib" [disabled]="i === draft.length - 1" (click)="move(i, 1)" aria-label="Move down"><i class="pi pi-arrow-down"></i></button>
+            </span>
+          </li>
+        </ul>
+        <div class="err" *ngIf="error">{{ error }}</div>
+        <div class="row">
+          <button type="button" class="btn primary" [disabled]="saving" (click)="saveCustomize()">{{ saving ? 'Saving…' : 'Save' }}</button>
+          <button type="button" class="btn" (click)="customizing = false">Cancel</button>
+          <button type="button" class="linkbtn" [disabled]="saving" (click)="resetCustomize()">Back to the default tiles</button>
+        </div>
+      </section>
+
+      <!-- ============================================ tiles -->
+      <div class="tiles" *ngIf="tiles.length; else none">
+        <button type="button" class="tile" *ngFor="let t of tiles; trackBy: trackTile" [ngClass]="'tone-' + t.tone" (click)="open(t)">
+          <span class="t-top"><i [class]="t.def.icon"></i><span class="t-label">{{ t.def.label }}</span><i class="pi pi-arrow-right go"></i></span>
+          <span class="t-value" [class.loading]="t.loading">{{ t.value }}</span>
+          <span class="t-sub">{{ t.sub }}</span>
+        </button>
+      </div>
+      <ng-template #none>
+        <div class="card empty">No tiles to show. Choose some with <b>Customize</b>, or ask for access to the screens they open.</div>
+      </ng-template>
+
+      <!-- ============================================ pinned drawers -->
+      <section *ngIf="pins.length">
+        <div class="sec-h">Pinned from your desks</div>
+        <div class="tiles">
+          <div class="tile pin" *ngFor="let p of pins; let i = index; trackBy: trackPin" role="button" tabindex="0"
+               (click)="openPin(p)" (keydown.enter)="openPin(p)">
+            <span class="t-top">
+              <i [class]="p.icon || 'pi pi-bookmark'"></i><span class="t-label">{{ p.label }}</span>
+              <span class="pin-acts">
+                <button type="button" class="ib sm" [disabled]="i === 0" (click)="$event.stopPropagation(); movePin(i, -1)" aria-label="Move left"><i class="pi pi-arrow-left"></i></button>
+                <button type="button" class="ib sm" [disabled]="i === pins.length - 1" (click)="$event.stopPropagation(); movePin(i, 1)" aria-label="Move right"><i class="pi pi-arrow-right"></i></button>
+                <button type="button" class="ib sm" (click)="unpin(p, $event)" aria-label="Unpin"><i class="pi pi-times"></i></button>
+              </span>
+            </span>
+            <span class="t-value" *ngIf="p.metric && metrics[p.metric] as m" [ngClass]="'tone-' + m.tone">{{ m.value }}</span>
+            <span class="t-sub">{{ p.sub }}</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <main *ngIf="view === 'classic'">
+      <app-dashboard-classic></app-dashboard-classic>
+    </main>
   </div>
 </div>

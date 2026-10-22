@@ -29,6 +29,7 @@ import { LookupApply, LookupCurrent } from '../product-lookup/product-lookup.com
 import { ProductSheetComponent } from '../product-sheet/product-sheet.component';
 import { Observable, Subject, Subscription, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map, switchMap, takeUntil, tap } from 'rxjs/operators';
+import { HomePin, stablePin } from 'src/app/services/home-pin.service';
 import {
   ConvertPricesResult, ExchangeRate, ExchangeRateBoard, MarketOption, PriceAudit, PriceLogRow,
   ProductBrandOption, ProductContractService, ProductPageData, ProductPricingAudit, ProductSearchPage, ProductSearchQuery,
@@ -922,6 +923,16 @@ export class ProductEditComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   // ---- header ---------------------------------------------------------
+
+  /** "Pin to home" for this product */
+  get homePin(): HomePin | null {
+    const id = Number(this.productId);
+    if (!id || this.mode !== 'edit' || !this.product?.product?.name) return null;
+    return stablePin({
+      id: `product:${id}`, label: this.product.product.name, sub: `Product Desk · ${this.product.product.sku || id}`,
+      icon: 'pi pi-box', route: `/productedit/${id}`
+    });
+  }
 
   setSection(id: string): void {
     this.activeSection = id;

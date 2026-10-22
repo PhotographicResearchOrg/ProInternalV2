@@ -1,4 +1,4 @@
-import { CutoverMap, BrandVendorList, BrandVendorHistoryRow, VendorRecord, VendorBilling, VendorFulfillment, ProductSupply, ProductClassList, ProductClassSaveRequest } from 'src/app/models/vendor/vendor-desk.models';
+import { CutoverMap, BrandVendorList, BrandVendorHistoryRow, VendorRecord, VendorBilling, VendorFulfillment, ProductSupply, WarehouseList, WarehouseView, WarehouseDetail, WarehouseContact, ProductClassList, ProductClassSaveRequest } from 'src/app/models/vendor/vendor-desk.models';
 import { Injectable } from "@angular/core";
 import { map } from "rxjs/operators";
 import { switchMap } from 'rxjs';
@@ -1261,6 +1261,21 @@ export class DataService {
   }
   productSupply(productId: number): Observable<ProductSupply> {
     return this.api.get<ProductSupply>(`${this.vendorDeskBase}/products/${productId}/supply`);
+  }
+  warehouses(): Observable<WarehouseList> {
+    return this.api.get<WarehouseList>('API/warehouses');
+  }
+  warehouse(code: string): Observable<WarehouseView> {
+    return this.api.get<WarehouseView>(`API/warehouses/${encodeURIComponent(code)}`);
+  }
+  warehouseSave(w: WarehouseDetail): Observable<{ warehouseCode: string }> {
+    return this.api.put<{ warehouseCode: string }>('API/warehouses', w);
+  }
+  warehouseContactSave(code: string, c: WarehouseContact): Observable<{ contactId: number }> {
+    return this.api.put<{ contactId: number }>(`API/warehouses/${encodeURIComponent(code)}/contacts`, c);
+  }
+  warehouseContactDelete(contactId: number): Observable<{ deleted: boolean }> {
+    return this.api.delete<{ deleted: boolean }>(`API/warehouses/contacts/${contactId}`);
   }
   productClasses(): Observable<ProductClassList> {
     return this.api.get<ProductClassList>(`${this.vendorDeskBase}/classes`);

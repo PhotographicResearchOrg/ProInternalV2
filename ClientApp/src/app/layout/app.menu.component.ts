@@ -210,11 +210,12 @@ export class AppMenuComponent implements OnInit {
       ]
     });
     /* Admin functions: cutover map and integration */
-    (can('/cutover') || can('/integration')) && rawModel.push({
+    (can('/cutover') || can('/integration') || can('/warehouses')) && rawModel.push({
       label: 'Admin', icon: 'pi pi-fw pi-cog',
       items: [
         can('/cutover') && { label: 'Cutover Map', icon: 'pi pi-map', routerLink: ['/cutover'] },
-        can('/integration') && { label: 'Integration Desk', icon: 'pi pi-sync', routerLink: ['/integration'] }
+        can('/integration') && { label: 'Integration Desk', icon: 'pi pi-sync', routerLink: ['/integration'] },
+        can('/warehouses') && { label: 'Warehouses', icon: 'pi pi-building', routerLink: ['/warehouses'] }
       ]
     });
     can('ecommerce/new-product') && rawModel.push({ label: 'New Products', icon: 'pi pi-fw pi-plus', routerLink: ['ecommerce/new-product'] });

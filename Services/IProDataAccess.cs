@@ -407,6 +407,11 @@ GetSellThroughExportData(
         VendorFulfillment Vendor_Fulfillment(int vendorId);
         ProductSupply Product_SupplyInfo(int productId);
         string UserSetting_Get(string user, string key);
+        List<WarehouseRow> Warehouse_List();
+        WarehouseView Warehouse_Get(string code);
+        string Warehouse_Save(string json, string user);
+        int WarehouseContact_Save(int? contactId, string code, string name, string role, string email, string phone, bool isPrimary, string notes, string user);
+        void WarehouseContact_Delete(int contactId, string user);
         void UserSetting_Set(string user, string key, string json);
         List<ProductClassRow> ProductClass_List();
         int ProductClass_Save(ProductClassSaveRequest request, string user);

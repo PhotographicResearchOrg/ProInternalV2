@@ -395,19 +395,28 @@ BEGIN
         Id int NOT NULL PRIMARY KEY, ParentId int NULL, Name nvarchar(200) NULL, Visible bit NULL,
         Notes nvarchar(1000) NULL, Egrp int NULL, IsPublic bit NULL, Extra nvarchar(max) NULL,
         IsDelete bit NOT NULL, IsRestore bit NOT NULL, Source varchar(10) NOT NULL,
-        RealId int NULL, RealParentId int NULL
+        RealId int NULL, RealParentId int NULL,
+        IsNew bit NULL   -- a category added in this draft (temporary id), not an existing one: existing ids can be negative too
+
     );
     CREATE TABLE #p (ProductId int NOT NULL PRIMARY KEY, NodeId int NOT NULL, Source varchar(10) NOT NULL, RealNodeId int NULL);
 
     BEGIN TRY
-        INSERT #c (Id, ParentId, Name, Visible, Notes, Egrp, IsPublic, Extra, IsDelete, IsRestore, Source)
+        INSERT #c (Id, ParentId, Name, Visible, Notes, Egrp, IsPublic, Extra, IsDelete, IsRestore, Source, IsNew)
         SELECT j.id, j.parentId, NULLIF(LTRIM(RTRIM(j.name)), N''), j.visible, NULLIF(LTRIM(RTRIM(j.notes)), N''),
-               j.egrp, j.isPublic, j.extra, ISNULL(j.[delete], 0), ISNULL(j.[restore], 0), ISNULL(UPPER(j.source), 'USER')
+               j.egrp, j.isPublic, j.extra, ISNULL(j.[delete], 0), ISNULL(j.[restore], 0), ISNULL(UPPER(j.source), 'USER'), j.isNew
         FROM OPENJSON(@Changes, '$.categories')
              WITH (id int '$.id', parentId int '$.parentId', name nvarchar(200) '$.name', visible bit '$.visible',
                    notes nvarchar(1000) '$.notes', egrp int '$.egrp', isPublic bit '$.isPublic',
                    extra nvarchar(max) '$.extra' AS JSON,
-                   [delete] bit '$.delete', [restore] bit '$.restore', source varchar(10) '$.source') j;
+                   [delete] bit '$.delete', [restore] bit '$.restore', source varchar(10) '$.source', isNew bit '$.isNew') j;
+
+        /* New = flagged new by the desk, or (older drafts) a negative id that isn't an existing category.
+           Existing categories can have negative ids (e.g. -722806375), so a negative id alone doesn't mean new. */
+        UPDATE #c SET IsNew = CASE
+            WHEN IsNew = 1 AND NOT EXISTS (SELECT 1 FROM dbo.Category k WHERE k.CatId = #c.Id) THEN 1
+            WHEN IsNew IS NULL AND Id < 0 AND IsRestore = 0 AND NOT EXISTS (SELECT 1 FROM dbo.Category k WHERE k.CatId = #c.Id) THEN 1
+            ELSE 0 END;
 
         INSERT #p (ProductId, NodeId, Source)
         SELECT j.productId, j.nodeId, ISNULL(UPPER(j.source), 'USER')
@@ -451,7 +460,7 @@ BEGIN
                                      N' after you started. Reload to see their changes; your draft stays in this browser until you discard it.')
         FROM piv2.CategoryChangeLog l
         WHERE l.PublishId > @BaseVersion
-          AND ((l.ItemType = 'CATEGORY' AND l.ItemId IN (SELECT Id FROM #c WHERE Id > 0))
+          AND ((l.ItemType = 'CATEGORY' AND l.ItemId IN (SELECT Id FROM #c WHERE IsNew = 0))
             OR (l.ItemType = 'PRODUCT'  AND l.ItemId IN (SELECT ProductId FROM #p)))
         ORDER BY l.PublishId;
         IF @msg IS NOT NULL THROW 50481, @msg, 1;
@@ -459,7 +468,7 @@ BEGIN
 
     /* ---------------------------------------------------------- the categories named must exist (or not, for restore) */
     SELECT TOP (1) @msg = CONCAT(N'Category ', c.Id, N' no longer exists. Reload the desk.')
-    FROM #c c WHERE c.Id > 0 AND c.IsRestore = 0 AND NOT EXISTS (SELECT 1 FROM dbo.Category k WHERE k.CatId = c.Id);
+    FROM #c c WHERE c.IsNew = 0 AND c.IsRestore = 0 AND NOT EXISTS (SELECT 1 FROM dbo.Category k WHERE k.CatId = c.Id);
     IF @msg IS NOT NULL THROW 50482, @msg, 1;
 
     DELETE FROM #c WHERE IsRestore = 1 AND EXISTS (SELECT 1 FROM dbo.Category k WHERE k.CatId = #c.Id);   -- already back
@@ -469,13 +478,13 @@ BEGIN
     IF @msg IS NOT NULL THROW 50483, @msg, 1;
 
     SELECT TOP (1) @msg = CONCAT(N'Category ', c.Name, N' needs a parent.')
-    FROM #c c WHERE c.IsDelete = 0 AND c.ParentId IS NULL AND (c.Id < 0 OR c.IsRestore = 1 OR EXISTS (SELECT 1 FROM dbo.Category k WHERE k.CatId = c.Id AND k.ParentCatId IS NOT NULL));
+    FROM #c c WHERE c.IsDelete = 0 AND c.ParentId IS NULL AND (c.IsNew = 1 OR c.IsRestore = 1 OR EXISTS (SELECT 1 FROM dbo.Category k WHERE k.CatId = c.Id AND k.ParentCatId IS NOT NULL));
     IF @msg IS NOT NULL THROW 50483, @msg, 1;
 
     /* ---------------------------------------------------------- ids for new categories
        A new EGRP category keeps the old convention (EGRP + 5000) when that id is free.
        Everything else takes the next free id from 10000 up. */
-    UPDATE #c SET RealId = Id WHERE Id > 0;
+    UPDATE #c SET RealId = Id WHERE IsNew = 0;
 
     /* never reuse an id, even of a deleted category, so history and revert stay unambiguous */
     DECLARE @tmp int, @egrp int, @new int, @next int =
@@ -484,7 +493,7 @@ BEGIN
                UNION ALL
                SELECT MAX(ItemId) FROM piv2.CategoryChangeLog WHERE ItemType = 'CATEGORY' AND ItemId BETWEEN 10000 AND 1999999999) x(v));
 
-    DECLARE ids CURSOR LOCAL FAST_FORWARD FOR SELECT Id, Egrp FROM #c WHERE Id < 0 ORDER BY Id DESC;
+    DECLARE ids CURSOR LOCAL FAST_FORWARD FOR SELECT Id, Egrp FROM #c WHERE IsNew = 1 ORDER BY Id DESC;
     OPEN ids;
     FETCH NEXT FROM ids INTO @tmp, @egrp;
     WHILE @@FETCH_STATUS = 0
@@ -505,14 +514,18 @@ BEGIN
     END
     CLOSE ids; DEALLOCATE ids;
 
-    UPDATE c SET RealParentId = CASE WHEN c.ParentId < 0 THEN t.RealId ELSE c.ParentId END
+    UPDATE c SET RealParentId = CASE WHEN t.IsNew = 1 THEN t.RealId ELSE c.ParentId END
     FROM #c c LEFT JOIN #c t ON t.Id = c.ParentId;
 
     SELECT TOP (1) @msg = CONCAT(N'Category ', c.Name, N' points at a new parent that isn''t in this publish.')
-    FROM #c c WHERE c.IsDelete = 0 AND c.ParentId < 0 AND c.RealParentId IS NULL;
+    FROM #c c
+    WHERE c.IsDelete = 0 AND c.ParentId IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM dbo.Category k WHERE k.CatId = c.RealParentId)
+      AND NOT EXISTS (SELECT 1 FROM #c t WHERE t.IsNew = 1 AND t.RealId = c.RealParentId)
+      AND NOT EXISTS (SELECT 1 FROM #c t WHERE t.IsRestore = 1 AND t.Id = c.RealParentId);
     IF @msg IS NOT NULL THROW 50483, @msg, 1;
 
-    UPDATE p SET RealNodeId = CASE WHEN p.NodeId < 0 THEN c.RealId ELSE p.NodeId END
+    UPDATE p SET RealNodeId = CASE WHEN c.IsNew = 1 THEN c.RealId ELSE p.NodeId END
     FROM #p p LEFT JOIN #c c ON c.Id = p.NodeId;
 
     /* ---------------------------------------------------------- the tree as it will be */
@@ -529,7 +542,7 @@ BEGIN
 
     INSERT #prop (CatId, ParentCatId, CatName, IsActive, Notes, EGRP, IsDeleted, IsChanged)
     SELECT c.RealId, c.RealParentId, c.Name, ISNULL(c.Visible, 1), c.Notes, c.Egrp, 0, 1
-    FROM #c c WHERE (c.Id < 0 OR c.IsRestore = 1) AND c.IsDelete = 0;
+    FROM #c c WHERE (c.IsNew = 1 OR c.IsRestore = 1) AND c.IsDelete = 0;
 
     /* every live category whose parent is live */
     SELECT TOP (1) @msg = CONCAT(N'The parent of ', pr.CatName, N' is missing or being deleted. Delete its sub-categories too, or move them first.')
@@ -607,7 +620,7 @@ BEGIN
         /* a new EGRP category must be one of Computyme's EGRPs (skipped if the list couldn't be read) */
         SELECT TOP (1) @msg = CONCAT(N'EGRP ', pr.EGRP, N' isn''t one of Computyme''s EGRPs.')
         FROM #prop pr JOIN #c c ON c.RealId = pr.CatId
-        WHERE c.Id < 0 AND pr.EGRP IS NOT NULL AND EXISTS (SELECT 1 FROM #cegrp)
+        WHERE c.IsNew = 1 AND pr.EGRP IS NOT NULL AND EXISTS (SELECT 1 FROM #cegrp)
           AND NOT EXISTS (SELECT 1 FROM #cegrp e WHERE e.Egrp = pr.EGRP);
         IF @msg IS NOT NULL THROW 50489, @msg, 1;
 
@@ -739,7 +752,7 @@ BEGIN
     INSERT dbo.Category (CatId, CatName, ParentCatId, IsActive, IsPublic, EGRP, Type, Notes)
     SELECT pr.CatId, pr.CatName, pr.ParentCatId, pr.IsActive, ISNULL(c.IsPublic, pr.IsActive), pr.EGRP, 'folder', pr.Notes
     FROM #prop pr JOIN #c c ON c.RealId = pr.CatId
-    WHERE (c.Id < 0 OR c.IsRestore = 1) AND c.IsDelete = 0;
+    WHERE (c.IsNew = 1 OR c.IsRestore = 1) AND c.IsDelete = 0;
 
     /* a restored category gets back the columns the desk doesn't edit */
     UPDATE k SET
@@ -842,7 +855,7 @@ BEGIN
            (SELECT COUNT(*) FROM #repath) - (SELECT COUNT(*) FROM #p)                                           AS ProductsRepathed;
 
     /* 2. the ids given to new categories */
-    SELECT Id AS TempId, RealId AS CatId FROM #c WHERE Id < 0;
+    SELECT Id AS TempId, RealId AS CatId FROM #c WHERE IsNew = 1;
 END
 GO
 

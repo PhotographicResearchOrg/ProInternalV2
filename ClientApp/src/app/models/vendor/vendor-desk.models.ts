@@ -263,3 +263,75 @@ export interface ProductSupply {
   vendor?: ProductSupplyVendor | null;
   warehouses: ProductWarehouseStock[];
 }
+
+/* ---------------------------------------------------------- Warehouses (api/warehouses) */
+
+export type WarehouseType = 'OWN' | '3PL' | 'VENDOR';
+export type StockSource = 'COMPUTYME' | 'PIV2' | 'FEED';
+
+export interface WarehouseRow {
+  warehouseCode: string;
+  name: string;
+  warehouseType: WarehouseType;
+  address1?: string | null;
+  address2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  stockSource: StockSource;
+  isActive: boolean;
+  sortOrder: number;
+  primaryContact?: string | null;
+  primaryEmail?: string | null;
+  primaryPhone?: string | null;
+  contacts: number;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+}
+
+export interface WarehouseDetail {
+  warehouseCode: string;
+  name: string;
+  warehouseType: WarehouseType;
+  address1?: string | null;
+  address2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  timeZone?: string | null;
+  hours?: string | null;
+  orderCutoff?: string | null;
+  receivingNotes?: string | null;
+  shippingNotes?: string | null;
+  accountNumber?: string | null;
+  stockSource: StockSource;
+  notes?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+}
+
+export interface WarehouseContact {
+  contactId?: number | null;
+  warehouseCode?: string;
+  name: string;
+  role?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  isPrimary: boolean;
+  notes?: string | null;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+}
+
+export interface WarehouseLogEntry { id: number; what: string; oldJson?: string | null; newJson?: string | null; changedBy?: string | null; changedAt: string; }
+export interface WarehouseView { warehouse: WarehouseDetail; contacts: WarehouseContact[]; log: WarehouseLogEntry[]; canEdit: boolean; }
+export interface WarehouseList { warehouses: WarehouseRow[]; canEdit: boolean; }

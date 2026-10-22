@@ -33,6 +33,7 @@ import { CreditsComponent } from './prointernalengine/components/dashboards/acco
 import { VendorBillingComponent } from './prointernalengine/components/dashboards/accounting/vendor-billing/vendor-billing';
 import { ShipmentMonitorComponent } from './prointernalengine/components/dashboards/warehouse/shipment-monitor/shipment-monitor.component';
 import { VendorSellthroughComponent } from './prointernalengine/components/Vendor/vendor-sellthrough/vendor-sellthrough.component';
+import { WarehouseDeskComponent } from './prointernalengine/components/Vendor/vendor-desk/warehouse-desk.component';
 import { HomeDeskComponent } from './prointernalengine/components/dashboards/home-desk/home-desk.component';
 import { CutoverMapComponent } from './prointernalengine/components/Vendor/vendor-desk/cutover-map.component';
 import { BrandVendorDeskComponent } from './prointernalengine/components/Vendor/vendor-desk/brand-vendor-desk.component';
@@ -92,6 +93,7 @@ const routes: Routes = [
       { path: 'members/:accountNumber', component: MemberDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Member' } },
 
       { path: 'receivables', component: ReceivablesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting - Receivables' } },
+      { path: 'warehouses', component: WarehouseDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Warehouses' } },
       { path: 'cutover', component: CutoverMapComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Cutover map' } },
       { path: 'brandvendors', component: BrandVendorDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Brands & vendors' } },
       { path: 'vendor-card', component: VendorCardComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Vendor' } },

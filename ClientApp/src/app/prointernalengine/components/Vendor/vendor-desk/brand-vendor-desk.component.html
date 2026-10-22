@@ -4,7 +4,7 @@
       <h1>Brands &amp; vendors</h1>
       <div class="sub">Which vendor each brand belongs to, checked against who Computyme says each product is actually bought from. The brand's vendor drives the B2B site's vendor filter.</div>
     </div>
-    <app-owner-legend></app-owner-legend>
+    <div class="head-acts"><app-home-pin [pin]="homePin"></app-home-pin><app-owner-legend></app-owner-legend></div>
   </div>
 
   <div class="tabs" *ngIf="!vendorId" role="tablist">

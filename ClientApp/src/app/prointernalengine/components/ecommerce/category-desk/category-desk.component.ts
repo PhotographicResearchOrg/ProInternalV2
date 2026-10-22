@@ -5,6 +5,8 @@ import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
 import { DataService } from 'src/app/services/data.service';
+import { ActivatedRoute } from '@angular/router';
+import { HomePin, stablePin } from 'src/app/services/home-pin.service';
 import {
   CategoryChange, CategoryFilters, CategoryNode, CategoryProductQuery, CategoryProductRow, CategorySummary,
   ChangeSource, EgrpOption, OrphanCategory, PROBLEM_LABELS, ProductQueue, PublishItem, PublishSummary, RevertConflict
@@ -123,7 +125,7 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
   detail: { summary: PublishSummary; items: PublishItem[] } | null = null;
   revertModal: { summary: PublishSummary; conflicts: RevertConflict[]; skip: boolean; busy: boolean; error?: string } | null = null;
 
-  constructor(private data: DataService, private toast: MessageService) {}
+  constructor(private data: DataService, private toast: MessageService, private route: ActivatedRoute) {}
 
   // ================================================================ load
 
@@ -154,6 +156,11 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
         if (restoreDraft) { this.restoreDraft(); }
         this.rebuild();
         this.loading = false;
+        /* a pinned drawer opens on its queue or tree view */
+        const q = this.route.snapshot?.queryParamMap?.get('queue');
+        const tv = this.route.snapshot?.queryParamMap?.get('tree');
+        if (restoreDraft && (tv === 'empty' || tv === 'hidden')) { this.setTreeView(tv); }
+        if (restoreDraft && (q === 'UNCATEGORIZED' || q === 'SUSPECT')) { this.openQueue(q); return; }
         this.loadProducts();
       },
       error: e => { this.loading = false; this.fail(e, 'Couldn\'t load the categories.'); }
@@ -445,6 +452,19 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
   }
 
   onTreeFilter(): void { this.buildRows(); }
+
+  /** "Pin to home": the queue or tree view on screen, else the desk */
+  get homePin(): HomePin {
+    if (this.queue) {
+      const label = this.queue === 'UNCATEGORIZED' ? 'Uncategorized products' : 'Suspect products';
+      return stablePin({ id: `categories:queue:${this.queue}`, label, sub: 'Category Desk', icon: 'pi pi-sitemap', route: '/categories', query: { queue: this.queue } });
+    }
+    if (this.treeView !== 'all') {
+      const label = this.treeView === 'empty' ? 'Empty categories' : 'Hidden categories';
+      return stablePin({ id: `categories:tree:${this.treeView}`, label, sub: 'Category Desk', icon: 'pi pi-sitemap', route: '/categories', query: { tree: this.treeView } });
+    }
+    return stablePin({ id: 'categories', label: 'Category Desk', sub: 'Categories', icon: 'pi pi-sitemap', route: '/categories' });
+  }
 
   /** show only empty or only hidden categories (click again, or All, to show everything) */
   setTreeView(view: 'all' | 'empty' | 'hidden'): void {
@@ -903,7 +923,7 @@ export class CategoryDeskComponent implements OnInit, OnDestroy {
     const categories: CategoryChange[] = [];
     this.draftCats.forEach((d, id) => {
       if (!this.isChanged(id)) { return; }
-      categories.push({ id, parentId: d.parentCatId, name: d.name, visible: d.visible, notes: d.notes, egrp: d.egrp, delete: !!d.deleted, source: 'USER' });
+      categories.push({ id, parentId: d.parentCatId, name: d.name, visible: d.visible, notes: d.notes, egrp: d.egrp, delete: !!d.deleted, isNew: !!d.isNew, source: 'USER' });
     });
     const products = [...this.moves.values()].filter(x => x.nodeId !== x.fromNodeId).map(x => ({ productId: x.productId, nodeId: x.nodeId, source: x.source }));
     m.busy = true;

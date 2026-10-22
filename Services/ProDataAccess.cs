@@ -3510,6 +3510,49 @@ GetShopifyGovernanceIssues()
                 commandType: CommandType.StoredProcedure, commandTimeout: 15);
         }
 
+        public List<WarehouseRow> Warehouse_List()
+        {
+            using var conn = GetConnection();
+            return conn.Query<WarehouseRow>("piv2.Warehouse_List", commandType: CommandType.StoredProcedure, commandTimeout: 15).ToList();
+        }
+
+        public WarehouseView Warehouse_Get(string code)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.Warehouse_Get", new { WarehouseCode = code },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15);
+            return new WarehouseView
+            {
+                Warehouse = multi.ReadFirstOrDefault<WarehouseDetail>(),
+                Contacts = multi.Read<WarehouseContact>().ToList(),
+                Log = multi.Read<WarehouseLogEntry>().ToList()
+            };
+        }
+
+        public string Warehouse_Save(string json, string user)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<string>("piv2.Warehouse_Save", new { Json = json, User = user },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
+        public int WarehouseContact_Save(int? contactId, string code, string name, string role, string email, string phone, bool isPrimary, string notes, string user)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<int>("piv2.WarehouseContact_Save", new
+            {
+                ContactId = contactId, WarehouseCode = code, Name = name, Role = role, Email = email, Phone = phone,
+                IsPrimary = isPrimary, Notes = notes, User = user
+            }, commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
+        public void WarehouseContact_Delete(int contactId, string user)
+        {
+            using var conn = GetConnection();
+            conn.Execute("piv2.WarehouseContact_Delete", new { ContactId = contactId, User = user },
+                commandType: CommandType.StoredProcedure, commandTimeout: 15);
+        }
+
         public List<ProductClassRow> ProductClass_List()
         {
             using var conn = GetConnection();

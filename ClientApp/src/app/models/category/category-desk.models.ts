@@ -93,13 +93,15 @@ export interface CategoryFilters { brands: FilterOption[]; vendors: FilterOption
 export type ChangeSource = 'USER' | 'RULE' | 'AI';
 
 export interface CategoryChange {
-  id: number;                  // negative = new in this draft
+  id: number;                  // a temporary negative id when new in this draft (existing ids can be negative too)
   parentId: number | null;
   name: string;
   visible: boolean;
   notes: string | null;
   egrp: number | null;
   delete?: boolean;
+  /** added in this draft; tells the server the id is temporary */
+  isNew?: boolean;
   source?: ChangeSource;
 }
 

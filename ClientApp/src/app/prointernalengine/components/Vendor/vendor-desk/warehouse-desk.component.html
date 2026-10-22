@@ -1,0 +1,144 @@
+<div class="app">
+  <nav class="rail" aria-label="Warehouses">
+    <div class="brandmark"><span class="box"><i class="pi pi-building"></i></span><span>Warehouses</span></div>
+    <button *ngFor="let w of list" type="button" class="rail-btn" [class.active]="w.warehouseCode === selected && !isNew" (click)="open(w.warehouseCode)">
+      <i class="pi" [ngClass]="w.warehouseType === 'OWN' ? 'pi-home' : w.warehouseType === '3PL' ? 'pi-box' : 'pi-send'"></i>
+      <span class="rl">{{ w.name }}</span><span class="rc">{{ w.warehouseCode }}</span>
+    </button>
+    <button *ngIf="canEdit" type="button" class="rail-btn" [class.active]="isNew" (click)="addNew()"><i class="pi pi-plus"></i><span class="rl">Add a warehouse</span></button>
+    <div class="rail-foot">Stock by warehouse shows on each product. PA's stock comes from Computyme; a 3PL's comes from its stock feed once it's connected.</div>
+  </nav>
+
+  <div class="col">
+    <header class="vhead" *ngIf="draft">
+      <div class="vhead-top">
+        <div class="logo">{{ (draft.warehouseCode || '+').substring(0, 3) }}</div>
+        <div style="min-width:0;flex:1">
+          <div class="vtitle">
+            <h1>{{ isNew ? 'New warehouse' : draft.name }}</h1>
+            <span class="badge" [ngStyle]="{ color: '#0e7c73', background: '#dff1ef' }" *ngIf="!isNew">{{ typeLabel(draft.warehouseType) }}</span>
+            <span class="badge" [ngStyle]="{ color: draft.isActive ? '#166534' : '#8a97ab', background: draft.isActive ? '#dcfce7' : '#eef1f5' }" *ngIf="!isNew">{{ draft.isActive ? 'Active' : 'Inactive' }}</span>
+          </div>
+          <div class="vmeta" *ngIf="!isNew">
+            <span class="mono">{{ draft.warehouseCode }}</span>
+            <span>{{ address(draft) }}</span>
+            <span *ngIf="draft.updatedAt">updated {{ draft.updatedAt | date:'MMM d, y' }}{{ draft.updatedBy ? ' · ' + draft.updatedBy : '' }}</span>
+          </div>
+        </div>
+        <div class="row">
+          <app-home-pin *ngIf="homePin" [pin]="homePin"></app-home-pin>
+          <button type="button" class="btn" (click)="export()"><i class="pi pi-file-excel"></i> Export</button>
+          <button *ngIf="canEdit" type="button" class="btn primary" [disabled]="saving" (click)="save()"><i class="pi pi-check"></i> {{ saving ? 'Saving…' : 'Save' }}</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="err" *ngIf="error">{{ error }}</div>
+      <div class="ok" *ngIf="saved">{{ saved }}</div>
+      <div class="empty" *ngIf="loading">Loading…</div>
+
+      <ng-container *ngIf="draft && !loading">
+        <section class="card">
+          <div class="card-h"><h2>Warehouse</h2><app-owner-mark owner="EXTENSION"></app-owner-mark></div>
+          <div class="form-grid">
+            <div class="field"><label for="wh-code">Code</label><input id="wh-code" maxlength="10" [(ngModel)]="draft.warehouseCode" [disabled]="!isNew || locked" placeholder="e.g. UK1"></div>
+            <div class="field"><label for="wh-name">Name</label><input id="wh-name" maxlength="120" [(ngModel)]="draft.name" [disabled]="locked"></div>
+            <div class="field"><label for="wh-type">Type</label>
+              <select id="wh-type" [(ngModel)]="draft.warehouseType" [disabled]="locked"><option *ngFor="let t of types" [ngValue]="t.value">{{ t.label }}</option></select></div>
+            <div class="field"><label for="wh-src">Stock comes from</label>
+              <select id="wh-src" [(ngModel)]="draft.stockSource" [disabled]="locked || computymeStock"><option *ngFor="let s of sources" [ngValue]="s.value">{{ s.label }}</option></select>
+              <span class="hint" *ngIf="computymeStock"><i class="pi pi-lock"></i> Computyme's stock until this warehouse cuts over</span></div>
+            <div class="field"><label for="wh-acct">Our account number with them</label><input id="wh-acct" maxlength="60" [(ngModel)]="draft.accountNumber" [disabled]="locked"></div>
+            <div class="field"><label for="wh-sort">Order in lists</label><input id="wh-sort" type="number" [(ngModel)]="draft.sortOrder" [disabled]="locked"></div>
+          </div>
+          <label class="chk" style="margin-top:10px"><input type="checkbox" [(ngModel)]="draft.isActive" [disabled]="locked"> Active</label>
+        </section>
+
+        <section class="card">
+          <div class="card-h"><h2>Address and contact</h2></div>
+          <div class="form-grid">
+            <div class="field"><label for="wh-a1">Address</label><input id="wh-a1" maxlength="120" [(ngModel)]="draft.address1" [disabled]="locked"></div>
+            <div class="field"><label for="wh-a2">Address 2</label><input id="wh-a2" maxlength="120" [(ngModel)]="draft.address2" [disabled]="locked"></div>
+            <div class="field"><label for="wh-city">City</label><input id="wh-city" maxlength="80" [(ngModel)]="draft.city" [disabled]="locked"></div>
+            <div class="field"><label for="wh-state">State / region</label><input id="wh-state" maxlength="40" [(ngModel)]="draft.state" [disabled]="locked"></div>
+            <div class="field"><label for="wh-zip">Postal code</label><input id="wh-zip" maxlength="20" [(ngModel)]="draft.postalCode" [disabled]="locked"></div>
+            <div class="field"><label for="wh-cty">Country (2 letters)</label><input id="wh-cty" maxlength="2" [(ngModel)]="draft.country" [disabled]="locked"></div>
+            <div class="field"><label for="wh-phone">Main phone</label><input id="wh-phone" maxlength="40" [(ngModel)]="draft.phone" [disabled]="locked"></div>
+            <div class="field"><label for="wh-email">Main email</label><input id="wh-email" type="email" maxlength="200" [(ngModel)]="draft.email" [disabled]="locked"></div>
+            <div class="field"><label for="wh-web">Website / portal</label><input id="wh-web" maxlength="200" [(ngModel)]="draft.website" [disabled]="locked"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-h"><h2>Hours and handling</h2></div>
+          <div class="form-grid">
+            <div class="field"><label for="wh-tz">Time zone</label><input id="wh-tz" maxlength="40" [(ngModel)]="draft.timeZone" [disabled]="locked" placeholder="America/New_York"></div>
+            <div class="field"><label for="wh-hours">Hours</label><input id="wh-hours" maxlength="200" [(ngModel)]="draft.hours" [disabled]="locked" placeholder="Mon–Fri 8:00–4:30"></div>
+            <div class="field"><label for="wh-cut">Order cut-off</label><input id="wh-cut" maxlength="60" [(ngModel)]="draft.orderCutoff" [disabled]="locked" placeholder="2:00 pm for same-day ship"></div>
+          </div>
+          <div class="form-grid" style="margin-top:12px">
+            <div class="field"><label for="wh-rec">Receiving notes</label><textarea id="wh-rec" rows="3" maxlength="1000" [(ngModel)]="draft.receivingNotes" [disabled]="locked" placeholder="Dock hours, appointment rules, ASN requirements"></textarea></div>
+            <div class="field"><label for="wh-ship">Shipping notes</label><textarea id="wh-ship" rows="3" maxlength="1000" [(ngModel)]="draft.shippingNotes" [disabled]="locked" placeholder="Carriers, pickup times, account numbers"></textarea></div>
+            <div class="field"><label for="wh-notes">Other notes</label><textarea id="wh-notes" rows="3" maxlength="400" [(ngModel)]="draft.notes" [disabled]="locked"></textarea></div>
+          </div>
+        </section>
+
+        <section class="card" *ngIf="!isNew">
+          <div class="card-h">
+            <h2>Contacts</h2>
+            <button *ngIf="canEdit && !contactDraft" type="button" class="btn" (click)="newContact()"><i class="pi pi-plus"></i> Add contact</button>
+          </div>
+          <div class="tablewrap" *ngIf="view?.contacts?.length; else nocontacts">
+            <table class="vd-grid">
+              <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Notes</th><th></th></tr></thead>
+              <tbody>
+                <tr *ngFor="let c of view?.contacts">
+                  <td><b>{{ c.name }}</b> <span class="badge" *ngIf="c.isPrimary" [ngStyle]="{ color: '#0e7c73', background: '#dff1ef' }">Primary</span></td>
+                  <td>{{ c.role || '—' }}</td>
+                  <td class="small">{{ c.email || '—' }}</td>
+                  <td class="small">{{ c.phone || '—' }}</td>
+                  <td class="small muted">{{ c.notes || '' }}</td>
+                  <td style="white-space:nowrap;text-align:right">
+                    <ng-container *ngIf="canEdit">
+                      <button type="button" class="linkbtn" (click)="editContact(c)">Edit</button>
+                      <button type="button" class="linkbtn danger" style="margin-left:10px" (click)="removeContact(c)">Remove</button>
+                    </ng-container>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #nocontacts><div class="empty">No contacts yet.</div></ng-template>
+
+          <div class="cform" *ngIf="contactDraft">
+            <div class="form-grid">
+              <div class="field"><label for="ct-name">Name</label><input id="ct-name" maxlength="150" [(ngModel)]="contactDraft.name"></div>
+              <div class="field"><label for="ct-role">Role</label><input id="ct-role" maxlength="80" [(ngModel)]="contactDraft.role" placeholder="Account manager, receiving, billing…"></div>
+              <div class="field"><label for="ct-email">Email</label><input id="ct-email" type="email" maxlength="200" [(ngModel)]="contactDraft.email"></div>
+              <div class="field"><label for="ct-phone">Phone</label><input id="ct-phone" maxlength="40" [(ngModel)]="contactDraft.phone"></div>
+              <div class="field"><label for="ct-notes">Notes</label><input id="ct-notes" maxlength="400" [(ngModel)]="contactDraft.notes"></div>
+            </div>
+            <label class="chk"><input type="checkbox" [(ngModel)]="contactDraft.isPrimary"> Primary contact</label>
+            <div class="err" *ngIf="contactError">{{ contactError }}</div>
+            <div class="row">
+              <button type="button" class="btn primary" (click)="saveContact()">Save contact</button>
+              <button type="button" class="btn" (click)="contactDraft = null">Cancel</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" *ngIf="!isNew && view">
+          <div class="card-h"><h2>Changes</h2><button type="button" class="linkbtn" (click)="showLog = !showLog">{{ showLog ? 'Hide' : 'Show' }}</button></div>
+          <div class="tablewrap" *ngIf="showLog">
+            <table class="vd-grid" *ngIf="view.log.length; else nolog">
+              <thead><tr><th>When</th><th>What</th><th>Who</th></tr></thead>
+              <tbody><tr *ngFor="let l of view.log"><td class="small">{{ l.changedAt | date:'MMM d, y h:mm a' }}</td><td class="small">{{ l.what === 'WAREHOUSE' ? 'Warehouse details' : l.what === 'CONTACT' ? 'Contact saved' : 'Contact removed' }}</td><td class="small">{{ l.changedBy }}</td></tr></tbody>
+            </table>
+            <ng-template #nolog><div class="empty">No changes yet.</div></ng-template>
+          </div>
+        </section>
+      </ng-container>
+    </main>
+  </div>
+</div>

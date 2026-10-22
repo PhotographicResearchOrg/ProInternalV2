@@ -7,11 +7,13 @@
       Brands.Edit            Move a brand to another vendor (writes dbo.Brand.VendorID, which the B2B vendor filter reads)
       Vendors.Edit           Save the direct-billing split on a vendor (and the other Vendor Desk edits)
       ProductClasses.Edit    Add and edit product classes
+      Warehouses.Edit        Add warehouses and edit their address, hours and contacts
 
     Viewing needs only the screen's route in Security Admin:
       /cutover        Cutover map
       /brandvendors   Brands & vendors (brand links, product classes)
-      /vendor-card    Vendor Desk (vendor record, direct billing, brands tabs)
+      /vendor-card    Vendor Desk (vendor record, brands, terms, direct vendor ship)
+      /warehouses     Warehouses (setup and contacts)
     Add those routes as menu items for the roles that should see them.
    --------------------------------------------------------------- */
 
@@ -24,7 +26,8 @@ INSERT @want (Name, Description, RoutePath) VALUES
     (N'Cutover.Admin',       N'Cutover map · change who is master of a section', N'/cutover'),
     (N'Brands.Edit',         N'Brands & vendors · move a brand to another vendor (shows on the B2B vendor filter)', N'/brandvendors'),
     (N'Vendors.Edit',        N'Vendor Desk · edit vendor setup, including the direct-billing split', N'/vendor-card'),
-    (N'ProductClasses.Edit', N'Brands & vendors · add and edit product classes', N'/brandvendors');
+    (N'ProductClasses.Edit', N'Brands & vendors · add and edit product classes', N'/brandvendors'),
+    (N'Warehouses.Edit',     N'Warehouses · add warehouses and edit their address, hours and contacts', N'/warehouses');
 
 /* Where Security Administration keeps permissions (the table with PermissionName and RoutePath). */
 DECLARE @tbl nvarchar(300) =

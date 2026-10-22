@@ -22,6 +22,7 @@ import {
 } from 'src/app/models/vendor/vendor-card.model';
 
 import { VendorDirectBrand, VendorDirectShipService, VendorDirectVendor } from 'src/app/services/vendor-direct-ship.service';
+import { HomePin, stablePin } from 'src/app/services/home-pin.service';
 
 interface NavItem { id: string; label: string; icon: string; }
 interface Tile { id: string; icon: string; title: string; lines: string[]; color: number; }
@@ -226,6 +227,9 @@ export class VendorCardComponent implements OnInit, OnChanges {
   ngOnInit(): void {
     const routeId = this.route.snapshot.paramMap.get('vendorId') || this.route.snapshot.queryParamMap.get('vendorId');
     if (routeId) this.vendorId = +routeId;
+    /* a pinned drawer opens straight on its section */
+    const sec = this.route.snapshot.queryParamMap.get('section');
+    if (sec && this.navSections.some(n => n.id === sec)) this.activeSection = sec;
 
     if (!this.vendorId) {
       this.showToast('No vendor selected');
@@ -574,6 +578,16 @@ export class VendorCardComponent implements OnInit, OnChanges {
   
   // --- nav + toggles ---
   setSection(id: string): void { this.activeSection = id; }
+
+  /** "Pin to home" for the drawer on screen */
+  get homePin(): HomePin | null {
+    if (!this.id || !this.vendor?.name) return null;
+    const label = this.navSections.find(n => n.id === this.activeSection)?.label || this.activeSection;
+    return stablePin({
+      id: `vendor:${this.id}:${this.activeSection}`, label: `${this.vendor.name} · ${label}`, sub: `Vendor Desk · ${label}`,
+      icon: 'pi pi-briefcase', route: '/vendor-card', query: { vendorId: String(this.id), section: this.activeSection }
+    });
+  }
 
   toggleLive(): void {
     this.dataService.toggleVendorActive(this.id).subscribe({

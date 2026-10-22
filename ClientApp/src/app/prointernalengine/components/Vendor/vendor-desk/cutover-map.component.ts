@@ -3,6 +3,7 @@ import { DataService } from 'src/app/services/data.service';
 import { CutoverMap, CutoverSection, DataOwner } from 'src/app/models/vendor/vendor-desk.models';
 import { OWNER_INFO } from './owner-mark.component';
 import { exportWorkbook } from './desk-export';
+import { HomePin, stablePin } from 'src/app/services/home-pin.service';
 
 interface AreaGroup { area: string; sections: CutoverSection[]; }
 
@@ -106,6 +107,8 @@ export class CutoverMapComponent implements OnInit {
         When: l.changedAt, Section: l.name || l.sectionKey, From: l.oldOwner || '', To: l.newOwner, Why: l.note || '', Who: l.changedBy || '' })) }
     ]);
   }
+
+  readonly homePin: HomePin = stablePin({ id: 'cutover', label: 'Cutover map', sub: 'Admin', icon: 'pi pi-map', route: '/cutover', metric: 'cutover.computyme' });
 
   trackKey = (_: number, s: CutoverSection) => s.sectionKey;
 }

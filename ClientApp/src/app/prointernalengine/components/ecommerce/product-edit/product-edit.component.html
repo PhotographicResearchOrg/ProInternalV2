@@ -258,6 +258,7 @@
           <app-product-supply [productId]="productId"></app-product-supply>
         </div>
         <div class="toggles">
+          <div class="togline" *ngIf="homePin"><app-home-pin [pin]="homePin"></app-home-pin></div>
           <div class="togline">
             <i class="pi pi-power-off"></i>
             <button type="button" class="toggle" (click)="toggleForSale()">
