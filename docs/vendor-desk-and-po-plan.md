@@ -17,6 +17,13 @@ Grounded in: the vendor discovery run (`sql/vendor-desk/00-vendor-discovery.sql`
 
 VNMST and APMST ids never collide (3 vs 4 digits), which is why Computyme gets away with a PO vendor field that holds either (IV46.07, IV45.03).
 
+## Direction (Mark, 2026-10-22)
+- End state: Computyme only runs warehouse distribution. Vendors, products, purchasing, terms and accounting move to PIV2 a section at a time.
+- First **show what Computyme has, as it is** (read-only, from the EDA mirror) instead of coding around it; then extend in PIV2; then cut each section over.
+- **Never break the B2B site.** It reads `dbo.Product` (IVMST data), `dbo.Brand.VendorID` (vendor filter) and IVMST status 3 (discontinued). Any change to those is reviewed first.
+- Every screen and the cutover map must say clearly, per section and per field, whether **Computyme is master**, **SQL is master**, or it's a **PIV2 extension** (exists only in PIV2).
+- POs are **not** cut over yet: PIV2 displays Computyme's POs and the suggested order; it doesn't create POs.
+
 ## The cutover pattern
 
 New table `piv2.CutoverPiece` (Piece, Piv2IsMaster, SwitchedAt, SwitchedBy, Note), one row per piece, changed only in Security Admin and logged. `Product:SqlIsMaster` stays as it is for the product fields.
@@ -53,7 +60,7 @@ net-net factors, terms %, prompt-pay %, fast shipping allowed, dated orders, ret
 - The product page shows **Class** and **Vendor** (the real one) separately. Class stays locked until product maintenance cuts over (IVMST 5 is still edited in Computyme, and changing it moves open vendor orders: IV.MNT.PROD.23, CHANGE.VNORD).
 
 ### 4. PO build on the product page
-PIV2 builds and sends POs; Computyme keeps receiving them until piece 5.
+**Not cut over yet.** First step is display only: the product's Order section shows Computyme's open POs (IVPO from the EDA mirror), on-order, due date, and the suggested order with Computyme's rule highlighted and its inputs shown, so a buyer can adjust the inputs and see the forecast and market research beside it. Building and sending POs from PIV2 (below) comes when you decide to cut POs over.
 
 Tables: `piv2.PurchaseOrder` (number, vendor = AP vendor only, status Draft / Sent / Partly received / Closed / Cancelled, currency, rate, terms, ship-to, one-time vendor details as structured fields, who/when) and `piv2.PurchaseOrderLine` (product, qty, unit cost and currency, due date, special-order link). On-order is computed from open lines, never stored on the product (the double storage is why PO.DISC, FIX.PO.CST and BLD.IVPO exist: IV.ORD.REC.15, PO.DISC.01–07).
 
