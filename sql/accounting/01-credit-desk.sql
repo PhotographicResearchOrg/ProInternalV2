@@ -290,24 +290,30 @@ BEGIN
     GROUP BY o.OrderId, o.PONumber, o.EnterDate, o.AutoHold, o.HoldOverride, u.FirstName, u.LastName
     ORDER BY o.EnterDate DESC;
 
-    /* 4. orders in Computyme (IVORD): open orders not invoiced yet; lines flagged BO are backordered (as the B2B site shows them).
-          Invoices: this member's Computyme invoices with the same PO (once lines ship they're billed on ARHIST). */
+    /* 4. orders in Computyme (IVORD). Once an order is in ARHIST it has shipped and been billed:
+          Billed = an ARHIST invoice for this member with the order's number, or with the same PO (last 180 days).
+          Invoices: those ARHIST invoices as "invoice:posted" pairs, e.g. 123456:2026-10-14,123499:2026-10-20.
+          Lines flagged BO are backordered (as the B2B site shows them). */
     SELECT CAST(o.ID AS varchar(20)) AS OrderKey, o.P_O_ AS PO, o.SHIP AS ShipDate, o.CODE AS Code, o.WEBORDER AS WebOrder,
            TRY_CAST(SUBSTRING(o.TIMEDATE, 1, 20) AS datetime) AS Entered,
            SUM(TRY_CAST(l.C AS float)) AS Total, COUNT(l.ID) AS Lines,
            SUM(CASE WHEN l.BO LIKE '1%' THEN 1 ELSE 0 END) AS BackorderedLines,
            CAST(CASE WHEN o.SHIP > @now AND DATEDIFF(day, @now, o.SHIP) <= 5 THEN 1 ELSE 0 END AS bit) AS ShipsSoon,
-           /* "invoice:posted" pairs, e.g. 123456:2026-10-14,123499:2026-10-20 */
-           (SELECT STRING_AGG(CAST(CONCAT(SUBSTRING(h.ID, 5, 20), ':', CONVERT(varchar(10), TRY_CONVERT(date, h.DT_POSTED), 23)) AS varchar(max)), ',')
-                   WITHIN GROUP (ORDER BY h.DT_POSTED)
-              FROM EDA.ARHIST.ARHIST h
-             WHERE LEFT(h.ID, 4) COLLATE DATABASE_DEFAULT = @acct AND NULLIF(LTRIM(o.P_O_), '') IS NOT NULL
-               AND h.P_O_ = o.P_O_ AND h.DT_POSTED >= DATEADD(day, -180, @now)) AS Invoices
+           CAST(CASE WHEN MAX(inv.Invoices) IS NULL THEN 0 ELSE 1 END AS bit) AS Billed,
+           MAX(inv.LastPosted) AS BilledOn,
+           MAX(inv.Invoices) AS Invoices
     FROM EDA.IVORD_REP.IVORD_REP o
     LEFT JOIN EDA.IVORD_REP.PQC_MV l ON l.ID = o.ID
+    OUTER APPLY (SELECT STRING_AGG(CAST(CONCAT(SUBSTRING(h.ID, 5, 20), ':', CONVERT(varchar(10), TRY_CONVERT(date, h.DT_POSTED), 23)) AS varchar(max)), ',')
+                        WITHIN GROUP (ORDER BY h.DT_POSTED) AS Invoices,
+                        MAX(TRY_CONVERT(date, h.DT_POSTED)) AS LastPosted
+                   FROM EDA.ARHIST.ARHIST h
+                  WHERE LEFT(h.ID, 4) COLLATE DATABASE_DEFAULT = @acct
+                    AND (SUBSTRING(h.ID, 5, 20) COLLATE DATABASE_DEFAULT = CAST(o.ID AS varchar(20)) COLLATE DATABASE_DEFAULT
+                         OR (NULLIF(LTRIM(o.P_O_), '') IS NOT NULL AND h.P_O_ = o.P_O_ AND h.DT_POSTED >= DATEADD(day, -180, @now)))) inv
     WHERE o.ACCOUNT COLLATE DATABASE_DEFAULT = @acct
     GROUP BY o.ID, o.P_O_, o.SHIP, o.CODE, o.WEBORDER, o.TIMEDATE
-    ORDER BY o.SHIP;
+    ORDER BY CASE WHEN MAX(inv.Invoices) IS NULL THEN 0 ELSE 1 END, o.SHIP;
 
     /* 4b. their lines: product, quantity left, value, backordered and when it's due (ORDDUE) */
     SELECT CAST(o.ID AS varchar(20)) AS OrderKey, l.PQC_MV_POS AS Line, CAST(l.P AS varchar(20)) AS ProductCode,
