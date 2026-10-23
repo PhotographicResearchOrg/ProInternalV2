@@ -128,7 +128,9 @@ export class MemberDeskComponent implements OnInit, OnDestroy {
     this.subs.add(this.route.paramMap.subscribe(p => {
       this.accountNumber = p.get('accountNumber');
       if (this.accountNumber) {
-        this.tab = 'profile';
+        /* ?tab=map etc. opens straight on that tab (links from other desks) */
+        const t = this.route.snapshot.queryParamMap.get('tab');
+        this.tab = t && this.tabs.some(x => x.key === t) ? t : 'profile';
         this.load();
       } else {
         this.detail = null;

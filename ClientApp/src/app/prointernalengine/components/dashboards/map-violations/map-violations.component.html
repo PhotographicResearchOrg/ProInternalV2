@@ -1,0 +1,137 @@
+<p-toast></p-toast>
+
+<div class="desk-page">
+
+  <header class="desk-header">
+    <div>
+      <div class="eyebrow">ProMaster · Management</div>
+      <h1>MAP violations</h1>
+      <div class="subtitle">Report a dealer selling below MAP and review what's been submitted. While a violation is active the member can't buy that product.</div>
+    </div>
+    <div class="header-actions">
+      <app-home-pin [pin]="pin"></app-home-pin>
+      <button type="button" class="btn btn-secondary" (click)="load()" [disabled]="loading"><i class="pi pi-refresh" [class.pi-spin]="loading"></i>Refresh</button>
+      <button type="button" class="btn btn-secondary" (click)="exportExcel()" [disabled]="!shown.length"><i class="pi pi-file-excel"></i>Export</button>
+    </div>
+  </header>
+
+  <div class="summary-grid">
+    <div class="summary-card" [class.active-card]="filter === 'active'" (click)="filter = 'active'">
+      <div class="summary-label">Active</div>
+      <div class="summary-value">{{ count('active') | number }}</div>
+      <div class="summary-sub">{{ membersActive | number }} member{{ membersActive === 1 ? '' : 's' }} blocked on at least one product</div>
+    </div>
+    <div class="summary-card warning-card" [class.active-card]="filter === 'ending'" (click)="filter = 'ending'">
+      <div class="summary-label">Ending this week</div>
+      <div class="summary-value">{{ count('ending') | number }}</div>
+      <div class="summary-sub">Penalty ends in 7 days or less</div>
+    </div>
+    <div class="summary-card" [class.active-card]="filter === 'expired'" (click)="filter = 'expired'">
+      <div class="summary-label">Expired</div>
+      <div class="summary-value">{{ count('expired') | number }}</div>
+      <div class="summary-sub">Penalty over; kept for history</div>
+    </div>
+    <div class="summary-card" [class.active-card]="filter === 'all'" (click)="filter = 'all'">
+      <div class="summary-label">All submitted</div>
+      <div class="summary-value">{{ count('all') | number }}</div>
+      <div class="summary-sub">Every violation on file</div>
+    </div>
+  </div>
+
+  <div class="mv-grid">
+
+    <!-- ------------------------------------------------ report -->
+    <section class="desk-card">
+      <div class="section-header">
+        <div>
+          <div class="section-label">Report a violation</div>
+          <div class="section-subtitle">The member, the product they sold below MAP, and how long the penalty lasts.</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="mv-member">Member</label>
+        <p-autoComplete inputId="mv-member" [(ngModel)]="account" [suggestions]="accountMatches" (completeMethod)="findAccount($event)"
+                        field="label" [forceSelection]="true" [delay]="150" placeholder="Account number or name"
+                        [style]="{ width: '100%' }" [inputStyle]="{ width: '100%' }" appendTo="body"></p-autoComplete>
+        <span class="hint error-hint" *ngIf="touched && !account?.accountNumber">Pick a member.</span>
+      </div>
+
+      <div class="field">
+        <label for="mv-product">Product</label>
+        <p-autoComplete inputId="mv-product" [(ngModel)]="product" [suggestions]="productMatches" (completeMethod)="findProduct($event)"
+                        field="label" [forceSelection]="true" [delay]="250" [minLength]="2" placeholder="Product code or model"
+                        [style]="{ width: '100%' }" [inputStyle]="{ width: '100%' }" appendTo="body"></p-autoComplete>
+        <span class="hint error-hint" *ngIf="touched && !product?.productCode">Pick a product.</span>
+      </div>
+
+      <div class="field">
+        <label>Penalty</label>
+        <div class="chip-row">
+          <button type="button" class="chip" *ngFor="let o of penaltyOptions" [class.active]="penalty === o.value" (click)="penalty = o.value">{{ o.label }}</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-primary mv-submit" [disabled]="submitting" (click)="submit()">
+        <i class="pi" [ngClass]="submitting ? 'pi-spin pi-spinner' : 'pi-check'"></i>Report violation
+      </button>
+
+      <div class="mv-done" *ngIf="lastSubmit as s">
+        <div class="mv-done-h"><i class="pi pi-check-circle"></i> Reported {{ s.at | date:'shortTime' }}</div>
+        <div><b>{{ s.account.accountName }}</b> <span class="faint mono">{{ s.account.accountNumber }}</span></div>
+        <div>{{ s.product.productCode }} · {{ s.product.modelName }}</div>
+        <div class="faint">{{ s.penalty >= 9999 ? 'No end date' : s.penalty + ' days' }}</div>
+        <ng-container *ngIf="s.existing.length > 1">
+          <div class="mv-done-sub">This member now has {{ s.existing.length }} violations on file:</div>
+          <div class="mv-done-line" *ngFor="let v of s.existing">{{ v.productCode }} · {{ v.penaltyDays >= 9999 ? 'indefinite' : v.penaltyDays + ' days' }}<span class="faint" *ngIf="v.submittedOn"> · {{ v.submittedOn | date:'shortDate' }}</span></div>
+        </ng-container>
+        <a class="mv-link" [routerLink]="['/members', s.account.accountNumber]" [queryParams]="{ tab: 'map' }">Open on the Member Desk <i class="pi pi-arrow-right"></i></a>
+      </div>
+
+      <button type="button" class="linklike" (click)="downloadAccounts()"><i class="pi pi-download"></i> Member account list (CSV)</button>
+    </section>
+
+    <!-- ------------------------------------------------ list -->
+    <section class="desk-card mv-list">
+      <div class="desk-toolbar">
+        <div class="chip-row">
+          <button type="button" class="chip" [class.active]="filter === 'active'" (click)="filter = 'active'">Active <span class="chip-count">{{ count('active') }}</span></button>
+          <button type="button" class="chip" [class.active]="filter === 'ending'" (click)="filter = 'ending'">Ending soon <span class="chip-count">{{ count('ending') }}</span></button>
+          <button type="button" class="chip" [class.active]="filter === 'expired'" (click)="filter = 'expired'">Expired <span class="chip-count">{{ count('expired') }}</span></button>
+          <button type="button" class="chip" [class.active]="filter === 'all'" (click)="filter = 'all'">All <span class="chip-count">{{ count('all') }}</span></button>
+        </div>
+        <div class="toolbar-actions">
+          <span class="input-with-icon mv-search"><i class="pi pi-search"></i>
+            <input type="text" placeholder="Member, account or product" [(ngModel)]="search" />
+          </span>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="loading"><i class="pi pi-spin pi-spinner"></i> Loading…</div>
+
+      <div class="panel-table" *ngIf="!loading">
+        <div class="table-responsive">
+          <table class="desk-table compact">
+            <thead>
+              <tr><th>Member</th><th>Product</th><th>Penalty</th><th>Submitted</th><th>Ends</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of shown" [class.muted-row]="!r.active">
+                <td>
+                  <a class="member-name mv-member" [routerLink]="['/members', r.accountNumber]">{{ r.accountName || ('Account ' + r.accountNumber) }}</a>
+                  <div class="member-sub mono">{{ r.accountNumber }}</div>
+                </td>
+                <td class="mono">{{ r.productCode }}</td>
+                <td>{{ penaltyText(r) }}</td>
+                <td>{{ r.submittedOn ? (r.submittedOn | date:'MMM d, y') : '—' }}</td>
+                <td>{{ r.indefinite ? 'No end' : (r.end ? (r.end | date:'MMM d, y') : '—') }}</td>
+                <td><span class="status-badge" [ngClass]="statusClass(r)">{{ statusText(r) }}</span></td>
+              </tr>
+              <tr *ngIf="!shown.length"><td colspan="6" class="empty-inline">{{ search ? 'Nothing matches.' : 'No violations here.' }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
