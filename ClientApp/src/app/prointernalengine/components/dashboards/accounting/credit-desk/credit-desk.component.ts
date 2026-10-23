@@ -25,6 +25,8 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
   // list
   members: CreditMemberRow[] = [];
   canOverride = false;
+  /** member cutover switch (Member:SqlIsMaster): limit and credit hold are SQL's when true */
+  sqlIsMaster = false;
   listLoading = false;
   filter: ListFilter = 'held';
   search = '';
@@ -73,7 +75,7 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
   loadList(): void {
     this.listLoading = true;
     this.data.creditMembers().subscribe({
-      next: r => { this.members = r?.members ?? []; this.canOverride = !!r?.canOverride; this.listLoading = false; },
+      next: r => { this.members = r?.members ?? []; this.canOverride = !!r?.canOverride; this.sqlIsMaster = !!r?.sqlIsMaster; this.listLoading = false; },
       error: e => { this.listLoading = false; this.fail(e, 'Could not load members'); }
     });
   }
@@ -110,7 +112,7 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.data.creditMember(this.accountNumber).subscribe({
       next: m => {
-        this.member = m; this.canOverride = !!m?.canOverride; this.loading = false;
+        this.member = m; this.canOverride = !!m?.canOverride; this.sqlIsMaster = !!m?.sqlIsMaster; this.loading = false;
         if (this.tab === 'orders' && !m.webOrders.length && m.invoices.length) this.tab = 'invoices';
       },
       error: e => { this.loading = false; this.member = null; this.fail(e, 'Could not load the member'); }
@@ -177,7 +179,7 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
     const rows = this.shown.map(m => ({
       'Account': m.accountNumber, 'Member': m.name, 'Limit': m.limit, 'Balance': m.balance, 'Past due': m.pastDue, '90+ days': m.days90,
       'Open orders': m.openOrders, 'Vendor exposure': m.vendorExposure, 'Available': m.available, 'Over limit': this.overLimit(m) ? 'Yes' : '',
-      'Credit hold (Computyme)': m.onHold ? 'Yes' : '', 'B2B orders': m.webOrders, 'Held orders': m.heldOrders, 'Held value': m.heldValue,
+      'Credit hold': m.onHold ? 'Yes' : '', 'Limit from': m.limitSource === 'SQL' ? 'SQL' : 'Computyme', 'B2B orders': m.webOrders, 'Held orders': m.heldOrders, 'Held value': m.heldValue,
       'Vendor credits pending': m.pendingVendorCredits, 'YTD sales': m.ytdSales, 'Last note': m.lastNoteAt ? new Date(m.lastNoteAt).toLocaleDateString() : ''
     }));
     const wb = XLSX.utils.book_new();
@@ -191,8 +193,8 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
     const h = m.header;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Account', h.accountNumber], ['Member', h.name], ['Credit hold (Computyme)', h.onHold ? 'Yes' : 'No'],
-      ['Limit', h.limit], ['Balance', h.balance], ['Current', h.currentDue], ['30 days', h.days30], ['60 days', h.days60], ['90+ days', h.days90],
+      ['Account', h.accountNumber], ['Member', h.name], ['Credit hold', h.onHold ? 'Yes' : 'No'], ['Limit and hold from', h.limitSource === 'SQL' ? 'SQL (Member Desk)' : 'Computyme'],
+      ['Limit', h.limit], ['Limit in Computyme', h.computymeLimit], ['Limit in SQL', h.sqlLimit], ['Balance', h.balance], ['Current', h.currentDue], ['30 days', h.days30], ['60 days', h.days60], ['90+ days', h.days90],
       ['Open orders (Computyme)', h.openOrders], ['Vendor exposure', h.vendorExposure], ['Vendor billed', h.vendorBilled], ['Available', h.available],
       ['Shipping in 5 days', h.shippingSoon], ['Open invoices', h.openInvoices], ['Allocated backorders', h.allocated], ['EZPay in transit', h.ezPayInTransit],
       ['Invoice available', h.invoiceAvailable], ['High credit', h.highCredit], ['High this year', h.currentYearHigh], ['YTD sales', h.ytdSales], ['Investment', h.investment]

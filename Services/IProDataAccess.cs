@@ -347,8 +347,8 @@ GetSellThroughExportData(
         List<Dictionary<string, object>> AccessRule_ExportMembers();
         List<MemberDesk.ProductLookupItem> Product_Lookup(string term);
         MemberDesk.MemberShipTos MemberShipTo_Compare(string accountNumber);
-        ProInternal.Models.Accounting.CreditDesk.CreditMemberList Credit_MemberList();
-        ProInternal.Models.Accounting.CreditDesk.CreditMember Credit_MemberGet(string accountNumber);
+        ProInternal.Models.Accounting.CreditDesk.CreditMemberList Credit_MemberList(bool sqlIsMaster);
+        ProInternal.Models.Accounting.CreditDesk.CreditMember Credit_MemberGet(string accountNumber, bool sqlIsMaster);
         int CreditNote_Add(string accountNumber, string kind, int? orderId, string note, string user);
         MemberDesk.ShipToIssues MemberShipTo_Issues();
         #endregion

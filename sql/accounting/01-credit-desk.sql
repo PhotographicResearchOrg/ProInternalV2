@@ -24,6 +24,16 @@
       On hold             ARMST CRED_STAT > 0
     B2B orders in flight: dbo.Orders with OrderStatusId = 1. Held = AutoHold = 1 and HoldOverride isn't 1.
 
+    Cutover (same switch as the Member Desk: appsettings Member:SqlIsMaster, passed in as @SqlIsMaster):
+      before   limit and credit hold come from Computyme (ARMST LIMIT, CRED_STAT)        LimitSource = COMPUTYME
+      after    limit and credit hold come from SQL (dbo.Roster CreditLimit, CreditHoldSince/Reason,
+               edited on the Member Desk)                                                 LimitSource = SQL
+      always   balance, aging, invoices, Computyme orders, backorders and vendor POs stay Computyme's
+               until receivables (accounting.ar) cuts over; held-order releases and notes are SQL.
+    piv2.vMemberCreditSql is built from the Roster columns that exist; run this script again after the
+    Member Desk's 01-member-tables.sql if its credit hold columns weren't there the first time.
+    The cutover map gets a section 'accounting.credit' (MIXED), insert-only.
+
     piv2.CreditNote          accounting's notes on a member (who, when, what; nothing is deleted)
     piv2.Credit_MemberList   every member on the B2B site, with the figures above (except the per-line ones)
     piv2.Credit_MemberGet    @AccountNumber: header, open invoices, B2B orders, Computyme orders,
@@ -54,8 +64,35 @@ BEGIN
 END
 GO
 
+/* ------------------------------------------------ the SQL side of credit (for after the member cutover) */
+DECLARE @since sysname = CASE WHEN COL_LENGTH('dbo.Roster', 'CreditHoldSince') IS NOT NULL THEN N'r.CreditHoldSince' ELSE N'CAST(NULL AS datetime)' END,
+        @reason sysname = CASE WHEN COL_LENGTH('dbo.Roster', 'CreditHoldReason') IS NOT NULL THEN N'CAST(r.CreditHoldReason AS nvarchar(400))' ELSE N'CAST(NULL AS nvarchar(400))' END,
+        @limit sysname = CASE WHEN COL_LENGTH('dbo.Roster', 'CreditLimit') IS NOT NULL THEN N'CAST(r.CreditLimit AS float)' ELSE N'CAST(NULL AS float)' END;
+DECLARE @v nvarchar(max) = N'CREATE OR ALTER VIEW piv2.vMemberCreditSql
+AS
+/* Credit limit and credit hold as SQL holds them (Member Desk). Built by sql/accounting/01-credit-desk.sql. */
+SELECT LTRIM(RTRIM(r.AccountNumber)) AS AccountNumber, ' + @limit + N' AS CreditLimit,
+       ' + @since + N' AS CreditHoldSince, ' + @reason + N' AS CreditHoldReason
+FROM dbo.Roster r
+WHERE TRY_CAST(r.AccountNumber AS int) IS NOT NULL;';
+EXEC sys.sp_executesql @v;
+IF COL_LENGTH('dbo.Roster', 'CreditHoldSince') IS NULL
+    PRINT 'dbo.Roster has no CreditHoldSince yet: after the member cutover the hold will read as not held. Run this again after the Member Desk tables are in.';
+GO
+
+IF OBJECT_ID('piv2.CutoverSection', 'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM piv2.CutoverSection WHERE SectionKey = 'accounting.credit')
+    INSERT piv2.CutoverSection (SectionKey, Area, Name, Owner, Summary, ComputymeSource, SqlObjects, B2BReads, PivScreen, NextStep, SortOrder, UpdatedBy)
+    VALUES ('accounting.credit', N'Accounting', N'Member credit (limit, hold, releases)', 'MIXED',
+            N'Limit and credit hold are Computyme''s until the member cutover (Member:SqlIsMaster), then SQL''s on the Member Desk. Balance, aging and invoices stay Computyme''s until receivables cut over. Releasing a held B2B order and the notes are SQL.',
+            N'ARMST LIMIT, BAL, DAYS30-90, ORDERS, CRED_STAT; ARHIST; VENDORD; VNORD; IVORD', N'dbo.Roster CreditLimit/CreditHold*, dbo.Orders HoldOverride, piv2.CreditNote',
+            N'Checkout credit check (ProcessOrder, Cart_GetCheckoutTotal read ARMST LIMIT)', N'Credit Desk',
+            N'Flip with the member cutover; the B2B credit check moves to Roster.CreditLimit in the same release.', 205, N'seed');
+GO
+
 /* ------------------------------------------------ every member */
 CREATE OR ALTER PROCEDURE piv2.Credit_MemberList
+    @SqlIsMaster bit = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -68,7 +105,9 @@ BEGIN
     ar AS (
         SELECT CAST(a.ID AS varchar(20)) COLLATE DATABASE_DEFAULT AS AccountNumber,
                CAST(a.HNAME AS nvarchar(200)) AS ComputymeName,
-               TRY_CAST(a.LIMIT AS float) AS Limit,
+               src.Limit,
+           TRY_CAST(a.LIMIT AS float) AS ComputymeLimit, sq.CreditLimit AS SqlLimit,
+           CAST(CASE WHEN @SqlIsMaster = 1 THEN 'SQL' ELSE 'COMPUTYME' END AS varchar(10)) AS LimitSource,
                TRY_CAST(a.BAL AS float) / 100.0 AS Balance,
                TRY_CAST(a.ORDERS AS float) / 100.0 AS OpenOrders,
                (ISNULL(TRY_CAST(a.DAYS30 AS float), 0) + ISNULL(TRY_CAST(a.DAYS60 AS float), 0) + ISNULL(TRY_CAST(a.DAYS90 AS float), 0)) / 100.0 AS PastDue,
@@ -113,10 +152,11 @@ BEGIN
            COALESCE(NULLIF(LTRIM(m.DBA), ''), m.Company, ar.ComputymeName) AS Name,
            m.MemberType, CAST(ISNULL(m.OnWeb, 0) AS bit) AS OnWeb,
            CAST(CASE WHEN ar.AccountNumber IS NULL THEN 0 ELSE 1 END AS bit) AS InComputyme,
-           ar.Limit, ar.Balance, ar.PastDue, ar.Days90, ar.OpenOrders,
+           src.Limit, ar.Balance, ar.PastDue, ar.Days90, ar.OpenOrders,
            ISNULL(vd.VendorExposure, 0) AS VendorExposure, ISNULL(vd.VendorBilled, 0) AS VendorBilled,
-           ar.Limit - (ISNULL(ar.Balance, 0) + ISNULL(ar.OpenOrders, 0) + ISNULL(vd.VendorExposure, 0)) AS Available,
-           ar.YtdSales, ar.HighCredit, ISNULL(ar.OnHold, 0) AS OnHold,
+           src.Limit - (ISNULL(ar.Balance, 0) + ISNULL(ar.OpenOrders, 0) + ISNULL(vd.VendorExposure, 0)) AS Available,
+           ar.YtdSales, ar.HighCredit, src.OnHold,
+           CAST(CASE WHEN @SqlIsMaster = 1 THEN 'SQL' ELSE 'COMPUTYME' END AS varchar(10)) AS LimitSource,
            ISNULL(w.WebOrders, 0) AS WebOrders, ISNULL(w.WebValue, 0) AS WebValue,
            ISNULL(w.HeldOrders, 0) AS HeldOrders, ISNULL(w.HeldValue, 0) AS HeldValue,
            ISNULL(c.PendingVendorCredits, 0) AS PendingVendorCredits, ISNULL(c.PendingVendorCreditCount, 0) AS PendingVendorCreditCount,
@@ -127,6 +167,10 @@ BEGIN
     LEFT JOIN web  w  ON w.AccountNumber = m.AccountNumber
     LEFT JOIN vca  c  ON c.AccountNumber = m.AccountNumber
     LEFT JOIN lastNote ln ON ln.AccountNumber = m.AccountNumber
+    LEFT JOIN piv2.vMemberCreditSql sq ON sq.AccountNumber = m.AccountNumber
+    CROSS APPLY (SELECT CASE WHEN @SqlIsMaster = 1 THEN sq.CreditLimit ELSE ar.Limit END AS Limit,
+                        CAST(CASE WHEN @SqlIsMaster = 1 THEN CASE WHEN sq.CreditHoldSince IS NOT NULL THEN 1 ELSE 0 END
+                                  ELSE ISNULL(ar.OnHold, 0) END AS bit) AS OnHold) src
     WHERE m.OnWeb = 1 OR w.WebOrders > 0
     ORDER BY CASE WHEN w.HeldOrders > 0 THEN 0 ELSE 1 END, Name;
 END
@@ -134,7 +178,8 @@ GO
 
 /* ------------------------------------------------ one member */
 CREATE OR ALTER PROCEDURE piv2.Credit_MemberGet
-    @AccountNumber varchar(20)
+    @AccountNumber varchar(20),
+    @SqlIsMaster   bit = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -188,15 +233,17 @@ BEGIN
            (ISNULL(TRY_CAST(a.DAYS30 AS float), 0) + ISNULL(TRY_CAST(a.DAYS60 AS float), 0) + ISNULL(TRY_CAST(a.DAYS90 AS float), 0)) / 100.0 AS PastDue,
            TRY_CAST(a.ORDERS AS float) / 100.0 AS OpenOrders,
            ISNULL(vx.VendorExposure, 0) AS VendorExposure, ISNULL(vx.VendorBilled, 0) AS VendorBilled,
-           TRY_CAST(a.LIMIT AS float) - (ISNULL(TRY_CAST(a.BAL AS float), 0) / 100.0 + ISNULL(TRY_CAST(a.ORDERS AS float), 0) / 100.0 + ISNULL(vx.VendorExposure, 0)) AS Available,
+           src.Limit - (ISNULL(TRY_CAST(a.BAL AS float), 0) / 100.0 + ISNULL(TRY_CAST(a.ORDERS AS float), 0) / 100.0 + ISNULL(vx.VendorExposure, 0)) AS Available,
            ISNULL(@shipSoon, 0) AS ShippingSoon, ISNULL(@openInv, 0) AS OpenInvoices, ISNULL(@allocated, 0) AS Allocated,
            ISNULL(@ezpay, 0) AS EzPayInTransit,
-           TRY_CAST(a.LIMIT AS float) - (ISNULL(@shipSoon, 0) + ISNULL(@openInv, 0) + ISNULL(@allocated, 0)) + ISNULL(@ezpay, 0) AS InvoiceAvailable,
+           src.Limit - (ISNULL(@shipSoon, 0) + ISNULL(@openInv, 0) + ISNULL(@allocated, 0)) + ISNULL(@ezpay, 0) AS InvoiceAvailable,
            TRY_CAST(a.HI_CRED AS float) AS HighCredit, TRY_CAST(a.CY_HI_CRED AS float) AS CurrentYearHigh,
            TRY_CAST(a.Y_SALES AS float) / 100.0 AS YtdSales,
            @investment AS Investment,
-           CAST(CASE WHEN ISNULL(TRY_CAST(a.CRED_STAT AS int), 0) > 0 THEN 1 ELSE 0 END AS bit) AS OnHold,
-           CAST(a.CRED_STAT AS varchar(20)) AS CreditStatus
+           src.OnHold,
+           CAST(a.CRED_STAT AS varchar(20)) AS CreditStatus,
+           CAST(CASE WHEN ISNULL(TRY_CAST(a.CRED_STAT AS int), 0) > 0 THEN 1 ELSE 0 END AS bit) AS ComputymeOnHold,
+           sq.CreditHoldSince AS SqlHoldSince, sq.CreditHoldReason AS SqlHoldReason
     FROM (SELECT @acct AS AccountNumber) k
     LEFT JOIN dbo.Roster r ON LTRIM(RTRIM(r.AccountNumber)) = @acct
     LEFT JOIN EDA.ARMST.ARMST a ON a.ID COLLATE DATABASE_DEFAULT = @acct
@@ -204,7 +251,11 @@ BEGIN
                  FROM EDA.VENDORD.VENDOR_MV v
                  LEFT JOIN EDA.VENDORD.AMOUNT_MV am ON am.ID = v.ID AND am.AMOUNT_MV_POS = v.VENDOR_MV_POS
                  LEFT JOIN EDA.VENDORD.BILLED_MV b  ON b.ID = v.ID AND b.BILLED_MV_POS = v.VENDOR_MV_POS
-                 WHERE v.ID COLLATE DATABASE_DEFAULT = @acct) vx;
+                 WHERE v.ID COLLATE DATABASE_DEFAULT = @acct) vx
+    LEFT JOIN piv2.vMemberCreditSql sq ON sq.AccountNumber = @acct
+    CROSS APPLY (SELECT CASE WHEN @SqlIsMaster = 1 THEN sq.CreditLimit ELSE TRY_CAST(a.LIMIT AS float) END AS Limit,
+                        CAST(CASE WHEN @SqlIsMaster = 1 THEN CASE WHEN sq.CreditHoldSince IS NOT NULL THEN 1 ELSE 0 END
+                                  ELSE CASE WHEN ISNULL(TRY_CAST(a.CRED_STAT AS int), 0) > 0 THEN 1 ELSE 0 END END AS bit) AS OnHold) src;
 
     /* 2. open invoices (Computyme ARHIST, not paid) */
     SELECT CAST(h.ID AS varchar(20)) AS InvoiceKey, SUBSTRING(h.ID, 5, 20) AS Invoice, h.DT_POSTED AS Posted, h.DATE_C AS InvoiceDate,

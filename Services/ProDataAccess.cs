@@ -3106,20 +3106,20 @@ GetShopifyGovernanceIssues()
         }
 
         /* Credit Desk (piv2.Credit_*): member credit, invoices, orders in flight, backorders, vendor POs. */
-        public ProInternal.Models.Accounting.CreditDesk.CreditMemberList Credit_MemberList()
+        public ProInternal.Models.Accounting.CreditDesk.CreditMemberList Credit_MemberList(bool sqlIsMaster)
         {
             using var conn = GetConnection();
             return new ProInternal.Models.Accounting.CreditDesk.CreditMemberList
             {
                 Members = conn.Query<ProInternal.Models.Accounting.CreditDesk.CreditMemberRow>("piv2.Credit_MemberList",
-                              commandType: CommandType.StoredProcedure, commandTimeout: 180).ToList()
+                              new { SqlIsMaster = sqlIsMaster }, commandType: CommandType.StoredProcedure, commandTimeout: 180).ToList()
             };
         }
 
-        public ProInternal.Models.Accounting.CreditDesk.CreditMember Credit_MemberGet(string accountNumber)
+        public ProInternal.Models.Accounting.CreditDesk.CreditMember Credit_MemberGet(string accountNumber, bool sqlIsMaster)
         {
             using var conn = GetConnection();
-            using var multi = conn.QueryMultiple("piv2.Credit_MemberGet", new { AccountNumber = accountNumber },
+            using var multi = conn.QueryMultiple("piv2.Credit_MemberGet", new { AccountNumber = accountNumber, SqlIsMaster = sqlIsMaster },
                                                  commandType: CommandType.StoredProcedure, commandTimeout: 90);
             return new ProInternal.Models.Accounting.CreditDesk.CreditMember
             {

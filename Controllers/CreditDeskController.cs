@@ -1,6 +1,7 @@
 using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using ProInternal.Helpers.Security;
 using ProInternal.Models.Accounting.CreditDesk;
 using ProInternal.Models.Orders;
@@ -15,7 +16,8 @@ namespace ProInternal.Controllers
      *                                                     backorders, vendor POs, vendor credit approvals, notes
      *   POST api/creditdesk/orders/{orderId}/override     release a held B2B order (Orders.HoldOverride = 1) with a reason (Credit.Override)
      *   POST api/creditdesk/members/{account}/notes       add a note
-     * The member's credit hold (ARMST CRED_STAT) is Computyme's and is only shown here.
+     * Cutover: before the member cutover (Member:SqlIsMaster = false) limit and credit hold are Computyme's (ARMST);
+     * after it they're SQL's (Roster, edited on the Member Desk). Balance, aging and invoices stay Computyme's.
      */
     [ApiController]
     [Route("api/creditdesk")]
@@ -27,10 +29,14 @@ namespace ProInternal.Controllers
         private readonly IProDataAccess _db;
         private readonly IOrdersDataAccess _orders;
 
-        public CreditDeskController(IProDataAccess db, IOrdersDataAccess orders)
+        /* the member cutover switch, the same one the Member Desk uses: limit and credit hold from SQL when true */
+        private readonly bool _sqlIsMaster;
+
+        public CreditDeskController(IProDataAccess db, IOrdersDataAccess orders, IConfiguration config)
         {
             _db = db;
             _orders = orders;
+            _sqlIsMaster = config.GetValue<bool>("Member:SqlIsMaster");
         }
 
         private string Actor => Permissions.UserName(User);
@@ -40,8 +46,9 @@ namespace ProInternal.Controllers
         [RequirePermission(CreditRoute, CreditOverride)]
         public IActionResult Members()
         {
-            var list = _db.Credit_MemberList();
+            var list = _db.Credit_MemberList(_sqlIsMaster);
             list.CanOverride = Can(CreditOverride);
+            list.SqlIsMaster = _sqlIsMaster;
             return Ok(list);
         }
 
@@ -49,9 +56,10 @@ namespace ProInternal.Controllers
         [RequirePermission(CreditRoute, CreditOverride)]
         public IActionResult Member(string accountNumber)
         {
-            var m = _db.Credit_MemberGet(accountNumber);
+            var m = _db.Credit_MemberGet(accountNumber, _sqlIsMaster);
             if (m?.Header == null) return NotFound();
             m.CanOverride = Can(CreditOverride);
+            m.SqlIsMaster = _sqlIsMaster;
             return Ok(m);
         }
 

@@ -11,6 +11,7 @@
         <div class="subtitle">Every member's credit at a glance, the orders waiting on credit, and what's in flight. Open a member to release a held order.</div>
       </div>
       <div class="header-actions">
+        <app-owner-legend></app-owner-legend>
         <app-home-pin [pin]="homePin"></app-home-pin>
         <button type="button" class="btn btn-secondary" (click)="loadList()" [disabled]="listLoading"><i class="pi pi-refresh" [class.pi-spin]="listLoading"></i>Refresh</button>
         <button type="button" class="btn btn-secondary" (click)="exportList()" [disabled]="!shown.length"><i class="pi pi-file-excel"></i>Export</button>
@@ -19,7 +20,8 @@
 
     <div class="lock-note">
       <i class="pi pi-lock"></i>
-      <span>Limits, balances, aging and the credit hold are read from <span class="computyme-chip">Computyme</span> and can't be changed here. Releasing a held order takes the B2B order off hold (hold override) and is logged with who and why.</span>
+      <span *ngIf="!sqlIsMaster">Limits, balances, aging and the credit hold are read from <span class="computyme-chip">Computyme</span> and can't be changed here. Releasing a held order takes the B2B order off hold (hold override) and is logged with who and why.</span>
+      <span *ngIf="sqlIsMaster">Members have cut over: limit and credit hold are SQL's and are changed on the Member Desk. Balances, aging and invoices are still read from <span class="computyme-chip">Computyme</span>. Releasing a held order is logged with who and why.</span>
     </div>
 
     <div class="summary-grid cd-summary">
@@ -75,8 +77,13 @@
           <table class="desk-table compact cd-table">
             <thead>
               <tr>
-                <th>Member</th><th class="num">Limit</th><th class="num">Balance</th><th class="num">Past due</th>
-                <th class="num">Open orders</th><th class="num">Vendor POs</th><th class="num">Available</th>
+                <th>Member</th>
+                <th class="num">Limit <app-owner-mark [owner]="sqlIsMaster ? 'SQL' : 'COMPUTYME'" [compact]="true"></app-owner-mark></th>
+                <th class="num">Balance <app-owner-mark owner="COMPUTYME" [compact]="true"></app-owner-mark></th>
+                <th class="num">Past due <app-owner-mark owner="COMPUTYME" [compact]="true"></app-owner-mark></th>
+                <th class="num">Open orders <app-owner-mark owner="COMPUTYME" [compact]="true"></app-owner-mark></th>
+                <th class="num">Vendor POs <app-owner-mark owner="COMPUTYME" [compact]="true"></app-owner-mark></th>
+                <th class="num">Available</th>
                 <th>Held B2B orders</th><th>Status</th>
               </tr>
             </thead>
@@ -120,14 +127,16 @@
           <div class="eyebrow">Member · Account {{ m.header.accountNumber }}</div>
           <h1>{{ m.header.name }}</h1>
           <div class="cd-badges">
-            <span class="status-badge status-hold" *ngIf="m.header.onHold"><i class="pi pi-lock"></i> Credit hold in Computyme</span>
+            <span class="status-badge status-hold" *ngIf="m.header.onHold && m.header.limitSource !== 'SQL'"><i class="pi pi-lock"></i> Credit hold in Computyme</span>
+            <span class="status-badge status-hold" *ngIf="m.header.onHold && m.header.limitSource === 'SQL'">Credit hold since {{ m.header.sqlHoldSince | date:'MMM d, y' }}<ng-container *ngIf="m.header.sqlHoldReason"> · {{ m.header.sqlHoldReason }}</ng-container></span>
             <span class="status-badge status-exception" *ngIf="overLimit(m.header)">Over limit</span>
             <span class="status-badge status-ready" *ngIf="!m.header.onHold && !overLimit(m.header)">Within limit</span>
             <span class="faint" *ngIf="m.header.phone">{{ m.header.phone }}</span>
-            <a class="cd-link" [routerLink]="['/members', m.header.accountNumber]">Member Desk <i class="pi pi-arrow-right"></i></a>
+            <a class="cd-link" [routerLink]="['/members', m.header.accountNumber]" [queryParams]="{ tab: 'payment' }">{{ m.header.limitSource === 'SQL' ? 'Change limit or hold on the Member Desk' : 'Member Desk' }} <i class="pi pi-arrow-right"></i></a>
           </div>
         </div>
         <div class="header-actions">
+          <app-owner-legend></app-owner-legend>
           <app-home-pin [pin]="homePin"></app-home-pin>
           <button type="button" class="btn btn-secondary" (click)="loadMember()" [disabled]="loading"><i class="pi pi-refresh" [class.pi-spin]="loading"></i>Refresh</button>
           <button type="button" class="btn btn-secondary" (click)="exportMember()"><i class="pi pi-file-excel"></i>Export</button>
@@ -136,34 +145,35 @@
 
       <div class="summary-grid cd-figures">
         <div class="summary-card">
-          <div class="summary-label">Limit</div>
+          <div class="summary-label">Limit <app-owner-mark [owner]="m.header.limitSource === 'SQL' ? 'SQL' : 'COMPUTYME'" [compact]="true"></app-owner-mark></div>
           <div class="summary-value">{{ m.header.limit | currency:'USD':'symbol':'1.0-0' }}</div>
+          <div class="summary-sub" *ngIf="m.header.limitSource === 'SQL' && m.header.computymeLimit !== m.header.sqlLimit">Computyme still has {{ m.header.computymeLimit | currency:'USD':'symbol':'1.0-0' }}</div>
           <div class="summary-sub">High {{ m.header.highCredit | currency:'USD':'symbol':'1.0-0' }} · this year {{ m.header.currentYearHigh | currency:'USD':'symbol':'1.0-0' }}</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">Balance</div>
+          <div class="summary-label">Balance <app-owner-mark owner="COMPUTYME" [compact]="true"></app-owner-mark></div>
           <div class="summary-value">{{ m.header.balance | currency:'USD':'symbol':'1.0-0' }}</div>
           <div class="summary-sub">Current {{ m.header.currentDue | currency:'USD':'symbol':'1.0-0' }}</div>
         </div>
         <div class="summary-card" [class.warning-card]="(m.header.pastDue ?? 0) > 0.5">
-          <div class="summary-label">Past due</div>
+          <div class="summary-label">Past due <app-owner-mark owner="COMPUTYME" [compact]="true"></app-owner-mark></div>
           <div class="summary-value">{{ m.header.pastDue | currency:'USD':'symbol':'1.0-0' }}</div>
           <div class="summary-sub">30: {{ m.header.days30 | currency:'USD':'symbol':'1.0-0' }} · 60: {{ m.header.days60 | currency:'USD':'symbol':'1.0-0' }} · 90+: {{ m.header.days90 | currency:'USD':'symbol':'1.0-0' }}</div>
         </div>
         <div class="summary-card" [class.alert-card]="overLimit(m.header)">
-          <div class="summary-label">Available</div>
+          <div class="summary-label">Available <app-owner-mark owner="MIXED" [compact]="true"></app-owner-mark></div>
           <div class="summary-value" [class.red]="overLimit(m.header)">{{ m.header.available | currency:'USD':'symbol':'1.0-0' }}</div>
           <div class="summary-sub">Limit − balance − open orders − vendor POs</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">Invoice available</div>
+          <div class="summary-label">Invoice available <app-owner-mark owner="MIXED" [compact]="true"></app-owner-mark></div>
           <div class="summary-value">{{ m.header.invoiceAvailable | currency:'USD':'symbol':'1.0-0' }}</div>
           <div class="summary-sub">Limit − open invoices − shipping soon − allocated + EZPay</div>
         </div>
       </div>
 
       <div class="cd-math desk-card">
-        <div class="section-label">How it adds up</div>
+        <div class="section-label">How it adds up <app-owner-mark owner="COMPUTYME" [compact]="true"></app-owner-mark></div>
         <div class="cd-math-grid">
           <div><span>Open orders (Computyme)</span><b>{{ m.header.openOrders | currency:'USD':'symbol':'1.0-0' }}</b></div>
           <div><span>Vendor POs · billed {{ m.header.vendorBilled | currency:'USD':'symbol':'1.0-0' }}</span><b>{{ m.header.vendorExposure | currency:'USD':'symbol':'1.0-0' }}</b></div>

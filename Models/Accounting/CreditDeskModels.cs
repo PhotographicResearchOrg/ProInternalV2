@@ -24,6 +24,8 @@ namespace ProInternal.Models.Accounting.CreditDesk
         public double? YtdSales { get; set; }
         public double? HighCredit { get; set; }
         public bool OnHold { get; set; }
+        /* COMPUTYME before the member cutover (Member:SqlIsMaster), SQL after: where Limit and OnHold came from */
+        public string LimitSource { get; set; }
         public int WebOrders { get; set; }
         public double WebValue { get; set; }
         public int HeldOrders { get; set; }
@@ -44,6 +46,9 @@ namespace ProInternal.Models.Accounting.CreditDesk
         public string Email { get; set; }
         public bool InComputyme { get; set; }
         public double? Limit { get; set; }
+        public double? ComputymeLimit { get; set; }
+        public double? SqlLimit { get; set; }
+        public string LimitSource { get; set; }
         public double? Balance { get; set; }
         public double? CurrentDue { get; set; }
         public double? Days30 { get; set; }
@@ -65,6 +70,9 @@ namespace ProInternal.Models.Accounting.CreditDesk
         public double? Investment { get; set; }
         public bool OnHold { get; set; }
         public string CreditStatus { get; set; }
+        public bool ComputymeOnHold { get; set; }
+        public DateTime? SqlHoldSince { get; set; }
+        public string SqlHoldReason { get; set; }
     }
 
     public class CreditInvoice
@@ -167,12 +175,14 @@ namespace ProInternal.Models.Accounting.CreditDesk
         public List<CreditVendorApproval> VendorApprovals { get; set; } = new();
         public List<CreditNoteRow> Notes { get; set; } = new();
         public bool CanOverride { get; set; }
+        public bool SqlIsMaster { get; set; }
     }
 
     public class CreditMemberList
     {
         public List<CreditMemberRow> Members { get; set; } = new();
         public bool CanOverride { get; set; }
+        public bool SqlIsMaster { get; set; }
     }
 
     public class CreditOverrideRequest { public string Reason { get; set; } }
