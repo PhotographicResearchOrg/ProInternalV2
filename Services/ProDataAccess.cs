@@ -3105,6 +3105,43 @@ GetShopifyGovernanceIssues()
                        .Select(r => new Dictionary<string, object>((IDictionary<string, object>)r)).ToList();
         }
 
+        /* Credit Desk (piv2.Credit_*): member credit, invoices, orders in flight, backorders, vendor POs. */
+        public ProInternal.Models.Accounting.CreditDesk.CreditMemberList Credit_MemberList()
+        {
+            using var conn = GetConnection();
+            return new ProInternal.Models.Accounting.CreditDesk.CreditMemberList
+            {
+                Members = conn.Query<ProInternal.Models.Accounting.CreditDesk.CreditMemberRow>("piv2.Credit_MemberList",
+                              commandType: CommandType.StoredProcedure, commandTimeout: 180).ToList()
+            };
+        }
+
+        public ProInternal.Models.Accounting.CreditDesk.CreditMember Credit_MemberGet(string accountNumber)
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.Credit_MemberGet", new { AccountNumber = accountNumber },
+                                                 commandType: CommandType.StoredProcedure, commandTimeout: 90);
+            return new ProInternal.Models.Accounting.CreditDesk.CreditMember
+            {
+                Header          = multi.ReadFirstOrDefault<ProInternal.Models.Accounting.CreditDesk.CreditHeader>(),
+                Invoices        = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditInvoice>().ToList(),
+                WebOrders       = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditWebOrder>().ToList(),
+                ComputymeOrders = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditComputymeOrder>().ToList(),
+                Backorders      = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditBackorder>().ToList(),
+                VendorPos       = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditVendorPo>().ToList(),
+                VendorApprovals = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditVendorApproval>().ToList(),
+                Notes           = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditNoteRow>().ToList()
+            };
+        }
+
+        public int CreditNote_Add(string accountNumber, string kind, int? orderId, string note, string user)
+        {
+            using var conn = GetConnection();
+            return conn.QueryFirstOrDefault<int>("piv2.CreditNote_Add",
+                new { AccountNumber = accountNumber, Kind = kind, OrderId = orderId, Note = note, User = user },
+                commandType: CommandType.StoredProcedure);
+        }
+
         /* Ship-tos, SQL vs Computyme (ARMST 00 + SHIPTO mirror 01+). Read only. */
         public MemberDesk.MemberShipTos MemberShipTo_Compare(string accountNumber)
         {

@@ -24,6 +24,7 @@ import { BusyInterceptor } from './services/busy.service';
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { DashboardAccountingComponent } from './prointernalengine/components/dashboards/accounting/dashboardaccounting.component';
+import { CreditDeskComponent } from './prointernalengine/components/dashboards/accounting/credit-desk/credit-desk.component';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { DashboardLandingComponent } from './prointernalengine/components/dashboards/landing/dashboardlanding.component';
 import { InputSwitchModule } from 'primeng/inputswitch';
@@ -199,6 +200,7 @@ import { SheetOptionPipe } from './prointernalengine/components/ecommerce/produc
     VendorSetupComponent,
     RebatesupportComponent,
     DashboardAccountingComponent,
+    CreditDeskComponent,
     DashboardLandingComponent,
     VendorConfigurationComponent,
     RebateExcelUploaderComponent,

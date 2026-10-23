@@ -3,6 +3,7 @@ import { ExtraOptions,RouterModule,Routes } from '@angular/router';
 import { AppLayoutComponent } from './layout/app.layout.component';
 import { QtrRebatesComponent } from "src/app/prointernalengine/components/dashboards/qtr-rebates/qtr-rebates.component";
 import { DashboardAccountingComponent } from "src/app/prointernalengine/components/dashboards/accounting/dashboardaccounting.component";
+import { CreditDeskComponent } from "src/app/prointernalengine/components/dashboards/accounting/credit-desk/credit-desk.component";
 import { DashboardLandingComponent } from "src/app/prointernalengine/components/dashboards/landing/dashboardlanding.component";
 import { LoginComponent } from "src/app/prointernalengine/components/auth/login/login.component"; 
 import { FileAppComponent } from './prointernalengine/components/apps/file/file.app.component';
@@ -61,6 +62,7 @@ const routes: Routes = [
     children: [
       { path: 'dashboard-landing', component: HomeDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'PRO Dashboard' } },
       { path: 'dashboard-accounting', component: DashboardAccountingComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Accounting Dashboard' } },
+      { path: 'credit', component: CreditDeskComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Credit Desk' } },
       { path: 'qtr-rebates', component: QtrRebatesComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Quarterly Rebates' } },
       { path: 'powerbi', component: PowerbiComponent, canActivate: [AuthGuard], data: { breadcrumb: 'Reporting' } },
       {

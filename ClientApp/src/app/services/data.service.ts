@@ -57,6 +57,7 @@ import {
   VendorFileApi, VendorFileCategory, CreateVendorRequest
 } from 'src/app/models/vendor/vendor-card.model';
 import { AccessRule, AccessRuleMember, MemberDetail, MemberListItem, MemberShipTos, ShipToIssues } from 'src/app/models/member/member-desk.models';
+import { CreditMember, CreditMemberList } from 'src/app/models/accounting/credit-desk.models';
 import {
   CategoryFilters, CategoryProductPage, CategoryProductQuery, CategoryTree, PublishItem, PublishRequest,
   PublishResult, PublishSummary, RevertConflict
@@ -1056,6 +1057,21 @@ export class DataService {
   deleteHubspotCompany(companyId: string): Observable<any> {
     return this.api.delete(`API/hubspot/companies/${companyId}`);
   }
+
+  //region Credit Desk (API: CreditDeskController, api/creditdesk)
+  creditMembers(): Observable<CreditMemberList> {
+    return this.api.get<CreditMemberList>('API/CreditDesk/members');
+  }
+  creditMember(accountNumber: string): Observable<CreditMember> {
+    return this.api.get<CreditMember>(`API/CreditDesk/members/${accountNumber}`);
+  }
+  creditOverride(orderId: number, accountNumber: string, reason: string): Observable<any> {
+    return this.api.post<any>(`API/CreditDesk/orders/${orderId}/override?accountNumber=${encodeURIComponent(accountNumber)}`, { reason });
+  }
+  creditNote(accountNumber: string, note: string, kind: 'NOTE' | 'REVIEWED' = 'NOTE'): Observable<{ id: number }> {
+    return this.api.post<{ id: number }>(`API/CreditDesk/members/${accountNumber}/notes`, { note, kind });
+  }
+  //endregion
 
   //region Member Desk  (API: MemberController, api/members)
   private readonly memberBase = 'API/Members';

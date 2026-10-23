@@ -25,6 +25,7 @@ export class AppMenuComponent implements OnInit {
           can('/dashboard-landing') && { label: 'Home', icon: 'pi pi-fw pi-home', routerLink: ['/dashboard-landing'] },
 
           ( can('/dashboard-accounting') ||
+            can('/credit') ||
             can('/qtr-rebates') ||
             can('/forecast') ||
             can('/patronage') ||
@@ -39,6 +40,7 @@ export class AppMenuComponent implements OnInit {
             items:
               [
               can('/dashboard-accounting') && { label: 'Accounting Dash', icon: 'pi pi-fw pi-sign-in', routerLink: ['/dashboard-accounting'] },
+              can('/credit') && { label: 'Credit Desk', icon: 'pi pi-fw pi-shield', routerLink: ['/credit'] },
               can('/qtr-rebates') && { label: 'Quarterly Rebates', icon: 'pi pi-fw pi-times-circle', routerLink: ['/qtr-rebates'] },
               can('/forecast') && { label: 'Forecasting1', icon: 'pi pi-chart-line', routerLink: ['/forecast'] },
               can('/payment-administration') && { label: 'Payment Administration', icon: 'pi pi-credit-card', routerLink: ['/payment-administration'] },

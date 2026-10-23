@@ -1,0 +1,352 @@
+<p-toast></p-toast>
+
+<div class="desk-page">
+
+  <!-- =========================================================== LIST -->
+  <ng-container *ngIf="!accountNumber">
+    <header class="desk-header">
+      <div>
+        <div class="eyebrow">ProMaster · Accounting</div>
+        <h1>Credit Desk</h1>
+        <div class="subtitle">Every member's credit at a glance, the orders waiting on credit, and what's in flight. Open a member to release a held order.</div>
+      </div>
+      <div class="header-actions">
+        <app-home-pin [pin]="homePin"></app-home-pin>
+        <button type="button" class="btn btn-secondary" (click)="loadList()" [disabled]="listLoading"><i class="pi pi-refresh" [class.pi-spin]="listLoading"></i>Refresh</button>
+        <button type="button" class="btn btn-secondary" (click)="exportList()" [disabled]="!shown.length"><i class="pi pi-file-excel"></i>Export</button>
+      </div>
+    </header>
+
+    <div class="lock-note">
+      <i class="pi pi-lock"></i>
+      <span>Limits, balances, aging and the credit hold are read from <span class="computyme-chip">Computyme</span> and can't be changed here. Releasing a held order takes the B2B order off hold (hold override) and is logged with who and why.</span>
+    </div>
+
+    <div class="summary-grid cd-summary">
+      <div class="summary-card alert-card" [class.active-card]="filter === 'held'" (click)="setFilter('held')">
+        <div class="summary-label">Orders held for credit</div>
+        <div class="summary-value">{{ count('held') | number }}</div>
+        <div class="summary-sub">{{ sum('held', 'heldValue') | currency:'USD':'symbol':'1.0-0' }} waiting to release</div>
+      </div>
+      <div class="summary-card warning-card" [class.active-card]="filter === 'over'" (click)="setFilter('over')">
+        <div class="summary-label">Over limit</div>
+        <div class="summary-value">{{ count('over') | number }}</div>
+        <div class="summary-sub">Balance + orders + vendor POs above the limit</div>
+      </div>
+      <div class="summary-card" [class.active-card]="filter === 'pastdue'" (click)="setFilter('pastdue')">
+        <div class="summary-label">Past due</div>
+        <div class="summary-value">{{ count('pastdue') | number }}</div>
+        <div class="summary-sub">{{ sum('pastdue', 'pastDue') | currency:'USD':'symbol':'1.0-0' }} 30 days and older</div>
+      </div>
+      <div class="summary-card" [class.active-card]="filter === 'hold'" (click)="setFilter('hold')">
+        <div class="summary-label">On credit hold</div>
+        <div class="summary-value">{{ count('hold') | number }}</div>
+        <div class="summary-sub">Held in Computyme</div>
+      </div>
+      <div class="summary-card" [class.active-card]="filter === 'credits'" (click)="setFilter('credits')">
+        <div class="summary-label">Vendor credits</div>
+        <div class="summary-value">{{ count('credits') | number }}</div>
+        <div class="summary-sub">{{ sum('credits', 'pendingVendorCredits') | currency:'USD':'symbol':'1.0-0' }} approvals not processed</div>
+      </div>
+    </div>
+
+    <section class="desk-card">
+      <div class="desk-toolbar">
+        <div class="chip-row">
+          <button type="button" class="chip" [class.active]="filter === 'held'" (click)="setFilter('held')">Held orders <span class="chip-count">{{ count('held') }}</span></button>
+          <button type="button" class="chip" [class.active]="filter === 'over'" (click)="setFilter('over')">Over limit <span class="chip-count">{{ count('over') }}</span></button>
+          <button type="button" class="chip" [class.active]="filter === 'pastdue'" (click)="setFilter('pastdue')">Past due <span class="chip-count">{{ count('pastdue') }}</span></button>
+          <button type="button" class="chip" [class.active]="filter === 'hold'" (click)="setFilter('hold')">Credit hold <span class="chip-count">{{ count('hold') }}</span></button>
+          <button type="button" class="chip" [class.active]="filter === 'credits'" (click)="setFilter('credits')">Vendor credits <span class="chip-count">{{ count('credits') }}</span></button>
+          <button type="button" class="chip" [class.active]="filter === 'all'" (click)="setFilter('all')">All <span class="chip-count">{{ count('all') }}</span></button>
+        </div>
+        <div class="toolbar-actions">
+          <label class="check-row" *ngIf="filter === 'all'"><input type="checkbox" [(ngModel)]="hideZero" />Hide members with nothing open</label>
+          <span class="input-with-icon cd-search"><i class="pi pi-search"></i>
+            <input type="text" placeholder="Member or account" [(ngModel)]="search" />
+          </span>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="listLoading"><i class="pi pi-spin pi-spinner"></i> Loading members…</div>
+
+      <div class="panel-table" *ngIf="!listLoading">
+        <div class="table-responsive">
+          <table class="desk-table compact cd-table">
+            <thead>
+              <tr>
+                <th>Member</th><th class="num">Limit</th><th class="num">Balance</th><th class="num">Past due</th>
+                <th class="num">Open orders</th><th class="num">Vendor POs</th><th class="num">Available</th>
+                <th>Held B2B orders</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let m of shown" class="click-row" (click)="open(m)">
+                <td><div class="member-name">{{ m.name }}</div><div class="member-sub mono">{{ m.accountNumber }}</div></td>
+                <td class="num">{{ m.limit | currency:'USD':'symbol':'1.0-0' }}</td>
+                <td class="num">{{ m.balance | currency:'USD':'symbol':'1.0-0' }}</td>
+                <td class="num" [class.amber]="(m.pastDue ?? 0) > 0.5">{{ m.pastDue | currency:'USD':'symbol':'1.0-0' }}</td>
+                <td class="num">{{ m.openOrders | currency:'USD':'symbol':'1.0-0' }}</td>
+                <td class="num">{{ m.vendorExposure | currency:'USD':'symbol':'1.0-0' }}</td>
+                <td class="num strong" [class.red]="overLimit(m)">{{ m.available | currency:'USD':'symbol':'1.0-0' }}</td>
+                <td>
+                  <span class="status-badge status-hold" *ngIf="m.heldOrders">{{ m.heldOrders }} · {{ m.heldValue | currency:'USD':'symbol':'1.0-0' }}</span>
+                  <span class="faint" *ngIf="!m.heldOrders">{{ m.webOrders ? m.webOrders + ' in flight' : '—' }}</span>
+                </td>
+                <td>
+                  <span class="status-badge status-hold" *ngIf="m.onHold">Credit hold</span>
+                  <span class="status-badge status-exception" *ngIf="overLimit(m)">Over limit</span>
+                  <span class="status-badge status-violet" *ngIf="m.pendingVendorCreditCount">{{ m.pendingVendorCreditCount }} vendor credit{{ m.pendingVendorCreditCount === 1 ? '' : 's' }}</span>
+                  <span class="status-badge status-ready" *ngIf="!m.onHold && !overLimit(m) && !m.pendingVendorCreditCount">OK</span>
+                </td>
+              </tr>
+              <tr *ngIf="!shown.length"><td colspan="9" class="empty-inline">{{ search ? 'No member matches.' : 'Nothing here.' }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </ng-container>
+
+  <!-- =========================================================== ONE MEMBER -->
+  <ng-container *ngIf="accountNumber">
+    <button type="button" class="back-link" (click)="back()"><i class="pi pi-arrow-left"></i>Credit Desk</button>
+
+    <div class="empty-state" *ngIf="loading && !member"><i class="pi pi-spin pi-spinner"></i> Loading…</div>
+
+    <ng-container *ngIf="member as m">
+      <header class="desk-header">
+        <div>
+          <div class="eyebrow">Member · Account {{ m.header.accountNumber }}</div>
+          <h1>{{ m.header.name }}</h1>
+          <div class="cd-badges">
+            <span class="status-badge status-hold" *ngIf="m.header.onHold"><i class="pi pi-lock"></i> Credit hold in Computyme</span>
+            <span class="status-badge status-exception" *ngIf="overLimit(m.header)">Over limit</span>
+            <span class="status-badge status-ready" *ngIf="!m.header.onHold && !overLimit(m.header)">Within limit</span>
+            <span class="faint" *ngIf="m.header.phone">{{ m.header.phone }}</span>
+            <a class="cd-link" [routerLink]="['/members', m.header.accountNumber]">Member Desk <i class="pi pi-arrow-right"></i></a>
+          </div>
+        </div>
+        <div class="header-actions">
+          <app-home-pin [pin]="homePin"></app-home-pin>
+          <button type="button" class="btn btn-secondary" (click)="loadMember()" [disabled]="loading"><i class="pi pi-refresh" [class.pi-spin]="loading"></i>Refresh</button>
+          <button type="button" class="btn btn-secondary" (click)="exportMember()"><i class="pi pi-file-excel"></i>Export</button>
+        </div>
+      </header>
+
+      <div class="summary-grid cd-figures">
+        <div class="summary-card">
+          <div class="summary-label">Limit</div>
+          <div class="summary-value">{{ m.header.limit | currency:'USD':'symbol':'1.0-0' }}</div>
+          <div class="summary-sub">High {{ m.header.highCredit | currency:'USD':'symbol':'1.0-0' }} · this year {{ m.header.currentYearHigh | currency:'USD':'symbol':'1.0-0' }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Balance</div>
+          <div class="summary-value">{{ m.header.balance | currency:'USD':'symbol':'1.0-0' }}</div>
+          <div class="summary-sub">Current {{ m.header.currentDue | currency:'USD':'symbol':'1.0-0' }}</div>
+        </div>
+        <div class="summary-card" [class.warning-card]="(m.header.pastDue ?? 0) > 0.5">
+          <div class="summary-label">Past due</div>
+          <div class="summary-value">{{ m.header.pastDue | currency:'USD':'symbol':'1.0-0' }}</div>
+          <div class="summary-sub">30: {{ m.header.days30 | currency:'USD':'symbol':'1.0-0' }} · 60: {{ m.header.days60 | currency:'USD':'symbol':'1.0-0' }} · 90+: {{ m.header.days90 | currency:'USD':'symbol':'1.0-0' }}</div>
+        </div>
+        <div class="summary-card" [class.alert-card]="overLimit(m.header)">
+          <div class="summary-label">Available</div>
+          <div class="summary-value" [class.red]="overLimit(m.header)">{{ m.header.available | currency:'USD':'symbol':'1.0-0' }}</div>
+          <div class="summary-sub">Limit − balance − open orders − vendor POs</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Invoice available</div>
+          <div class="summary-value">{{ m.header.invoiceAvailable | currency:'USD':'symbol':'1.0-0' }}</div>
+          <div class="summary-sub">Limit − open invoices − shipping soon − allocated + EZPay</div>
+        </div>
+      </div>
+
+      <div class="cd-math desk-card">
+        <div class="section-label">How it adds up</div>
+        <div class="cd-math-grid">
+          <div><span>Open orders (Computyme)</span><b>{{ m.header.openOrders | currency:'USD':'symbol':'1.0-0' }}</b></div>
+          <div><span>Vendor POs · billed {{ m.header.vendorBilled | currency:'USD':'symbol':'1.0-0' }}</span><b>{{ m.header.vendorExposure | currency:'USD':'symbol':'1.0-0' }}</b></div>
+          <div><span>Open invoices</span><b>{{ m.header.openInvoices | currency:'USD':'symbol':'1.0-0' }}</b></div>
+          <div><span>Shipping in the next 5 days</span><b>{{ m.header.shippingSoon | currency:'USD':'symbol':'1.0-0' }}</b></div>
+          <div><span>Allocated backorders</span><b>{{ m.header.allocated | currency:'USD':'symbol':'1.0-0' }}</b></div>
+          <div><span>EZPay in transit</span><b>{{ m.header.ezPayInTransit | currency:'USD':'symbol':'1.0-0' }}</b></div>
+          <div><span>YTD sales</span><b>{{ m.header.ytdSales | currency:'USD':'symbol':'1.0-0' }}</b></div>
+          <div><span>Investment (shares + patronage)</span><b>{{ m.header.investment | currency:'USD':'symbol':'1.0-0' }}</b></div>
+        </div>
+      </div>
+
+      <div class="warn-note" *ngIf="heldOrders.length">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>{{ heldOrders.length }} B2B order{{ heldOrders.length === 1 ? ' is' : 's are' }} held for credit. Release one to send it on with the next run.</span>
+      </div>
+
+      <nav class="channel-tabs">
+        <button type="button" class="channel-tab" *ngFor="let t of tabs" [class.active]="tab === t.key" (click)="tab = t.key">
+          <i [class]="t.icon"></i>{{ t.label }}
+          <span class="tab-count" [class.tab-count-alert]="t.key === 'orders' && heldOrders.length">{{ tabCount(t.key) }}</span>
+        </button>
+      </nav>
+
+      <section class="desk-card">
+        <div class="table-responsive">
+
+          <!-- B2B orders -->
+          <table class="desk-table compact" *ngIf="tab === 'orders'">
+            <thead><tr><th>Order</th><th>PO</th><th>Entered</th><th class="num">Lines</th><th class="num">Total</th><th>Ordered by</th><th>Credit</th><th></th></tr></thead>
+            <tbody>
+              <tr *ngFor="let o of m.webOrders" [class.cd-held]="o.held">
+                <td class="mono strong">{{ o.orderId }}</td>
+                <td>{{ o.po || '—' }}</td>
+                <td>{{ o.entered | date:'MMM d, y h:mm a' }}</td>
+                <td class="num">{{ o.lines }}</td>
+                <td class="num">{{ o.total | currency }}</td>
+                <td>{{ o.orderedBy || '—' }}</td>
+                <td>
+                  <span class="status-badge status-hold" *ngIf="o.held">Held for credit</span>
+                  <span class="status-badge status-ready" *ngIf="o.holdOverride">Released</span>
+                  <span class="faint" *ngIf="!o.held && !o.holdOverride">Not held</span>
+                </td>
+                <td class="actions-column">
+                  <button type="button" class="btn btn-primary btn-sm" *ngIf="o.held && m.canOverride" (click)="askRelease(o)"><i class="pi pi-unlock"></i>Release</button>
+                  <span class="faint small-text" *ngIf="o.held && !m.canOverride">Needs Credit.Override</span>
+                </td>
+              </tr>
+              <tr *ngIf="!m.webOrders.length"><td colspan="8" class="empty-inline">No B2B orders waiting.</td></tr>
+            </tbody>
+          </table>
+
+          <!-- Open invoices -->
+          <table class="desk-table compact" *ngIf="tab === 'invoices'">
+            <thead><tr><th>Invoice</th><th>Posted</th><th class="num">Age</th><th>Terms</th><th>PO</th><th>Vendor</th><th class="num">Gross</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let i of m.invoices">
+                <td class="mono strong">{{ i.invoice }}</td>
+                <td>{{ i.posted | date:'MMM d, y' }}</td>
+                <td class="num" [class.amber]="(i.ageDays ?? 0) > 30" [class.red]="(i.ageDays ?? 0) > 90">{{ i.ageDays }}d</td>
+                <td>{{ i.terms || '—' }}</td>
+                <td>{{ i.po || '—' }}</td>
+                <td>{{ i.vendorName || 'PRO' }}<span class="faint mono" *ngIf="i.vendorInvoice"> · {{ i.vendorInvoice }}</span></td>
+                <td class="num">{{ i.gross | currency }}</td>
+              </tr>
+              <tr *ngIf="m.invoices.length" class="cd-total"><td colspan="6">Total open</td><td class="num">{{ invoiceTotal | currency }}</td></tr>
+              <tr *ngIf="!m.invoices.length"><td colspan="7" class="empty-inline">No open invoices.</td></tr>
+            </tbody>
+          </table>
+
+          <!-- Computyme orders -->
+          <table class="desk-table compact" *ngIf="tab === 'computyme'">
+            <thead><tr><th>Order</th><th>PO</th><th>Ships</th><th class="num">Lines</th><th class="num">Total</th><th></th></tr></thead>
+            <tbody>
+              <tr *ngFor="let o of m.computymeOrders">
+                <td class="mono strong">{{ o.orderKey }}<span class="faint" *ngIf="o.webOrder"> · web {{ o.webOrder }}</span></td>
+                <td>{{ o.po || '—' }}</td>
+                <td>{{ o.shipDate | date:'MMM d, y' }}</td>
+                <td class="num">{{ o.lines }}</td>
+                <td class="num">{{ o.total | currency }}</td>
+                <td><span class="status-badge status-exception" *ngIf="o.shipsSoon">Ships within 5 days</span></td>
+              </tr>
+              <tr *ngIf="!m.computymeOrders.length"><td colspan="6" class="empty-inline">No open Computyme orders.</td></tr>
+            </tbody>
+          </table>
+
+          <!-- Backorders -->
+          <table class="desk-table compact" *ngIf="tab === 'backorders'">
+            <thead><tr><th>Product</th><th>PO</th><th>Ships</th><th class="num">Qty</th><th class="num">Allocated</th><th class="num">Unit net</th><th class="num">Allocated value</th><th></th></tr></thead>
+            <tbody>
+              <tr *ngFor="let b of m.backorders">
+                <td><div class="mono strong">{{ b.productCode }}</div><div class="member-sub">{{ b.description }}</div></td>
+                <td>{{ b.po || '—' }}</td>
+                <td>{{ b.shipDate | date:'MMM d, y' }}</td>
+                <td class="num">{{ b.quantity }}</td>
+                <td class="num">{{ b.allocatedQty ?? '—' }}</td>
+                <td class="num">{{ b.unitNet | currency }}</td>
+                <td class="num">{{ b.allocatedValue | currency }}</td>
+                <td><span class="status-badge status-exception" *ngIf="b.countsNow">Counts against credit</span></td>
+              </tr>
+              <tr *ngIf="!m.backorders.length"><td colspan="8" class="empty-inline">No backorders.</td></tr>
+            </tbody>
+          </table>
+
+          <!-- Vendor POs -->
+          <table class="desk-table compact" *ngIf="tab === 'vendorpos'">
+            <thead><tr><th>Vendor</th><th>PO</th><th>Date</th><th class="num">Amount</th><th class="num">Billed</th><th class="num">Still open</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let v of m.vendorPos">
+                <td><div class="member-name">{{ v.vendorName || v.vendorId }}</div><div class="member-sub mono">{{ v.vendorId }}</div></td>
+                <td>{{ v.po || '—' }}</td>
+                <td>{{ v.poDate | date:'MMM d, y' }}</td>
+                <td class="num">{{ v.amount | currency }}</td>
+                <td class="num">{{ v.billed | currency }}</td>
+                <td class="num strong">{{ v.net | currency }}</td>
+              </tr>
+              <tr *ngIf="!m.vendorPos.length"><td colspan="6" class="empty-inline">No direct-vendor POs against this member.</td></tr>
+            </tbody>
+          </table>
+
+          <!-- Vendor credit approvals -->
+          <table class="desk-table compact" *ngIf="tab === 'credits'">
+            <thead><tr><th>Requested</th><th>Vendor</th><th>PO</th><th class="num">Amount</th><th>Auth code</th><th>By</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let a of m.vendorApprovals">
+                <td>{{ a.requested | date:'MMM d, y' }}</td>
+                <td>{{ a.vendorName || a.vendorId }}</td>
+                <td>{{ a.po || '—' }}</td>
+                <td class="num">{{ a.amount | currency }}</td>
+                <td><span class="status-badge" [ngClass]="a.declined ? 'status-hold' : 'status-ready'">{{ a.declined ? 'Declined' : a.authorizationCode }}</span></td>
+                <td>{{ a.requestedBy || '—' }}</td>
+              </tr>
+              <tr *ngIf="!m.vendorApprovals.length"><td colspan="6" class="empty-inline">No vendor credit approvals waiting.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Notes -->
+        <ng-container *ngIf="tab === 'notes'">
+          <div class="cd-note-box">
+            <textarea [(ngModel)]="noteText" maxlength="2000" placeholder="What you found, who you spoke to, what was agreed…"></textarea>
+            <div class="cd-note-actions">
+              <button type="button" class="btn btn-secondary" [disabled]="savingNote" (click)="addNote('REVIEWED')"><i class="pi pi-check"></i>Mark reviewed</button>
+              <button type="button" class="btn btn-primary" [disabled]="savingNote || !noteText.trim()" (click)="addNote('NOTE')"><i class="pi pi-send"></i>Add note</button>
+            </div>
+          </div>
+          <div class="cd-note" *ngFor="let n of m.notes">
+            <div class="cd-note-top">
+              <span class="status-badge" [ngClass]="n.kind === 'OVERRIDE' ? 'status-ready' : n.kind === 'REVIEWED' ? 'status-progress' : ''">{{ n.kind === 'OVERRIDE' ? 'Released order ' + n.orderId : n.kind === 'REVIEWED' ? 'Reviewed' : 'Note' }}</span>
+              <span class="faint">{{ n.createdBy }} · {{ n.createdAt + 'Z' | date:'MMM d, y h:mm a' }}</span>
+            </div>
+            <div>{{ n.note }}</div>
+          </div>
+          <div class="empty-inline" *ngIf="!m.notes.length">No notes yet.</div>
+        </ng-container>
+      </section>
+    </ng-container>
+  </ng-container>
+</div>
+
+<!-- release a held order -->
+<div class="modal-backdrop" *ngIf="release as r" (click)="release = null">
+  <div class="desk-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <div class="eyebrow">Credit Desk</div>
+        <h2>Release order {{ r.order.orderId }}</h2>
+        <div class="subtitle">{{ r.order.total | currency }} · {{ r.order.lines }} line{{ r.order.lines === 1 ? '' : 's' }}<span *ngIf="r.order.po"> · PO {{ r.order.po }}</span></div>
+      </div>
+      <button type="button" class="modal-close" (click)="release = null"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-warning info">
+      <i class="pi pi-info-circle"></i>
+      <span>The order comes off the credit hold (hold override) and goes on with the next order run. The member's credit hold in Computyme doesn't change.</span>
+    </div>
+    <div class="field">
+      <label>Why it's released</label>
+      <textarea [(ngModel)]="r.reason" maxlength="500" [class.invalid]="r.touched && r.reason.trim().length < 3"></textarea>
+      <div class="validation-error" *ngIf="r.touched && r.reason.trim().length < 3">A reason is required.</div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" (click)="release = null">Cancel</button>
+      <button type="button" class="btn btn-primary" [disabled]="r.saving" (click)="confirmRelease()"><i class="pi" [ngClass]="r.saving ? 'pi-spin pi-spinner' : 'pi-unlock'"></i>Release order</button>
+    </div>
+  </div>
+</div>

@@ -18,6 +18,7 @@ export class DashboardAccountingComponent {
   readonly homePin: HomePin = stablePin({ id: 'accounting', label: 'Accounting', sub: 'Dashboards', icon: 'pi pi-money-bill', route: '/dashboard-accounting' });
 
   private readonly allLinks: AccountingLink[] = [
+    { route: '/credit', title: 'Credit Desk', sub: 'Member credit, held orders, invoices in flight', icon: 'pi pi-shield' },
     { route: '/receivables', title: 'Receivables', sub: 'Member open invoices and aging', icon: 'pi pi-inbox' },
     { route: '/payments', title: 'Payments', sub: 'Member payments received', icon: 'pi pi-wallet' },
     { route: '/payment-administration', title: 'Payment administration', sub: 'EZPay, ACH and card set-up', icon: 'pi pi-credit-card' },
