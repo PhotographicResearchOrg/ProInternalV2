@@ -290,18 +290,25 @@ BEGIN
     GROUP BY o.OrderId, o.PONumber, o.EnterDate, o.AutoHold, o.HoldOverride, u.FirstName, u.LastName
     ORDER BY o.EnterDate DESC;
 
-    /* 4. orders in Computyme (IVORD). Once an order is in ARHIST it has shipped and been billed:
-          Billed = an ARHIST invoice for this member with the order's number, or with the same PO (last 180 days).
-          Invoices: those ARHIST invoices as "invoice:posted" pairs, e.g. 123456:2026-10-14,123499:2026-10-20.
-          Lines flagged BO are backordered (as the B2B site shows them). */
-    SELECT CAST(o.ID AS varchar(20)) AS OrderKey, o.P_O_ AS PO, o.SHIP AS ShipDate, o.CODE AS Code, o.WEBORDER AS WebOrder,
+    /* 4. orders in Computyme (IVORD), with the B2B site's own rules (PRO.dbo.Retailer_GetSubmittedOrders / LoadOrderHistory):
+          - B2B order: IVORD.WEBORDER without 'PRO' = OrderSection.OrderSectionId
+          - invoices: ARHIST for this member with the same PO (ARHIST.P_O_), as "invoice:posted" pairs
+          - status: no invoice = Processed; invoiced and a backorder line (BO like '1%', not product 999) on the same PO = Complete W/ BO;
+                    invoiced = Completed
+          - backorder due date: ORDDUE.DUE; tracking: EDA.dbo.shipped, same member and PO */
+    SELECT CAST(o.ID AS varchar(20)) AS OrderKey, o.P_O_ AS PO, o.SHIP AS ShipDate, o.CODE AS Code,
+           NULLIF(REPLACE(CAST(o.WEBORDER AS varchar(55)), 'PRO', ''), '') AS WebOrder,
            TRY_CAST(SUBSTRING(o.TIMEDATE, 1, 20) AS datetime) AS Entered,
            SUM(TRY_CAST(l.C AS float)) AS Total, COUNT(l.ID) AS Lines,
-           SUM(CASE WHEN l.BO LIKE '1%' THEN 1 ELSE 0 END) AS BackorderedLines,
+           SUM(CASE WHEN l.BO LIKE '1%' AND ISNULL(CAST(l.P AS varchar(20)), '') <> '999' THEN 1 ELSE 0 END) AS BackorderedLines,
            CAST(CASE WHEN o.SHIP > @now AND DATEDIFF(day, @now, o.SHIP) <= 5 THEN 1 ELSE 0 END AS bit) AS ShipsSoon,
            CAST(CASE WHEN MAX(inv.Invoices) IS NULL THEN 0 ELSE 1 END AS bit) AS Billed,
            MAX(inv.LastPosted) AS BilledOn,
-           MAX(inv.Invoices) AS Invoices
+           MAX(inv.Invoices) AS Invoices,
+           MAX(trk.Tracking) AS Tracking,
+           CASE WHEN MAX(inv.Invoices) IS NULL THEN 'Processed'
+                WHEN MAX(bo.HasBackorder) = 1 THEN 'Complete W/ BO'
+                ELSE 'Completed' END AS SiteStatus
     FROM EDA.IVORD_REP.IVORD_REP o
     LEFT JOIN EDA.IVORD_REP.PQC_MV l ON l.ID = o.ID
     OUTER APPLY (SELECT STRING_AGG(CAST(CONCAT(SUBSTRING(h.ID, 5, 20), ':', CONVERT(varchar(10), TRY_CONVERT(date, h.DT_POSTED), 23)) AS varchar(max)), ',')
@@ -309,16 +316,24 @@ BEGIN
                         MAX(TRY_CONVERT(date, h.DT_POSTED)) AS LastPosted
                    FROM EDA.ARHIST.ARHIST h
                   WHERE LEFT(h.ID, 4) COLLATE DATABASE_DEFAULT = @acct
-                    AND (SUBSTRING(h.ID, 5, 20) COLLATE DATABASE_DEFAULT = CAST(o.ID AS varchar(20)) COLLATE DATABASE_DEFAULT
-                         OR (NULLIF(LTRIM(o.P_O_), '') IS NOT NULL AND h.P_O_ = o.P_O_ AND h.DT_POSTED >= DATEADD(day, -180, @now)))) inv
+                    AND NULLIF(LTRIM(o.P_O_), '') IS NOT NULL AND h.P_O_ = o.P_O_) inv
+    OUTER APPLY (SELECT STRING_AGG(CAST(s.TRACK_NO AS varchar(max)), ', ') AS Tracking
+                   FROM EDA.dbo.shipped s
+                  WHERE LTRIM(RTRIM(CAST(s.ACCOUNT AS varchar(20)))) COLLATE DATABASE_DEFAULT = @acct
+                    AND NULLIF(LTRIM(o.P_O_), '') IS NOT NULL AND s.P_O_ = o.P_O_) trk
+    OUTER APPLY (SELECT TOP (1) 1 AS HasBackorder
+                   FROM EDA.IVORD_REP.IVORD_REP o2
+                   JOIN EDA.IVORD_REP.PQC_MV l2 ON l2.ID = o2.ID
+                  WHERE o2.ACCOUNT = o.ACCOUNT AND o2.P_O_ = o.P_O_
+                    AND l2.BO LIKE '1%' AND ISNULL(CAST(l2.P AS varchar(20)), '') <> '999') bo
     WHERE o.ACCOUNT COLLATE DATABASE_DEFAULT = @acct
     GROUP BY o.ID, o.P_O_, o.SHIP, o.CODE, o.WEBORDER, o.TIMEDATE
-    ORDER BY CASE WHEN MAX(inv.Invoices) IS NULL THEN 0 ELSE 1 END, o.SHIP;
+    ORDER BY CASE WHEN MAX(inv.Invoices) IS NULL THEN 0 ELSE 1 END, TRY_CAST(SUBSTRING(o.TIMEDATE, 1, 20) AS datetime) DESC;
 
-    /* 4b. their lines: product, quantity left, value, backordered and when it's due (ORDDUE) */
+    /* 4b. their lines: product, quantity left, value, backordered (BO like '1%', not product 999) and its due date (ORDDUE) */
     SELECT CAST(o.ID AS varchar(20)) AS OrderKey, l.PQC_MV_POS AS Line, CAST(l.P AS varchar(20)) AS ProductCode,
            CAST(iv.DESC_C AS nvarchar(200)) AS Description, TRY_CAST(l.Q AS float) AS Quantity, TRY_CAST(l.C AS float) AS Amount,
-           CAST(CASE WHEN l.BO LIKE '1%' THEN 1 ELSE 0 END AS bit) AS Backordered, du.DUE AS DueDate
+           CAST(CASE WHEN l.BO LIKE '1%' AND ISNULL(CAST(l.P AS varchar(20)), '') <> '999' THEN 1 ELSE 0 END AS bit) AS Backordered, du.DUE AS DueDate
     FROM EDA.IVORD_REP.IVORD_REP o
     JOIN EDA.IVORD_REP.PQC_MV l ON l.ID = o.ID
     LEFT JOIN EDA.IVMST.IVMST iv ON iv.ID COLLATE DATABASE_DEFAULT = l.P COLLATE DATABASE_DEFAULT
@@ -338,7 +353,7 @@ BEGIN
                    WITHIN GROUP (ORDER BY h.DT_POSTED)
               FROM EDA.ARHIST.ARHIST h
              WHERE LEFT(h.ID, 4) COLLATE DATABASE_DEFAULT = @acct AND NULLIF(LTRIM(v.P_O_), '') IS NOT NULL
-               AND h.P_O_ = v.P_O_ AND h.DT_POSTED >= DATEADD(day, -180, @now)) AS Invoices
+               AND h.P_O_ = v.P_O_) AS Invoices
     FROM EDA.VNORD.VNORD v
     JOIN EDA.VNORD.QP_MV qp ON qp.ID = v.ID
     LEFT JOIN EDA.VNORD.PQ_MV pq ON pq.ID = qp.ID AND pq.PQ_MV_POS = qp.QP_MV_POS

@@ -119,6 +119,9 @@ namespace ProInternal.Models.Accounting.CreditDesk
         /* in ARHIST = shipped and billed */
         public bool Billed { get; set; }
         public DateTime? BilledOn { get; set; }
+        /* B2B site status: Processed / Complete W/ BO / Completed */
+        public string SiteStatus { get; set; }
+        public string Tracking { get; set; }
         /* "invoice:posted" pairs (Computyme ARHIST, same PO), e.g. 123456:2026-10-14 */
         public string Invoices { get; set; }
     }

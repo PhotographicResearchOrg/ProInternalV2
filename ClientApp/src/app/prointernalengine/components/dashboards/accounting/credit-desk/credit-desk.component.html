@@ -256,21 +256,21 @@
           <ng-container *ngIf="tab === 'computyme'">
             <div class="cd-explain">
               <i class="pi pi-info-circle"></i>
-              <span>Orders on file in Computyme. Once an order is in <b>ARHIST it has shipped and been billed</b>: it shows under Billed with the invoice and the date it posted (click for the PDF).
-                <b>Open</b> = not billed yet. Lines flagged backordered wait on stock (due date from Computyme's ORDDUE, as the B2B site shows it).</span>
+              <span>Same rules as the B2B site's order history. <b>Processed</b> = in Computyme, not invoiced yet. <b>Completed</b> = in ARHIST: shipped and billed (invoice on the same PO, with the date it posted; click for the PDF).
+                <b>Complete W/ BO</b> = billed, with a backorder still open on that PO (due date from ORDDUE).</span>
             </div>
             <div class="chip-row cd-cm-chips">
-              <button type="button" class="chip" [class.active]="cmView === 'open'" (click)="cmView = 'open'">Open <span class="chip-count">{{ cmOpen.length }}</span></button>
-              <button type="button" class="chip" [class.active]="cmView === 'billed'" (click)="cmView = 'billed'">Shipped and billed <span class="chip-count">{{ cmBilled.length }}</span></button>
+              <button type="button" class="chip" [class.active]="cmView === 'open'" (click)="cmView = 'open'">Processed <span class="chip-count">{{ cmOpen.length }}</span></button>
+              <button type="button" class="chip" [class.active]="cmView === 'billed'" (click)="cmView = 'billed'">Completed <span class="chip-count">{{ cmBilled.length }}</span></button>
               <button type="button" class="chip" [class.active]="cmView === 'all'" (click)="cmView = 'all'">All <span class="chip-count">{{ m.computymeOrders.length }}</span></button>
             </div>
-            <table class="desk-table compact">
+            <table class="desk-table compact cd-cm">
               <thead><tr><th></th><th>Order</th><th>PO</th><th>Entered</th><th>Ships</th><th class="num">Lines</th><th class="num">Total</th><th>Status</th><th>Invoiced (posted)</th></tr></thead>
               <tbody>
                 <ng-container *ngFor="let o of cmShown">
                   <tr class="click-row" (click)="toggle(o)">
                     <td class="cd-caret"><i class="pi" [ngClass]="expanded.has(o.orderKey) ? 'pi-chevron-down' : 'pi-chevron-right'"></i></td>
-                    <td><div class="mono strong">{{ o.orderKey }}</div><div class="member-sub" *ngIf="o.webOrder">B2B order {{ o.webOrder }}</div></td>
+                    <td><div class="mono strong">{{ o.orderKey }}</div><div class="member-sub" *ngIf="o.webOrder">Web order {{ o.webOrder }}</div></td>
                     <td>{{ o.po || '—' }}</td>
                     <td>{{ o.entered ? (o.entered | date:'MMM d, y') : '—' }}</td>
                     <td>{{ o.shipDate | date:'MMM d, y' }}</td>
@@ -288,7 +288,8 @@
                           <i class="pi" [ngClass]="pdfLoading === inv.invoice ? 'pi-spin pi-spinner' : 'pi-file-pdf'"></i>{{ inv.invoice }}<span class="faint" *ngIf="inv.posted"> · {{ inv.posted | date:'MMM d' }}</span>
                         </button>
                       </div>
-                      <span class="faint" *ngIf="!invoicesOf(o).length">Not billed yet</span>
+                      <span class="faint" *ngIf="!invoicesOf(o).length">Not invoiced yet</span>
+                      <div class="member-sub mono" *ngIf="o.tracking" title="Tracking (shipped file)"><i class="pi pi-truck"></i> {{ o.tracking }}</div>
                     </td>
                   </tr>
                   <tr *ngIf="expanded.has(o.orderKey)" class="cd-lines-row">
@@ -313,7 +314,7 @@
                     </td>
                   </tr>
                 </ng-container>
-                <tr *ngIf="!cmShown.length"><td colspan="9" class="empty-inline">{{ cmView === 'open' ? 'Nothing open: every order on file has shipped and been billed.' : cmView === 'billed' ? 'No billed orders on file.' : 'No Computyme orders.' }}</td></tr>
+                <tr *ngIf="!cmShown.length"><td colspan="9" class="empty-inline">{{ cmView === 'open' ? 'Nothing processing: every order on file is invoiced.' : cmView === 'billed' ? 'No completed orders on file.' : 'No Computyme orders.' }}</td></tr>
               </tbody>
             </table>
           </ng-container>

@@ -66,3 +66,4 @@ tr.cd-lines-row > td { background: #fafbfd; padding-top: 4px; padding-bottom: 10
 .cd-ap-totals { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12.5px; }
 .cd-lines .member-sub { margin-left: 6px; display: inline; }
 .cd-cm-chips { margin-bottom: 10px; }
+.cd-cm > tbody > tr > td:nth-child(-n+5) { white-space: nowrap; }

@@ -216,21 +216,20 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
   invoiceText(o: { invoices?: string | null }): string {
     return this.invoicesOf(o).map(i => i.posted ? `${i.invoice} (posted ${i.posted})` : i.invoice).join(', ');
   }
-  /** what's happening with an order that's in Computyme but not invoiced */
+  /** the B2B site's status (Retailer_GetSubmittedOrders): Processed = in Computyme, not invoiced;
+   *  Complete W/ BO = invoiced with a backorder still open on the PO; Completed = invoiced (in ARHIST) */
   cmStatus(o: CreditComputymeOrder): CmOrderStatus {
     const lines = this.linesOf(o);
     const due = lines.filter(l => l.backordered && l.dueDate).map(l => new Date(l.dueDate as string).getTime());
     const nextDue = due.length ? new Date(Math.min(...due)) : null;
-    const dueText = nextDue ? `next due ${nextDue.toLocaleDateString()}` : 'no due date';
-    const ship = o.shipDate ? new Date(o.shipDate) : null;
+    const dueText = o.backorderedLines ? (nextDue ? `${o.backorderedLines} backordered · next due ${nextDue.toLocaleDateString()}` : `${o.backorderedLines} backordered · no due date`) : '';
     const billedOn = o.billedOn ? new Date(o.billedOn).toLocaleDateString() : '';
-    if (o.billed && o.backorderedLines > 0) return { label: 'Billed · backorder open', css: 'status-exception', detail: `billed ${billedOn} · ${dueText}` };
-    if (o.billed) return { label: 'Shipped and billed', css: 'status-ready', detail: billedOn ? `posted ${billedOn}` : undefined };
-    if (o.lines > 0 && o.backorderedLines >= o.lines) return { label: 'Backordered', css: 'status-exception', detail: dueText };
-    if (o.backorderedLines > 0) return { label: `Part backordered · ${o.backorderedLines} of ${o.lines}`, css: 'status-exception', detail: dueText };
-    if (o.shipsSoon) return { label: 'Ships within 5 days', css: 'status-progress' };
-    if (ship && ship.getTime() < Date.now()) return { label: 'Waiting to ship', css: 'status-violet', detail: 'Ship date passed, not invoiced yet' };
-    return { label: 'Scheduled', css: 'status-ready', detail: ship ? `ships ${ship.toLocaleDateString()}` : undefined };
+    const site = o.siteStatus || (o.billed ? 'Completed' : 'Processed');
+    if (site === 'Complete W/ BO') return { label: 'Complete W/ BO', css: 'status-exception', detail: [billedOn && `posted ${billedOn}`, dueText].filter(x => !!x).join(' · ') || undefined };
+    if (site === 'Completed') return { label: 'Completed', css: 'status-ready', detail: billedOn ? `posted ${billedOn}` : undefined };
+    const ship = o.shipDate ? new Date(o.shipDate) : null;
+    const shipText = o.shipsSoon ? 'ships within 5 days' : ship ? `ship date ${ship.toLocaleDateString()}` : '';
+    return { label: 'Processed', css: 'status-progress', detail: [shipText, dueText].filter(x => !!x).join(' · ') || undefined };
   }
   get cmOpen(): CreditComputymeOrder[] { return (this.member?.computymeOrders ?? []).filter(o => !o.billed); }
   get cmBilled(): CreditComputymeOrder[] { return (this.member?.computymeOrders ?? []).filter(o => o.billed); }
@@ -352,7 +351,7 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
     ]), 'Summary');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.webOrders.map(o => ({ 'Order': o.orderId, 'PO': o.po, 'Entered': this.d(o.entered), 'Lines': o.lines, 'Total': o.total, 'Held': o.held ? 'Yes' : '', 'Released': o.holdOverride ? 'Yes' : '', 'Ordered by': o.orderedBy }))), 'B2B orders');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.invoices.map(i => ({ 'Invoice': i.invoice, 'Posted': this.d(i.posted), 'Age (days)': i.ageDays, 'Terms': i.terms, 'PO': i.po, 'Vendor': i.vendorName, 'Vendor invoice': i.vendorInvoice, 'Gross': i.gross, 'Discount %': i.discountPct }))), 'Open invoices');
-    XLSX.utils.book_append_sheet(wb, this.sheet(m.computymeOrders.map(o => ({ 'Order': o.orderKey, 'Web order': o.webOrder, 'PO': o.po, 'Entered': this.d(o.entered), 'Ship': this.d(o.shipDate), 'Lines': o.lines, 'Backordered lines': o.backorderedLines, 'Total': o.total, 'Status': this.cmStatus(o).label, 'Billed': o.billed ? 'Yes' : '', 'Billed on': this.d(o.billedOn), 'Invoices (posted)': this.invoiceText(o) }))), 'Computyme orders');
+    XLSX.utils.book_append_sheet(wb, this.sheet(m.computymeOrders.map(o => ({ 'Order': o.orderKey, 'Web order': o.webOrder, 'PO': o.po, 'Entered': this.d(o.entered), 'Ship': this.d(o.shipDate), 'Lines': o.lines, 'Backordered lines': o.backorderedLines, 'Total': o.total, 'Status': this.cmStatus(o).label, 'Last invoice posted': this.d(o.billedOn), 'Tracking': o.tracking, 'Invoices (posted)': this.invoiceText(o) }))), 'Computyme orders');
     XLSX.utils.book_append_sheet(wb, this.sheet((m.computymeOrderLines ?? []).map(l => ({ 'Order': l.orderKey, 'Line': l.line, 'Product': l.productCode, 'Description': l.description, 'Qty': l.quantity, 'Amount': l.amount, 'Backordered': l.backordered ? 'Yes' : '', 'Due': this.d(l.dueDate) }))), 'Computyme order lines');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.backorders.map(b => ({ 'Backorder': b.backorderKey, 'PO': b.po, 'Product': b.productCode, 'Description': b.description, 'Qty': b.quantity, 'Allocated': b.allocatedQty, 'Unit net': b.unitNet, 'Allocated value': b.allocatedValue, 'Ship': this.d(b.shipDate), 'Counts now': b.countsNow ? 'Yes' : '', 'Invoiced on this PO (posted)': this.invoiceText(b) }))), 'Backorders');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.vendorPos.map(v => ({ 'Vendor': v.vendorId, 'Vendor name': v.vendorName, 'PO': v.po, 'Date': this.d(v.poDate), 'Auth code': v.authorizationCode || '', 'Amount': v.amount, 'Billed': v.billed, 'Net': v.net }))), 'Vendor POs');
