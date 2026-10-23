@@ -137,9 +137,13 @@ BEGIN
         GROUP BY LTRIM(RTRIM(r.AccountNumber))
     ),
     vca AS (
-        SELECT LTRIM(RTRIM(c.MemberID)) AS AccountNumber, SUM(c.CreditAmount) AS PendingVendorCredits, COUNT(*) AS PendingVendorCreditCount
+        /* vendor credit approvals, rolling 60 days (approved and declined) */
+        SELECT LTRIM(RTRIM(c.MemberID)) AS AccountNumber,
+               SUM(CASE WHEN c.AuthorizationCode LIKE 'Please call%' OR c.AuthorizationCode = 'Not Authorized' THEN 0 ELSE c.CreditAmount END) AS PendingVendorCredits,
+               COUNT(*) AS PendingVendorCreditCount,
+               SUM(CASE WHEN c.AuthorizationCode LIKE 'Please call%' OR c.AuthorizationCode = 'Not Authorized' THEN 1 ELSE 0 END) AS DeclinedVendorCount
         FROM dbo.VendorCreditApproval c
-        WHERE c.Processed = 0
+        WHERE c.DateRequested >= DATEADD(day, -60, CAST(GETDATE() AS date))
         GROUP BY LTRIM(RTRIM(c.MemberID))
     ),
     lastNote AS (
@@ -158,6 +162,7 @@ BEGIN
            ISNULL(w.WebOrders, 0) AS WebOrders, ISNULL(w.WebValue, 0) AS WebValue,
            ISNULL(w.HeldOrders, 0) AS HeldOrders, ISNULL(w.HeldValue, 0) AS HeldValue,
            ISNULL(c.PendingVendorCredits, 0) AS PendingVendorCredits, ISNULL(c.PendingVendorCreditCount, 0) AS PendingVendorCreditCount,
+           ISNULL(c.DeclinedVendorCount, 0) AS DeclinedVendorCount,
            ln.LastNoteAt
     FROM mem m
     LEFT JOIN ar   ON ar.AccountNumber = m.AccountNumber
@@ -285,15 +290,35 @@ BEGIN
     GROUP BY o.OrderId, o.PONumber, o.EnterDate, o.AutoHold, o.HoldOverride, u.FirstName, u.LastName
     ORDER BY o.EnterDate DESC;
 
-    /* 4. Computyme orders (IVORD) */
+    /* 4. orders in Computyme (IVORD): open orders not invoiced yet; lines flagged BO are backordered (as the B2B site shows them).
+          Invoices: this member's Computyme invoices with the same PO (once lines ship they're billed on ARHIST). */
     SELECT CAST(o.ID AS varchar(20)) AS OrderKey, o.P_O_ AS PO, o.SHIP AS ShipDate, o.CODE AS Code, o.WEBORDER AS WebOrder,
+           TRY_CAST(SUBSTRING(o.TIMEDATE, 1, 20) AS datetime) AS Entered,
            SUM(TRY_CAST(l.C AS float)) AS Total, COUNT(l.ID) AS Lines,
-           CAST(CASE WHEN o.SHIP > @now AND DATEDIFF(day, @now, o.SHIP) <= 5 THEN 1 ELSE 0 END AS bit) AS ShipsSoon
+           SUM(CASE WHEN l.BO LIKE '1%' THEN 1 ELSE 0 END) AS BackorderedLines,
+           CAST(CASE WHEN o.SHIP > @now AND DATEDIFF(day, @now, o.SHIP) <= 5 THEN 1 ELSE 0 END AS bit) AS ShipsSoon,
+           /* "invoice:posted" pairs, e.g. 123456:2026-10-14,123499:2026-10-20 */
+           (SELECT STRING_AGG(CAST(CONCAT(SUBSTRING(h.ID, 5, 20), ':', CONVERT(varchar(10), TRY_CONVERT(date, h.DT_POSTED), 23)) AS varchar(max)), ',')
+                   WITHIN GROUP (ORDER BY h.DT_POSTED)
+              FROM EDA.ARHIST.ARHIST h
+             WHERE LEFT(h.ID, 4) COLLATE DATABASE_DEFAULT = @acct AND NULLIF(LTRIM(o.P_O_), '') IS NOT NULL
+               AND h.P_O_ = o.P_O_ AND h.DT_POSTED >= DATEADD(day, -180, @now)) AS Invoices
     FROM EDA.IVORD_REP.IVORD_REP o
     LEFT JOIN EDA.IVORD_REP.PQC_MV l ON l.ID = o.ID
     WHERE o.ACCOUNT COLLATE DATABASE_DEFAULT = @acct
-    GROUP BY o.ID, o.P_O_, o.SHIP, o.CODE, o.WEBORDER
+    GROUP BY o.ID, o.P_O_, o.SHIP, o.CODE, o.WEBORDER, o.TIMEDATE
     ORDER BY o.SHIP;
+
+    /* 4b. their lines: product, quantity left, value, backordered and when it's due (ORDDUE) */
+    SELECT CAST(o.ID AS varchar(20)) AS OrderKey, l.PQC_MV_POS AS Line, CAST(l.P AS varchar(20)) AS ProductCode,
+           CAST(iv.DESC_C AS nvarchar(200)) AS Description, TRY_CAST(l.Q AS float) AS Quantity, TRY_CAST(l.C AS float) AS Amount,
+           CAST(CASE WHEN l.BO LIKE '1%' THEN 1 ELSE 0 END AS bit) AS Backordered, du.DUE AS DueDate
+    FROM EDA.IVORD_REP.IVORD_REP o
+    JOIN EDA.IVORD_REP.PQC_MV l ON l.ID = o.ID
+    LEFT JOIN EDA.IVMST.IVMST iv ON iv.ID COLLATE DATABASE_DEFAULT = l.P COLLATE DATABASE_DEFAULT
+    LEFT JOIN EDA.ORDDUE.ORDDUE du ON du.ID COLLATE DATABASE_DEFAULT = l.P COLLATE DATABASE_DEFAULT
+    WHERE o.ACCOUNT COLLATE DATABASE_DEFAULT = @acct
+    ORDER BY o.ID, l.PQC_MV_POS;
 
     /* 5. backorders (VNORD lines) */
     SELECT CAST(v.ID AS varchar(20)) AS BackorderKey, v.P_O_ AS PO, v.DATE AS Ordered, v.SHIP AS ShipDate,
@@ -301,7 +326,13 @@ BEGIN
            TRY_CAST(qp.Q AS float) AS Quantity, TRY_CAST(pq.ALLOCATE AS float) AS AllocatedQty,
            TRY_CAST(iv.NET_1 AS float) / 100.0 AS UnitNet,
            ISNULL(TRY_CAST(pq.ALLOCATE AS float), 0) * ISNULL(TRY_CAST(iv.NET_1 AS float), 0) / 100.0 AS AllocatedValue,
-           CAST(CASE WHEN pq.ALLOCATE IS NOT NULL AND (DATEDIFF(day, @now, v.SHIP) <= 5 OR @now > v.SHIP) THEN 1 ELSE 0 END AS bit) AS CountsNow
+           CAST(CASE WHEN pq.ALLOCATE IS NOT NULL AND (DATEDIFF(day, @now, v.SHIP) <= 5 OR @now > v.SHIP) THEN 1 ELSE 0 END AS bit) AS CountsNow,
+           /* invoices already posted on the same PO ("invoice:posted" pairs): what has shipped against it so far */
+           (SELECT STRING_AGG(CAST(CONCAT(SUBSTRING(h.ID, 5, 20), ':', CONVERT(varchar(10), TRY_CONVERT(date, h.DT_POSTED), 23)) AS varchar(max)), ',')
+                   WITHIN GROUP (ORDER BY h.DT_POSTED)
+              FROM EDA.ARHIST.ARHIST h
+             WHERE LEFT(h.ID, 4) COLLATE DATABASE_DEFAULT = @acct AND NULLIF(LTRIM(v.P_O_), '') IS NOT NULL
+               AND h.P_O_ = v.P_O_ AND h.DT_POSTED >= DATEADD(day, -180, @now)) AS Invoices
     FROM EDA.VNORD.VNORD v
     JOIN EDA.VNORD.QP_MV qp ON qp.ID = v.ID
     LEFT JOIN EDA.VNORD.PQ_MV pq ON pq.ID = qp.ID AND pq.PQ_MV_POS = qp.QP_MV_POS
@@ -330,18 +361,38 @@ BEGIN
     WHERE vm.ID COLLATE DATABASE_DEFAULT = @acct
     ORDER BY dt.DATE DESC;
 
-    /* 7. vendor credit approvals not processed yet (dbo.VendorCreditApproval) */
+    /* 7. vendor credit approvals, all of them (the screen shows the last 60 days unless asked for all) */
     SELECT c.ID AS ApprovalId, c.DateRequested AS Requested, c.VendorID AS VendorId,
            (SELECT TOP (1) CAST(ap.NAME AS nvarchar(200)) FROM EDA.APMST.APMST ap WHERE ap.ID COLLATE DATABASE_DEFAULT = LTRIM(RTRIM(c.VendorID))) AS VendorName,
-           c.PO, c.CreditAmount AS Amount, c.AuthorizationCode, c.UserID AS RequestedBy,
+           c.PO, c.CreditAmount AS Amount, c.AuthorizationCode, c.UserID AS RequestedBy, c.Processed,
            CAST(CASE WHEN c.AuthorizationCode LIKE 'Please call%' OR c.AuthorizationCode = 'Not Authorized' THEN 1 ELSE 0 END AS bit) AS Declined
     FROM dbo.VendorCreditApproval c
-    WHERE LTRIM(RTRIM(c.MemberID)) = @acct AND c.Processed = 0
+    WHERE LTRIM(RTRIM(c.MemberID)) = @acct
     ORDER BY c.DateRequested DESC;
 
     /* 8. accounting's notes */
     SELECT TOP (200) n.Id, n.Kind, n.OrderId, n.Note, n.CreatedBy, n.CreatedAt
     FROM piv2.CreditNote n WHERE n.AccountNumber = @acct ORDER BY n.Id DESC;
+END
+GO
+
+/* ------------------------------------------------ vendor credit approvals, every member (@Days NULL = all) */
+CREATE OR ALTER PROCEDURE piv2.Credit_VendorApprovals
+    @Days int = 60
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT c.ID AS ApprovalId, c.DateRequested AS Requested, LTRIM(RTRIM(c.MemberID)) AS AccountNumber,
+           r.MemberName,
+           c.VendorID AS VendorId,
+           (SELECT TOP (1) CAST(ap.NAME AS nvarchar(200)) FROM EDA.APMST.APMST ap WHERE ap.ID COLLATE DATABASE_DEFAULT = LTRIM(RTRIM(c.VendorID))) AS VendorName,
+           c.PO, c.CreditAmount AS Amount, c.AuthorizationCode, c.UserID AS RequestedBy, c.Processed,
+           CAST(CASE WHEN c.AuthorizationCode LIKE 'Please call%' OR c.AuthorizationCode = 'Not Authorized' THEN 1 ELSE 0 END AS bit) AS Declined
+    FROM dbo.VendorCreditApproval c
+    OUTER APPLY (SELECT TOP (1) COALESCE(NULLIF(LTRIM(x.DBA), ''), x.Company) AS MemberName
+                 FROM dbo.Roster x WHERE LTRIM(RTRIM(x.AccountNumber)) = LTRIM(RTRIM(c.MemberID))) r
+    WHERE @Days IS NULL OR c.DateRequested >= DATEADD(day, -@Days, CAST(GETDATE() AS date))
+    ORDER BY c.DateRequested DESC;
 END
 GO
 

@@ -4,11 +4,17 @@ import { MessageService } from 'primeng/api';
 import { Subscription } from 'rxjs';
 import * as XLSX from 'xlsx';
 import { DataService } from 'src/app/services/data.service';
+import { AccountingService } from 'src/app/services/AccountingService';
 import { HomePin, stablePin } from 'src/app/services/home-pin.service';
-import { CreditMember, CreditMemberRow, CreditWebOrder } from 'src/app/models/accounting/credit-desk.models';
+import { CreditComputymeOrder, CreditComputymeOrderLine, CreditMember, CreditMemberRow, CreditVendorApproval, CreditWebOrder } from 'src/app/models/accounting/credit-desk.models';
 
 type ListFilter = 'held' | 'over' | 'pastdue' | 'hold' | 'credits' | 'all';
 type Tab = 'orders' | 'invoices' | 'computyme' | 'backorders' | 'vendorpos' | 'credits' | 'notes';
+type ApprovalWindow = 60 | 'all';
+type ApprovalResult = 'all' | 'approved' | 'declined';
+type ApprovalSort = 'requested' | 'member' | 'vendor' | 'po' | 'amount' | 'code' | 'result' | 'by';
+export interface PostedInvoice { invoice: string; posted: string | null; }
+export interface CmOrderStatus { label: string; css: string; detail?: string; }
 
 /** Credit Desk: /credit (every member) and /credit?account=1747 (one member).
  *  Replaces old ProInternal /CreditApproval. Limit, balance, aging and credit hold are Computyme's (read only);
@@ -40,10 +46,24 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
   noteText = '';
   savingNote = false;
 
+  // vendor approvals (member tab and the all-members view): rolling 60 days unless "All"
+  apWindow: ApprovalWindow = 60;
+  apResult: ApprovalResult = 'all';
+  apSearch = '';
+  apSort: ApprovalSort = 'requested';
+  apDesc = true;
+  allApprovals: CreditVendorApproval[] = [];
+  allApprovalsLoaded: ApprovalWindow | null = null;
+  apLoading = false;
+
+  // Computyme orders: which rows are open to show their lines
+  expanded = new Set<string>();
+  pdfLoading: string | null = null;
+
   // release modal
   release: { order: CreditWebOrder; reason: string; touched: boolean; saving: boolean } | null = null;
 
-  constructor(private data: DataService, private route: ActivatedRoute, private router: Router, private toast: MessageService) {}
+  constructor(private data: DataService, private accounting: AccountingService, private route: ActivatedRoute, public router: Router, private toast: MessageService) {}
 
   ngOnInit(): void {
     /* one route (/credit) so Security Admin needs just one entry; ?account=1747 opens a member */
@@ -58,6 +78,7 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
         const f = p.get('filter') as ListFilter | null;
         if (f && ['held', 'over', 'pastdue', 'hold', 'credits', 'all'].includes(f)) this.filter = f;
         if (!this.members.length) this.loadList();
+        if (this.filter === 'credits') this.loadAllApprovals();
       }
     }));
   }
@@ -102,9 +123,130 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
       .filter(m => this.filter !== 'all' || !this.hideZero || (m.balance ?? 0) !== 0 || m.webOrders > 0 || (m.openOrders ?? 0) !== 0)
       .filter(m => !q || (m.name || '').toLowerCase().includes(q) || m.accountNumber.includes(q));
   }
-  setFilter(f: ListFilter): void { this.filter = f; }
+  setFilter(f: ListFilter): void {
+    this.filter = f;
+    if (f === 'credits') this.loadAllApprovals();
+  }
   open(m: CreditMemberRow): void { this.router.navigate(['/credit'], { queryParams: { account: m.accountNumber } }); }
   back(): void { this.router.navigate(['/credit'], { queryParams: this.filter !== 'held' ? { filter: this.filter } : {} }); }
+
+  // ------------------------------------------------------------ vendor approvals
+  loadAllApprovals(force = false): void {
+    if (!force && this.allApprovalsLoaded === this.apWindow) return;
+    this.apLoading = true;
+    const w = this.apWindow;
+    this.data.creditVendorApprovals(w).subscribe({
+      next: r => { this.allApprovals = r ?? []; this.allApprovalsLoaded = w; this.apLoading = false; },
+      error: e => { this.apLoading = false; this.fail(e, 'Could not load vendor approvals'); }
+    });
+  }
+  setWindow(w: ApprovalWindow): void {
+    this.apWindow = w;
+    if (!this.accountNumber) this.loadAllApprovals();
+  }
+  sortBy(k: ApprovalSort): void {
+    if (this.apSort === k) this.apDesc = !this.apDesc;
+    else { this.apSort = k; this.apDesc = k === 'requested' || k === 'amount'; }
+  }
+  sortIcon(k: ApprovalSort): string { return this.apSort !== k ? 'pi pi-sort-alt' : this.apDesc ? 'pi pi-sort-amount-down' : 'pi pi-sort-amount-up-alt'; }
+
+  private inWindow(a: CreditVendorApproval): boolean {
+    if (this.apWindow === 'all') return true;
+    const cut = new Date(); cut.setHours(0, 0, 0, 0); cut.setDate(cut.getDate() - this.apWindow);
+    return new Date(a.requested) >= cut;
+  }
+  private approvalFilter(rows: CreditVendorApproval[], windowed: boolean): CreditVendorApproval[] {
+    const q = this.apSearch.trim().toLowerCase();
+    const val = (a: CreditVendorApproval): any => {
+      switch (this.apSort) {
+        case 'member': return (a.memberName || a.accountNumber || '').toLowerCase();
+        case 'vendor': return (a.vendorName || a.vendorId || '').toLowerCase();
+        case 'po': return (a.po || '').toLowerCase();
+        case 'amount': return a.amount ?? 0;
+        case 'code': return a.declined ? '' : (a.authorizationCode || '').toLowerCase();
+        case 'result': return a.declined ? 1 : 0;
+        case 'by': return (a.requestedBy || '').toLowerCase();
+        default: return new Date(a.requested).getTime();
+      }
+    };
+    const dir = this.apDesc ? -1 : 1;
+    return rows
+      .filter(a => !windowed || this.inWindow(a))
+      .filter(a => this.apResult === 'all' || (this.apResult === 'declined') === a.declined)
+      .filter(a => !q || [a.accountNumber, a.memberName, a.vendorId, a.vendorName, a.po, a.authorizationCode, a.requestedBy]
+        .some(x => (x || '').toString().toLowerCase().includes(q)))
+      .sort((x, y) => { const a = val(x), b = val(y); return a < b ? -dir : a > b ? dir : 0; });
+  }
+  /** member tab: every approval came back, the window is applied here */
+  get memberApprovals(): CreditVendorApproval[] { return this.approvalFilter(this.member?.vendorApprovals ?? [], true); }
+  /** all-members view: the API already applied the window */
+  get shownApprovals(): CreditVendorApproval[] { return this.approvalFilter(this.allApprovals, false); }
+  approvalTotals(rows: CreditVendorApproval[]): { approved: number; approvedValue: number; declined: number } {
+    return rows.reduce((t, a) => { if (a.declined) t.declined++; else { t.approved++; t.approvedValue += a.amount ?? 0; } return t; },
+      { approved: 0, approvedValue: 0, declined: 0 });
+  }
+  get memberApprovalsInWindow(): number { return (this.member?.vendorApprovals ?? []).filter(a => this.inWindow(a)).length; }
+
+  exportApprovals(rows: CreditVendorApproval[], name: string): void {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, this.sheet(this.approvalRows(rows)), 'Vendor approvals');
+    XLSX.writeFile(wb, `VendorApprovals_${name}_${this.apWindow === 'all' ? 'all' : this.apWindow + 'd'}_${this.today()}.xlsx`);
+  }
+  private approvalRows(rows: CreditVendorApproval[]): { [k: string]: any }[] {
+    return rows.map(a => ({
+      'Requested': this.d(a.requested), 'Account': a.accountNumber ?? this.member?.header.accountNumber, 'Member': a.memberName ?? this.member?.header.name,
+      'Vendor': a.vendorId, 'Vendor name': a.vendorName, 'PO': a.po, 'Amount': a.amount,
+      'Auth code': a.declined ? '' : a.authorizationCode, 'Result': a.declined ? 'Declined' : 'Approved',
+      'Vendor message': a.declined ? a.authorizationCode : '', 'Processed': a.processed ? 'Yes' : '', 'Requested by': a.requestedBy
+    }));
+  }
+
+  // ------------------------------------------------------------ Computyme orders
+  linesOf(o: CreditComputymeOrder): CreditComputymeOrderLine[] { return (this.member?.computymeOrderLines ?? []).filter(l => l.orderKey === o.orderKey); }
+  toggle(o: CreditComputymeOrder): void { this.expanded.has(o.orderKey) ? this.expanded.delete(o.orderKey) : this.expanded.add(o.orderKey); }
+  /** "123456:2026-10-14,123499:2026-10-20" → invoices with the date each was posted */
+  invoicesOf(o: { invoices?: string | null }): PostedInvoice[] {
+    const seen = new Set<string>();
+    return (o.invoices || '').split(',').map(x => x.trim()).filter(x => !!x).map(x => {
+      const [invoice, posted] = x.split(':');
+      return { invoice: (invoice || '').trim(), posted: posted ? posted.trim() : null };
+    }).filter(i => i.invoice && !seen.has(i.invoice) && !!seen.add(i.invoice));
+  }
+  invoiceText(o: { invoices?: string | null }): string {
+    return this.invoicesOf(o).map(i => i.posted ? `${i.invoice} (posted ${i.posted})` : i.invoice).join(', ');
+  }
+  /** what's happening with an order that's in Computyme but not invoiced */
+  cmStatus(o: CreditComputymeOrder): CmOrderStatus {
+    const lines = this.linesOf(o);
+    const due = lines.filter(l => l.backordered && l.dueDate).map(l => new Date(l.dueDate as string).getTime());
+    const nextDue = due.length ? new Date(Math.min(...due)) : null;
+    const dueText = nextDue ? `next due ${nextDue.toLocaleDateString()}` : 'no due date';
+    const ship = o.shipDate ? new Date(o.shipDate) : null;
+    if (o.lines > 0 && o.backorderedLines >= o.lines) return { label: 'Backordered', css: 'status-exception', detail: dueText };
+    if (o.backorderedLines > 0) return { label: `Part backordered · ${o.backorderedLines} of ${o.lines}`, css: 'status-exception', detail: dueText };
+    if (o.shipsSoon) return { label: 'Ships within 5 days', css: 'status-progress' };
+    if (ship && ship.getTime() < Date.now()) return { label: 'Waiting to ship', css: 'status-violet', detail: 'Ship date passed, not invoiced yet' };
+    return { label: 'Scheduled', css: 'status-ready', detail: ship ? `ships ${ship.toLocaleDateString()}` : undefined };
+  }
+  get backorderedOrders(): number { return (this.member?.computymeOrders ?? []).filter(o => o.backorderedLines > 0).length; }
+
+  openInvoicePdf(invoice: string, ev?: Event): void {
+    ev?.stopPropagation();
+    if (!invoice || this.pdfLoading) return;
+    this.pdfLoading = invoice;
+    this.accounting.getInvoicePdf(invoice).subscribe({
+      next: blob => {
+        this.pdfLoading = null;
+        const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+        const w = window.open(url, '_blank');
+        if (!w) {
+          const a = document.createElement('a'); a.href = url; a.download = `${invoice}.pdf`; a.click();
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      },
+      error: () => { this.pdfLoading = null; this.toast.add({ severity: 'warn', summary: 'No PDF on file', detail: `Invoice ${invoice} has no PDF yet. It can be rebuilt from Credits.` }); }
+    });
+  }
 
   // ------------------------------------------------------------ one member
   loadMember(): void {
@@ -137,7 +279,7 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
       case 'computyme': return m.computymeOrders.length;
       case 'backorders': return m.backorders.length;
       case 'vendorpos': return m.vendorPos.length;
-      case 'credits': return m.vendorApprovals.length;
+      case 'credits': return this.memberApprovalsInWindow;
       default: return m.notes.length;
     }
   }
@@ -180,7 +322,7 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
       'Account': m.accountNumber, 'Member': m.name, 'Limit': m.limit, 'Balance': m.balance, 'Past due': m.pastDue, '90+ days': m.days90,
       'Open orders': m.openOrders, 'Vendor exposure': m.vendorExposure, 'Available': m.available, 'Over limit': this.overLimit(m) ? 'Yes' : '',
       'Credit hold': m.onHold ? 'Yes' : '', 'Limit from': m.limitSource === 'SQL' ? 'SQL' : 'Computyme', 'B2B orders': m.webOrders, 'Held orders': m.heldOrders, 'Held value': m.heldValue,
-      'Vendor approvals pending': m.pendingVendorCredits, 'YTD sales': m.ytdSales, 'Last note': m.lastNoteAt ? new Date(m.lastNoteAt).toLocaleDateString() : ''
+      'Vendor approvals (60d)': m.pendingVendorCreditCount, 'Approved value (60d)': m.pendingVendorCredits, 'Declined (60d)': m.declinedVendorCount, 'YTD sales': m.ytdSales, 'Last note': m.lastNoteAt ? new Date(m.lastNoteAt).toLocaleDateString() : ''
     }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, this.sheet(rows), 'Credit');
@@ -201,10 +343,11 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
     ]), 'Summary');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.webOrders.map(o => ({ 'Order': o.orderId, 'PO': o.po, 'Entered': this.d(o.entered), 'Lines': o.lines, 'Total': o.total, 'Held': o.held ? 'Yes' : '', 'Released': o.holdOverride ? 'Yes' : '', 'Ordered by': o.orderedBy }))), 'B2B orders');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.invoices.map(i => ({ 'Invoice': i.invoice, 'Posted': this.d(i.posted), 'Age (days)': i.ageDays, 'Terms': i.terms, 'PO': i.po, 'Vendor': i.vendorName, 'Vendor invoice': i.vendorInvoice, 'Gross': i.gross, 'Discount %': i.discountPct }))), 'Open invoices');
-    XLSX.utils.book_append_sheet(wb, this.sheet(m.computymeOrders.map(o => ({ 'Order': o.orderKey, 'PO': o.po, 'Ship': this.d(o.shipDate), 'Lines': o.lines, 'Total': o.total, 'Ships in 5 days': o.shipsSoon ? 'Yes' : '' }))), 'Computyme orders');
-    XLSX.utils.book_append_sheet(wb, this.sheet(m.backorders.map(b => ({ 'Backorder': b.backorderKey, 'PO': b.po, 'Product': b.productCode, 'Description': b.description, 'Qty': b.quantity, 'Allocated': b.allocatedQty, 'Unit net': b.unitNet, 'Allocated value': b.allocatedValue, 'Ship': this.d(b.shipDate), 'Counts now': b.countsNow ? 'Yes' : '' }))), 'Backorders');
+    XLSX.utils.book_append_sheet(wb, this.sheet(m.computymeOrders.map(o => ({ 'Order': o.orderKey, 'Web order': o.webOrder, 'PO': o.po, 'Entered': this.d(o.entered), 'Ship': this.d(o.shipDate), 'Lines': o.lines, 'Backordered lines': o.backorderedLines, 'Total': o.total, 'Status': this.cmStatus(o).label, 'Invoices (posted)': this.invoiceText(o) }))), 'Computyme orders');
+    XLSX.utils.book_append_sheet(wb, this.sheet((m.computymeOrderLines ?? []).map(l => ({ 'Order': l.orderKey, 'Line': l.line, 'Product': l.productCode, 'Description': l.description, 'Qty': l.quantity, 'Amount': l.amount, 'Backordered': l.backordered ? 'Yes' : '', 'Due': this.d(l.dueDate) }))), 'Computyme order lines');
+    XLSX.utils.book_append_sheet(wb, this.sheet(m.backorders.map(b => ({ 'Backorder': b.backorderKey, 'PO': b.po, 'Product': b.productCode, 'Description': b.description, 'Qty': b.quantity, 'Allocated': b.allocatedQty, 'Unit net': b.unitNet, 'Allocated value': b.allocatedValue, 'Ship': this.d(b.shipDate), 'Counts now': b.countsNow ? 'Yes' : '', 'Invoiced on this PO (posted)': this.invoiceText(b) }))), 'Backorders');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.vendorPos.map(v => ({ 'Vendor': v.vendorId, 'Vendor name': v.vendorName, 'PO': v.po, 'Date': this.d(v.poDate), 'Auth code': v.authorizationCode || '', 'Amount': v.amount, 'Billed': v.billed, 'Net': v.net }))), 'Vendor POs');
-    XLSX.utils.book_append_sheet(wb, this.sheet(m.vendorApprovals.map(a => ({ 'Requested': this.d(a.requested), 'Vendor': a.vendorName || a.vendorId, 'PO': a.po, 'Amount': a.amount, 'Auth code': a.declined ? '' : a.authorizationCode, 'Result': a.declined ? 'Declined: call PRO' : 'Approved', 'By': a.requestedBy }))), 'Vendor approvals');
+    XLSX.utils.book_append_sheet(wb, this.sheet(this.approvalRows(m.vendorApprovals)), 'Vendor approvals (all)');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.notes.map(n => ({ 'When': this.d(n.createdAt), 'Type': n.kind, 'Order': n.orderId, 'Note': n.note, 'By': n.createdBy }))), 'Notes');
     XLSX.writeFile(wb, `Credit_${h.accountNumber}_${this.today()}.xlsx`);
   }

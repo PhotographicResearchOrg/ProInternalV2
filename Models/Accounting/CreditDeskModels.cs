@@ -32,6 +32,7 @@ namespace ProInternal.Models.Accounting.CreditDesk
         public double HeldValue { get; set; }
         public decimal PendingVendorCredits { get; set; }
         public int PendingVendorCreditCount { get; set; }
+        public int DeclinedVendorCount { get; set; }
         public DateTime? LastNoteAt { get; set; }
     }
 
@@ -110,9 +111,25 @@ namespace ProInternal.Models.Accounting.CreditDesk
         public DateTime? ShipDate { get; set; }
         public string Code { get; set; }
         public string WebOrder { get; set; }
+        public DateTime? Entered { get; set; }
         public double? Total { get; set; }
         public int Lines { get; set; }
+        public int BackorderedLines { get; set; }
         public bool ShipsSoon { get; set; }
+        /* "invoice:posted" pairs (Computyme ARHIST, same PO), e.g. 123456:2026-10-14 */
+        public string Invoices { get; set; }
+    }
+
+    public class CreditComputymeOrderLine
+    {
+        public string OrderKey { get; set; }
+        public int Line { get; set; }
+        public string ProductCode { get; set; }
+        public string Description { get; set; }
+        public double? Quantity { get; set; }
+        public double? Amount { get; set; }
+        public bool Backordered { get; set; }
+        public DateTime? DueDate { get; set; }
     }
 
     public class CreditBackorder
@@ -128,6 +145,8 @@ namespace ProInternal.Models.Accounting.CreditDesk
         public double? UnitNet { get; set; }
         public double? AllocatedValue { get; set; }
         public bool CountsNow { get; set; }
+        /* "invoice:posted" pairs already invoiced on the same PO */
+        public string Invoices { get; set; }
     }
 
     public class CreditVendorPo
@@ -154,7 +173,10 @@ namespace ProInternal.Models.Accounting.CreditDesk
         public decimal Amount { get; set; }
         public string AuthorizationCode { get; set; }
         public string RequestedBy { get; set; }
+        public bool Processed { get; set; }
         public bool Declined { get; set; }
+        public string AccountNumber { get; set; }
+        public string MemberName { get; set; }
     }
 
     public class CreditNoteRow
@@ -173,6 +195,7 @@ namespace ProInternal.Models.Accounting.CreditDesk
         public List<CreditInvoice> Invoices { get; set; } = new();
         public List<CreditWebOrder> WebOrders { get; set; } = new();
         public List<CreditComputymeOrder> ComputymeOrders { get; set; } = new();
+        public List<CreditComputymeOrderLine> ComputymeOrderLines { get; set; } = new();
         public List<CreditBackorder> Backorders { get; set; } = new();
         public List<CreditVendorPo> VendorPos { get; set; } = new();
         public List<CreditVendorApproval> VendorApprovals { get; set; } = new();

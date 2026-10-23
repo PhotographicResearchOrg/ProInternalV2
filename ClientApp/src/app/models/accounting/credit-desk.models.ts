@@ -4,7 +4,7 @@ export interface CreditMemberRow {
   limit?: number | null; balance?: number | null; pastDue?: number | null; days90?: number | null; openOrders?: number | null;
   vendorExposure: number; vendorBilled: number; available?: number | null; ytdSales?: number | null; highCredit?: number | null;
   onHold: boolean; limitSource: 'COMPUTYME' | 'SQL'; webOrders: number; webValue: number; heldOrders: number; heldValue: number;
-  pendingVendorCredits: number; pendingVendorCreditCount: number; lastNoteAt?: string | null;
+  pendingVendorCredits: number; pendingVendorCreditCount: number; declinedVendorCount: number; lastNoteAt?: string | null;
 }
 export interface CreditMemberList { members: CreditMemberRow[]; canOverride: boolean; sqlIsMaster: boolean; }
 
@@ -20,13 +20,14 @@ export interface CreditHeader {
 }
 export interface CreditInvoice { invoiceKey: string; invoice: string; posted?: string | null; invoiceDate?: string | null; terms?: string | null; po?: string | null; vendorInvoice?: string | null; vendorName?: string | null; gross?: number | null; discountPct?: number | null; ageDays?: number | null; }
 export interface CreditWebOrder { orderId: number; po?: string | null; entered: string; total?: number | null; lines: number; autoHold: boolean; holdOverride: boolean; held: boolean; orderedBy?: string | null; }
-export interface CreditComputymeOrder { orderKey: string; po?: string | null; shipDate?: string | null; code?: string | null; webOrder?: string | null; total?: number | null; lines: number; shipsSoon: boolean; }
-export interface CreditBackorder { backorderKey: string; po?: string | null; ordered?: string | null; shipDate?: string | null; productCode?: string | null; description?: string | null; quantity?: number | null; allocatedQty?: number | null; unitNet?: number | null; allocatedValue?: number | null; countsNow: boolean; }
+export interface CreditComputymeOrder { orderKey: string; po?: string | null; shipDate?: string | null; code?: string | null; webOrder?: string | null; entered?: string | null; total?: number | null; lines: number; backorderedLines: number; shipsSoon: boolean; invoices?: string | null; }
+export interface CreditComputymeOrderLine { orderKey: string; line: number; productCode?: string | null; description?: string | null; quantity?: number | null; amount?: number | null; backordered: boolean; dueDate?: string | null; }
+export interface CreditBackorder { backorderKey: string; po?: string | null; ordered?: string | null; shipDate?: string | null; productCode?: string | null; description?: string | null; quantity?: number | null; allocatedQty?: number | null; unitNet?: number | null; allocatedValue?: number | null; countsNow: boolean; invoices?: string | null; }
 export interface CreditVendorPo { vendorId?: string | null; vendorName?: string | null; po?: string | null; poDate?: string | null; amount?: number | null; billed?: number | null; net?: number | null; authorizationCode?: string | null; approvalId?: number | null; approvedOn?: string | null; }
-export interface CreditVendorApproval { approvalId: number; requested: string; vendorId?: string | null; vendorName?: string | null; po?: string | null; amount: number; authorizationCode?: string | null; requestedBy?: string | null; declined: boolean; }
+export interface CreditVendorApproval { approvalId: number; requested: string; vendorId?: string | null; vendorName?: string | null; po?: string | null; amount: number; authorizationCode?: string | null; requestedBy?: string | null; processed: boolean; declined: boolean; accountNumber?: string | null; memberName?: string | null; }
 export interface CreditNote { id: number; kind: 'NOTE' | 'OVERRIDE' | 'REVIEWED'; orderId?: number | null; note: string; createdBy?: string | null; createdAt: string; }
 export interface CreditMember {
-  header: CreditHeader; invoices: CreditInvoice[]; webOrders: CreditWebOrder[]; computymeOrders: CreditComputymeOrder[];
+  header: CreditHeader; invoices: CreditInvoice[]; webOrders: CreditWebOrder[]; computymeOrders: CreditComputymeOrder[]; computymeOrderLines: CreditComputymeOrderLine[];
   backorders: CreditBackorder[]; vendorPos: CreditVendorPo[]; vendorApprovals: CreditVendorApproval[]; notes: CreditNote[]; canOverride: boolean; sqlIsMaster: boolean;
 }
 

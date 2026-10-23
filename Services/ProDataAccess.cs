@@ -3127,11 +3127,19 @@ GetShopifyGovernanceIssues()
                 Invoices        = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditInvoice>().ToList(),
                 WebOrders       = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditWebOrder>().ToList(),
                 ComputymeOrders = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditComputymeOrder>().ToList(),
+                ComputymeOrderLines = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditComputymeOrderLine>().ToList(),
                 Backorders      = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditBackorder>().ToList(),
                 VendorPos       = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditVendorPo>().ToList(),
                 VendorApprovals = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditVendorApproval>().ToList(),
                 Notes           = multi.Read<ProInternal.Models.Accounting.CreditDesk.CreditNoteRow>().ToList()
             };
+        }
+
+        public List<ProInternal.Models.Accounting.CreditDesk.CreditVendorApproval> Credit_VendorApprovals(int? days)
+        {
+            using var conn = GetConnection();
+            return conn.Query<ProInternal.Models.Accounting.CreditDesk.CreditVendorApproval>("piv2.Credit_VendorApprovals",
+                new { Days = days }, commandType: CommandType.StoredProcedure, commandTimeout: 120).ToList();
         }
 
         public int CreditNote_Add(string accountNumber, string kind, int? orderId, string note, string user)

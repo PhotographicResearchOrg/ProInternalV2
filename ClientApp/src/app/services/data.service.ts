@@ -57,7 +57,7 @@ import {
   VendorFileApi, VendorFileCategory, CreateVendorRequest
 } from 'src/app/models/vendor/vendor-card.model';
 import { AccessRule, AccessRuleMember, MemberDetail, MemberListItem, MemberShipTos, ShipToIssues } from 'src/app/models/member/member-desk.models';
-import { CreditMember, CreditMemberList, PositivePay } from 'src/app/models/accounting/credit-desk.models';
+import { CreditMember, CreditMemberList, CreditVendorApproval, PositivePay } from 'src/app/models/accounting/credit-desk.models';
 import {
   CategoryFilters, CategoryProductPage, CategoryProductQuery, CategoryTree, PublishItem, PublishRequest,
   PublishResult, PublishSummary, RevertConflict
@@ -1067,6 +1067,10 @@ export class DataService {
   }
   creditOverride(orderId: number, accountNumber: string, reason: string): Observable<any> {
     return this.api.post<any>(`API/CreditDesk/orders/${orderId}/override?accountNumber=${encodeURIComponent(accountNumber)}`, { reason });
+  }
+  /** vendor credit approvals for every member: days = 60 (default) or 'all' */
+  creditVendorApprovals(days: number | 'all' = 60): Observable<CreditVendorApproval[]> {
+    return this.api.get<CreditVendorApproval[]>(`API/CreditDesk/vendor-approvals?days=${days}`);
   }
   positivePay(): Observable<PositivePay> {
     return this.api.get<PositivePay>('API/CreditDesk/positive-pay');

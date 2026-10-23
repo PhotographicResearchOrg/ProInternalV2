@@ -65,6 +65,16 @@ namespace ProInternal.Controllers
             return Ok(m);
         }
 
+        /* vendor credit approvals, every member: ?days=60 (default) or ?days=all */
+        [HttpGet("vendor-approvals")]
+        [RequirePermission(CreditRoute, CreditOverride)]
+        public IActionResult VendorApprovals([FromQuery] string days = "60")
+        {
+            int? d = string.Equals(days, "all", StringComparison.OrdinalIgnoreCase) ? null
+                   : int.TryParse(days, out var n) && n > 0 ? n : 60;
+            return Ok(_db.Credit_VendorApprovals(d));
+        }
+
         /* Accounting desk: last week's invoices, due this Friday */
         [HttpGet("positive-pay")]
         [RequirePermission(AccountingRoute, CreditRoute, CreditOverride)]
