@@ -3142,6 +3142,18 @@ GetShopifyGovernanceIssues()
                 commandType: CommandType.StoredProcedure);
         }
 
+        /* Positive pay: last week's invoices due this Friday (piv2.Accounting_PositivePay). Read only. */
+        public ProInternal.Models.Accounting.CreditDesk.PositivePay Accounting_PositivePay()
+        {
+            using var conn = GetConnection();
+            using var multi = conn.QueryMultiple("piv2.Accounting_PositivePay", commandType: CommandType.StoredProcedure, commandTimeout: 90);
+            return new ProInternal.Models.Accounting.CreditDesk.PositivePay
+            {
+                Totals  = multi.ReadFirstOrDefault<ProInternal.Models.Accounting.CreditDesk.PositivePayTotals>(),
+                Members = multi.Read<ProInternal.Models.Accounting.CreditDesk.PositivePayMember>().ToList()
+            };
+        }
+
         /* Ship-tos, SQL vs Computyme (ARMST 00 + SHIPTO mirror 01+). Read only. */
         public MemberDesk.MemberShipTos MemberShipTo_Compare(string accountNumber)
         {

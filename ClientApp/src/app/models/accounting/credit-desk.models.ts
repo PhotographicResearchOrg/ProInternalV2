@@ -29,3 +29,8 @@ export interface CreditMember {
   header: CreditHeader; invoices: CreditInvoice[]; webOrders: CreditWebOrder[]; computymeOrders: CreditComputymeOrder[];
   backorders: CreditBackorder[]; vendorPos: CreditVendorPo[]; vendorApprovals: CreditVendorApproval[]; notes: CreditNote[]; canOverride: boolean; sqlIsMaster: boolean;
 }
+
+/* Accounting desk: positive pay (api/creditdesk/positive-pay) */
+export interface PositivePayTotals { weekStart: string; weekEnd: string; dueFriday: string; invoices: number; members: number; invoiced: number; paid: number; stillOwed: number; membersOwing: number; }
+export interface PositivePayMember { accountNumber: string; name?: string | null; invoices: number; invoiced: number; paid: number; stillOwed: number; }
+export interface PositivePay { totals?: PositivePayTotals | null; members: PositivePayMember[]; }

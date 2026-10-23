@@ -14,6 +14,49 @@
     </div>
   </header>
 
+  <!-- ------------------------------------------------ metrics -->
+  <div class="acc-grid acc-metrics">
+    <section class="desk-card acc-metric">
+      <div class="section-header">
+        <div>
+          <div class="section-label"><i class="pi pi-credit-card"></i> EZPay today</div>
+          <div class="section-subtitle">Actual submissions today only. The forecast is on Forecasting.</div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="exportEzPay()" [disabled]="!ezpayAccounts"><i class="pi pi-file-excel"></i>Export</button>
+      </div>
+      <div class="acc-loading" *ngIf="ezpay === null"><i class="pi pi-spin pi-spinner"></i></div>
+      <ng-container *ngIf="ezpay !== null">
+        <div class="acc-big">{{ ezpayNet | currency:'USD':'symbol':'1.0-0' }}</div>
+        <div class="acc-sub">{{ ezpayAccounts | number }} member{{ ezpayAccounts === 1 ? '' : 's' }} submitted · {{ ezpayGross | currency:'USD':'symbol':'1.0-0' }} before discount</div>
+        <div class="acc-sub bad" *ngIf="ezpayError">Couldn't read today's EZPay.</div>
+      </ng-container>
+      <div class="acc-links-row">
+        <a *ngIf="canSee('/forecast')" routerLink="/forecast">Forecast <i class="pi pi-arrow-right"></i></a>
+        <a *ngIf="canSee('/payments')" routerLink="/payments">Today's detail <i class="pi pi-arrow-right"></i></a>
+      </div>
+    </section>
+
+    <section class="desk-card acc-metric">
+      <div class="section-header">
+        <div>
+          <div class="section-label"><i class="pi pi-calendar"></i> Positive pay<ng-container *ngIf="positive?.totals as t"> · due {{ t.dueFriday | date:'EEE MMM d' }}</ng-container></div>
+          <div class="section-subtitle" *ngIf="positive?.totals as t">Invoiced {{ t.weekStart | date:'MMM d' }} – {{ t.weekEnd | date:'MMM d' }}, to be paid by this Friday.</div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="exportPositivePay()" [disabled]="!positive?.members?.length"><i class="pi pi-file-excel"></i>Export</button>
+      </div>
+      <div class="acc-loading" *ngIf="positive === null"><i class="pi pi-spin pi-spinner"></i></div>
+      <ng-container *ngIf="positive?.totals as t">
+        <div class="acc-big">{{ t.stillOwed | currency:'USD':'symbol':'1.0-0' }} <span class="acc-of">still owed of {{ t.invoiced | currency:'USD':'symbol':'1.0-0' }}</span></div>
+        <div class="acc-bar"><span [style.width.%]="positivePaidPct"></span></div>
+        <div class="acc-sub">{{ positivePaidPct }}% paid · {{ t.membersOwing | number }} of {{ t.members | number }} members still owe · {{ t.invoices | number }} invoices</div>
+      </ng-container>
+      <div class="acc-sub bad" *ngIf="positiveError">Couldn't read positive pay. Run sql/accounting/02-positive-pay.sql.</div>
+      <div class="acc-links-row">
+        <a *ngIf="canSee('/credit')" routerLink="/credit" [queryParams]="{ filter: 'pastdue' }">Credit Desk <i class="pi pi-arrow-right"></i></a>
+      </div>
+    </section>
+  </div>
+
   <div class="acc-grid">
 
     <!-- ------------------------------------------------ batch -->

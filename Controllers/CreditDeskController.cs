@@ -16,6 +16,7 @@ namespace ProInternal.Controllers
      *                                                     backorders, vendor POs, vendor credit approvals, notes
      *   POST api/creditdesk/orders/{orderId}/override     release a held B2B order (Orders.HoldOverride = 1) with a reason (Credit.Override)
      *   POST api/creditdesk/members/{account}/notes       add a note
+     *   GET  api/creditdesk/positive-pay                  Accounting desk: last week's invoices, due this Friday
      * Cutover: before the member cutover (Member:SqlIsMaster = false) limit and credit hold are Computyme's (ARMST);
      * after it they're SQL's (Roster, edited on the Member Desk). Balance, aging and invoices stay Computyme's.
      */
@@ -25,6 +26,7 @@ namespace ProInternal.Controllers
     {
         public const string CreditRoute = "/credit";
         public const string CreditOverride = "Credit.Override";
+        public const string AccountingRoute = "/dashboard-accounting";
 
         private readonly IProDataAccess _db;
         private readonly IOrdersDataAccess _orders;
@@ -62,6 +64,11 @@ namespace ProInternal.Controllers
             m.SqlIsMaster = _sqlIsMaster;
             return Ok(m);
         }
+
+        /* Accounting desk: last week's invoices, due this Friday */
+        [HttpGet("positive-pay")]
+        [RequirePermission(AccountingRoute, CreditRoute, CreditOverride)]
+        public IActionResult PositivePay() => Ok(_db.Accounting_PositivePay());
 
         [HttpPost("orders/{orderId:int}/override")]
         [RequirePermission(CreditOverride)]

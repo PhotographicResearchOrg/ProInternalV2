@@ -350,6 +350,7 @@ GetSellThroughExportData(
         ProInternal.Models.Accounting.CreditDesk.CreditMemberList Credit_MemberList(bool sqlIsMaster);
         ProInternal.Models.Accounting.CreditDesk.CreditMember Credit_MemberGet(string accountNumber, bool sqlIsMaster);
         int CreditNote_Add(string accountNumber, string kind, int? orderId, string note, string user);
+        ProInternal.Models.Accounting.CreditDesk.PositivePay Accounting_PositivePay();
         MemberDesk.ShipToIssues MemberShipTo_Issues();
         #endregion
 

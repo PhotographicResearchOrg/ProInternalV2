@@ -24,3 +24,13 @@
 .acc-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; b { font-size: 13.5px; font-weight: 650; } span { font-size: 12px; color: var(--sub); } }
 .acc-chev { color: var(--faint); font-size: 12px; }
 @media (max-width: 900px) { .acc-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.acc-metrics { margin-bottom: 16px; }
+.acc-metric .section-label i { color: var(--teal); margin-right: 4px; }
+.acc-big { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.acc-of { font-size: 13px; font-weight: 500; color: var(--sub); letter-spacing: 0; }
+.acc-sub { margin-top: 6px; font-size: 12.5px; color: var(--sub); &.bad { color: var(--red); } }
+.acc-bar { height: 8px; margin-top: 10px; background: #eef1f5; border-radius: 6px; overflow: hidden; span { display: block; height: 100%; background: var(--teal); border-radius: 6px; } }
+.acc-links-row { display: flex; gap: 16px; margin-top: 12px; a { font-size: 12.5px; font-weight: 600; color: var(--teal); text-decoration: none; display: inline-flex; gap: 5px; align-items: center; } }
+.acc-loading { padding: 14px 0; color: var(--faint); }
+.btn-sm { height: 30px; padding: 0 10px; font-size: 12px; }

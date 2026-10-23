@@ -1,9 +1,12 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { DataService } from 'src/app/services/data.service';
 import { AuthService } from 'src/app/services/auth.service';
 import { BatchRunResponse } from 'src/app/models/Uvicorn/PassThroughInvoice';
 import { HomePin, stablePin } from 'src/app/services/home-pin.service';
+import { PositivePay } from 'src/app/models/accounting/credit-desk.models';
+import { EzPaySummary } from 'src/app/models/accounting/EzPaySummary';
+import * as XLSX from 'xlsx';
 
 interface AccountingLink { route: string; title: string; sub: string; icon: string; }
 
@@ -14,7 +17,7 @@ interface AccountingLink { route: string; title: string; sub: string; icon: stri
   styleUrls: ['../../MemberManagement/member-desk/member-desk.component.scss', './dashboardaccounting.component.scss'],
   providers: [MessageService, ConfirmationService]
 })
-export class DashboardAccountingComponent {
+export class DashboardAccountingComponent implements OnInit {
   readonly homePin: HomePin = stablePin({ id: 'accounting', label: 'Accounting', sub: 'Dashboards', icon: 'pi pi-money-bill', route: '/dashboard-accounting' });
 
   private readonly allLinks: AccountingLink[] = [
@@ -30,6 +33,13 @@ export class DashboardAccountingComponent {
     { route: '/forecast', title: 'Forecasting', sub: 'Cash and sales forecast', icon: 'pi pi-chart-line' }
   ];
   readonly links: AccountingLink[];
+
+  // metrics
+  ezpay: EzPaySummary[] | null = null;
+  ezpayError = false;
+  positive: PositivePay | null = null;
+  positiveError = false;
+  canSee = (route: string) => this.links.some(l => l.route === route);
 
   // pass-through invoice batch
   isRunning = false;
@@ -51,6 +61,46 @@ export class DashboardAccountingComponent {
   constructor(private confirm: ConfirmationService, private toast: MessageService, private dataService: DataService, auth: AuthService) {
     const allowed = auth.getAllowedRoutes();
     this.links = this.allLinks.filter(l => allowed.includes(l.route.toLowerCase()));
+  }
+
+  ngOnInit(): void { this.loadMetrics(); }
+
+  loadMetrics(): void {
+    /* EZPay: actual submissions today only (the forecast lives on Forecasting) */
+    const now = new Date();
+    this.ezpay = null; this.ezpayError = false;
+    this.dataService.getEzPaySummary(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))).subscribe({
+      next: r => this.ezpay = r ?? [],
+      error: () => { this.ezpay = []; this.ezpayError = true; }
+    });
+    this.positive = null; this.positiveError = false;
+    this.dataService.positivePay().subscribe({
+      next: r => this.positive = r,
+      error: () => { this.positive = { members: [] }; this.positiveError = true; }
+    });
+  }
+  get ezpayAccounts(): number { return (this.ezpay ?? []).length; }
+  get ezpayNet(): number { return (this.ezpay ?? []).reduce((a, r) => a + (Number(r.ezpayNet) || 0), 0); }
+  get ezpayGross(): number { return (this.ezpay ?? []).reduce((a, r) => a + (Number(r.ezpay) || 0), 0); }
+  get positivePaidPct(): number {
+    const t = this.positive?.totals;
+    return t && t.invoiced > 0 ? Math.round((t.paid / t.invoiced) * 100) : 0;
+  }
+
+  exportPositivePay(): void {
+    const p = this.positive;
+    if (!p?.totals) return;
+    const rows = p.members.map(m => ({ 'Account': m.accountNumber, 'Member': m.name || '', 'Invoices': m.invoices, 'Invoiced': m.invoiced, 'Paid': m.paid, 'Still owed': m.stillOwed }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, rows.length ? XLSX.utils.json_to_sheet(rows) : XLSX.utils.aoa_to_sheet([['(none)']]), 'Positive pay');
+    XLSX.writeFile(wb, `PositivePay_due_${p.totals.dueFriday.slice(0, 10)}.xlsx`);
+  }
+
+  exportEzPay(): void {
+    const rows = (this.ezpay ?? []).map(r => ({ 'Account': r.account, 'Member': r.company, 'EZPay': r.ezpay, 'EZPay net': r.ezpayNet, 'Gross': r.gross, 'Discount': r.discount, 'Net': r.net, 'Auto pay': r.autoPay }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, rows.length ? XLSX.utils.json_to_sheet(rows) : XLSX.utils.aoa_to_sheet([['(none)']]), 'EZPay today');
+    XLSX.writeFile(wb, `EZPay_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   confirmRun(event: Event): void {

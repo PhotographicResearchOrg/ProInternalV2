@@ -187,4 +187,33 @@ namespace ProInternal.Models.Accounting.CreditDesk
 
     public class CreditOverrideRequest { public string Reason { get; set; } }
     public class CreditNoteRequest { public string Note { get; set; } public string Kind { get; set; } }
+
+    public class PositivePayTotals
+    {
+        public DateTime WeekStart { get; set; }
+        public DateTime WeekEnd { get; set; }
+        public DateTime DueFriday { get; set; }
+        public int Invoices { get; set; }
+        public int Members { get; set; }
+        public double Invoiced { get; set; }
+        public double Paid { get; set; }
+        public double StillOwed { get; set; }
+        public int MembersOwing { get; set; }
+    }
+
+    public class PositivePayMember
+    {
+        public string AccountNumber { get; set; }
+        public string Name { get; set; }
+        public int Invoices { get; set; }
+        public double Invoiced { get; set; }
+        public double Paid { get; set; }
+        public double StillOwed { get; set; }
+    }
+
+    public class PositivePay
+    {
+        public PositivePayTotals Totals { get; set; }
+        public List<PositivePayMember> Members { get; set; } = new();
+    }
 }
