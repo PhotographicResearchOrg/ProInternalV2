@@ -32,5 +32,15 @@
 .ib:disabled { opacity: .35; cursor: default; }
 .ib:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
 .card.empty { color: var(--sub); font-size: 13px; }
-@media (max-width: 760px) { .tiles { grid-template-columns: 1fr 1fr; } .t-value { font-size: 24px; } .pin-acts { opacity: 1; } }
+@media (max-width: 760px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .tile { padding: 12px 12px 11px; gap: 4px; }
+  .t-top { align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.3; }
+  .t-top > i:first-child { margin-top: 2px; }
+  .t-label { overflow-wrap: normal; word-break: normal; hyphens: auto; }
+  .go { display: none; }
+  .t-value { font-size: 24px; }
+  .t-sub { font-size: 11.5px; }
+  .pin-acts { opacity: 1; }
+}
 @media (prefers-reduced-motion: reduce) { .tile { transition: none; } .tile:hover { transform: none; } }

@@ -38,22 +38,47 @@ export class AppMenuProfileComponent {
 
   currentUser: ProUser | null = null;
   lastName: string= "";
+  photoFailed = false;
 
   ngOnInit() {
-    this.strapiService.getStaffMember().subscribe(data => {
-
-      const storedName = (localStorage.getItem('userData') || '') .replace(/['"]/g, '')  // Remove single/double quotes
-  .trim();          ; // fallback to empty string
-      this.lastName = storedName;
-
-    this.currentUser =
-      data.find((staff: any) =>
-        staff.name.toLowerCase().includes(this.lastName.toLowerCase())
-      ) || null;
+    this.strapiService.getStaffMember().subscribe({
+      next: data => { this.currentUser = this.findMe(data || []); },
+      error: () => { this.currentUser = null; }
     });
+  }
 
+  /** Who is signed in, on the Strapi staff list (the B2B site's staff page). Matched on, in order:
+   *  the e-mail's name part = the login name; then the last name in the token. Never a guess on a blank name. */
+  private findMe(staff: ProUser[]): ProUser | null {
+    let login = '', last = '';
+    try {
+      const token = localStorage.getItem('token') || '';
+      const payload = token.split('.')[1];
+      if (payload) {
+        const claims = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+        login = String(claims?.sub || claims?.unique_name || '').trim().toLowerCase();
+        last = String(claims?.userLastName || '').trim().toLowerCase();
+      }
+    } catch { /* fall back to the stored last name */ }
+    if (!last) last = (localStorage.getItem('userData') || '').replace(/['"]/g, '').trim().toLowerCase();
+    this.lastName = last;
 
-}
+    if (login) {
+      const byEmail = staff.find(s => (s.email || '').toLowerCase().split('@')[0] === login);
+      if (byEmail) return byEmail;
+    }
+    if (last) {
+      const byLast = staff.filter(s => {
+        const parts = (s.name || '').toLowerCase().trim().split(/\s+/);
+        return parts.length > 0 && parts[parts.length - 1] === last;
+      });
+      if (byLast.length === 1) return byLast[0];
+      const contains = staff.filter(s => (s.name || '').toLowerCase().includes(last));
+      if (contains.length === 1) return contains[0];
+      if (byLast.length) return byLast[0];
+    }
+    return null;
+  }
 
     toggleMenu() {
         this.layoutService.onMenuProfileToggle();

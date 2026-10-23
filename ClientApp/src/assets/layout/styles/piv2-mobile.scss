@@ -1,0 +1,59 @@
+/* PIV2 phone layout (applies under 760px). The desks paint their own grey canvas, so the shell stops
+   padding around them and they run edge to edge; older pages keep a small gutter. */
+@media screen and (max-width: 760px) {
+  .layout-content-wrapper {
+    padding-top: 4rem;
+
+    .layout-content { padding: 0.75rem; }
+
+    .layout-content:has(> * > .desk-page, > * > .app, > * > .desk, > * > .desk-head) {
+      padding: 0;
+      background: #e8ebef;
+    }
+  }
+
+  /* breadcrumb bar: one tight row */
+  .layout-breadcrumb-container { padding: 0.35rem 0.85rem !important; }
+
+  /* top bar: the menu button is the hamburger on a phone; the right-hand button opens search and alerts */
+  .layout-topbar .layout-topbar-start {
+    height: 4rem;
+    .layout-topbar-logo p { margin: 0; font-weight: 700; }
+    .layout-menu-button { margin-left: 0.75rem !important; }
+  }
+  .layout-topbar .icon-desktop { display: none !important; }
+  .layout-topbar .icon-mobile { display: inline-block !important; }
+
+  .layout-topbar-menu-active .layout-topbar .layout-topbar-end .layout-topbar-items {
+    gap: 0.25rem;
+    overflow-x: auto;
+    .layout-topbar-search { flex: 1 1 auto; min-width: 0; input { width: 100%; } }
+  }
+
+  /* the slide-out menu: full height, scrolls, no broken avatar */
+  .layout-mobile-active .layout-sidebar {
+    width: min(84vw, 320px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* desk headers: title and text full width, buttons underneath */
+  .vhead-top > div:not(.logo):not(.row) { flex: 1 1 calc(100% - 84px) !important; }
+  .vhead-top > .logo { flex: 0 0 auto !important; }
+  .vhead-top > .row { flex: 1 1 100%; flex-wrap: wrap; }
+
+  /* footer takes less room */
+  .layout-footer { padding: 0.75rem 1rem !important; }
+
+  /* PrimeNG dialogs fit the screen */
+  .p-dialog { max-width: calc(100vw - 16px) !important; }
+}
+
+.layout-topbar .icon-mobile { display: none; }
+
+/* initial in place of a missing profile photo (any screen size) */
+.piv2-avatar {
+  display: inline-grid; place-items: center; flex: 0 0 auto;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: #dff1ef; color: #0e7c73; font-weight: 700; font-size: 18px;
+}

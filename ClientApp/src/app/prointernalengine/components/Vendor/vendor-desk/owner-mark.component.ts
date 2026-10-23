@@ -48,6 +48,8 @@ export class OwnerMarkComponent {
     .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 12px; color: #5c6b81; }
     .k { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: 10.5px; color: #8a97ab; }
     .it { display: inline-flex; align-items: center; gap: 6px; }
+    /* phones: the four marks on one line, the explanation is in each mark's tooltip */
+    @media (max-width: 760px) { .legend { gap: 6px; } .t { display: none; } }
   `]
 })
 export class OwnerLegendComponent {
