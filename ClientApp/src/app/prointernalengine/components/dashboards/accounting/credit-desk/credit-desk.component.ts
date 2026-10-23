@@ -122,10 +122,10 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
   readonly tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'orders', label: 'B2B orders', icon: 'pi pi-shopping-cart' },
     { key: 'invoices', label: 'Open invoices', icon: 'pi pi-file' },
-    { key: 'computyme', label: 'Computyme orders', icon: 'pi pi-box' },
+    { key: 'computyme', label: 'Orders in Computyme', icon: 'pi pi-box' },
     { key: 'backorders', label: 'Backorders', icon: 'pi pi-clock' },
     { key: 'vendorpos', label: 'Vendor POs', icon: 'pi pi-truck' },
-    { key: 'credits', label: 'Vendor credits', icon: 'pi pi-check-square' },
+    { key: 'credits', label: 'Vendor approvals', icon: 'pi pi-check-square' },
     { key: 'notes', label: 'Notes', icon: 'pi pi-comment' }
   ];
   tabCount(t: Tab): number {
@@ -180,7 +180,7 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
       'Account': m.accountNumber, 'Member': m.name, 'Limit': m.limit, 'Balance': m.balance, 'Past due': m.pastDue, '90+ days': m.days90,
       'Open orders': m.openOrders, 'Vendor exposure': m.vendorExposure, 'Available': m.available, 'Over limit': this.overLimit(m) ? 'Yes' : '',
       'Credit hold': m.onHold ? 'Yes' : '', 'Limit from': m.limitSource === 'SQL' ? 'SQL' : 'Computyme', 'B2B orders': m.webOrders, 'Held orders': m.heldOrders, 'Held value': m.heldValue,
-      'Vendor credits pending': m.pendingVendorCredits, 'YTD sales': m.ytdSales, 'Last note': m.lastNoteAt ? new Date(m.lastNoteAt).toLocaleDateString() : ''
+      'Vendor approvals pending': m.pendingVendorCredits, 'YTD sales': m.ytdSales, 'Last note': m.lastNoteAt ? new Date(m.lastNoteAt).toLocaleDateString() : ''
     }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, this.sheet(rows), 'Credit');
@@ -203,8 +203,8 @@ export class CreditDeskComponent implements OnInit, OnDestroy {
     XLSX.utils.book_append_sheet(wb, this.sheet(m.invoices.map(i => ({ 'Invoice': i.invoice, 'Posted': this.d(i.posted), 'Age (days)': i.ageDays, 'Terms': i.terms, 'PO': i.po, 'Vendor': i.vendorName, 'Vendor invoice': i.vendorInvoice, 'Gross': i.gross, 'Discount %': i.discountPct }))), 'Open invoices');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.computymeOrders.map(o => ({ 'Order': o.orderKey, 'PO': o.po, 'Ship': this.d(o.shipDate), 'Lines': o.lines, 'Total': o.total, 'Ships in 5 days': o.shipsSoon ? 'Yes' : '' }))), 'Computyme orders');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.backorders.map(b => ({ 'Backorder': b.backorderKey, 'PO': b.po, 'Product': b.productCode, 'Description': b.description, 'Qty': b.quantity, 'Allocated': b.allocatedQty, 'Unit net': b.unitNet, 'Allocated value': b.allocatedValue, 'Ship': this.d(b.shipDate), 'Counts now': b.countsNow ? 'Yes' : '' }))), 'Backorders');
-    XLSX.utils.book_append_sheet(wb, this.sheet(m.vendorPos.map(v => ({ 'Vendor': v.vendorId, 'Vendor name': v.vendorName, 'PO': v.po, 'Date': this.d(v.poDate), 'Amount': v.amount, 'Billed': v.billed, 'Net': v.net }))), 'Vendor POs');
-    XLSX.utils.book_append_sheet(wb, this.sheet(m.vendorApprovals.map(a => ({ 'Requested': this.d(a.requested), 'Vendor': a.vendorName || a.vendorId, 'PO': a.po, 'Amount': a.amount, 'Auth code': a.authorizationCode, 'Declined': a.declined ? 'Yes' : '', 'By': a.requestedBy }))), 'Vendor credits');
+    XLSX.utils.book_append_sheet(wb, this.sheet(m.vendorPos.map(v => ({ 'Vendor': v.vendorId, 'Vendor name': v.vendorName, 'PO': v.po, 'Date': this.d(v.poDate), 'Auth code': v.authorizationCode || '', 'Amount': v.amount, 'Billed': v.billed, 'Net': v.net }))), 'Vendor POs');
+    XLSX.utils.book_append_sheet(wb, this.sheet(m.vendorApprovals.map(a => ({ 'Requested': this.d(a.requested), 'Vendor': a.vendorName || a.vendorId, 'PO': a.po, 'Amount': a.amount, 'Auth code': a.declined ? '' : a.authorizationCode, 'Result': a.declined ? 'Declined: call PRO' : 'Approved', 'By': a.requestedBy }))), 'Vendor approvals');
     XLSX.utils.book_append_sheet(wb, this.sheet(m.notes.map(n => ({ 'When': this.d(n.createdAt), 'Type': n.kind, 'Order': n.orderId, 'Note': n.note, 'By': n.createdBy }))), 'Notes');
     XLSX.writeFile(wb, `Credit_${h.accountNumber}_${this.today()}.xlsx`);
   }

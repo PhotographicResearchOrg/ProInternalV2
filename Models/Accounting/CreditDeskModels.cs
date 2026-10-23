@@ -139,6 +139,9 @@ namespace ProInternal.Models.Accounting.CreditDesk
         public double? Amount { get; set; }
         public double? Billed { get; set; }
         public double? Net { get; set; }
+        public string AuthorizationCode { get; set; }
+        public int? ApprovalId { get; set; }
+        public DateTime? ApprovedOn { get; set; }
     }
 
     public class CreditVendorApproval

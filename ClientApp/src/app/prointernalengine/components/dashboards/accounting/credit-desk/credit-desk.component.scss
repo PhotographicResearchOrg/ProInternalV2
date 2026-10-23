@@ -51,3 +51,5 @@ tr.cd-held td:first-child { box-shadow: inset 3px 0 0 var(--red); }
   .desk-toolbar { flex-wrap: wrap; }
   .desk-toolbar .toolbar-actions { width: 100%; flex-wrap: wrap; }
 }
+
+.cd-code { font-family: var(--mono); font-weight: 700; letter-spacing: 0.06em; padding: 2px 7px; background: var(--teal-soft); color: var(--teal-dark, #0b5e57); border-radius: 6px; }

@@ -312,13 +312,21 @@ BEGIN
     /* 6. direct-vendor POs counted against credit (VENDORD) */
     SELECT CAST(vm.VENDOR AS varchar(20)) AS VendorId, CAST(ap.NAME AS nvarchar(200)) AS VendorName,
            po.P_O AS PO, dt.DATE AS PoDate, am.AMOUNT AS Amount, ISNULL(b.BILLED, 0) AS Billed,
-           ISNULL(am.AMOUNT, 0) - ISNULL(b.BILLED, 0) AS Net
+           ISNULL(am.AMOUNT, 0) - ISNULL(b.BILLED, 0) AS Net,
+           apv.AuthorizationCode, apv.ApprovalId, apv.Requested AS ApprovedOn
     FROM EDA.VENDORD.VENDOR_MV vm
     LEFT JOIN EDA.VENDORD.DATE_MV dt  ON dt.ID = vm.ID AND dt.DATE_MV_POS = vm.VENDOR_MV_POS
     LEFT JOIN EDA.VENDORD.P_O_MV po   ON po.ID = vm.ID AND po.P_O_MV_POS = vm.VENDOR_MV_POS
     LEFT JOIN EDA.VENDORD.AMOUNT_MV am ON am.ID = vm.ID AND am.AMOUNT_MV_POS = vm.VENDOR_MV_POS
     LEFT JOIN EDA.VENDORD.BILLED_MV b  ON b.ID = vm.ID AND b.BILLED_MV_POS = vm.VENDOR_MV_POS
     LEFT JOIN EDA.APMST.APMST ap ON ap.ID = vm.VENDOR
+    /* the credit approval the vendor got for this PO (same member, vendor and PO) */
+    OUTER APPLY (SELECT TOP (1) c.ID AS ApprovalId, c.AuthorizationCode, c.DateRequested AS Requested
+                 FROM dbo.VendorCreditApproval c
+                 WHERE LTRIM(RTRIM(c.MemberID)) = @acct
+                   AND LTRIM(RTRIM(c.VendorID)) = LTRIM(RTRIM(vm.VENDOR)) COLLATE DATABASE_DEFAULT
+                   AND UPPER(LTRIM(RTRIM(c.PO))) = UPPER(LTRIM(RTRIM(po.P_O))) COLLATE DATABASE_DEFAULT
+                 ORDER BY CASE WHEN c.AuthorizationCode LIKE 'Please call%' THEN 1 ELSE 0 END, c.ID DESC) apv
     WHERE vm.ID COLLATE DATABASE_DEFAULT = @acct
     ORDER BY dt.DATE DESC;
 

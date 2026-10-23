@@ -46,9 +46,9 @@
         <div class="summary-sub">Held in Computyme</div>
       </div>
       <div class="summary-card" [class.active-card]="filter === 'credits'" (click)="setFilter('credits')">
-        <div class="summary-label">Vendor credits</div>
+        <div class="summary-label">Vendor approvals</div>
         <div class="summary-value">{{ count('credits') | number }}</div>
-        <div class="summary-sub">{{ sum('credits', 'pendingVendorCredits') | currency:'USD':'symbol':'1.0-0' }} approvals not processed</div>
+        <div class="summary-sub">{{ sum('credits', 'pendingVendorCredits') | currency:'USD':'symbol':'1.0-0' }} approved or declined, not processed yet</div>
       </div>
     </div>
 
@@ -59,7 +59,7 @@
           <button type="button" class="chip" [class.active]="filter === 'over'" (click)="setFilter('over')">Over limit <span class="chip-count">{{ count('over') }}</span></button>
           <button type="button" class="chip" [class.active]="filter === 'pastdue'" (click)="setFilter('pastdue')">Past due <span class="chip-count">{{ count('pastdue') }}</span></button>
           <button type="button" class="chip" [class.active]="filter === 'hold'" (click)="setFilter('hold')">Credit hold <span class="chip-count">{{ count('hold') }}</span></button>
-          <button type="button" class="chip" [class.active]="filter === 'credits'" (click)="setFilter('credits')">Vendor credits <span class="chip-count">{{ count('credits') }}</span></button>
+          <button type="button" class="chip" [class.active]="filter === 'credits'" (click)="setFilter('credits')">Vendor approvals <span class="chip-count">{{ count('credits') }}</span></button>
           <button type="button" class="chip" [class.active]="filter === 'all'" (click)="setFilter('all')">All <span class="chip-count">{{ count('all') }}</span></button>
         </div>
         <div class="toolbar-actions">
@@ -103,7 +103,7 @@
                 <td>
                   <span class="status-badge status-hold" *ngIf="m.onHold">Credit hold</span>
                   <span class="status-badge status-exception" *ngIf="overLimit(m)">Over limit</span>
-                  <span class="status-badge status-violet" *ngIf="m.pendingVendorCreditCount">{{ m.pendingVendorCreditCount }} vendor credit{{ m.pendingVendorCreditCount === 1 ? '' : 's' }}</span>
+                  <span class="status-badge status-violet" *ngIf="m.pendingVendorCreditCount">{{ m.pendingVendorCreditCount }} vendor approval{{ m.pendingVendorCreditCount === 1 ? '' : 's' }}</span>
                   <span class="status-badge status-ready" *ngIf="!m.onHold && !overLimit(m) && !m.pendingVendorCreditCount">OK</span>
                 </td>
               </tr>
@@ -280,33 +280,39 @@
 
           <!-- Vendor POs -->
           <table class="desk-table compact" *ngIf="tab === 'vendorpos'">
-            <thead><tr><th>Vendor</th><th>PO</th><th>Date</th><th class="num">Amount</th><th class="num">Billed</th><th class="num">Still open</th></tr></thead>
+            <thead><tr><th>Vendor</th><th>PO</th><th>Date</th><th>Auth code</th><th class="num">Amount</th><th class="num">Billed</th><th class="num">Still open</th></tr></thead>
             <tbody>
               <tr *ngFor="let v of m.vendorPos">
                 <td><div class="member-name">{{ v.vendorName || v.vendorId }}</div><div class="member-sub mono">{{ v.vendorId }}</div></td>
                 <td>{{ v.po || '—' }}</td>
                 <td>{{ v.poDate | date:'MMM d, y' }}</td>
+                <td>
+                  <span class="cd-code" *ngIf="v.authorizationCode && !v.authorizationCode.startsWith('Please call')">{{ v.authorizationCode }}</span>
+                  <span class="status-badge status-hold" *ngIf="v.authorizationCode?.startsWith('Please call')">Declined</span>
+                  <span class="faint" *ngIf="!v.authorizationCode" title="No credit approval found for this vendor and PO">—</span>
+                </td>
                 <td class="num">{{ v.amount | currency }}</td>
                 <td class="num">{{ v.billed | currency }}</td>
                 <td class="num strong">{{ v.net | currency }}</td>
               </tr>
-              <tr *ngIf="!m.vendorPos.length"><td colspan="6" class="empty-inline">No direct-vendor POs against this member.</td></tr>
+              <tr *ngIf="!m.vendorPos.length"><td colspan="7" class="empty-inline">No direct-vendor POs against this member.</td></tr>
             </tbody>
           </table>
 
           <!-- Vendor credit approvals -->
           <table class="desk-table compact" *ngIf="tab === 'credits'">
-            <thead><tr><th>Requested</th><th>Vendor</th><th>PO</th><th class="num">Amount</th><th>Auth code</th><th>By</th></tr></thead>
+            <thead><tr><th>Requested</th><th>Vendor</th><th>PO</th><th class="num">Amount</th><th>Auth code</th><th>Result</th><th>By</th></tr></thead>
             <tbody>
               <tr *ngFor="let a of m.vendorApprovals">
                 <td>{{ a.requested | date:'MMM d, y' }}</td>
                 <td>{{ a.vendorName || a.vendorId }}</td>
                 <td>{{ a.po || '—' }}</td>
                 <td class="num">{{ a.amount | currency }}</td>
-                <td><span class="status-badge" [ngClass]="a.declined ? 'status-hold' : 'status-ready'">{{ a.declined ? 'Declined' : a.authorizationCode }}</span></td>
+                <td><span class="cd-code" *ngIf="!a.declined">{{ a.authorizationCode }}</span><span class="faint" *ngIf="a.declined">—</span></td>
+                <td><span class="status-badge" [ngClass]="a.declined ? 'status-hold' : 'status-ready'">{{ a.declined ? 'Declined: call PRO' : 'Approved' }}</span></td>
                 <td>{{ a.requestedBy || '—' }}</td>
               </tr>
-              <tr *ngIf="!m.vendorApprovals.length"><td colspan="6" class="empty-inline">No vendor credit approvals waiting.</td></tr>
+              <tr *ngIf="!m.vendorApprovals.length"><td colspan="7" class="empty-inline">No vendor approvals waiting.</td></tr>
             </tbody>
           </table>
         </div>
